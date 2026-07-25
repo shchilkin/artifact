@@ -32,6 +32,26 @@
   min-width: 0;
 }
 
+.node-canvas-workspace,
+.node-canvas-flow {
+  background: var(--editor-canvas-bg);
+}
+
+.node-canvas-flow {
+  --xy-background-color-default: var(--editor-canvas-bg);
+  --xy-background-pattern-color-default: var(--editor-grid-dot);
+  --xy-controls-button-background-color-default: var(--surface-control);
+  --xy-controls-button-background-color-hover-default: var(--surface-control-hover);
+  --xy-controls-button-color-default: var(--text-secondary);
+  --xy-controls-button-color-hover-default: var(--text-primary);
+  --xy-controls-button-border-color-default: var(--line-default);
+  --xy-edge-stroke-default: var(--node-edge-idle);
+  --xy-edge-stroke-selected-default: var(--editor-selection-outline);
+  --xy-selection-background-color-default: color-mix(in oklch, var(--accent-soft) 54%, transparent);
+  --xy-selection-border-default: 1px dashed var(--editor-selection-outline);
+  --xy-attribution-background-color-default: color-mix(in oklch, var(--surface-app) 86%, transparent);
+}
+
 .react-flow__node {
   padding: 0;
   border: none;
@@ -139,26 +159,27 @@
 }
 
 .react-flow__controls {
-  background: var(--node-surface);
-  border: 1px solid var(--node-border-strong);
+  background: var(--surface-control);
+  border: 1px solid var(--line-default);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: none;
 }
 
 .react-flow__controls-button {
   background: transparent;
-  border-bottom: 1px solid var(--node-border);
-  color: var(--node-text-dim);
-  fill: var(--node-text-dim);
-  width: var(--touch);
-  height: var(--touch);
+  border-bottom: 1px solid var(--line-default);
+  color: var(--text-secondary);
+  fill: var(--text-secondary);
+  width: var(--control-h-default);
+  height: var(--control-h-default);
   padding: 10px;
 }
 
 .react-flow__controls-button:hover {
-  background: var(--node-surface-raised);
-  color: var(--node-text);
-  fill: var(--node-text);
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+  fill: var(--text-primary);
 }
 
 .react-flow__controls-button:last-child {
@@ -166,7 +187,7 @@
 }
 
 .react-flow__controls-button:focus-visible {
-  outline: 2px solid var(--node-focus);
+  outline: var(--focus-ring);
   outline-offset: -2px;
 }
 
@@ -175,7 +196,18 @@
 }
 
 .react-flow__attribution {
-  display: none;
+  border: 1px solid color-mix(in oklch, var(--line-default) 58%, transparent);
+  border-radius: var(--radius-md) 0 0;
+  background: color-mix(in oklch, var(--surface-app) 86%, transparent);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-xs);
+  line-height: var(--leading-ui);
+  opacity: 0.76;
+}
+
+.react-flow__attribution a {
+  color: inherit;
 }
 
 .react-flow__edge .react-flow__edge-path {
@@ -184,30 +216,26 @@
   transition:
     opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
     stroke 140ms cubic-bezier(0.22, 1, 0.36, 1),
-    stroke-width 140ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 140ms cubic-bezier(0.22, 1, 0.36, 1);
+    stroke-width 140ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .react-flow__edge:not(.node-edge-output-path):not(.node-edge-selected) .react-flow__edge-path {
-  filter: drop-shadow(0 0 2px color-mix(in oklch, var(--node-bg) 86%, transparent))
-    drop-shadow(0 0 5px color-mix(in oklch, var(--node-edge-idle) 24%, transparent));
+  filter: none;
 }
 
 .react-flow__edge.node-edge-output-path:not(.node-edge-selected) .react-flow__edge-path {
-  filter: drop-shadow(0 0 2px color-mix(in oklch, var(--node-bg) 82%, transparent))
-    drop-shadow(0 0 6px color-mix(in oklch, var(--node-edge-output) 42%, transparent));
+  filter: none;
 }
 
 .react-flow__edge.node-edge-selected .react-flow__edge-path {
-  filter: drop-shadow(0 0 2px color-mix(in oklch, var(--node-bg) 82%, transparent))
-    drop-shadow(0 0 9px color-mix(in oklch, var(--node-edge-selection-color) 52%, transparent));
+  filter: none;
 }
 
 .react-flow__edge.node-edge-add-target .react-flow__edge-path {
-  stroke: var(--node-edge-idle);
+  stroke: var(--accent-primary);
   stroke-width: 3;
   opacity: 0.95;
-  filter: drop-shadow(0 0 7px color-mix(in oklch, var(--accent) 42%, transparent));
+  filter: none;
 }
 
 .nodrag {
@@ -1786,12 +1814,10 @@
   align-items: center;
   gap: 2px;
   padding: 3px;
-  border: 1px solid color-mix(in oklch, var(--node-border-strong) 62%, transparent);
+  border: 1px solid var(--line-default);
   border-radius: var(--radius-lg);
-  background: color-mix(in oklch, var(--node-bg) 90%, var(--node-surface));
-  box-shadow:
-    0 0 0 1px color-mix(in oklch, var(--node-bg) 90%, transparent),
-    0 8px 0 color-mix(in oklch, var(--node-bg) 20%, transparent);
+  background: color-mix(in oklch, var(--surface-panel) 94%, transparent);
+  box-shadow: none;
   pointer-events: none;
 }
 
@@ -1803,7 +1829,7 @@
   align-items: stretch;
   gap: 2px;
   border: 0;
-  border-right: 1px solid color-mix(in oklch, var(--node-border) 58%, transparent);
+  border-right: 1px solid var(--line-muted);
   background: transparent;
   padding-right: 2px;
 }
@@ -1818,7 +1844,7 @@
 }
 
 .node-toolbar-group-debug {
-  background: color-mix(in oklch, var(--node-bg) 48%, transparent);
+  background: color-mix(in oklch, var(--surface-app) 54%, transparent);
 }
 
 .node-toolbar-group-label {
@@ -1840,11 +1866,11 @@
   padding: 0 12px;
   border-radius: var(--control-radius);
   border: 1px solid transparent;
-  background: color-mix(in oklch, var(--node-surface) 34%, transparent);
-  color: color-mix(in oklch, var(--node-text) 92%, var(--node-text-dim));
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
+  background: color-mix(in oklch, var(--surface-control) 34%, transparent);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-xs);
+  letter-spacing: var(--tracking-command);
   white-space: nowrap;
   text-transform: uppercase;
   cursor: pointer;
@@ -1855,40 +1881,40 @@
 }
 
 .node-canvas-toolbar button:hover {
-  border-color: color-mix(in oklch, var(--node-border-strong) 64%, transparent);
-  background: color-mix(in oklch, var(--node-surface-raised) 76%, var(--node-bg));
-  color: var(--node-text);
+  border-color: var(--line-strong);
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
 }
 
 .node-canvas-toolbar button:disabled {
-  opacity: 0.34;
+  opacity: var(--state-disabled-opacity);
   cursor: default;
-  color: var(--node-text-muted);
+  color: var(--text-muted);
 }
 
 .node-canvas-toolbar button:disabled:hover {
   background: transparent;
   border-color: transparent;
-  color: var(--node-text-muted);
+  color: var(--text-muted);
 }
 
 .node-canvas-toolbar button[aria-pressed="true"] {
-  background: color-mix(in oklch, var(--accent) 12%, var(--node-surface-raised));
-  color: var(--accent);
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent) 34%, transparent);
+  background: var(--surface-control-selected);
+  color: var(--accent-primary);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent-primary) 34%, transparent);
 }
 
 .node-toolbar-group-debug button:not([aria-pressed="true"]) {
-  color: color-mix(in oklch, var(--node-text-dim) 82%, var(--node-text));
+  color: var(--text-secondary);
 }
 
 .node-canvas-toolbar .node-toolbar-account {
-  background: color-mix(in oklch, var(--accent) 9%, var(--node-surface));
-  color: var(--accent);
+  background: color-mix(in oklch, var(--accent-soft) 52%, var(--surface-control));
+  color: var(--accent-primary);
 }
 
 .node-canvas-toolbar .node-toolbar-account:hover {
-  background: color-mix(in oklch, var(--accent) 15%, var(--node-surface-raised));
+  background: color-mix(in oklch, var(--accent-soft) 70%, var(--surface-control-hover));
 }
 
 .node-perf-overlay {
@@ -1927,16 +1953,15 @@
   border: 1px solid var(--node-border);
   border-radius: var(--control-radius) var(--control-radius) 0 0;
   border-bottom: 0;
-  background: color-mix(in oklch, var(--node-surface) 92%, transparent);
-  color: var(--node-text-dim);
+  background: color-mix(in oklch, var(--surface-panel) 94%, transparent);
+  color: var(--text-secondary);
   cursor: grab;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: var(--type-editor-meta);
   letter-spacing: 0.09em;
   padding: 0 8px 0 10px;
   text-transform: uppercase;
   user-select: none;
-  backdrop-filter: blur(10px);
 }
 
 .node-perf-header:active {
@@ -1945,14 +1970,13 @@
 
 .node-perf-status,
 .node-perf-grid {
-  border: 1px solid var(--node-border);
-  background: color-mix(in oklch, var(--node-surface) 88%, transparent);
-  color: var(--node-text);
-  font-family: var(--mono);
+  border: 1px solid var(--line-default);
+  background: color-mix(in oklch, var(--surface-panel) 94%, transparent);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  backdrop-filter: blur(10px);
 }
 
 .node-perf-status {
@@ -1968,8 +1992,8 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 20%, transparent);
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .node-perf-grid {
@@ -2057,10 +2081,8 @@
 
 .node-alignment-guide {
   position: absolute;
-  background: var(--node-accent);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--workspace-bg) 40%, transparent),
-    0 0 16px color-mix(in srgb, var(--node-accent) 55%, transparent);
+  background: var(--editor-selection-outline);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--surface-workspace) 52%, transparent);
 }
 
 .node-alignment-guide-vertical {
@@ -2073,11 +2095,9 @@
 
 .node-area {
   position: absolute;
-  border: 1px solid color-mix(in srgb, var(--node-area-color) 68%, transparent);
-  background:
-    linear-gradient(color-mix(in srgb, var(--node-area-color) 8%, transparent), transparent),
-    color-mix(in srgb, var(--node-area-color) 5%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--workspace-bg) 74%, transparent);
+  border: 1px dashed color-mix(in oklch, var(--node-area-color) 58%, var(--line-default));
+  background: color-mix(in oklch, var(--node-area-color) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--surface-workspace) 74%, transparent);
 }
 
 .node-area-collapsed {
@@ -2085,16 +2105,16 @@
 }
 
 .node-area-selected {
-  border-color: color-mix(in srgb, var(--node-area-color) 88%, var(--node-text));
+  border-style: solid;
+  border-color: color-mix(in oklch, var(--node-area-color) 86%, var(--text-primary));
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--node-area-color) 35%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--node-area-color) 22%, transparent),
-    0 0 0 5px color-mix(in srgb, var(--node-area-color) 10%, transparent);
+    inset 0 0 0 1px color-mix(in oklch, var(--node-area-color) 32%, transparent),
+    0 0 0 2px color-mix(in oklch, var(--node-area-color) 18%, transparent);
 }
 
 .node-area-selected .node-area-label {
-  border-color: color-mix(in srgb, var(--node-area-color) 76%, var(--node-text));
-  background: color-mix(in srgb, var(--node-area-color) 16%, var(--node-surface));
+  border-color: color-mix(in oklch, var(--node-area-color) 74%, var(--text-primary));
+  background: color-mix(in oklch, var(--node-area-color) 14%, var(--surface-panel));
 }
 
 .react-flow:has(.react-flow__node.dragging) .node-area {
@@ -2116,13 +2136,13 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 28px;
+  min-height: var(--control-h-default);
   padding: 0 8px 0 10px;
-  border: 1px solid color-mix(in srgb, var(--node-area-color) 45%, var(--node-border));
+  border: 1px solid color-mix(in oklch, var(--node-area-color) 42%, var(--line-default));
   border-radius: var(--control-radius);
-  background: color-mix(in srgb, var(--node-surface) 86%, transparent);
-  color: var(--node-text);
-  font-family: var(--mono);
+  background: color-mix(in oklch, var(--surface-panel) 94%, transparent);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
   font-size: var(--type-editor-meta);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2134,6 +2154,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  min-height: var(--control-h-default);
   border: 0;
   padding: 0;
   background: transparent;
@@ -2160,24 +2181,24 @@
 }
 
 .node-area-count {
-  color: var(--node-text-dim);
+  color: var(--text-secondary);
 }
 
 .node-area-remove {
   display: inline-grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  width: var(--control-h-default);
+  height: var(--control-h-default);
   border: none;
   background: transparent;
-  color: var(--node-text-dim);
+  color: var(--text-secondary);
   cursor: pointer;
   font: inherit;
   line-height: 1;
 }
 
 .node-area-remove:hover {
-  color: var(--node-text);
+  color: var(--text-primary);
 }
 
 .node-menu {

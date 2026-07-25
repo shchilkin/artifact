@@ -1513,6 +1513,8 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
     .first()
     .evaluate((button) => (button as HTMLButtonElement).click());
   await expect(page.locator('.node-area').first()).toHaveClass(/node-area-selected/);
+  await expect(page.locator('.node-area').first()).toHaveAttribute('data-canvas-chrome-state', 'selected');
+  await expect(page.locator('.node-canvas-root')).toHaveAttribute('data-canvas-chrome-surface', 'graph-viewport');
 
   await clickEditorControl(page.getByRole('button', { name: 'Show performance debug overlay' }));
   const stateStyles = await page.evaluate(() => {
@@ -1635,6 +1637,7 @@ test('node graph highlights the active output path and exposes output navigation
   await expect(page.getByRole('button', { name: 'Fit output path' })).toHaveCount(0);
   await expect(page.locator('.react-flow__controls')).toBeVisible();
   await expect(page.locator('.react-flow__controls-button')).toHaveCount(3);
+  await expect(page.locator('.react-flow__attribution')).toBeVisible();
   await expect(page.locator('.node-shell-kind-export')).toBeVisible();
 });
 

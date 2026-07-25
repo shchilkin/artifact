@@ -557,10 +557,11 @@ export function NodeCanvas({
   return (
     <NodeCanvasPreviewContext.Provider value={previewContextValue}>
       <NodeCanvasActionsContext.Provider value={actionsContextValue}>
-        <div className="node-canvas-root relative flex h-full w-full bg-[var(--bg)]">
+        <div className="node-canvas-root relative flex h-full w-full" data-canvas-chrome-surface="graph-viewport">
           <div
             ref={canvasSurfaceRef}
-            className="relative min-w-0 flex-1 overflow-hidden"
+            className="node-canvas-workspace relative min-w-0 flex-1 overflow-hidden"
+            data-canvas-chrome-state="workspace"
             onDragEnter={onNodeFileDragEnter}
             onDragOver={onNodeFileDragOver}
             onDragLeave={onNodeFileDragLeave}
@@ -580,6 +581,7 @@ export function NodeCanvas({
             />
 
             <ReactFlow
+              className="node-canvas-flow"
               nodes={dragNodes}
               edges={displayedDragEdges}
               onNodesChange={handleNodesChange}
@@ -616,7 +618,7 @@ export function NodeCanvas({
               nodesFocusable={false}
               proOptions={RF_PRO_OPTIONS}
             >
-              <Background variant={BackgroundVariant.Dots} gap={20} size={4} color="var(--node-grid)" />
+              <Background variant={BackgroundVariant.Dots} gap={20} size={4} color="var(--editor-grid-dot)" />
               <ViewportPortal>
                 <GraphAreaOverlay
                   graph={graph}
@@ -627,7 +629,7 @@ export function NodeCanvas({
                 />
                 <NodeAlignmentGuideOverlay guides={alignmentGuides} />
               </ViewportPortal>
-              <Controls showInteractive={false} />
+              <Controls className="node-canvas-viewport-controls" showInteractive={false} />
             </ReactFlow>
             <NodePerformanceOverlay debugEnabled={perfDebugEnabled} nodeCount={dragNodes.length} />
             <div className="node-add-drop-hint node-add-drop-hint-idle" aria-hidden="true">
@@ -716,7 +718,7 @@ export function NodeCanvas({
 function NodeAlignmentGuideOverlay({ guides }: { guides: NodeAlignmentGuide[] }) {
   if (!guides.length) return null;
   return (
-    <div className="node-alignment-guides" aria-hidden="true">
+    <div className="node-alignment-guides" data-canvas-chrome-state="alignment-guides" aria-hidden="true">
       {guides.map((guide, index) => {
         const length = Math.max(1, guide.to - guide.from);
         const style =
@@ -1261,7 +1263,12 @@ function NodeCanvasToolbar({
   onTogglePerfDebug: () => void;
 }) {
   return (
-    <div className="node-canvas-toolbar" role="toolbar" aria-label="Node editor actions">
+    <div
+      className="node-canvas-toolbar"
+      role="toolbar"
+      aria-label="Node editor actions"
+      data-canvas-chrome-state="toolbar"
+    >
       <div className="node-toolbar-group node-toolbar-group-build" aria-label="Build actions">
         <span className="node-toolbar-group-label" aria-hidden="true">
           Build

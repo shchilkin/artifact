@@ -122,7 +122,22 @@ function NodeCanvasSpecimen() {
       </Toolbar>
       <div className="canvas-chrome-graph-area" data-canvas-chrome-state="area">
         <span>Cover system</span>
+        <div className="canvas-chrome-area-state-key" aria-label="Graph area state references">
+          <i data-canvas-chrome-state="area-default">Default</i>
+          <i data-canvas-chrome-state="area-selected">Selected</i>
+          <i data-canvas-chrome-state="area-collapsed">Collapsed</i>
+          <i data-canvas-chrome-state="area-empty">Empty</i>
+          <i data-canvas-chrome-state="area-dragging">Dragging</i>
+        </div>
       </div>
+      <div
+        className="canvas-chrome-selection-marquee"
+        data-canvas-chrome-state="selection-marquee"
+        aria-hidden="true"
+      />
+      <span className="canvas-chrome-attribution" data-canvas-chrome-state="vendor-attribution">
+        React Flow
+      </span>
       <div className="canvas-chrome-alignment-guides" data-canvas-chrome-state="alignment-guide" aria-hidden="true">
         <span />
         <span />

@@ -5,6 +5,13 @@ const specimenStates = {
   'node-canvas': [
     'grid',
     'area',
+    'area-default',
+    'area-selected',
+    'area-collapsed',
+    'area-empty',
+    'area-dragging',
+    'selection-marquee',
+    'vendor-attribution',
     'selected-node',
     'output-path',
     'connected-port',

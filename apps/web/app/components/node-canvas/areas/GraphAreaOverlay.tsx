@@ -19,12 +19,15 @@ export function GraphAreaOverlay({ graph, nodes, selectedAreaId, onSelectArea, o
 
   return (
     <div className="node-area-overlay" aria-hidden={false}>
-      {bounds.map(({ area, x, y, width, height, nodeCount, segmentIndex }) => (
+      {bounds.map(({ area, x, y, width, height, nodeCount, segmentIndex, segmentCount }) => (
         <div
           key={`${area.id}:${segmentIndex}`}
           className={`node-area${area.collapsed ? ' node-area-collapsed' : ''}${
             selectedAreaId === area.id ? ' node-area-selected' : ''
           }`}
+          data-canvas-chrome-surface="graph-area"
+          data-canvas-chrome-state={selectedAreaId === area.id ? 'selected' : area.collapsed ? 'collapsed' : 'default'}
+          data-canvas-area-segment={`${segmentIndex + 1}/${segmentCount}`}
           style={{
             left: x,
             top: y,
