@@ -14,11 +14,8 @@ import {
   type ResolvedMaterialConfig,
   updateSceneAccentLights,
 } from '../utils/primitiveScene';
-import {
-  resolveViewport3DStatus,
-  Viewport3DStatusOverlay,
-  viewport3DClassName,
-} from './canvas-chrome/Viewport3DChrome';
+import { Viewport3DStatusOverlay } from './canvas-chrome/Viewport3DChrome';
+import { resolveViewport3DStatus, viewport3DClassName } from './canvas-chrome/viewport3DChromeState';
 import {
   defaultPrimitiveViewportState,
   type PrimitiveRenderMode,

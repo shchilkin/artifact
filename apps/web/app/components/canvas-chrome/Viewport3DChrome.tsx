@@ -1,48 +1,9 @@
 import type { MouseEvent, ReactNode } from 'react';
 
 import { ToolbarButton } from '../ui/Toolbar';
+import type { Viewport3DStatus } from './viewport3DChromeState';
 
 import './viewport-3d-chrome.css';
-
-export type Viewport3DStatus = 'loading' | 'ready' | 'unavailable' | 'failed';
-
-export function resolveViewport3DStatus({
-  hasRenderedFrame,
-  unavailable = false,
-  failed = false,
-}: {
-  hasRenderedFrame: boolean;
-  unavailable?: boolean;
-  failed?: boolean;
-}): Viewport3DStatus {
-  if (unavailable) return 'unavailable';
-  if (failed) return 'failed';
-  return hasRenderedFrame ? 'ready' : 'loading';
-}
-
-export function viewport3DClassName({
-  className,
-  interactive,
-  locked,
-  status,
-}: {
-  className?: string;
-  interactive: boolean;
-  locked: boolean;
-  status: Viewport3DStatus;
-}) {
-  return [
-    'artifact-viewport3d',
-    'node-interactive-viewport',
-    `artifact-viewport3d--${status}`,
-    interactive ? 'artifact-viewport3d--interactive' : 'artifact-viewport3d--passive',
-    locked ? 'artifact-viewport3d--locked' : 'artifact-viewport3d--unlocked',
-    className,
-    locked || !interactive ? null : 'nodrag nopan nowheel',
-  ]
-    .filter(Boolean)
-    .join(' ');
-}
 
 export function Viewport3DStatusOverlay({
   status,
@@ -59,14 +20,15 @@ export function Viewport3DStatusOverlay({
 }) {
   const showStatus = status !== 'ready' || secondaryStatus;
   const showFallback = status === 'unavailable' || status === 'failed';
+  const badgeLabel = showFallback ? (status === 'failed' ? 'Failed' : 'Unavailable') : label;
 
   return (
     <>
       {showStatus ? (
         <div className="artifact-viewport3d__status" aria-live="polite">
           {status !== 'ready' ? (
-            <span className="artifact-viewport3d__status-badge" data-viewport-3d-status={status}>
-              {label}
+            <span className="artifact-viewport3d__status-badge" data-viewport-3d-status={status} aria-label={label}>
+              {badgeLabel}
             </span>
           ) : null}
           {secondaryStatus ? (

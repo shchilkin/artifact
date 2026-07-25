@@ -648,9 +648,11 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     clearTimeout(debounceRef.current);
     if (thumbnailEffectShouldPause(isFrameVisible, priority, isGraphDraggingRef)) return () => undefined;
     if (drawCachedThumbnail(previewKey, canvasRef, previewSize, setHasRendered, setRenderedPreviewKey)) {
+      setFailedPreviewKey(null);
       return () => undefined;
     }
 
+    setFailedPreviewKey(null);
     debounceRef.current = setTimeout(
       () => {
         scheduleThumbnailRender(
@@ -663,6 +665,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
                 setHasRendered,
                 setRenderedPreviewKey,
               });
+              setFailedPreviewKey(null);
             } catch {
               setFailedPreviewKey(previewKey);
             }

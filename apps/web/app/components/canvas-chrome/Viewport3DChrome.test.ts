@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveViewport3DStatus, viewport3DClassName } from './Viewport3DChrome';
+import { resolveViewport3DStatus, viewport3DClassName } from './viewport3DChromeState';
 
 describe('Viewport3DChrome', () => {
   it('prioritizes unavailable and failed states over loading or ready frames', () => {

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { CanvasPreviewRenderStatus } from './CanvasPreview';
+import { CanvasPreviewEmptyState, CanvasPreviewRenderStatus } from './CanvasPreview';
 import { resolveCanvasPreviewState } from './canvasPreviewState';
 
 describe('CanvasPreview chrome states', () => {
@@ -47,5 +47,14 @@ describe('CanvasPreview chrome states', () => {
     expect(html).toContain('data-canvas-preview-status="loading"');
     expect(html).toContain('role="progressbar"');
     expect(html).toContain('aria-label="Preparing canvas preview"');
+  });
+
+  it('renders an actionable Foundation empty state inside the preview', () => {
+    const html = renderToStaticMarkup(<CanvasPreviewEmptyState onStart={vi.fn()} />);
+
+    expect(html).toContain('artifact-empty-state');
+    expect(html).toContain('data-canvas-preview-status="empty"');
+    expect(html).toContain('Empty canvas');
+    expect(html).toContain('Add text');
   });
 });

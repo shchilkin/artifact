@@ -84,6 +84,21 @@
   flex: 1;
 }
 
+.canvas-preview-empty-state {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  z-index: var(--z-overlay);
+  width: min(360px, calc(100% - var(--space-6)));
+  border: 1px solid var(--line-default);
+  background: color-mix(in oklch, var(--surface-panel-raised) 96%, transparent);
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.canvas-preview-empty-state .artifact-empty-state-actions {
+  justify-content: center;
+}
+
 .canvas-drop-overlay {
   gap: var(--space-2);
   border-color: var(--accent-primary);
