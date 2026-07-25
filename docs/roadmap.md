@@ -20,14 +20,16 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.46.0 is a locally validated release candidate for the Artifact Inspector
-  System. Layers, common graph properties, effect/material/scene controls, and
-  Code Shader/AI Shader authoring now use one source-owned inspector language
-  with accessible field, status, validation, disclosure, and read-only
-  patterns. The release preserves document, graph, renderer, persistence,
-  export, provider, and AI capability boundaries. Local `check`, build, and the
-  552-scenario browser release gate passed on 2026-07-24; publication and
-  milestone closure remain pending. See
+- v0.46.0 was released on 2026-07-25 as the Artifact Inspector System release.
+  Layers, common graph properties, effect/material/scene controls, and Code
+  Shader/AI Shader authoring now use one source-owned inspector language with
+  accessible field, status, validation, disclosure, and read-only patterns.
+  Tag `v0.46.0` resolves to production commit
+  `00beb40dfa0b0c774eb7b3aff5664bee72e1a8d8`; exact-SHA staging, production
+  API contract version 1, and production web verification passed before
+  publication. All six delivery issues and milestone #6 are closed. The
+  release preserves document, graph, renderer, persistence, export, provider,
+  and AI capability boundaries. See
   [`version-plans/v0.46.md`](./version-plans/v0.46.md) and
   [`releases/v0.46.0.md`](./releases/v0.46.0.md).
 - v0.45.1 was released on 2026-07-23 as the bounded Site Navigation Hotfix. It
@@ -928,13 +930,14 @@ current scope.
 
 ### Current Status
 
-The current released baseline is `v0.45.0` Editor Workflows. v0.42 established
-the shared UI Foundation, v0.43 proved the Backoffice UI System, v0.44
-completed the non-editor Artifact product surfaces, and v0.45 completed the
-editor shell, Layers organization, and Add Library. Editor migration remains
-sequenced through v0.46-v0.48; new AI-assisted creation resumes only after that
-gate in v0.49. Earlier version plans are release history, not active target
-buckets. Their detailed acceptance criteria and validation notes live under
+The current released baseline is `v0.46.0` Artifact Inspector System. v0.42
+established the shared UI Foundation, v0.43 proved the Backoffice UI System,
+v0.44 completed the non-editor Artifact product surfaces, v0.45 completed the
+editor shell, Layers organization, and Add Library, and v0.46 completed the
+property-inspector migration. Editor migration remains sequenced through
+v0.47-v0.48; new AI-assisted creation resumes only after that gate in v0.49.
+Earlier version plans are release history, not active target buckets. Their
+detailed acceptance criteria and validation notes live under
 `docs/version-plans/` and `docs/releases/`.
 
 Current shipped baseline:
@@ -1377,8 +1380,7 @@ candidate track.
 
 Recommended order:
 
-1. Promote the locally validated v0.46 Inspector System release candidate,
-   then continue with node-canvas, preview, and 3D chrome in v0.47.
+1. Continue with node-canvas, preview, and 3D chrome in v0.47.
 2. Close compatibility aliases and cross-app conformance in v0.48.
 3. Resume new AI-assisted creation in v0.49 only after the UI-system gate.
 
