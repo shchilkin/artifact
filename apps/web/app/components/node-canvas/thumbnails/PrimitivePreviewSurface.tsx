@@ -1,4 +1,4 @@
-import { type MouseEvent, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   DEFAULT_MATERIAL_CONFIG,
@@ -7,6 +7,7 @@ import {
   type MaterialConfig,
   type PrimitiveLayer,
 } from '../../../types/config';
+import { Viewport3DControlStrip } from '../../canvas-chrome/Viewport3DChrome';
 import { LazyPrimitiveViewport3D } from '../../LazyViewport3D';
 import {
   defaultPrimitiveViewportState,
@@ -250,6 +251,8 @@ function SelectedPrimitiveSurface({
   return (
     <div
       className={primitivePreviewSurfaceClassName(locked)}
+      data-viewport-3d-workspace="primitive"
+      data-viewport-3d-workspace-state={locked ? 'locked' : 'active'}
       onMouseEnter={() => {
         if (!locked) onViewportActive(layer.id, true);
       }}
@@ -271,12 +274,12 @@ function SelectedPrimitiveSurface({
           onUpdatePrimitiveView(layer.id, next, 'snapshot');
         }}
       />
-      <PrimitiveCameraStrip
-        layerId={layer.id}
+      <Viewport3DControlStrip
+        scope="camera"
         locked={locked}
-        viewState={viewState}
-        onOpenGallery={onOpenGallery}
-        onResetCamera={onResetCamera}
+        zoom={viewState.zoom}
+        onOpenPreview={() => onOpenGallery(layer.id)}
+        onReset={onResetCamera}
         onToggleLocked={onToggleLocked}
       />
     </div>
@@ -287,86 +290,6 @@ function primitivePreviewSurfaceClassName(locked: boolean) {
   return locked
     ? 'node-preview-surface primitive-preview-surface primitive-preview-surface-locked'
     : 'node-preview-surface primitive-preview-surface nodrag nopan nowheel';
-}
-
-function PrimitiveCameraStrip({
-  layerId,
-  locked,
-  viewState,
-  onOpenGallery,
-  onResetCamera,
-  onToggleLocked,
-}: {
-  layerId: string;
-  locked: boolean;
-  viewState: PrimitiveViewportState;
-  onOpenGallery: (targetId: string) => void;
-  onResetCamera: () => void;
-  onToggleLocked: (locked: boolean) => void;
-}) {
-  return (
-    <div className="primitive-node-camera-strip nodrag nopan nowheel" data-primitive-camera-control>
-      <span className="primitive-node-camera-hint" aria-hidden="true">
-        {primitiveCameraHint(locked, viewState)}
-      </span>
-      <div className="primitive-node-camera-actions">
-        <PrimitiveCameraButton
-          active={locked}
-          ariaLabel={locked ? 'Unlock camera' : 'Lock camera'}
-          ariaPressed={locked}
-          onClick={() => onToggleLocked(!locked)}
-        >
-          {locked ? 'LOCK' : 'FREE'}
-        </PrimitiveCameraButton>
-        <PrimitiveCameraButton
-          ariaLabel="Open preview"
-          onClick={(event) => {
-            stopNodeEvent(event);
-            onOpenGallery(layerId);
-          }}
-        >
-          VIEW
-        </PrimitiveCameraButton>
-        <PrimitiveCameraButton ariaLabel="Reset camera" onClick={onResetCamera}>
-          RESET
-        </PrimitiveCameraButton>
-      </div>
-    </div>
-  );
-}
-
-function primitiveCameraHint(locked: boolean, viewState: PrimitiveViewportState) {
-  return locked ? 'camera locked' : `camera ${Math.round(viewState.zoom * 100)}%`;
-}
-
-function PrimitiveCameraButton({
-  active,
-  ariaLabel,
-  ariaPressed,
-  children,
-  onClick,
-}: {
-  active?: boolean;
-  ariaLabel: string;
-  ariaPressed?: boolean;
-  children: string;
-  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`nodrag nopan nowheel primitive-camera-button${active ? ' primitive-camera-button-active' : ''}`}
-      aria-label={ariaLabel}
-      aria-pressed={ariaPressed}
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onClick(event);
-      }}
-    >
-      {children}
-    </button>
-  );
 }
 
 function primitiveViewStateKey(viewState: PrimitiveViewportState): string {
@@ -402,7 +325,11 @@ function PrimitiveViewportFrame({
   onViewStateChange: (viewState: PrimitiveViewportState) => void;
 }) {
   return (
-    <div className="node-primitive-live-frame">
+    <div
+      className="node-primitive-live-frame artifact-viewport3d-frame"
+      data-viewport-3d-frame="primitive"
+      data-viewport-3d-frame-state={viewState.locked ? 'locked' : 'active'}
+    >
       {bgPreviewTargetId ? <NodeThumbnail previewTargetId={bgPreviewTargetId} /> : <EmptyThumbnailFrame />}
       <div className="node-primitive-live-viewport-layer" style={{ pointerEvents: interactive ? 'auto' : 'none' }}>
         <LazyPrimitiveViewport3D

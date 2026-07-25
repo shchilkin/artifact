@@ -297,15 +297,25 @@ function PrimitiveViewportSpecimen() {
       <div
         className="canvas-chrome-viewport canvas-chrome-primitive__frame canvas-chrome-primitive__frame--active"
         data-canvas-chrome-state="keyboard-focus"
+        data-viewport-3d-size="node"
         data-canvas-node-kind="primitive"
         role="group"
         aria-label="Active primitive viewport reference"
         tabIndex={0}
       >
-        <span className="canvas-chrome-viewport-status" data-canvas-chrome-state="active">
+        <span
+          className="canvas-chrome-viewport-status"
+          data-canvas-chrome-state="active"
+          data-viewport-3d-ownership="hover"
+        >
           Camera active
         </span>
-        <PrimitiveGlyph />
+        <div data-canvas-chrome-state="ready-passive">
+          <PrimitiveGlyph />
+        </div>
+        <span className="canvas-chrome-primitive__hover-state" data-canvas-chrome-state="hover-ownership">
+          Viewport owns camera gestures
+        </span>
         <Toolbar className="canvas-chrome-viewport-controls" aria-label="Primitive viewport controls">
           <ToolbarButton aria-pressed="false">Unlocked</ToolbarButton>
           <ToolbarButton data-canvas-chrome-state="reset">Reset</ToolbarButton>
@@ -317,6 +327,18 @@ function PrimitiveViewportSpecimen() {
           <span>Locked · graph gestures pass through</span>
         </div>
         <ReferenceState state="webgl-unavailable" label="3D unavailable" detail="Keep source frame · retry" />
+      </div>
+      <div className="canvas-chrome-primitive__state-grid" aria-label="3D workspace state references">
+        <ReferenceState state="loading" label="Loading 3D" detail="Source frame stays stable" />
+        <ReferenceState state="node-mode" label="Node frame" detail="Compact camera workspace" />
+        <ReferenceState state="modal-mode" label="Modal frame" detail="Expanded camera workspace" />
+        <ReferenceState state="scene-loading" label="Scene loading" detail="Model · material · environment" />
+        <ReferenceState state="scene-ready" label="Scene ready" detail="Canonical renderer connected" />
+        <ReferenceState state="scene-active" label="Scene active" detail="Camera gestures owned here" />
+        <ReferenceState state="scene-locked" label="Scene locked" detail="Graph gestures pass through" />
+        <ReferenceState state="model-missing" label="Model missing" detail="Replace or reconnect source" />
+        <ReferenceState state="environment-missing" label="Environment missing" detail="Reconnect EXR / HDR source" />
+        <ReferenceState state="environment-ready" label="Environment ready" detail="EXR / HDR lighting active" />
       </div>
     </div>
   );

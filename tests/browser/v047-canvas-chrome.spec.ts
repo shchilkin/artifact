@@ -38,7 +38,25 @@ const specimenStates = {
     'recovery',
   ],
   'node-gallery-canvas': ['ready', 'selected', 'keyboard-focus', 'loading', 'failed', 'narrow'],
-  'primitive-viewport-3d': ['active', 'locked', 'reset', 'keyboard-focus', 'webgl-unavailable'],
+  'primitive-viewport-3d': [
+    'loading',
+    'ready-passive',
+    'active',
+    'hover-ownership',
+    'locked',
+    'reset',
+    'keyboard-focus',
+    'webgl-unavailable',
+    'node-mode',
+    'modal-mode',
+    'scene-loading',
+    'scene-ready',
+    'scene-active',
+    'scene-locked',
+    'model-missing',
+    'environment-missing',
+    'environment-ready',
+  ],
 } as const;
 
 interface RgbaColor {

@@ -2488,6 +2488,18 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   const afterWheelTransform = await flowViewport.evaluate((element) => getComputedStyle(element).transform);
   expect(afterWheelTransform).toBe(beforeWheelTransform);
+  await page.getByRole('button', { name: 'Lock camera', exact: true }).click();
+  await expect(viewport).toHaveAttribute('data-viewport-3d-lock', 'locked');
+  await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera locked');
+  const beforeLockedWheelTransform = await flowViewport.evaluate((element) => getComputedStyle(element).transform);
+  await viewport.dispatchEvent('wheel', { deltaY: -240, bubbles: true, cancelable: true });
+  await expect
+    .poll(async () => flowViewport.evaluate((element) => getComputedStyle(element).transform))
+    .not.toBe(beforeLockedWheelTransform);
+  await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera locked');
+  await page.getByRole('button', { name: 'Unlock camera', exact: true }).click();
+  await expect(viewport).toHaveAttribute('data-viewport-3d-lock', 'unlocked');
+  await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   await expect
     .poll(async () =>
       page.evaluate(() => {

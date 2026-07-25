@@ -15,6 +15,11 @@ import {
   updateSceneAccentLights,
 } from '../utils/primitiveScene';
 import {
+  resolveViewport3DStatus,
+  Viewport3DStatusOverlay,
+  viewport3DClassName,
+} from './canvas-chrome/Viewport3DChrome';
+import {
   defaultPrimitiveViewportState,
   type PrimitiveRenderMode,
   type PrimitiveViewportState,
@@ -433,12 +438,6 @@ function endPrimitiveHover(isHoveredRef: MutableRefObject<boolean>, unlockRFPane
   unlockRFPane();
 }
 
-function primitiveViewportClassName(className: string | undefined, locked: boolean) {
-  return ['node-interactive-viewport', className, locked ? 'node-interactive-viewport-locked' : 'nodrag nopan nowheel']
-    .filter(Boolean)
-    .join(' ');
-}
-
 function primitiveCanvasClassName(locked: boolean, interactive: boolean) {
   return locked || !interactive ? undefined : 'nodrag nopan nowheel';
 }
@@ -502,28 +501,6 @@ function notifyPrimitiveHover(interactive: boolean, onHoverChange: Props['onHove
   if (interactive) onHoverChange?.(hovered);
 }
 
-function PrimitiveWebglFallback({ visible }: { visible: boolean }) {
-  if (!visible) return null;
-  return (
-    <div
-      className="node-primitive-webgl-fallback"
-      aria-live="polite"
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'grid',
-        placeItems: 'center',
-        color: 'var(--muted)',
-        fontSize: 11,
-        letterSpacing: 0,
-        textTransform: 'uppercase',
-      }}
-    >
-      3D preview unavailable
-    </div>
-  );
-}
-
 function PrimitiveViewportShell({
   rootRef,
   canvasRef,
@@ -547,10 +524,16 @@ function PrimitiveViewportShell({
   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   onHoverChange?: Props['onHoverChange'];
 }) {
+  const status = resolveViewport3DStatus({ hasRenderedFrame, unavailable: webglUnavailable });
+
   return (
     <div
       ref={rootRef}
-      className={primitiveViewportClassName(className, locked)}
+      className={viewport3DClassName({ className, locked, interactive, status })}
+      data-viewport-3d="primitive"
+      data-viewport-3d-state={status}
+      data-viewport-3d-lock={locked ? 'locked' : 'unlocked'}
+      data-viewport-3d-mode={interactive ? 'interactive' : 'passive'}
       tabIndex={primitiveTabIndex(interactive)}
       role={primitiveRole(interactive)}
       aria-hidden={primitiveAriaHidden(interactive)}
@@ -574,10 +557,13 @@ function PrimitiveViewportShell({
           width: '100%',
           height: '100%',
           opacity: primitiveCanvasOpacity(hasRenderedFrame),
-          transition: 'opacity 80ms ease-out',
         }}
       />
-      <PrimitiveWebglFallback visible={webglUnavailable} />
+      <Viewport3DStatusOverlay
+        status={status}
+        label={status === 'loading' ? 'Loading 3D preview' : '3D preview unavailable'}
+        recovery="The source frame stays available. Check WebGL support to restore the live camera."
+      />
     </div>
   );
 }

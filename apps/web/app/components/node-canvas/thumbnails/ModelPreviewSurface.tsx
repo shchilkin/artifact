@@ -30,6 +30,8 @@ function ModelAssetPreviewSurface({ layer, selected }: ModelPreviewSurfaceProps)
   return (
     <div
       className="node-preview-surface primitive-preview-surface"
+      data-viewport-3d-workspace="model"
+      data-viewport-3d-workspace-state="passive"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -66,7 +68,11 @@ function ModelViewportFrame({
   interactive: boolean;
 }) {
   return (
-    <div className="node-primitive-live-frame">
+    <div
+      className="node-primitive-live-frame artifact-viewport3d-frame"
+      data-viewport-3d-frame="model"
+      data-viewport-3d-frame-state="passive"
+    >
       {bgPreviewTargetId ? <NodeThumbnail previewTargetId={bgPreviewTargetId} /> : <EmptyThumbnailFrame />}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: interactive ? 'auto' : 'none' }}>
         <LazyModelViewport3D

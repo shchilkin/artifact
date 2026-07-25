@@ -1,0 +1,207 @@
+.artifact-viewport3d {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--surface-workspace);
+  color: var(--text-primary);
+}
+
+.artifact-viewport3d--interactive {
+  cursor: grab;
+}
+
+.artifact-viewport3d--interactive:active {
+  cursor: grabbing;
+}
+
+.artifact-viewport3d--locked {
+  cursor: default;
+}
+
+.artifact-viewport3d--loading::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--node-kind-primitive) 8%, transparent) 48%,
+    transparent 100%
+  );
+  content: "";
+  pointer-events: none;
+  animation: artifact-viewport3d-loading 1.4s var(--ease-standard) infinite;
+}
+
+.artifact-viewport3d--locked::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 1px solid color-mix(in oklch, var(--line-strong) 76%, transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.artifact-viewport3d:focus-visible {
+  outline: 2px solid var(--node-kind-primitive);
+  outline-offset: -2px;
+}
+
+.artifact-viewport3d canvas {
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+.artifact-viewport3d__status {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  max-width: calc(100% - var(--space-4));
+  pointer-events: none;
+}
+
+.artifact-viewport3d__status-badge {
+  display: grid;
+  gap: var(--space-1);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-panel-raised);
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  font-weight: var(--weight-ui);
+  letter-spacing: var(--control-letter-spacing);
+  line-height: var(--leading-ui);
+  text-transform: uppercase;
+}
+
+.artifact-viewport3d__status-recovery {
+  max-width: 32ch;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--type-readable-sm);
+  font-weight: var(--weight-readable);
+  letter-spacing: normal;
+  line-height: var(--leading-body);
+  text-transform: none;
+}
+
+.artifact-viewport3d__fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-1);
+  background: color-mix(in oklch, var(--surface-workspace) 94%, var(--state-danger) 2%);
+  padding: var(--space-4);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.artifact-viewport3d__fallback strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-label);
+  letter-spacing: var(--control-letter-spacing);
+  line-height: var(--leading-ui);
+  text-transform: uppercase;
+}
+
+.artifact-viewport3d__fallback span {
+  max-width: 34ch;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+}
+
+.artifact-viewport3d__controls {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  z-index: 5;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-panel-raised);
+  padding: var(--space-1);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.artifact-viewport3d__control-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.artifact-viewport3d__control-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.artifact-viewport3d__control {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--line-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  padding: 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  font-weight: var(--weight-ui);
+  letter-spacing: var(--control-letter-spacing);
+  line-height: var(--leading-ui);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.artifact-viewport3d__control:hover {
+  border-color: var(--node-kind-primitive);
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+}
+
+.artifact-viewport3d__control:focus-visible {
+  outline: 2px solid var(--node-kind-primitive);
+  outline-offset: 2px;
+}
+
+.artifact-viewport3d__control[aria-pressed="true"] {
+  border-color: var(--node-kind-primitive);
+  background: color-mix(in oklch, var(--surface-control-selected) 86%, var(--node-kind-primitive) 14%);
+  color: var(--node-kind-primitive);
+}
+
+@keyframes artifact-viewport3d-loading {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artifact-viewport3d--loading::after {
+    animation: none;
+  }
+
+  .artifact-viewport3d canvas {
+    transition: none;
+  }
+}
