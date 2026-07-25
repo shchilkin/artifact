@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasGraph } from '../../../types/config';
-import { getGraphAreaBounds } from './areaBounds';
+import { getEmptyGraphAreas, getGraphAreaBounds } from './areaBounds';
 
 describe('getGraphAreaBounds', () => {
   const graph: CanvasGraph = {
@@ -86,5 +86,22 @@ describe('getGraphAreaBounds', () => {
       ['area-1', 2, 1, 2],
     ]);
     expect(result[0].x + result[0].width).toBeLessThan(result[1].x);
+  });
+});
+
+describe('getEmptyGraphAreas', () => {
+  it('returns areas without resolvable member positions', () => {
+    const graph: CanvasGraph = {
+      edges: [],
+      positions: { placed: { x: 100, y: 80 } },
+      mergeNodes: [],
+      colorNodes: [],
+      areas: [
+        { id: 'area-placed', name: 'Placed branch', color: '#ff705f', nodeIds: ['placed'] },
+        { id: 'area-empty', name: 'Future branch', color: '#8d5cff', nodeIds: ['missing'] },
+      ],
+    };
+
+    expect(getEmptyGraphAreas(graph, []).map((area) => area.id)).toEqual(['area-empty']);
   });
 });

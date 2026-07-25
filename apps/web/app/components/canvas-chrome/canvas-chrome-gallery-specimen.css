@@ -123,13 +123,12 @@
   text-transform: uppercase;
 }
 
-.canvas-chrome-gallery-state[data-canvas-chrome-state="loading"] i {
+.canvas-chrome-gallery-state[data-canvas-chrome-state="loading"] .ui-skeleton {
   width: 72%;
   height: 8px;
-  background: var(--surface-control-selected);
 }
 
-.canvas-chrome-gallery-state[data-canvas-chrome-state="loading"] i:last-child {
+.canvas-chrome-gallery-state[data-canvas-chrome-state="loading"] .ui-skeleton:last-child {
   width: 48%;
 }
 

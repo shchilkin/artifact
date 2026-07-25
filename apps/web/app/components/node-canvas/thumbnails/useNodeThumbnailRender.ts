@@ -635,7 +635,9 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
 
   const [hasRendered, setHasRendered] = useState(false);
   const [renderedPreviewKey, setRenderedPreviewKey] = useState<string | null>(null);
+  const [failedPreviewKey, setFailedPreviewKey] = useState<string | null>(null);
   const ready = renderedPreviewKey === previewKey;
+  const renderFailed = failedPreviewKey === previewKey;
   const missingRequiredSource = useMemo(
     () => hasMissingRequiredSource(doc, graph, previewTargetId),
     [doc, graph, previewTargetId],
@@ -646,20 +648,28 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     clearTimeout(debounceRef.current);
     if (thumbnailEffectShouldPause(isFrameVisible, priority, isGraphDraggingRef)) return () => undefined;
     if (drawCachedThumbnail(previewKey, canvasRef, previewSize, setHasRendered, setRenderedPreviewKey)) {
+      setFailedPreviewKey(null);
       return () => undefined;
     }
 
+    setFailedPreviewKey(null);
     debounceRef.current = setTimeout(
       () => {
         scheduleThumbnailRender(
           previewTargetId,
-          () =>
-            runThumbnailRenderJob({
-              latestRef,
-              canvasRef,
-              setHasRendered,
-              setRenderedPreviewKey,
-            }),
+          async () => {
+            try {
+              await runThumbnailRenderJob({
+                latestRef,
+                canvasRef,
+                setHasRendered,
+                setRenderedPreviewKey,
+              });
+              setFailedPreviewKey(null);
+            } catch {
+              setFailedPreviewKey(previewKey);
+            }
+          },
           { priority },
         );
       },
@@ -675,6 +685,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     isExportPreview,
     previewSize,
     ...canvasState,
+    renderFailed,
     missingRequiredSource,
   };
 }

@@ -1513,6 +1513,8 @@ test('node visual hierarchy marks selected nodes toolbar actions and graph areas
     .first()
     .evaluate((button) => (button as HTMLButtonElement).click());
   await expect(page.locator('.node-area').first()).toHaveClass(/node-area-selected/);
+  await expect(page.locator('.node-area').first()).toHaveAttribute('data-canvas-chrome-state', 'selected');
+  await expect(page.locator('.node-canvas-root')).toHaveAttribute('data-canvas-chrome-surface', 'graph-viewport');
 
   await clickEditorControl(page.getByRole('button', { name: 'Show performance debug overlay' }));
   const stateStyles = await page.evaluate(() => {
@@ -1635,6 +1637,7 @@ test('node graph highlights the active output path and exposes output navigation
   await expect(page.getByRole('button', { name: 'Fit output path' })).toHaveCount(0);
   await expect(page.locator('.react-flow__controls')).toBeVisible();
   await expect(page.locator('.react-flow__controls-button')).toHaveCount(3);
+  await expect(page.locator('.react-flow__attribution')).toBeVisible();
   await expect(page.locator('.node-shell-kind-export')).toBeVisible();
 });
 
@@ -2281,13 +2284,37 @@ test('effect node inspector exposes and persists local seed offsets', async ({ p
 
 test('layer text drag keeps effect stack active during movement', async ({ page }) => {
   await gotoDocument(page, layerTextEffectDragDocument);
-  await page.getByText('Drag text', { exact: true }).click();
+  await page.locator('.layer-row').filter({ hasText: 'Drag text' }).click();
   await expectLayerCanvasToHavePixels(page);
+
+  const previewFrame = page.locator('.artifact-canvas-preview-frame');
+  const selectionChrome = previewFrame.locator('.canvas-selection-chrome');
+  await expect(previewFrame).toHaveAttribute('data-canvas-preview-state', 'selected');
+  await expect(selectionChrome).toHaveAttribute('data-layer-lock', 'unlocked');
+  await expect(selectionChrome).toHaveAttribute('data-layer-visibility', 'visible');
+  await expect(selectionChrome.locator('[data-canvas-handle]')).toHaveCount(5);
+  const moveHandle = selectionChrome.getByRole('button', { name: /Move Drag text/ });
+  await moveHandle.focus();
+  await expect(moveHandle).toBeFocused();
+  expect(await moveHandle.evaluate((handle) => getComputedStyle(handle).outlineStyle)).not.toBe('none');
+  await page.keyboard.press('ArrowRight');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+        return doc.layers?.find((layer: { id: string }) => layer.id === 'layer-text-effect-text')?.x;
+      }),
+    )
+    .toBeCloseTo(0.5 + 1 / 540);
 
   const before = await getCanvasRgbAt(page, 0.18, 0.18);
   const areaBox = await page.locator('.canvas-area').boundingBox();
+  const handleBox = await selectionChrome.boundingBox();
   expect(areaBox).toBeTruthy();
-  if (!areaBox) return;
+  expect(handleBox).toBeTruthy();
+  if (!areaBox || !handleBox) return;
+  expect(handleBox.width).toBeCloseTo(areaBox.width, 0);
+  expect(handleBox.height).toBeCloseTo(areaBox.height, 0);
 
   await page.mouse.move(areaBox.x + areaBox.width / 2, areaBox.y + areaBox.height / 2);
   await page.mouse.down();
@@ -2474,6 +2501,18 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   const afterWheelTransform = await flowViewport.evaluate((element) => getComputedStyle(element).transform);
   expect(afterWheelTransform).toBe(beforeWheelTransform);
+  await page.getByRole('button', { name: 'Lock camera', exact: true }).click();
+  await expect(viewport).toHaveAttribute('data-viewport-3d-lock', 'locked');
+  await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera locked');
+  const beforeLockedWheelTransform = await flowViewport.evaluate((element) => getComputedStyle(element).transform);
+  await viewport.dispatchEvent('wheel', { deltaY: -240, bubbles: true, cancelable: true });
+  await expect
+    .poll(async () => flowViewport.evaluate((element) => getComputedStyle(element).transform))
+    .not.toBe(beforeLockedWheelTransform);
+  await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera locked');
+  await page.getByRole('button', { name: 'Unlock camera', exact: true }).click();
+  await expect(viewport).toHaveAttribute('data-viewport-3d-lock', 'unlocked');
+  await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   await expect
     .poll(async () =>
       page.evaluate(() => {
@@ -3071,6 +3110,28 @@ test('node add menu can drag an effect onto the canvas', async ({ page }) => {
   await page.locator('.react-flow__pane').evaluate((pane) => {
     const rect = pane.getBoundingClientRect();
     const dataTransfer = new DataTransfer();
+    dataTransfer.setData('application/x-artifact-add-library-action', '{"kind":"unsupported"}');
+    document.documentElement.dataset.artifactAddLibraryAction = '{"kind":"unsupported"}';
+    document.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        clientX: rect.left + 520,
+        clientY: rect.top + 320,
+        dataTransfer,
+      }),
+    );
+  });
+  await expect(page.locator('.node-canvas-add-drop-invalid .node-add-drop-hint-invalid')).toBeVisible();
+  await expect(page.locator('.node-canvas-workspace')).toHaveAttribute('data-canvas-chrome-drop-state', 'invalid');
+  await page.evaluate(() => {
+    document.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true }));
+    delete document.documentElement.dataset.artifactAddLibraryAction;
+  });
+
+  await page.locator('.react-flow__pane').evaluate((pane) => {
+    const rect = pane.getBoundingClientRect();
+    const dataTransfer = new DataTransfer();
     dataTransfer.setData(
       'application/x-artifact-add-library-action',
       JSON.stringify({ kind: 'effect', preset: 'pixelate' }),
@@ -3565,6 +3626,9 @@ test.describe('node preview aspect ratio flow', () => {
 
     const wideFrame = page.locator('.node-shell-kind-fill .node-thumbnail-frame').first();
     await expect(wideFrame).toBeVisible({ timeout: 15_000 });
+    const wideThumbnail = page.locator('.node-shell-kind-fill .node-thumbnail').first();
+    await expect(wideThumbnail).toHaveAttribute('data-canvas-chrome-surface', 'node-thumbnail');
+    await expect(wideThumbnail).toHaveAttribute('data-canvas-chrome-state', 'ready', { timeout: 15_000 });
     await expect.poll(async () => frameRatio(wideFrame), { timeout: 15_000 }).toBeGreaterThan(1.5);
 
     await gotoDocument(page, tallNodeDocument);
@@ -3932,6 +3996,11 @@ test('inline image payloads migrate to browser asset storage', async ({ page }) 
 
 test('empty transparent documents render transparent pixels over checkerboard chrome', async ({ page }) => {
   await gotoDocument(page, emptyTransparentDocument);
+
+  const previewFrame = page.locator('.artifact-canvas-preview-frame');
+  await expect(previewFrame).toHaveAttribute('data-canvas-preview-alpha', 'transparent');
+  await expect(previewFrame).toHaveAttribute('data-canvas-preview-state', 'empty');
+  await expect(previewFrame).toHaveCSS('outline-style', 'solid');
 
   const canvas = page.locator('.pixi-container canvas').first();
   await expect(canvas).toBeVisible({ timeout: 15_000 });

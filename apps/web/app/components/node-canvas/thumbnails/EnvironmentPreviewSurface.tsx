@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { GraphEnvironmentNode } from '../../../types/config';
 import { resolveEnvironmentSource } from '../../../utils/envAssetStore';
 import { renderGraphTarget } from '../../../utils/renderer';
+import { Viewport3DStatusOverlay } from '../../canvas-chrome/Viewport3DChrome';
 import { useNodeCanvasPreview } from '../context';
 
 const PREVIEW_WIDTH = 512;
@@ -61,20 +62,35 @@ export function EnvironmentPreviewSurface({ environmentNode }: { environmentNode
   }, [cacheKey, environmentNode.environmentSrc]);
 
   return (
-    <div className={`node-preview-surface node-environment-preview node-environment-preview-${status}`}>
+    <div
+      className={`node-preview-surface node-environment-preview node-environment-preview-${status}`}
+      data-viewport-3d-workspace="environment"
+      data-viewport-3d-workspace-state={status}
+    >
       <canvas
         ref={canvasRef}
         className="node-environment-preview-canvas"
         width={PREVIEW_WIDTH}
         height={PREVIEW_HEIGHT}
       />
-      <div className="node-environment-preview-meta">
+      <div className="node-environment-preview-meta" data-viewport-3d-environment-status={status}>
         <span>{environmentNode.environmentName || statusLabel(status)}</span>
         <strong>{environmentNode.environmentMime || 'EXR / HDR'}</strong>
         {environmentNode.environmentBytes > 0 && (
           <small>{Math.round(environmentNode.environmentBytes / 1024)} KB</small>
         )}
       </div>
+      {status === 'idle' || status === 'failed' ? (
+        <Viewport3DStatusOverlay
+          status="failed"
+          label={status === 'idle' ? 'Environment source missing' : 'Environment preview unavailable'}
+          recovery={
+            status === 'idle'
+              ? 'Connect an EXR or HDR source to light the 3D scene.'
+              : 'Reconnect or replace the environment source and try again.'
+          }
+        />
+      ) : null}
     </div>
   );
 }
@@ -109,17 +125,28 @@ export function GeneratedEnvironmentPreviewSurface({ previewTargetId }: { previe
   }, [doc, graph, imageCache, previewTargetId, primitiveViewStates]);
 
   return (
-    <div className={`node-preview-surface node-environment-preview node-environment-preview-${status}`}>
+    <div
+      className={`node-preview-surface node-environment-preview node-environment-preview-${status}`}
+      data-viewport-3d-workspace="environment"
+      data-viewport-3d-workspace-state={status}
+    >
       <canvas
         ref={canvasRef}
         className="node-environment-preview-canvas"
         width={PREVIEW_WIDTH}
         height={PREVIEW_HEIGHT}
       />
-      <div className="node-environment-preview-meta">
+      <div className="node-environment-preview-meta" data-viewport-3d-environment-status={status}>
         <span>{status === 'failed' ? 'Environment render unavailable' : 'Rendered environment'}</span>
         <strong>2:1 equirectangular</strong>
       </div>
+      {status === 'failed' ? (
+        <Viewport3DStatusOverlay
+          status="failed"
+          label="Environment render unavailable"
+          recovery="Reconnect the upstream environment input to render this preview again."
+        />
+      ) : null}
     </div>
   );
 }

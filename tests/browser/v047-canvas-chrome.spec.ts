@@ -5,6 +5,13 @@ const specimenStates = {
   'node-canvas': [
     'grid',
     'area',
+    'area-default',
+    'area-selected',
+    'area-collapsed',
+    'area-empty',
+    'area-dragging',
+    'selection-marquee',
+    'vendor-attribution',
     'selected-node',
     'output-path',
     'connected-port',
@@ -15,13 +22,43 @@ const specimenStates = {
     'account-variants',
     'preview-queue-status',
     'performance-overlay',
+    'empty-graph',
     'add-drag-idle',
     'add-drag-ready',
     'add-drag-edge',
+    'add-drag-invalid',
   ],
-  'canvas-preview': ['transparent', 'selected', 'drop-image', 'error', 'recovery'],
+  'canvas-preview': [
+    'transparent',
+    'selected',
+    'drop-image',
+    'loading',
+    'empty',
+    'locked-handles',
+    'hidden-handles',
+    'error',
+    'recovery',
+  ],
   'node-gallery-canvas': ['ready', 'selected', 'keyboard-focus', 'loading', 'failed', 'narrow'],
-  'primitive-viewport-3d': ['active', 'locked', 'reset', 'keyboard-focus', 'webgl-unavailable'],
+  'primitive-viewport-3d': [
+    'loading',
+    'ready-passive',
+    'active',
+    'hover-ownership',
+    'locked',
+    'reset',
+    'keyboard-focus',
+    'webgl-unavailable',
+    'node-mode',
+    'modal-mode',
+    'scene-loading',
+    'scene-ready',
+    'scene-active',
+    'scene-locked',
+    'model-missing',
+    'environment-missing',
+    'environment-ready',
+  ],
 } as const;
 
 interface RgbaColor {
@@ -229,7 +266,7 @@ test('v0.47 style guide exposes deterministic reduced canvas-chrome specimens', 
   );
 
   const gallery = page.locator('[data-canvas-chrome-specimen="node-gallery-canvas"]');
-  await expect(gallery.locator('[data-canvas-chrome-state="loading"] i')).toHaveCount(2);
+  await expect(gallery.locator('[data-canvas-chrome-state="loading"] .ui-skeleton')).toHaveCount(2);
   await expect(
     gallery.locator('[data-canvas-chrome-state="failed"]').getByRole('button', { name: 'Retry' }),
   ).toBeVisible();
@@ -245,4 +282,67 @@ test('v0.47 style guide exposes deterministic reduced canvas-chrome specimens', 
   for (const id of Object.keys(specimenStates)) {
     await expectReadableNonOverlappingControls(page.locator(`[data-canvas-chrome-specimen="${id}"]`), 44);
   }
+});
+
+test('v0.47 node housing specimens preserve category ports, focus, and locked commands', async ({ page }) => {
+  await page.goto('/docs/style-guide');
+
+  const frames = page.locator('.style-guide-node-frame-specimen');
+  const source = frames.locator('[data-node-id="style-frame-source"]');
+  const selected = frames.locator('[data-node-id="style-frame-selected"]');
+  const locked = frames.locator('[data-node-id="style-frame-locked"]');
+
+  await expect(source).toHaveAttribute('data-node-kind', 'fill');
+  await expect(source).toHaveAttribute('data-node-output-path', 'true');
+  await expect(selected).toHaveAttribute('data-node-selected', 'true');
+  await expect(locked).toHaveAttribute('data-node-muted', 'true');
+  await expect(locked).toHaveAttribute('data-node-locked', 'true');
+
+  const selectedShell = selected.locator('.node-shell');
+  await expect(selectedShell).toHaveAttribute('data-node-housing-state', 'selected output-path');
+  const selectedCategory = await resolveCssVariableColor(page, '--node-kind-text');
+  expect(await readComputedColor(selectedShell.locator('.node-shell-accent'), 'background-color')).toEqual(
+    selectedCategory,
+  );
+
+  const connectedPort = source.locator('[data-node-port-state="connected"]').first();
+  const disconnectedPort = locked.locator('[data-node-port-state="disconnected"]').first();
+  await expect(connectedPort).toHaveAttribute('aria-label', /connected$/);
+  await expect(disconnectedPort).toHaveAttribute('aria-label', /disconnected$/);
+
+  const handleGeometry = await connectedPort.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { width: Number.parseFloat(style.width), height: Number.parseFloat(style.height) };
+  });
+  expect(handleGeometry.width).toBe(44);
+  expect(handleGeometry.height).toBe(44);
+  expect(await readComputedColor(connectedPort, 'background-color', '::after')).toEqual(
+    await resolveCssVariableColor(page, '--node-kind-fill'),
+  );
+  expect(await readComputedColor(disconnectedPort, 'background-color', '::after')).not.toEqual(
+    await resolveCssVariableColor(page, '--node-kind-image'),
+  );
+
+  const selectedFrame = selected.locator('.node-shell-frame');
+  await selectedFrame.focus();
+  await expect(selectedFrame).toBeFocused();
+  expect(await readComputedColor(selectedShell, 'outline-color')).toEqual(selectedCategory);
+
+  const selectedPort = selected.locator('.node-port-handle').first();
+  await selectedPort.focus();
+  await expect(selectedPort).toBeFocused();
+  expect(await readComputedColor(selectedPort, 'outline-color')).toEqual(selectedCategory);
+
+  await expect(locked.getByText('Locked', { exact: true })).toBeVisible();
+  await expect(locked.getByRole('button', { name: 'Delete node' })).toHaveCount(0);
+  const lockedMute = locked.getByRole('button', { name: 'Unmute node' });
+  expect(
+    await lockedMute.evaluate((element) => Number.parseFloat(getComputedStyle(element).height)),
+  ).toBeGreaterThanOrEqual(44);
+
+  const selectedMuted = page.locator('.style-guide-node-grid [data-node-kind="effect"]');
+  await expect(selectedMuted).toHaveAttribute('data-node-housing-state', 'selected muted');
+  expect(await readComputedColor(selectedMuted.locator('.node-shell-accent'), 'background-color')).toEqual(
+    await resolveCssVariableColor(page, '--node-kind-effect'),
+  );
 });

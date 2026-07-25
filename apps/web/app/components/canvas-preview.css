@@ -1,0 +1,147 @@
+.artifact-canvas-preview-frame {
+  isolation: isolate;
+  outline: 1px solid var(--line-strong);
+  outline-offset: 0;
+  background: var(--surface-workspace);
+}
+
+.artifact-canvas-preview__surface {
+  background-color: var(--surface-panel);
+  background-image:
+    linear-gradient(45deg, var(--surface-card) 25%, transparent 25%, transparent 75%, var(--surface-card) 75%),
+    linear-gradient(45deg, var(--surface-card) 25%, transparent 25%, transparent 75%, var(--surface-card) 75%);
+}
+
+.canvas-selection-chrome {
+  z-index: var(--z-toolbar);
+  color: var(--text-primary);
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+.canvas-selection-chrome__outline,
+.canvas-selection-chrome__rotation-line {
+  stroke: currentColor;
+  vector-effect: non-scaling-stroke;
+}
+
+.canvas-selection-chrome__handle {
+  fill: var(--text-primary);
+  stroke: var(--surface-app);
+  vector-effect: non-scaling-stroke;
+}
+
+.canvas-selection-chrome__outline:focus,
+.canvas-selection-chrome__outline:focus-visible,
+.canvas-selection-chrome__handle:focus,
+.canvas-selection-chrome__handle:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.canvas-selection-chrome[data-layer-lock="locked"] {
+  color: var(--text-secondary);
+}
+
+.canvas-selection-chrome[data-layer-lock="locked"] .canvas-selection-chrome__handle {
+  fill: var(--surface-panel-raised);
+  stroke: var(--text-secondary);
+}
+
+.canvas-selection-chrome[data-layer-visibility="hidden"] {
+  opacity: var(--state-hidden-opacity);
+}
+
+.canvas-preview-status {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  left: var(--space-3);
+  z-index: var(--z-overlay);
+  max-width: 420px;
+  margin-inline: auto;
+}
+
+.canvas-preview-status--loading {
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--line-default);
+  background: color-mix(in oklch, var(--surface-panel-raised) 94%, transparent);
+  padding: var(--space-3);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  font-weight: var(--weight-ui);
+  letter-spacing: var(--tracking-label);
+  line-height: var(--leading-ui);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.canvas-preview-status--error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: color-mix(in oklch, var(--surface-panel-raised) 96%, transparent);
+  font-family: var(--font-body);
+  font-size: var(--type-readable-sm);
+  line-height: var(--leading-readable);
+}
+
+.canvas-preview-status--error > span {
+  min-width: 0;
+  flex: 1;
+}
+
+.canvas-preview-empty-state {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  z-index: var(--z-overlay);
+  width: min(360px, calc(100% - var(--space-6)));
+  border: 1px solid var(--line-default);
+  background: color-mix(in oklch, var(--surface-panel-raised) 96%, transparent);
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.canvas-preview-empty-state .artifact-empty-state-actions {
+  justify-content: center;
+}
+
+.canvas-drop-overlay {
+  gap: var(--space-2);
+  border-color: var(--accent-primary);
+  background: color-mix(in oklch, var(--surface-app) 88%, transparent);
+}
+
+.canvas-drop-overlay span {
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-md);
+  letter-spacing: var(--tracking-label);
+}
+
+.canvas-drop-overlay small {
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--type-readable-sm);
+  letter-spacing: normal;
+  line-height: var(--leading-readable);
+  text-transform: none;
+}
+
+@media (max-width: 560px) {
+  .canvas-preview-status--error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .canvas-preview-status--error .ui-command {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-selection-chrome {
+    transition: none;
+  }
+}

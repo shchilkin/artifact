@@ -830,5 +830,5 @@ export function useDocumentRenderer(
     [cancelDeferredFullRender],
   );
 
-  return { containerRef, renderState };
+  return { containerRef, renderState, retryRender: scheduleRender };
 }

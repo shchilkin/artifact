@@ -509,6 +509,7 @@ export default function Editor() {
                 dropPreview={dropPreview}
                 onLayerUpdate={updateLayer}
                 onSelectLayer={setSelectedLayerId}
+                onStartEmptyCanvas={() => addLayer('text')}
               />
               {doc.layers.length === 0 && (
                 <EmptyCanvasStart

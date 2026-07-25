@@ -79,6 +79,47 @@ CI should run:
 
 ## Manual QA
 
+### v0.47.0 Release Prep And Evidence
+
+- Package metadata is bumped to `0.47.0` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.47.0.md` is prepared from the release template without a
+  visible internal checklist.
+- Graph workspace, node housing, ports, edges, graph areas, CanvasPreview,
+  thumbnails, gallery, primitive, model, environment, and scene viewport chrome
+  consume source-owned Artifact patterns without changing graph, renderer,
+  export, pointer, cache, persistence, or camera-state ownership.
+- The live style guide and runtime coverage exercise empty graph and area,
+  invalid Add Library drag, category selection, output-path contrast,
+  loading/ready/failed/retry previews, transparent artwork, keyboard
+  manipulation, 44-pixel gallery actions, camera lock, and 3D recovery.
+- `npm run release:verify -- --version 0.47.0`, `npm run check`, and
+  `npm run build` passed locally on 2026-07-25. The check includes 20 UI
+  Foundation tests, 721 Web tests, 261 passing API tests with 5 skipped, 11
+  Backoffice tests, and 26 deployment tests, plus formatting, lint, and all
+  type checks.
+- The complete browser release gate scheduled 554 scenarios across Artifact
+  Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, and Backoffice
+  desktop/mobile Chromium: 503 passed without retry and 51 were intentional
+  skips.
+- `npm run perf:node-editor` passed. Drag, effect-control, and graph-pan
+  scenarios had no long tasks or thumbnail/render work and stayed at
+  17.0-17.5 ms p95 against the preferred 50 ms frame budget.
+- Accepted release risk: conformance is representative rather than a complete
+  visual-regression suite or WCAG certification.
+- Accepted release risk: compatibility wrappers and legacy aliases remain
+  until the v0.48 zero-caller conformance gate.
+- Accepted release risk: the build retains 11 inherited Fast Refresh warnings
+  and the large Three.js vendor-chunk warning. The accepted React Router/chunk
+  follow-up is documented separately for v0.49.
+- Accepted release risk: browser logs retain existing blank-frame fallback and
+  development-only missing-route diagnostics; no final release-gate scenario
+  failed.
+- Reviewed merge to `development`, exact-SHA staging, promotion to `main`,
+  production verification, tag creation, and GitHub Release publication remain
+  pending.
+
 ### v0.46.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.46.0` in `package.json`,
