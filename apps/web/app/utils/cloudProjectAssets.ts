@@ -21,7 +21,7 @@ import { estimateDataUrlBytes } from './storagePrimitives';
 const CLOUD_ASSET_URI_PREFIX = 'artifact-cloud-asset://';
 const CLOUD_ASSET_KINDS = new Set(['image', 'font', 'model', 'environment']);
 
-export type CloudProjectAssetKind = 'image' | 'font' | 'model' | 'environment';
+type CloudProjectAssetKind = 'image' | 'font' | 'model' | 'environment';
 
 interface CloudProjectAssetClientOptions extends PreparePortableDocumentOptions {
   baseUrl?: string;
@@ -49,7 +49,7 @@ function endpoint(baseUrl: string | undefined, path: string) {
   return `${baseUrl?.replace(/\/$/, '') ?? ''}${path}`;
 }
 
-export function isCloudAssetUri(value: string): boolean {
+function isCloudAssetUri(value: string): boolean {
   return value.startsWith(CLOUD_ASSET_URI_PREFIX);
 }
 
@@ -64,7 +64,7 @@ function parseCloudAssetUri(value: string): { kind: CloudProjectAssetKind; id: s
   return { kind: kind as CloudProjectAssetKind, id };
 }
 
-export function hasCloudAssetRefs(doc: CanvasDocument): boolean {
+function hasCloudAssetRefs(doc: CanvasDocument): boolean {
   return collectDocumentSources(doc).some(isCloudAssetUri);
 }
 

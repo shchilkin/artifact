@@ -31,7 +31,7 @@ vec4 mainImage(vec2 uv) {
   return vec4(treated, mix(1.0, source.a, u_has_backdrop));
 }`.trim();
 
-export function normalizeShaderPrompt(value: unknown) {
+function normalizeShaderPrompt(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 

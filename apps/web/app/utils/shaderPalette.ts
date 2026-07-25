@@ -11,7 +11,7 @@ const THREE_TONE_BLUE = ['#031a2f', '#0877a8', '#79f7ff'] as const;
 const WARM_TEXTURE = ['#1c120b', '#b0703f', '#f7e2b8'] as const;
 const LINE_ART = ['#05030a', '#f7e6ff'] as const;
 
-export const SHADER_PALETTE_CONFIGS: Record<string, ShaderPaletteConfig> = {
+const SHADER_PALETTE_CONFIGS: Record<string, ShaderPaletteConfig> = {
   paperTexture: paletteConfig(['#e8decf', '#bda98f', '#f7efe1'], 2, 5),
   water: paletteConfig(THREE_TONE_BLUE, 2, 5),
   waterCaustic: paletteConfig(['#03202f', '#0877a8', '#79f7ff', '#f3fff2'], 2, 5),

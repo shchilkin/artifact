@@ -180,7 +180,7 @@ function dataUrlToArrayBuffer(dataUrl: string): ArrayBuffer | null {
   return bytes.buffer;
 }
 
-export async function modelSourceToArrayBuffer(source: string): Promise<ArrayBuffer> {
+async function modelSourceToArrayBuffer(source: string): Promise<ArrayBuffer> {
   const dataBuffer = dataUrlToArrayBuffer(source);
   if (dataBuffer) return dataBuffer;
   const response = await fetch(source);
@@ -188,7 +188,7 @@ export async function modelSourceToArrayBuffer(source: string): Promise<ArrayBuf
   return response.arrayBuffer();
 }
 
-export async function parseGltfScene(buffer: ArrayBuffer): Promise<THREE.Object3D> {
+async function parseGltfScene(buffer: ArrayBuffer): Promise<THREE.Object3D> {
   const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
   const loader = new GLTFLoader();
   return new Promise((resolve, reject) => {
@@ -247,7 +247,7 @@ export function loadSceneEnvironmentCanvas(
   return createSceneEnvironmentMap(renderer, background);
 }
 
-export function applyModelFallbackMaterials(root: THREE.Object3D, layer: Scene3DSourceLayer): void {
+function applyModelFallbackMaterials(root: THREE.Object3D, layer: Scene3DSourceLayer): void {
   const fallbackMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(layer.color),
     roughness: 0.52,

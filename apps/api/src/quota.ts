@@ -59,7 +59,7 @@ function normalizeNonNegativeInteger(value: number, label: string): number {
   return Math.floor(value);
 }
 
-export function createQuotaSnapshot(period: string, limit: number, used: number): AiQuotaSnapshot {
+function createQuotaSnapshot(period: string, limit: number, used: number): AiQuotaSnapshot {
   const normalizedLimit = normalizeNonNegativeInteger(limit, 'limit');
   const normalizedUsed = normalizeNonNegativeInteger(used, 'used');
 

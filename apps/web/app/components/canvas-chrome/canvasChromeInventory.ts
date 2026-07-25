@@ -1,12 +1,12 @@
-export type CanvasChromeDisposition = 'artifact-pattern' | 'approved-non-goal';
+type CanvasChromeDisposition = 'artifact-pattern' | 'approved-non-goal';
 
-export interface CanvasChromeStateMapping {
+interface CanvasChromeStateMapping {
   name: string;
   disposition: CanvasChromeDisposition;
   pattern: string;
 }
 
-export interface CanvasChromeSurfaceInventory {
+interface CanvasChromeSurfaceInventory {
   id:
     | 'graph-viewport'
     | 'graph-areas'
@@ -21,7 +21,7 @@ export interface CanvasChromeSurfaceInventory {
   states: readonly CanvasChromeStateMapping[];
 }
 
-export interface CanvasChromeInvariant {
+interface CanvasChromeInvariant {
   id:
     | 'canvas-document'
     | 'graph-semantics'

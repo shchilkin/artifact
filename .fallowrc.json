@@ -9,6 +9,66 @@
     "/app/utils/renderer.ts",
     "/app/utils/render/customCodeShader.ts"
   ],
+  "usedClassMembers": [
+    {
+      "implements": "AccountTierRepository",
+      "members": ["findAccess", "sumQuotaAdjustments"]
+    },
+    {
+      "implements": "AdminAuditRepository",
+      "members": ["append", "lockAction", "findByActionEntity", "findLatestByAction"]
+    },
+    {
+      "implements": "AiGenerationJobRepository",
+      "members": [
+        "create",
+        "findByIdForUser",
+        "findByIdempotencyKey",
+        "markRunning",
+        "markSucceeded",
+        "markCancelled",
+        "markFailed",
+        "countActiveJobs"
+      ]
+    },
+    {
+      "implements": "AiOperationRepository",
+      "members": ["markRunning", "markAwaitingValidation", "markSucceeded"]
+    },
+    {
+      "implements": "AiShaderRequestRepository",
+      "members": [
+        "claim",
+        "attachOperation",
+        "findByIdForUser",
+        "markGenerated",
+        "markAccepted",
+        "markClientRejected",
+        "beginRepair",
+        "completeRepair",
+        "markFailed"
+      ]
+    },
+    {
+      "implements": "AssetRepository",
+      "members": [
+        "create",
+        "findByIdForUser",
+        "findProjectAssetByFingerprintForUser",
+        "listProjectAssetsForUser",
+        "softDelete",
+        "softDeleteManyForUser"
+      ]
+    },
+    {
+      "implements": "CloudProjectRepository",
+      "members": ["listForUser", "upsert", "deleteForUser"]
+    },
+    {
+      "implements": "AiUsageRepository",
+      "members": ["releaseMonthlyGeneration"]
+    }
+  ],
   "audit": {
     "healthBaseline": "docs/fallow/v0.36-health-baseline.json",
     "dupesBaseline": "docs/fallow/v0.36-dupes-baseline.json"
@@ -53,6 +113,10 @@
     {
       "file": "apps/api/src/db/postgresUsers.ts",
       "exports": ["*"]
+    },
+    {
+      "file": "apps/web/app/utils/modelRenderer.ts",
+      "exports": ["loadEquirectangularTexture"]
     }
   ]
 }

@@ -210,7 +210,7 @@ function parseAiShaderRequestResponse(value: unknown): AiShaderRequestResponse {
   return { requestId, candidateRevision, status: response.status };
 }
 
-export function parseAiShaderValidationResponse(value: unknown): AiShaderValidationResponse {
+function parseAiShaderValidationResponse(value: unknown): AiShaderValidationResponse {
   const { response, requestId, candidateRevision } = parseShaderResponseEnvelope(value);
   if (response.status !== 'accepted' && response.status !== 'client_rejected' && response.status !== 'failed') {
     throw new AiGenerationApiError('Generation API returned an invalid validation status.', 0, 'invalid_response');

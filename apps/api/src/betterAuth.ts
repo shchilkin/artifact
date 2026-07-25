@@ -73,5 +73,3 @@ function normalizeOriginValue(value: string) {
   }
   return trimmed;
 }
-
-export type ArtifactBetterAuth = NonNullable<ReturnType<typeof createArtifactBetterAuth>>;
