@@ -1,6 +1,7 @@
 import { Skeleton } from '@artifact/ui';
 import type { ReactNode } from 'react';
 import { ActionButton } from '../ui/ActionButton';
+import { EmptyState } from '../ui/EmptyState';
 import { IconButton } from '../ui/IconButton';
 import { Toolbar, ToolbarButton } from '../ui/Toolbar';
 import '../canvas-preview.css';
@@ -189,10 +190,17 @@ function NodeCanvasSpecimen() {
         <span data-canvas-chrome-state="preview-queue-status">Preparing previews · 2</span>
         <span data-canvas-chrome-state="performance-overlay">Perf · 60 FPS</span>
       </div>
+      <EmptyState
+        className="canvas-chrome-empty-graph"
+        data-canvas-chrome-state="empty-graph"
+        eyebrow="Empty graph"
+        title="Add the first node"
+      />
       <div className="canvas-chrome-drop-target" aria-label="Add Library drag state references">
         <span data-canvas-chrome-state="add-drag-idle">Move over canvas</span>
         <span data-canvas-chrome-state="add-drag-ready">Drop to place</span>
         <span data-canvas-chrome-state="add-drag-edge">Insert on edge</span>
+        <span data-canvas-chrome-state="add-drag-invalid">Can’t place</span>
       </div>
     </div>
   );

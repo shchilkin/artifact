@@ -43,10 +43,13 @@ import { LazyModelViewport3D, LazyPrimitiveViewport3D } from '../LazyViewport3D'
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
 import { type PrimitiveRenderMode, type PrimitiveViewportState } from '../PrimitiveViewportState';
+import { ActionButton } from '../ui/ActionButton';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
+import { EmptyState } from '../ui/EmptyState';
 import { IconButton } from '../ui/IconButton';
 import { Toolbar, ToolbarButton } from '../ui/Toolbar';
-import { GraphAreaOverlay } from './areas/GraphAreaOverlay';
+import { getEmptyGraphAreas } from './areas/areaBounds';
+import { GraphAreaEmptyStateOverlay, GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
 import { EDGE_INTERCEPT_THRESHOLD } from './constants';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext, useNodeCanvasPreview } from './context';
@@ -289,6 +292,7 @@ export function NodeCanvas({
     () => toRFEdges(graph).map((edge) => decorateRFEdge(edge, selectedEdgeId, outputPath.edgeIds)),
     [graph, outputPath.edgeIds, selectedEdgeId],
   );
+  const graphEmpty = baseNodes.every((node) => node.id === EXPORT_NODE_ID);
 
   const {
     dragNodes,
@@ -312,6 +316,7 @@ export function NodeCanvas({
     onDeleteNodes: deleteUnlockedNodes,
     canDeleteNode,
   });
+  const emptyGraphAreas = useMemo(() => getEmptyGraphAreas(graph, dragNodes), [dragNodes, graph]);
 
   const resolveAddLibraryInsertionAtPoint = useCallback(
     (action: Parameters<NodeCanvasProps['onAddLayerAt']>[0], point: { x: number; y: number }) => {
@@ -633,12 +638,36 @@ export function NodeCanvas({
               </ViewportPortal>
               <Controls className="node-canvas-viewport-controls" showInteractive={false} />
             </ReactFlow>
+            {graphEmpty ? (
+              <div className="node-canvas-empty-overlay" data-canvas-chrome-state="empty-graph">
+                <EmptyState
+                  className="node-canvas-empty-state"
+                  eyebrow="Empty graph"
+                  title="Build the first branch"
+                  body="Add a source or drag one from the Library. The output stays ready."
+                  actions={
+                    <ActionButton variant="primary" onClick={openAddNodeMenu}>
+                      Add first node
+                    </ActionButton>
+                  }
+                />
+              </div>
+            ) : null}
+            <GraphAreaEmptyStateOverlay
+              areas={emptyGraphAreas}
+              selectedAreaId={selectedAreaId}
+              onSelectArea={handleSelectArea}
+              onRemoveArea={handleRemoveArea}
+            />
             <NodePerformanceOverlay debugEnabled={perfDebugEnabled} nodeCount={dragNodes.length} />
             <div className="node-add-drop-hint node-add-drop-hint-idle" aria-hidden="true">
               Move over canvas
             </div>
             <div className="node-add-drop-hint node-add-drop-hint-ready" aria-hidden="true">
               Drop to place node
+            </div>
+            <div className="node-add-drop-hint node-add-drop-hint-invalid" aria-hidden="true">
+              Can’t place this item
             </div>
           </div>
           <NodePropertiesPanel

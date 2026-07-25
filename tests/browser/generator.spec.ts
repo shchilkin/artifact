@@ -3110,6 +3110,28 @@ test('node add menu can drag an effect onto the canvas', async ({ page }) => {
   await page.locator('.react-flow__pane').evaluate((pane) => {
     const rect = pane.getBoundingClientRect();
     const dataTransfer = new DataTransfer();
+    dataTransfer.setData('application/x-artifact-add-library-action', '{"kind":"unsupported"}');
+    document.documentElement.dataset.artifactAddLibraryAction = '{"kind":"unsupported"}';
+    document.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        clientX: rect.left + 520,
+        clientY: rect.top + 320,
+        dataTransfer,
+      }),
+    );
+  });
+  await expect(page.locator('.node-canvas-add-drop-invalid .node-add-drop-hint-invalid')).toBeVisible();
+  await expect(page.locator('.node-canvas-workspace')).toHaveAttribute('data-canvas-chrome-drop-state', 'invalid');
+  await page.evaluate(() => {
+    document.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true }));
+    delete document.documentElement.dataset.artifactAddLibraryAction;
+  });
+
+  await page.locator('.react-flow__pane').evaluate((pane) => {
+    const rect = pane.getBoundingClientRect();
+    const dataTransfer = new DataTransfer();
     dataTransfer.setData(
       'application/x-artifact-add-library-action',
       JSON.stringify({ kind: 'effect', preset: 'pixelate' }),

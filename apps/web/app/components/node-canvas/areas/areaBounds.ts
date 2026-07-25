@@ -143,3 +143,8 @@ export function getGraphAreaBounds(graph: CanvasGraph, nodes: RFNode[]): GraphAr
     });
   });
 }
+
+export function getEmptyGraphAreas(graph: CanvasGraph, nodes: RFNode[]): GraphArea[] {
+  const areasWithBounds = new Set(getGraphAreaBounds(graph, nodes).map(({ area }) => area.id));
+  return (graph.areas ?? []).filter((area) => !areasWithBounds.has(area.id));
+}

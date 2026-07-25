@@ -22,9 +22,11 @@ const specimenStates = {
     'account-variants',
     'preview-queue-status',
     'performance-overlay',
+    'empty-graph',
     'add-drag-idle',
     'add-drag-ready',
     'add-drag-edge',
+    'add-drag-invalid',
   ],
   'canvas-preview': [
     'transparent',

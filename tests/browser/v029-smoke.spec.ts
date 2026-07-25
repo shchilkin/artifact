@@ -1,6 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
 import {
-  clickEditorControl,
   documentUrl,
   editorDocumentFixture,
   expectNoBrowserIssues,
@@ -125,7 +124,9 @@ test('blank editor and shared primitive project surfaces open and close', async 
   await expect(toolbar.getByRole('button', { name: 'Show performance debug overlay' })).toHaveClass(
     /artifact-toolbar-button/,
   );
-  await clickEditorControl(page.getByRole('button', { name: 'Add node' }));
+  const emptyGraph = page.locator('[data-canvas-chrome-state="empty-graph"]');
+  await expect(emptyGraph).toBeVisible();
+  await emptyGraph.getByRole('button', { name: 'Add first node' }).click();
   await expect(page.locator('.add-library-node-menu')).toBeVisible();
   await expect(page.getByLabel('Search nodes and effects')).toBeVisible();
   await expect(page.locator('.add-library-node-menu .artifact-search-field')).toBeVisible();

@@ -317,6 +317,30 @@
   color: var(--node-edge-output);
 }
 
+.canvas-chrome-drop-target span:nth-child(4) {
+  border-color: var(--state-danger);
+  color: var(--state-danger);
+}
+
+.canvas-chrome-empty-graph {
+  position: absolute;
+  top: 54px;
+  left: 10px;
+  z-index: 5;
+  width: 150px;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  pointer-events: none;
+}
+
+.canvas-chrome-empty-graph .artifact-empty-state-copy {
+  gap: var(--space-1);
+}
+
+.canvas-chrome-empty-graph .artifact-empty-state-title {
+  font-size: var(--type-editor-meta);
+}
+
 @media (max-width: 560px) {
   .canvas-chrome-node-canvas {
     min-height: 390px;

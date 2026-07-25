@@ -15,29 +15,42 @@ interface AddLibraryDropState {
   active: boolean;
   ready: boolean;
   edgeId: string | null;
+  validAction: boolean;
 }
+
+export type AddLibraryDropVisualState = 'inactive' | 'idle' | 'canvas-ready' | 'edge-ready' | 'invalid';
 
 export function useNodeAddLibraryDropHint(
   canvasSurfaceRef: RefObject<HTMLDivElement | null>,
   { resolveEdgeId, onEdgeHoverChange }: UseNodeAddLibraryDropHintOptions = {},
 ) {
   useEffect(() => {
-    const setDropState = (active: boolean, ready: boolean, edgeReady: boolean) => {
+    const setDropState = (state: AddLibraryDropState) => {
       const surface = canvasSurfaceRef.current;
       if (!surface) return;
-      surface.classList.toggle('node-canvas-add-drop-active', active);
-      surface.classList.toggle('node-canvas-add-drop-ready', ready);
-      surface.classList.toggle('node-canvas-add-drop-edge', edgeReady);
+      const visualState = resolveAddLibraryDropVisualState(state);
+      surface.classList.toggle('node-canvas-add-drop-active', visualState !== 'inactive');
+      surface.classList.toggle(
+        'node-canvas-add-drop-ready',
+        visualState === 'canvas-ready' || visualState === 'edge-ready',
+      );
+      surface.classList.toggle('node-canvas-add-drop-edge', visualState === 'edge-ready');
+      surface.classList.toggle('node-canvas-add-drop-invalid', visualState === 'invalid');
+      if (visualState === 'inactive') {
+        delete surface.dataset.canvasChromeDropState;
+      } else {
+        surface.dataset.canvasChromeDropState = visualState;
+      }
     };
 
     const updateFromPointer = (event: DragEvent) => {
       const state = resolveAddLibraryDropState(event, canvasSurfaceRef.current, resolveEdgeId);
       onEdgeHoverChange?.(state.edgeId);
-      setDropState(state.active, state.ready, Boolean(state.edgeId));
+      setDropState(state);
     };
 
     const clear = () => {
-      setDropState(false, false, false);
+      setDropState(inactiveDropState());
       onEdgeHoverChange?.(null);
       delete document.documentElement.dataset.artifactAddLibraryAction;
     };
@@ -68,11 +81,19 @@ function resolveAddLibraryDropState(
     active: true,
     ready,
     edgeId: resolveDropEdgeId(action, resolveEdgeId, event),
+    validAction: action !== null,
   };
 }
 
 function inactiveDropState(): AddLibraryDropState {
-  return { active: false, ready: false, edgeId: null };
+  return { active: false, ready: false, edgeId: null, validAction: false };
+}
+
+export function resolveAddLibraryDropVisualState(state: AddLibraryDropState): AddLibraryDropVisualState {
+  if (!state.active) return 'inactive';
+  if (!state.ready) return 'idle';
+  if (!state.validAction) return 'invalid';
+  return state.edgeId ? 'edge-ready' : 'canvas-ready';
 }
 
 function resolveDropEdgeId(
