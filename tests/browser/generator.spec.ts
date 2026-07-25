@@ -3804,12 +3804,8 @@ test('dragging a node away from its area separates the node', async ({ page }) =
 test('dragging a layer row out of an area separates the layer', async ({ page }) => {
   await gotoDocument(page, areaSeparationDocument);
 
-  const source = page.locator('.layer-area-folder .layer-row-nested').filter({ hasText: 'Area noise' }).first();
-  const target = page.locator('.layer-row').filter({ hasText: 'Outside fill' }).first();
-  await expect(source).toBeVisible();
-  await expect(target).toBeVisible();
-
-  await source.dragTo(target);
+  await dragLayerRowOverText(page, 'Area noise', 'Outside fill');
+  await dropLayerRowOnText(page, 'Outside fill');
 
   await expect(page.locator('.layer-area-folder').first().locator('.layer-area-count')).toHaveText('1 layer');
   await expectStoredAreaNodeIds(page, ['area-fill']);

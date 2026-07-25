@@ -1,9 +1,5 @@
 # Product
 
-## Register
-
-product
-
 ## Users
 
 Indie musicians and designers at their intersection — people who make their own album art and want aesthetic control without hiring anyone. They know what "risograph" means. They are the creator and the art director simultaneously. They use this on a phone between ideas or on a laptop before an upload. Context: lo-fi studio, bedroom, transit. Mood: shaping a cover with intent, whether the result is spare, elegant, textured, loud, or rough.

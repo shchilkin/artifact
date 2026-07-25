@@ -1,0 +1,281 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-25T18:03:16Z",
+  "title": "Design System: Artifact",
+  "source": "DESIGN.md",
+  "extensions": {
+    "colorMeta": {
+      "ink-bg": {
+        "role": "neutral",
+        "displayName": "Ink BG",
+        "canonical": "oklch(8% 0.012 42)"
+      },
+      "ink-sidebar": {
+        "role": "neutral",
+        "displayName": "Ink Sidebar",
+        "canonical": "oklch(11% 0.016 42)"
+      },
+      "ink-border": {
+        "role": "neutral",
+        "displayName": "Ink Border",
+        "canonical": "oklch(24% 0.018 42)"
+      },
+      "ash-text": {
+        "role": "neutral",
+        "displayName": "Ash Text",
+        "canonical": "oklch(80% 0.022 68)"
+      },
+      "ash-dim": {
+        "role": "neutral",
+        "displayName": "Ash Dim",
+        "canonical": "oklch(50% 0.018 68)"
+      },
+      "flare-accent": {
+        "role": "primary",
+        "displayName": "Flare Accent",
+        "canonical": "oklch(66% 0.16 28)"
+      },
+      "node-fill": {
+        "role": "category",
+        "displayName": "Fill",
+        "canonical": "oklch(72% 0.18 48)"
+      },
+      "node-image": {
+        "role": "category",
+        "displayName": "Image",
+        "canonical": "oklch(73% 0.15 222)"
+      },
+      "node-text": {
+        "role": "category",
+        "displayName": "Text",
+        "canonical": "oklch(80% 0.08 94)"
+      },
+      "node-emoji": {
+        "role": "category",
+        "displayName": "Emoji",
+        "canonical": "oklch(72% 0.18 342)"
+      },
+      "node-effect": {
+        "role": "category",
+        "displayName": "Effect",
+        "canonical": "oklch(66% 0.18 286)"
+      },
+      "node-primitive": {
+        "role": "category",
+        "displayName": "Primitive",
+        "canonical": "oklch(72% 0.13 162)"
+      },
+      "node-noise": {
+        "role": "category",
+        "displayName": "Noise",
+        "canonical": "oklch(62% 0.05 245)"
+      },
+      "node-array": {
+        "role": "category",
+        "displayName": "Array",
+        "canonical": "oklch(72% 0.11 125)"
+      },
+      "node-merge": {
+        "role": "category",
+        "displayName": "Merge",
+        "canonical": "oklch(72% 0.12 165)"
+      },
+      "node-color": {
+        "role": "category",
+        "displayName": "Color",
+        "canonical": "oklch(74% 0.13 210)"
+      },
+      "node-export": {
+        "role": "category",
+        "displayName": "Export",
+        "canonical": "oklch(84% 0.05 88)"
+      }
+    },
+    "typographyMeta": {
+      "hero": {
+        "displayName": "Hero",
+        "purpose": "One-per-page landing headline in Barlow Condensed, fluid and tightly tracked."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Section and step titles in Barlow Condensed, usually uppercase."
+      },
+      "body": {
+        "displayName": "Readable UI",
+        "purpose": "Barlow Condensed for prose, descriptions, layer names, empty states, and recovery copy."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Space Mono for buttons, tabs, commands, node labels, field labels, and short values."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Space Mono for compact uppercase labels with moderate tracking."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Space Mono for identifiers, counters, timestamps, and compact status."
+      }
+    },
+    "shadows": [
+      {
+        "name": "focus",
+        "value": "0 0 0 3px color-mix(in oklch, var(--accent-primary) 20%, transparent)",
+        "purpose": "Functional focus support."
+      },
+      {
+        "name": "overlay",
+        "value": "0 22px 70px color-mix(in oklch, var(--surface-app) 70%, transparent)",
+        "purpose": "Menus, popovers, dialogs, and other floating surfaces."
+      }
+    ],
+    "motion": [
+      {
+        "name": "duration-fast",
+        "value": "120ms",
+        "purpose": "Immediate hover and focus feedback."
+      },
+      {
+        "name": "duration-base",
+        "value": "180ms",
+        "purpose": "Default state transition."
+      },
+      {
+        "name": "duration-slow",
+        "value": "260ms",
+        "purpose": "Deliberate overlay and spatial transitions."
+      },
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Default interface easing."
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Feedback that settles quickly."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "tablet",
+        "value": "768px"
+      },
+      {
+        "name": "desktop",
+        "value": "1024px"
+      },
+      {
+        "name": "wide",
+        "value": "1280px"
+      },
+      {
+        "name": "ultra",
+        "value": "1600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "Button",
+      "description": "Warm flare action with a compact Space Mono label, visible focus, and a 44px minimum target.",
+      "html": "<button class=\"ui-button ui-button--primary\">OPEN EDITOR</button>",
+      "css": "background: var(--accent-primary); color: var(--surface-app); min-height: var(--control-h-default); border-radius: var(--control-radius);"
+    },
+    {
+      "name": "Field and Input",
+      "kind": "input",
+      "refersTo": "Field Input",
+      "description": "Readable field structure with mono label grammar, explicit help or error text, and shared control states.",
+      "html": "<label class=\"ui-field\"><span>PROJECT NAME</span><input class=\"ui-input\" /></label>",
+      "css": "font-family: var(--font-body); min-height: var(--control-h-default); border: 1px solid var(--line-default);"
+    },
+    {
+      "name": "Popover",
+      "kind": "overlay",
+      "refersTo": "Popover Tooltip",
+      "description": "A warm tonal floating surface using functional overlay elevation and keyboard-safe focus behavior.",
+      "html": "<div class=\"ui-popover\" role=\"dialog\">...</div>",
+      "css": "background: var(--surface-panel-raised); border: 1px solid var(--line-default); box-shadow: var(--shadow-overlay);"
+    },
+    {
+      "name": "Layer Row",
+      "kind": "custom",
+      "refersTo": "layer-row",
+      "description": "A sortable row whose category rail and selected state retain the layer category color instead of the global accent.",
+      "html": "<div class=\"layer-row\" data-layer-category=\"effect\">Halftone</div>",
+      "css": "min-height: var(--row-h-compact); color: var(--text-primary); border-color: var(--layer-category-color);"
+    },
+    {
+      "name": "Node Housing",
+      "kind": "custom",
+      "refersTo": "node-card",
+      "description": "A readable graph card with category-colored rail, icon, handles, selection border, focus outline, and active states.",
+      "html": "<article class=\"node-card\" data-node-category=\"image\">...</article>",
+      "css": "background: var(--node-card-bg); border: 1px solid var(--node-card-border);"
+    },
+    {
+      "name": "Preview Frame",
+      "kind": "custom",
+      "refersTo": "print-marks",
+      "description": "Artwork frame with crisp registration marks; checkerboard remains UI chrome and never enters export output.",
+      "html": "<figure class=\"preview-frame\"><canvas></canvas></figure>",
+      "css": "background: var(--surface-workspace); border-radius: 0;"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Photocopied Zine",
+    "overview": "The interface has the material feel of a print proof: mono labels, square edges, warm dark surfaces, and raw rules. It is a mixing-board chassis for shaping artwork with intent, while remaining clear, keyboardable, accessible, and explicit about state.",
+    "keyCharacteristics": [
+      "Warm-tinted dark neutrals; never pure black or pure white.",
+      "One rare brand accent used like a printer registration mark.",
+      "Node category colors carry structure and remain visible in selection and focus states.",
+      "Readable condensed sans for prose; mono for controls, labels, identifiers, and short values.",
+      "Crisp artwork frames with low-radius controls and overlays where affordance requires it.",
+      "Mobile-first interaction with 44px minimum touch targets."
+    ],
+    "rules": [
+      {
+        "name": "The Registration-Mark Rule",
+        "body": "The flare accent is rare, deliberate, and load-bearing rather than a brand wash.",
+        "section": "colors"
+      },
+      {
+        "name": "The Category-Is-Grammar Rule",
+        "body": "Category color identifies node structure and must survive hover, selection, and focus.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mono-As-Control Rule",
+        "body": "Use mono for commands, labels, ids, metadata, and short values; use readable sans for prose and recovery copy.",
+        "section": "typography"
+      },
+      {
+        "name": "The Layered-Tonal Rule",
+        "body": "Resting surfaces use tonal layers and hairline rules; functional shadows are reserved for overlays, drag states, focus support, and selected graph objects.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Print-Mark Rule",
+        "body": "Frame artwork with crop or registration marks when the interface needs a print-proof signature.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Keep the brand accent rare and intentional.",
+      "Use node category colors as structural grammar.",
+      "Use Barlow Condensed for readable UI copy and Space Mono for control grammar.",
+      "Keep every interactive target at least 44px on touch surfaces.",
+      "Use explicit focus, error, loading, and disabled states."
+    ],
+    "donts": [
+      "Do not use pure black, pure white, generic tech blue, or creator purple as the product identity.",
+      "Do not force mono onto paragraphs, onboarding text, or dense inspector copy.",
+      "Do not replace a selected node category color with the global flare accent.",
+      "Do not add soft generic card shadows to resting surfaces.",
+      "Do not put checkerboards, crop marks, or other UI chrome into exported artwork."
+    ]
+  }
+}
