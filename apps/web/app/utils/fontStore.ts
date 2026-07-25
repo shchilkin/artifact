@@ -6,7 +6,7 @@ import {
   pickGoogleFontFace,
 } from './googleFonts';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
-import { estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
+import { blobToBase64DataUrl, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
 const DB_NAME = 'artifact-local-fonts';
 const DB_VERSION = 1;
@@ -105,16 +105,7 @@ function familyForId(id: string) {
 }
 
 function fileToDataUrl(file: File): Promise<string> {
-  return blobToDataUrl(file);
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => resolve(typeof event.target?.result === 'string' ? event.target.result : '');
-    reader.onerror = () => reject(reader.error ?? new Error('Could not read font file'));
-    reader.readAsDataURL(blob);
-  });
+  return blobToBase64DataUrl(file);
 }
 
 export function isFontUri(font: string): font is `artifact-font://${string}` {
@@ -174,7 +165,7 @@ export async function saveGoogleFontFamily(input: string): Promise<ImportedFontA
     family: request.family,
     request,
     face,
-    dataUrl: await blobToDataUrl(fontBlob),
+    dataUrl: await blobToBase64DataUrl(fontBlob),
     bytes: fontBlob.size,
   });
 

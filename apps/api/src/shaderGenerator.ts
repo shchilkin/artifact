@@ -1,3 +1,4 @@
+import { hashStringToUint32 } from '@artifact/shared/hash';
 import { AI_SHADER_PROMPT_MAX_LENGTH, type ShaderInstance } from './contracts.js';
 
 const LOCAL_SHADER_MODEL = 'deterministic-local-shader';
@@ -54,7 +55,7 @@ export function validateShaderPrompt(
 export function generateLocalShaderInstanceFromPrompt(prompt: string): ShaderInstance {
   const normalized = normalizeShaderPrompt(prompt);
   const text = normalized.toLowerCase();
-  const seed = hashPrompt(text);
+  const seed = hashStringToUint32(text);
   const tint = tintForPrompt(text, seed);
   const amount = round(valueFromSeed(seed, 0.018, 0.075), 3);
   const scale = round(valueFromSeed(seed >>> 5, 4, 18), 1);
@@ -98,15 +99,6 @@ function labelForPrompt(text: string) {
 
 function mentions(text: string, words: string[]) {
   return words.some((word) => text.includes(word));
-}
-
-function hashPrompt(value: string) {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
 }
 
 function valueFromSeed(seed: number, min: number, max: number) {

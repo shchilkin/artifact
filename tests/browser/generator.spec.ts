@@ -4,11 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page, type Route, test } from '@playwright/test';
 import {
   clickEditorControl,
+  expectImageExportDownload,
   expectLayerCanvasToHavePixels,
   expectNoBrowserIssues,
   expectStoredImageLayerAssetUri,
   expectStoredLayerCount,
+  expectStoredLayerField,
   gotoDocument,
+  readStoredLayerField,
   setupBrowserTestPage,
   switchToLayerView,
   switchToNodeView,
@@ -2299,12 +2302,7 @@ test('layer text drag keeps effect stack active during movement', async ({ page 
   expect(await moveHandle.evaluate((handle) => getComputedStyle(handle).outlineStyle)).not.toBe('none');
   await page.keyboard.press('ArrowRight');
   await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return doc.layers?.find((layer: { id: string }) => layer.id === 'layer-text-effect-text')?.x;
-      }),
-    )
+    .poll(() => readStoredLayerField(page, { key: 'id', value: 'layer-text-effect-text' }, 'x'))
     .toBeCloseTo(0.5 + 1 / 540);
 
   const before = await getCanvasRgbAt(page, 0.18, 0.18);
@@ -3648,16 +3646,7 @@ test('selected layer nodes can be muted with keyboard shortcut', async ({ page }
   await page.keyboard.press('m');
 
   await expect(fillNode).toHaveClass(/node-shell-muted/);
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.find((layer: { id: string }) => layer.id === 'wide-fill')?.visible;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe(false);
+  await expectStoredLayerField(page, { key: 'id', value: 'wide-fill' }, 'visible', false);
 
   await page.keyboard.press('m');
   await expect(fillNode).not.toHaveClass(/node-shell-muted/);
@@ -4318,23 +4307,6 @@ async function getStoredGraphArea(page: Page) {
   });
 }
 
-async function expectStoredLayerField(
-  page: Page,
-  lookup: { key: 'id' | 'name'; value: string },
-  field: string,
-  expected: unknown,
-) {
-  await expect
-    .poll(
-      async () => {
-        const layer = await getStoredLayerBy(page, lookup.key, lookup.value);
-        return layer?.[field];
-      },
-      { timeout: 15_000 },
-    )
-    .toBe(expected);
-}
-
 async function getVisibleLayerRow(page: Page, text: string) {
   const row = page.locator('.layer-row').filter({ hasText: text }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });
@@ -4457,15 +4429,6 @@ async function addLayerFromHeader(page: Page, addLibraryLabel: RegExp, searchTex
     .locator('.add-library-row')
     .filter({ has: page.locator('.add-library-row-label', { hasText: addLibraryLabel }) })
     .click();
-}
-
-async function expectImageExportDownload(page: Page) {
-  const exportButton = page.getByRole('button', { name: 'EXPORT' });
-  await expect(exportButton).toBeEnabled({ timeout: 15_000 });
-  const downloadPromise = page.waitForEvent('download');
-  await exportButton.click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
 }
 
 async function downloadJsonFromButton(page: Page, buttonName: string) {

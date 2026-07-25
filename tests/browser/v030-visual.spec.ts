@@ -1,9 +1,8 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 import {
   expectLayerCanvasToHavePixels,
-  expectNoBrowserIssues,
   gotoDocument,
-  setupBrowserTestPage,
+  registerBrowserTestHooks,
   switchToLayerView,
   switchToNodeView,
 } from './helpers';
@@ -100,13 +99,7 @@ const graphStateDocument = {
   export: { format: 'png', scale: 1, target: 'cover' },
 };
 
-test.beforeEach(async ({ page }) => {
-  await setupBrowserTestPage(page);
-});
-
-test.afterEach(async ({ page }) => {
-  expectNoBrowserIssues(page);
-});
+registerBrowserTestHooks(test);
 
 test('v0.30 blank editor keeps the empty start and layer shell visually readable', async ({ page }) => {
   await gotoDocument(page, blankEditorDocument);

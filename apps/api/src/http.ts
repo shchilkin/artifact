@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { AiErrorResponse } from './contracts.js';
+import { normalizeOriginValue } from './webOrigins.js';
 
 export interface JsonResponse<T> {
   status: number;
@@ -92,17 +93,6 @@ function originMatchesPattern(origin: string, pattern: string) {
   if (normalizedOrigin === normalizedPattern) return true;
   if (!normalizedPattern.includes('*')) return false;
   return wildcardOriginRegex(normalizedPattern).test(normalizedOrigin);
-}
-
-function normalizeOriginValue(value: string) {
-  const trimmed = value.trim().replace(/\/$/, '');
-  try {
-    const url = new URL(trimmed);
-    if (url.protocol === 'http:' || url.protocol === 'https:') return url.origin;
-  } catch {
-    // Keep the original value so the allow-list check can reject it.
-  }
-  return trimmed;
 }
 
 function wildcardOriginRegex(pattern: string) {

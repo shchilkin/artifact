@@ -5,6 +5,7 @@ import type { ApiConfig } from './config.js';
 import { isAllowedWebOrigin } from './http.js';
 import { logInfo } from './logger.js';
 import { sendPasswordResetEmail } from './passwordResetEmail.js';
+import { normalizeOriginValue } from './webOrigins.js';
 
 export function createArtifactBetterAuth(config: ApiConfig, pool: Pool | null) {
   if (!pool) return null;
@@ -61,15 +62,4 @@ function requestCallbackUrl(request: Request) {
   } catch {
     return null;
   }
-}
-
-function normalizeOriginValue(value: string) {
-  const trimmed = value.trim().replace(/\/$/, '');
-  try {
-    const url = new URL(trimmed);
-    if (url.protocol === 'http:' || url.protocol === 'https:') return url.origin;
-  } catch {
-    // Keep the original value so the allow-list check can reject it.
-  }
-  return trimmed;
 }

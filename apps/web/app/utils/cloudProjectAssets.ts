@@ -1,22 +1,19 @@
-import type {
-  CanvasDocument,
-  GraphEnvironmentNode,
-  GraphMaterialNode,
-  GraphScene3DNode,
-  ImageLayer,
-  Layer,
-  ModelLayer,
-  PortableFontAsset,
-} from '../types/config';
+import type { CanvasDocument, PortableFontAsset } from '../types/config';
 import { MATERIAL_TEXTURE_SOURCE_FIELDS } from '../types/config';
+import { apiErrorFields, fetchApiResponse, readApiJson } from './apiClient';
 import {
   type PreparePortableDocumentOptions,
   preparePortableDocument,
   storePortableDocumentAssets,
   stripPortableDocumentAssets,
 } from './documentAssets';
+import {
+  mapDocumentEnvironmentSources,
+  mapDocumentImageSources,
+  mapDocumentModelSources,
+} from './documentSourceMapping';
 import { fontUriFromId, isFontUri } from './fontStore';
-import { estimateDataUrlBytes } from './storagePrimitives';
+import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes } from './storagePrimitives';
 
 const CLOUD_ASSET_URI_PREFIX = 'artifact-cloud-asset://';
 const CLOUD_ASSET_KINDS = new Set(['image', 'font', 'model', 'environment']);
@@ -45,8 +42,16 @@ interface UploadCloudAssetInput {
   label?: string;
 }
 
-function endpoint(baseUrl: string | undefined, path: string) {
-  return `${baseUrl?.replace(/\/$/, '') ?? ''}${path}`;
+function isUploadedCloudAsset(value: unknown): value is UploadedCloudAsset {
+  if (!value || typeof value !== 'object') return false;
+  const asset = value as Partial<UploadedCloudAsset>;
+  return (
+    typeof asset.id === 'string' &&
+    typeof asset.kind === 'string' &&
+    typeof asset.uri === 'string' &&
+    typeof asset.mime === 'string' &&
+    typeof asset.bytes === 'number'
+  );
 }
 
 function isCloudAssetUri(value: string): boolean {
@@ -219,55 +224,23 @@ async function uploadCloudAsset(
   );
   const asset = body && typeof body === 'object' ? (body as Record<string, unknown>).asset : null;
   if (!asset || typeof asset !== 'object') throw new Error('Cloud asset API returned an invalid asset.');
-  const value = asset as Partial<UploadedCloudAsset>;
-  if (
-    typeof value.id !== 'string' ||
-    typeof value.kind !== 'string' ||
-    typeof value.uri !== 'string' ||
-    typeof value.mime !== 'string' ||
-    typeof value.bytes !== 'number'
-  ) {
-    throw new Error('Cloud asset API returned an incomplete asset.');
-  }
-  return value as UploadedCloudAsset;
+  if (!isUploadedCloudAsset(asset)) throw new Error('Cloud asset API returned an incomplete asset.');
+  return asset;
 }
 
 async function downloadCloudAssetDataUrl(id: string, options: CloudProjectAssetClientOptions): Promise<string> {
-  const fetcher = options.fetcher ?? fetch;
-  const response = await fetcher(endpoint(options.baseUrl, `/api/assets/${encodeURIComponent(id)}/file`), {
-    credentials: 'include',
-    headers: {
-      ...(options.bearerToken ? { authorization: `Bearer ${options.bearerToken}` } : {}),
-    },
-    signal: options.signal,
-  });
+  const response = await fetchApiResponse(`/api/assets/${encodeURIComponent(id)}/file`, {}, options);
   if (!response.ok) throw new Error('Cloud project asset could not be downloaded.');
-  return blobToDataUrl(await response.blob());
+  return blobToBase64DataUrl(await response.blob());
 }
 
 async function requestJson(path: string, init: RequestInit, options: CloudProjectAssetClientOptions): Promise<unknown> {
-  const fetcher = options.fetcher ?? fetch;
-  const response = await fetcher(endpoint(options.baseUrl, path), {
-    credentials: 'include',
-    ...init,
-    headers: {
-      'content-type': 'application/json',
-      ...(options.bearerToken ? { authorization: `Bearer ${options.bearerToken}` } : {}),
-      ...init.headers,
-    },
-    signal: options.signal,
-  });
-  const text = await response.text();
-  const body = text ? JSON.parse(text) : null;
+  const response = await fetchApiResponse(path, init, options);
+  const body = await readApiJson(response);
   if (!response.ok) {
-    const errorBody = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
-    throw new Error(typeof errorBody.message === 'string' ? errorBody.message : 'Cloud asset request failed.');
+    throw new Error(apiErrorFields(body, 'Cloud asset request failed.').message);
   }
   return body;
-}
-
-function dataUrlMime(dataUrl: string) {
-  return /^data:([^;,]+)[;,]/.exec(dataUrl)?.[1] ?? 'application/octet-stream';
 }
 
 function isModelDataUrl(src: string) {
@@ -280,15 +253,6 @@ function isEnvironmentDataUrl(src: string) {
     src.startsWith('data:image/vnd.radiance') ||
     src.startsWith('data:application/octet-stream')
   );
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => resolve(typeof event.target?.result === 'string' ? event.target.result : '');
-    reader.onerror = () => reject(reader.error ?? new Error('Could not read cloud asset'));
-    reader.readAsDataURL(blob);
-  });
 }
 
 function collectDocumentSources(doc: CanvasDocument): string[] {
@@ -322,100 +286,4 @@ async function mapDocumentFontSources(
     }),
   );
   return changed ? { ...doc, layers } : doc;
-}
-
-async function mapDocumentImageSources(
-  doc: CanvasDocument,
-  mapSource: (source: string) => Promise<string>,
-): Promise<CanvasDocument> {
-  let changed = false;
-  const layers: Layer[] = [];
-  for (const layer of doc.layers) {
-    if (layer.kind !== 'image') {
-      layers.push(layer);
-      continue;
-    }
-    const src = await mapSource(layer.src);
-    const aiGenerationHistory = layer.aiGenerationHistory?.length
-      ? await Promise.all(
-          layer.aiGenerationHistory.map(async (variant) => {
-            const variantSrc = await mapSource(variant.src);
-            return variantSrc === variant.src ? variant : { ...variant, src: variantSrc };
-          }),
-        )
-      : layer.aiGenerationHistory;
-    changed ||=
-      src !== layer.src ||
-      Boolean(aiGenerationHistory?.some((variant, index) => variant.src !== layer.aiGenerationHistory?.[index]?.src));
-    layers.push({ ...layer, src, aiGenerationHistory } satisfies ImageLayer);
-  }
-
-  let graph = doc.graph;
-  if (graph?.materialNodes?.length) {
-    let graphChanged = false;
-    const materialNodes: GraphMaterialNode[] = [];
-    for (const node of graph.materialNodes) {
-      const nextNode = { ...node };
-      for (const field of MATERIAL_TEXTURE_SOURCE_FIELDS) {
-        const source = nextNode[field];
-        if (!source) continue;
-        const mapped = await mapSource(source);
-        if (mapped !== source) {
-          nextNode[field] = mapped;
-          graphChanged = true;
-        }
-      }
-      materialNodes.push(nextNode);
-    }
-    if (graphChanged) {
-      changed = true;
-      graph = { ...graph, materialNodes };
-    }
-  }
-
-  return changed ? { ...doc, layers, graph } : doc;
-}
-
-async function mapDocumentModelSources(
-  doc: CanvasDocument,
-  mapSource: (source: string, layer: ModelLayer) => Promise<string>,
-): Promise<CanvasDocument> {
-  let changed = false;
-  const layers = await Promise.all(
-    doc.layers.map(async (layer) => {
-      if (layer.kind !== 'model') return layer;
-      const modelSrc = await mapSource(layer.modelSrc, layer);
-      changed ||= modelSrc !== layer.modelSrc;
-      return modelSrc === layer.modelSrc ? layer : ({ ...layer, modelSrc } satisfies ModelLayer);
-    }),
-  );
-  return changed ? { ...doc, layers } : doc;
-}
-
-async function mapDocumentEnvironmentSources(
-  doc: CanvasDocument,
-  mapSource: (source: string, node: GraphEnvironmentNode | GraphScene3DNode) => Promise<string>,
-): Promise<CanvasDocument> {
-  const graph = doc.graph;
-  if (!graph?.environmentNodes?.length && !graph?.scene3dNodes?.length) return doc;
-  let changed = false;
-  const environmentNodes = await Promise.all(
-    (graph.environmentNodes ?? []).map(async (node) => {
-      if (!node.environmentSrc) return node;
-      const environmentSrc = await mapSource(node.environmentSrc, node);
-      changed ||= environmentSrc !== node.environmentSrc;
-      return environmentSrc === node.environmentSrc
-        ? node
-        : ({ ...node, environmentSrc } satisfies GraphEnvironmentNode);
-    }),
-  );
-  const scene3dNodes = await Promise.all(
-    (graph.scene3dNodes ?? []).map(async (node) => {
-      if (!node.environmentSrc) return node;
-      const environmentSrc = await mapSource(node.environmentSrc, node);
-      changed ||= environmentSrc !== node.environmentSrc;
-      return environmentSrc === node.environmentSrc ? node : ({ ...node, environmentSrc } satisfies GraphScene3DNode);
-    }),
-  );
-  return changed ? { ...doc, graph: { ...graph, environmentNodes, scene3dNodes } } : doc;
 }
