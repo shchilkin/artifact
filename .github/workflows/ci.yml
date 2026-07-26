@@ -194,6 +194,42 @@ jobs:
             test-results/
           retention-days: 7
 
+  browser-backoffice:
+    needs: browser-changes
+    if: needs.browser-changes.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    name: browser (backoffice)
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Backoffice theme and operational conformance
+        env:
+          HOME: /root
+        run: npm run test:browser:backoffice
+
+      - name: Upload Backoffice Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-backoffice
+          path: |
+            apps/backoffice/playwright-report/
+            apps/backoffice/test-results/
+          retention-days: 7
+
   container-changes:
     runs-on: ubuntu-latest
     outputs:
@@ -235,7 +271,7 @@ jobs:
 
   container-gate:
     name: container gate
-    needs: [quality, browser-changes, browser, container-changes]
+    needs: [quality, browser-changes, browser, browser-backoffice, container-changes]
     if: always()
     runs-on: ubuntu-latest
     outputs:
@@ -249,6 +285,7 @@ jobs:
           BROWSER_CHANGES_RESULT: ${{ needs.browser-changes.result }}
           BROWSER_REQUIRED: ${{ needs.browser-changes.outputs.should_run }}
           BROWSER_RESULT: ${{ needs.browser.result }}
+          BACKOFFICE_BROWSER_RESULT: ${{ needs.browser-backoffice.result }}
           CONTAINER_CHANGES_RESULT: ${{ needs.container-changes.result }}
           CONTAINER_REQUIRED: ${{ needs.container-changes.outputs.should_run }}
         shell: bash
@@ -274,6 +311,10 @@ jobs:
 
           if [ "$BROWSER_REQUIRED" = "true" ] && [ "$BROWSER_RESULT" != "success" ]; then
             fail_gate "Required browser matrix result was '$BROWSER_RESULT'."
+          fi
+
+          if [ "$BROWSER_REQUIRED" = "true" ] && [ "$BACKOFFICE_BROWSER_RESULT" != "success" ]; then
+            fail_gate "Required Backoffice browser result was '$BACKOFFICE_BROWSER_RESULT'."
           fi
 
           if [ "$CONTAINER_REQUIRED" != "true" ]; then

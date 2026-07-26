@@ -97,6 +97,15 @@ Backoffice `/style-guide`. Both surfaces must render the same
 density, geometry, motion, and color continue to come from their distinct
 Product Themes.
 
+The v0.48 conformance gate enforces that boundary with shared Playwright
+assertions rather than theme-neutral golden screenshots. It checks every
+registered specimen identifier for readable geometry, then resolves
+representative semantic colors, spacing, typography, focus, disabled, error,
+loading, reduced-motion, keyboard, and overflow states against the active
+Theme Contract. Artifact runs in Chromium, Firefox, and WebKit; Backoffice runs
+desktop and mobile Chromium as its own required CI job. Assertion steps include
+the theme and specimen identifier so a failure names the owning contract.
+
 Artifact runtime callers now import `Button`, `ButtonLink`, `IconButton`, and
 `Input` directly from UI Foundation. Product-specific layout stays in feature
 classes and semantic Theme Contract values rather than compatibility wrappers.
