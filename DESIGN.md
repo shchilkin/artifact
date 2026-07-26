@@ -282,9 +282,10 @@ selected graph objects where tonal separation alone is not enough.
 - **Shape:** Compact and crisp. Default radius 2–4px. Use radius 0 only for
   poster-like hero CTAs or framed art surfaces where square geometry is part of
   the composition.
-- **Implementation:** Public surface CTAs use `ActionButton` / `ActionLink`
-  from `apps/web/app/components/ui/ActionButton.tsx`; shared button styles live
-  in `apps/web/app/components/ui/action-button.css`.
+- **Implementation:** Public surface CTAs use UI Foundation `Button` /
+  `ButtonLink` from `@artifact/ui`; structural styles live in
+  `packages/ui/src/foundation.css` and Artifact appearance comes from
+  `apps/web/app/styles/ui-foundation-theme.css`.
 - **Primary CTA:** Accent fill (`oklch(66% 0.16 28)`), Ink BG text, padding 16px 28px, mono label tracking 0.14em, ALL CAPS. Hover: invert to Ash Text fill, Ink BG text. No shadow, no scale change.
 - **Tertiary / Link:** Underlined mono in Ash Dim, hover lifts to Ash Text. Used for secondary route links and similar.
 

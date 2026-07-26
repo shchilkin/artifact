@@ -16,7 +16,7 @@ export function RepeatInspector({
   const rotationMode = repeatNode.rotationMode ?? 'fixed';
 
   return (
-    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
+    <div className={detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached'}>
       <InspectorTextInput label="Name" value={repeatNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSelect
         label="Pattern"
@@ -101,7 +101,7 @@ export function RepeatInspector({
         max={100}
         onChange={(value) => onChange({ opacity: value })}
       />
-      <p className="node-inspector-note">Repeats the source input over the optional backdrop input.</p>
+      <p className="artifact-inspector-note">Repeats the source input over the optional backdrop input.</p>
     </div>
   );
 }

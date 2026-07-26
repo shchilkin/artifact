@@ -9,6 +9,8 @@
  * - PrimitiveViewport3D owns the live WebGLRenderer + ResizeObserver.
  * - primitiveRenderer owns the one-shot offscreen renderer.
  */
+
+import { hashStringToUint32 } from '@artifact/shared/hash';
 import * as THREE from 'three';
 import { NODE_CANVAS_COLORS } from '../components/node-canvas/constants';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../components/PrimitiveViewportState';
@@ -69,6 +71,15 @@ export interface MaterialTextureCanvases {
   alpha?: HTMLCanvasElement | null;
 }
 
+interface MaterialTextureSet {
+  map?: THREE.Texture;
+  roughnessMap?: THREE.Texture;
+  metalnessMap?: THREE.Texture;
+  normalMap?: THREE.Texture;
+  alphaMap?: THREE.Texture;
+  bumpMap?: THREE.Texture;
+}
+
 export function primitiveLayerMaterialConfig(layer: PrimitiveLayer): ResolvedMaterialConfig {
   return {
     ...DEFAULT_MATERIAL_CONFIG,
@@ -84,17 +95,8 @@ export function primitiveLayerMaterialConfig(layer: PrimitiveLayer): ResolvedMat
   };
 }
 
-function materialValue(value: number, fallback: number): number {
+export function materialValue(value: number | undefined, fallback: number): number {
   return clamp(Number.isFinite(value) ? value : fallback, 0, 1);
-}
-
-function hashString(value: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
 }
 
 function nextNoise(seed: { value: number }) {
@@ -113,7 +115,7 @@ function colorStyle(color: THREE.Color, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function createCanvasTexture(canvas: HTMLCanvasElement, colorSpace?: THREE.ColorSpace) {
+export function createCanvasTexture(canvas: HTMLCanvasElement, colorSpace?: THREE.ColorSpace) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
@@ -123,7 +125,7 @@ function createCanvasTexture(canvas: HTMLCanvasElement, colorSpace?: THREE.Color
   return texture;
 }
 
-function canvasMaterialTexture(canvas: HTMLCanvasElement | null | undefined, colorSpace?: THREE.ColorSpace) {
+export function canvasMaterialTexture(canvas: HTMLCanvasElement | null | undefined, colorSpace?: THREE.ColorSpace) {
   return canvas ? createCanvasTexture(canvas, colorSpace) : undefined;
 }
 
@@ -194,34 +196,111 @@ function drawScalarPattern(
   ctx: CanvasRenderingContext2D,
   config: ResolvedMaterialConfig,
   seed: { value: number },
-  mode: 'roughness' | 'bump',
+  mode: 'roughness' | 'bump' | 'scene-bump',
 ) {
   const roughness = materialValue(config.materialRoughness, DEFAULT_MATERIAL_CONFIG.materialRoughness);
   const grain = materialValue(config.materialGrain, 0);
   const relief = materialValue(config.materialRelief, 0);
   const anisotropy = materialValue(config.materialAnisotropy, 0);
   const size = MATERIAL_TEXTURE_SIZE;
-  const base = mode === 'roughness' ? 40 + roughness * 180 : 112 + relief * 62;
+  const base = scalarPatternBase(mode, roughness, relief);
 
   ctx.fillStyle = `rgb(${base}, ${base}, ${base})`;
   ctx.fillRect(0, 0, size, size);
 
-  if (grain > 0.01 || relief > 0.01) {
-    const image = ctx.getImageData(0, 0, size, size);
-    for (let index = 0; index < image.data.length; index += 4) {
-      const x = (index / 4) % size;
-      const y = Math.floor(index / 4 / size);
-      const band = Math.sin((y + x * anisotropy * 0.24) * (0.12 + anisotropy * 0.2));
-      const noise = nextNoise(seed) - 0.5;
-      const amount = mode === 'roughness' ? grain * 72 + anisotropy * band * 18 : relief * 90 + grain * noise * 56;
-      const value = clamp(base + noise * amount + band * anisotropy * 26, 0, 255);
-      image.data[index] = value;
-      image.data[index + 1] = value;
-      image.data[index + 2] = value;
-      image.data[index + 3] = 255;
-    }
-    ctx.putImageData(image, 0, 0);
+  if (!shouldDrawScalarPattern(mode, grain, relief, roughness)) return;
+  const image = ctx.getImageData(0, 0, size, size);
+  for (let index = 0; index < image.data.length; index += 4) {
+    const x = (index / 4) % size;
+    const y = Math.floor(index / 4 / size);
+    const band = Math.sin((y + x * anisotropy * 0.24) * (0.12 + anisotropy * 0.2));
+    const noise = nextNoise(seed) - 0.5;
+    const amount = scalarPatternAmount(mode, grain, relief, roughness, anisotropy, band, noise);
+    const value = clamp(base + noise * amount + band * anisotropy * 26, 0, 255);
+    image.data[index] = value;
+    image.data[index + 1] = value;
+    image.data[index + 2] = value;
+    image.data[index + 3] = 255;
   }
+  ctx.putImageData(image, 0, 0);
+}
+
+function scalarPatternBase(mode: 'roughness' | 'bump' | 'scene-bump', roughness: number, relief: number) {
+  return mode === 'roughness' ? 40 + roughness * 180 : 112 + relief * 62;
+}
+
+function shouldDrawScalarPattern(
+  mode: 'roughness' | 'bump' | 'scene-bump',
+  grain: number,
+  relief: number,
+  roughness: number,
+) {
+  if (grain > 0.01 || relief > 0.01) return true;
+  return mode === 'scene-bump' && roughness > 0.01;
+}
+
+function scalarPatternAmount(
+  mode: 'roughness' | 'bump' | 'scene-bump',
+  grain: number,
+  relief: number,
+  roughness: number,
+  anisotropy: number,
+  band: number,
+  noise: number,
+) {
+  if (mode === 'roughness') return grain * 72 + anisotropy * band * 18;
+  const sceneRoughness = mode === 'scene-bump' ? roughness * 18 : 0;
+  return relief * 90 + grain * noise * 56 + sceneRoughness;
+}
+
+export function createMaterialPatternCanvas(
+  config: ResolvedMaterialConfig,
+  seed: { value: number },
+  mode: 'albedo' | 'roughness' | 'bump' | 'scene-bump',
+) {
+  const canvas = document.createElement('canvas');
+  canvas.width = MATERIAL_TEXTURE_SIZE;
+  canvas.height = MATERIAL_TEXTURE_SIZE;
+  const context = canvas.getContext('2d')!;
+  if (mode === 'albedo') {
+    drawMaterialPattern(
+      context,
+      config,
+      seed,
+      new THREE.Color(config.materialBaseColor),
+      new THREE.Color(config.materialAccentColor),
+    );
+  } else {
+    drawScalarPattern(context, config, seed, mode);
+  }
+  return canvas;
+}
+
+export function applyPhysicalMaterialTextures(
+  params: THREE.MeshPhysicalMaterialParameters,
+  textureSet: MaterialTextureSet,
+  bumpScale: number,
+) {
+  if (textureSet.map) params.map = textureSet.map;
+  if (textureSet.roughnessMap) params.roughnessMap = textureSet.roughnessMap;
+  if (textureSet.metalnessMap) params.metalnessMap = textureSet.metalnessMap;
+  if (textureSet.normalMap) {
+    params.normalMap = textureSet.normalMap;
+    params.normalScale = new THREE.Vector2(1, 1);
+  }
+  if (textureSet.alphaMap) {
+    params.alphaMap = textureSet.alphaMap;
+    params.transparent = true;
+    params.alphaTest = 0.02;
+  }
+  if (textureSet.bumpMap) {
+    params.bumpMap = textureSet.bumpMap;
+    params.bumpScale = bumpScale;
+  }
+}
+
+function textureOrCanvas(texture: THREE.Texture | undefined, canvas: HTMLCanvasElement, colorSpace?: THREE.ColorSpace) {
+  return texture ?? createCanvasTexture(canvas, colorSpace);
 }
 
 function createMaterialTextureSet(
@@ -230,40 +309,28 @@ function createMaterialTextureSet(
   materialTextures?: MaterialTextureCanvases | null,
 ) {
   if (typeof document === 'undefined') return {};
-  const base = new THREE.Color(config.materialBaseColor);
-  const accent = new THREE.Color(config.materialAccentColor);
+  const supplied = materialTextures ?? {};
   const seed = {
-    value: hashString(`${layer.id}:${config.materialPreset}:${config.materialBaseColor}:${config.materialAccentColor}`),
+    value: hashStringToUint32(
+      `${layer.id}:${config.materialPreset}:${config.materialBaseColor}:${config.materialAccentColor}`,
+    ),
   };
-
-  const mapCanvas = document.createElement('canvas');
-  mapCanvas.width = MATERIAL_TEXTURE_SIZE;
-  mapCanvas.height = MATERIAL_TEXTURE_SIZE;
-  drawMaterialPattern(mapCanvas.getContext('2d')!, config, seed, base, accent);
-
-  const roughnessCanvas = document.createElement('canvas');
-  roughnessCanvas.width = MATERIAL_TEXTURE_SIZE;
-  roughnessCanvas.height = MATERIAL_TEXTURE_SIZE;
-  drawScalarPattern(roughnessCanvas.getContext('2d')!, config, seed, 'roughness');
-
-  const bumpCanvas = document.createElement('canvas');
-  bumpCanvas.width = MATERIAL_TEXTURE_SIZE;
-  bumpCanvas.height = MATERIAL_TEXTURE_SIZE;
-  drawScalarPattern(bumpCanvas.getContext('2d')!, config, seed, 'bump');
+  const mapCanvas = createMaterialPatternCanvas(config, seed, 'albedo');
+  const roughnessCanvas = createMaterialPatternCanvas(config, seed, 'roughness');
+  const bumpCanvas = createMaterialPatternCanvas(config, seed, 'bump');
+  const normalMap = canvasMaterialTexture(supplied.normal);
 
   return {
-    map:
-      canvasMaterialTexture(materialTextures?.albedo, THREE.SRGBColorSpace) ??
-      createCanvasTexture(mapCanvas, THREE.SRGBColorSpace),
-    roughnessMap: canvasMaterialTexture(materialTextures?.roughness) ?? createCanvasTexture(roughnessCanvas),
-    metalnessMap: canvasMaterialTexture(materialTextures?.metalness),
-    normalMap: canvasMaterialTexture(materialTextures?.normal),
-    alphaMap: canvasMaterialTexture(materialTextures?.alpha),
-    bumpMap: materialTextures?.normal ? undefined : createCanvasTexture(bumpCanvas),
+    map: textureOrCanvas(canvasMaterialTexture(supplied.albedo, THREE.SRGBColorSpace), mapCanvas, THREE.SRGBColorSpace),
+    roughnessMap: textureOrCanvas(canvasMaterialTexture(supplied.roughness), roughnessCanvas),
+    metalnessMap: canvasMaterialTexture(supplied.metalness),
+    normalMap,
+    alphaMap: canvasMaterialTexture(supplied.alpha),
+    bumpMap: normalMap ? undefined : createCanvasTexture(bumpCanvas),
   };
 }
 
-function createMaterialEnvironmentMap(config: ResolvedMaterialConfig) {
+export function createMaterialEnvironmentMap(config: ResolvedMaterialConfig) {
   if (typeof document === 'undefined') return undefined;
   const metalness = materialValue(config.materialMetalness, DEFAULT_MATERIAL_CONFIG.materialMetalness);
   const clearcoat = materialValue(config.materialClearcoat, DEFAULT_MATERIAL_CONFIG.materialClearcoat);
@@ -324,25 +391,33 @@ export function createPrimitiveMaterial(
   const config = materialConfig ?? primitiveLayerMaterialConfig(layer);
   const color = new THREE.Color(config.materialBaseColor);
   const textureSet = createMaterialTextureSet(layer, config, materialTextures);
-  if (renderMode === 'unlit') {
-    const params: THREE.MeshBasicMaterialParameters = {
-      color: textureSet.map ? 0xffffff : color,
-      map: textureSet.map,
-      transparent: Boolean(textureSet.alphaMap),
-      alphaTest: textureSet.alphaMap ? 0.02 : 0,
-      wireframe: false,
-    };
-    if (textureSet.alphaMap) params.alphaMap = textureSet.alphaMap;
-    return new THREE.MeshBasicMaterial(params);
-  }
-  const accent = new THREE.Color(config.materialAccentColor);
-  const params: THREE.MeshPhysicalMaterialParameters = {
+  if (renderMode === 'unlit') return createUnlitMaterial(color, textureSet);
+  return createPhysicalPrimitiveMaterial(layer, config, renderMode, textureSet);
+}
+
+function createUnlitMaterial(color: THREE.Color, textureSet: MaterialTextureSet) {
+  const params: THREE.MeshBasicMaterialParameters = {
     color: textureSet.map ? 0xffffff : color,
     map: textureSet.map,
-    emissive:
-      renderMode === 'wireframe'
-        ? accent.multiplyScalar(0.08)
-        : accent.clone().multiplyScalar(materialValue(config.materialRelief, 0) * 0.08),
+    transparent: Boolean(textureSet.alphaMap),
+    alphaTest: textureSet.alphaMap ? 0.02 : 0,
+    wireframe: false,
+  };
+  if (textureSet.alphaMap) params.alphaMap = textureSet.alphaMap;
+  return new THREE.MeshBasicMaterial(params);
+}
+
+function createPhysicalPrimitiveMaterial(
+  layer: PrimitiveLayer,
+  config: ResolvedMaterialConfig,
+  renderMode: PrimitiveRenderMode,
+  textureSet: MaterialTextureSet,
+) {
+  const accent = new THREE.Color(config.materialAccentColor);
+  const relief = materialValue(config.materialRelief, 0);
+  const params: THREE.MeshPhysicalMaterialParameters = {
+    color: textureSet.map ? 0xffffff : new THREE.Color(config.materialBaseColor),
+    emissive: renderMode === 'wireframe' ? accent.multiplyScalar(0.08) : accent.clone().multiplyScalar(relief * 0.08),
     metalness: materialValue(config.materialMetalness, DEFAULT_MATERIAL_CONFIG.materialMetalness),
     roughness:
       renderMode === 'wireframe'
@@ -353,9 +428,6 @@ export function createPrimitiveMaterial(
       0.03,
       materialValue(config.materialRoughness, DEFAULT_MATERIAL_CONFIG.materialRoughness) * 0.7,
     ),
-    roughnessMap: textureSet.roughnessMap,
-    transparent: Boolean(textureSet.alphaMap),
-    alphaTest: textureSet.alphaMap ? 0.02 : 0,
     envMap: createMaterialEnvironmentMap(config),
     envMapIntensity:
       0.24 +
@@ -364,16 +436,7 @@ export function createPrimitiveMaterial(
     wireframe: renderMode === 'wireframe',
     flatShading: layer.primitiveShading === 'flat',
   };
-  if (textureSet.metalnessMap) params.metalnessMap = textureSet.metalnessMap;
-  if (textureSet.normalMap) {
-    params.normalMap = textureSet.normalMap;
-    params.normalScale = new THREE.Vector2(1, 1);
-  }
-  if (textureSet.alphaMap) params.alphaMap = textureSet.alphaMap;
-  if (textureSet.bumpMap) {
-    params.bumpMap = textureSet.bumpMap;
-    params.bumpScale = renderMode === 'wireframe' ? 0 : materialValue(config.materialRelief, 0) * 0.075;
-  }
+  applyPhysicalMaterialTextures(params, textureSet, renderMode === 'wireframe' ? 0 : relief * 0.075);
   return new THREE.MeshPhysicalMaterial(params);
 }
 

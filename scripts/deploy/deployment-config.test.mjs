@@ -155,7 +155,13 @@ describe('deployment configuration', () => {
 
     assert.ok(gateStart >= 0, 'CI must define a non-matrix container gate');
     assert.ok(matrixStart > gateStart, 'The container matrix must follow the prerequisite gate');
-    assert.match(workflow, /container-gate:\n[\s\S]*?needs: \[quality, browser-changes, browser, container-changes\]/);
+    assert.match(workflow, /browser-backoffice:\n[\s\S]*?name: browser \(backoffice\)/);
+    assert.match(
+      workflow,
+      /container-gate:\n[\s\S]*?needs: \[quality, browser-changes, browser, browser-backoffice, container-changes\]/,
+    );
+    assert.match(workflow, /BACKOFFICE_BROWSER_RESULT: \$\{\{ needs\.browser-backoffice\.result \}\}/);
+    assert.match(workflow, /Required Backoffice browser result was/);
     assert.match(workflow, /should_build: \$\{\{ steps\.gate\.outputs\.should_build \}\}/);
     assert.match(
       workflow,

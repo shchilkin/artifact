@@ -10,7 +10,6 @@ export type {
   AiShaderGenerationResponse,
   AiShaderRequestMode,
   AiShaderRequestResponse,
-  AiShaderSource,
   AiShaderValidationResponse,
   ApiHealthResponse,
   CreateAiShaderRequest,
@@ -28,10 +27,8 @@ export {
   AI_SHADER_DIAGNOSTIC_MAX_LENGTH,
   AI_SHADER_PROMPT_MAX_LENGTH,
   ARTIFACT_API_CONTRACT_VERSION,
-  normalizeShaderDefinition,
   normalizeShaderInstance,
   stripShaderCodeComments,
   validateShaderCode,
   validateShaderDefinition,
-  validateShaderInstance,
 } from '@artifact/shared';

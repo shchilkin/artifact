@@ -22,6 +22,7 @@ import { createPortal } from 'react-dom';
 import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
 
+import { Button, IconButton } from '@artifact/ui';
 import { useArtifactAuth } from '../../hooks/useArtifactAuth';
 import {
   type CanvasDocument,
@@ -43,10 +44,8 @@ import { LazyModelViewport3D, LazyPrimitiveViewport3D } from '../LazyViewport3D'
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
 import { type PrimitiveRenderMode, type PrimitiveViewportState } from '../PrimitiveViewportState';
-import { ActionButton } from '../ui/ActionButton';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 import { EmptyState } from '../ui/EmptyState';
-import { IconButton } from '../ui/IconButton';
 import { Toolbar, ToolbarButton } from '../ui/Toolbar';
 import { getEmptyGraphAreas } from './areas/areaBounds';
 import { GraphAreaEmptyStateOverlay, GraphAreaOverlay } from './areas/GraphAreaOverlay';
@@ -646,9 +645,9 @@ export function NodeCanvas({
                   title="Build the first branch"
                   body="Add a source or drag one from the Library. The output stays ready."
                   actions={
-                    <ActionButton variant="primary" onClick={openAddNodeMenu}>
+                    <Button variant="primary" onClick={openAddNodeMenu}>
                       Add first node
-                    </ActionButton>
+                    </Button>
                   }
                 />
               </div>

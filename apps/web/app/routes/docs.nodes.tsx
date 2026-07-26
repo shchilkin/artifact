@@ -1,7 +1,7 @@
+import { Button } from '@artifact/ui';
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
 import { BLEND_MODE_HELP, BLEND_OPTIONS } from '../components/layer-controls/fieldDefs';
-import { ActionButton } from '../components/ui/ActionButton';
 import { SearchField } from '../components/ui/SearchField';
 import {
   type CanvasDocument,
@@ -1019,7 +1019,7 @@ function NodePosterTuneButton({
 }) {
   if (!hasParams) return null;
   return (
-    <ActionButton
+    <Button
       className="docs-poster__tune"
       aria-expanded={controlsOpen}
       aria-controls={controlsId}
@@ -1028,7 +1028,7 @@ function NodePosterTuneButton({
       variant="quiet"
     >
       {controlsOpen ? 'Hide controls' : 'Tune preview'}
-    </ActionButton>
+    </Button>
   );
 }
 
@@ -1289,7 +1289,7 @@ function DocsTypeFilter({
       </summary>
       <div className="docs-type-filter" aria-label="Filter docs by type">
         {DOC_FILTERS.map((filter) => (
-          <ActionButton
+          <Button
             key={filter.id}
             className={`docs-type-filter__item${activeFilter === filter.id ? ' docs-type-filter__item--active' : ''}`}
             aria-pressed={activeFilter === filter.id}
@@ -1298,7 +1298,7 @@ function DocsTypeFilter({
             variant={activeFilter === filter.id ? 'primary' : 'quiet'}
           >
             {filter.label}
-          </ActionButton>
+          </Button>
         ))}
       </div>
     </details>
@@ -1322,7 +1322,7 @@ function DocsSearchContent({
   return (
     <>
       <DocsSearchResults filteredItems={filteredItems} />
-      <ActionButton
+      <Button
         className="docs-search-reset"
         onClick={() => {
           onFilterChange('all');
@@ -1331,7 +1331,7 @@ function DocsSearchContent({
         variant="quiet"
       >
         Clear search
-      </ActionButton>
+      </Button>
     </>
   );
 }

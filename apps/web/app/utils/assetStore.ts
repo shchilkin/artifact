@@ -1,12 +1,7 @@
-import {
-  type CanvasDocument,
-  type GraphMaterialNode,
-  type ImageLayer,
-  type Layer,
-  MATERIAL_TEXTURE_SOURCE_FIELDS,
-} from '../types/config';
+import type { CanvasDocument } from '../types/config';
+import { mapDocumentImageSources } from './documentSourceMapping';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
-import { estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
+import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
 const DB_NAME = 'artifact-local-assets';
 const DB_VERSION = 1;
@@ -39,20 +34,9 @@ async function withImageStore<T>(
   return withIndexedDbStore(openDatabase, IMAGE_STORE, mode, read);
 }
 
-function dataUrlMime(dataUrl: string) {
-  return /^data:([^;,]+)[;,]/.exec(dataUrl)?.[1] ?? 'application/octet-stream';
-}
-
 async function blobToDataUrl(blob: Blob): Promise<string> {
   if (!blob.type.startsWith('image/')) throw new Error('Only image blobs can be stored as image assets');
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = '';
-  const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.slice(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return `data:${blob.type};base64,${btoa(binary)}`;
+  return blobToBase64DataUrl(blob);
 }
 
 export function isImageDataUrl(src: string) {
@@ -143,58 +127,4 @@ export async function hydrateDocumentImageAssets(
     loadedSrcByAsset.set(source, loaded);
     return loaded ?? source;
   });
-}
-
-async function mapDocumentImageSources(
-  doc: CanvasDocument,
-  mapSource: (source: string) => Promise<string>,
-): Promise<CanvasDocument> {
-  let changed = false;
-  const layers: Layer[] = [];
-
-  for (const layer of doc.layers) {
-    if (layer.kind !== 'image') {
-      layers.push(layer);
-      continue;
-    }
-
-    const src = await mapSource(layer.src);
-    const aiGenerationHistory = layer.aiGenerationHistory?.length
-      ? await Promise.all(
-          layer.aiGenerationHistory.map(async (variant) => {
-            const variantSrc = await mapSource(variant.src);
-            return variantSrc === variant.src ? variant : { ...variant, src: variantSrc };
-          }),
-        )
-      : layer.aiGenerationHistory;
-
-    const layerChanged =
-      src !== layer.src ||
-      Boolean(aiGenerationHistory?.some((variant, index) => variant.src !== layer.aiGenerationHistory?.[index]?.src));
-    changed ||= layerChanged;
-    layers.push({ ...layer, src, aiGenerationHistory } satisfies ImageLayer);
-  }
-
-  let graph = doc.graph;
-  if (graph?.materialNodes?.length) {
-    const materialNodes: GraphMaterialNode[] = [];
-    for (const node of graph.materialNodes) {
-      const nextNode = { ...node };
-      let nodeChanged = false;
-      for (const field of MATERIAL_TEXTURE_SOURCE_FIELDS) {
-        const source = nextNode[field];
-        if (!source) continue;
-        const mapped = await mapSource(source);
-        if (mapped !== source) {
-          nextNode[field] = mapped;
-          nodeChanged = true;
-        }
-      }
-      changed ||= nodeChanged;
-      materialNodes.push(nextNode);
-    }
-    if (changed) graph = { ...graph, materialNodes };
-  }
-
-  return changed ? { ...doc, layers, graph } : doc;
 }

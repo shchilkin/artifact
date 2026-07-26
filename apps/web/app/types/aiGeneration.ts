@@ -12,7 +12,6 @@ export type {
   AiShaderValidationResponse,
   CreateAiGenerationRequest,
   CreateAiShaderRequest,
-  ValidateAiShaderRequest,
 } from '@artifact/shared';
 
 export {

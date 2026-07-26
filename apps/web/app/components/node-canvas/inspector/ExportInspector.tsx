@@ -22,7 +22,7 @@ export function ExportInspector({
   const [width, height] = ASPECT_SIZES[aspect ?? '1:1'];
 
   return (
-    <div className="node-inspector-stack">
+    <div className="artifact-inspector-stack">
       <InspectorSelect
         label="Output"
         value={exportConfig.target}

@@ -14,6 +14,7 @@ import {
   isAiGenerationJobStatus,
   isAiGenerationProvider,
 } from '../types/aiGeneration';
+import { apiErrorFields, fetchApiResponse, readApiJson } from './apiClient';
 
 export class AiGenerationApiError extends Error {
   readonly status: number;
@@ -41,10 +42,6 @@ export interface AiGenerationClientOptions {
   signal?: AbortSignal;
   pollIntervalMs?: number;
   pollTimeoutMs?: number;
-}
-
-function endpoint(baseUrl: string | undefined, path: string) {
-  return `${baseUrl?.replace(/\/$/, '') ?? ''}${path}`;
 }
 
 function ensureObject(value: unknown): Record<string, unknown> {
@@ -80,6 +77,45 @@ function ensureShaderSource(value: unknown): AiShaderSource {
     throw new AiGenerationApiError('Generation API returned an unknown shader source.', 0, 'invalid_response');
   }
   return value;
+}
+
+function ensureShaderAttempt(value: unknown): AiShaderGenerationResponse['attempt'] {
+  if (
+    value !== 'initial' &&
+    value !== 'repair' &&
+    value !== 'refine' &&
+    value !== 'refineRepair' &&
+    value !== 'localFallback'
+  ) {
+    throw new AiGenerationApiError('Generation API returned an invalid shader attempt.', 0, 'invalid_response');
+  }
+  return value;
+}
+
+function generatedShaderCode(value: unknown) {
+  if (!value || typeof value !== 'object' || !('definition' in value)) return '';
+  const definition = value.definition;
+  if (!definition || typeof definition !== 'object' || !('code' in definition)) return '';
+  return String(definition.code ?? '');
+}
+
+function normalizeGeneratedShaderInstance(value: unknown) {
+  const hasContractErrors = validateShaderInstance(value).length > 0;
+  const hasCodeErrors = validateShaderCode(generatedShaderCode(value)).length > 0;
+  if (hasContractErrors || hasCodeErrors) {
+    throw new AiGenerationApiError('Generation API returned an invalid shader.', 0, 'invalid_shader');
+  }
+  const instance = normalizeShaderInstance(value);
+  if (!instance) throw new AiGenerationApiError('Generation API returned an invalid shader.', 0, 'invalid_shader');
+  return instance;
+}
+
+function optionalNonEmptyString(value: unknown) {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function stringWarnings(value: unknown) {
+  return Array.isArray(value) ? value.filter((warning): warning is string => typeof warning === 'string') : undefined;
 }
 
 export function parseAiGenerationJob(value: unknown): AiGenerationJob {
@@ -140,36 +176,17 @@ export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerat
   if (response.status !== 'generated' && response.status !== 'accepted') {
     throw new AiGenerationApiError('Generation API returned an invalid shader status.', 0, 'invalid_response');
   }
-  if (
-    response.attempt !== 'initial' &&
-    response.attempt !== 'repair' &&
-    response.attempt !== 'refine' &&
-    response.attempt !== 'refineRepair' &&
-    response.attempt !== 'localFallback'
-  ) {
-    throw new AiGenerationApiError('Generation API returned an invalid shader attempt.', 0, 'invalid_response');
-  }
+  const attempt = ensureShaderAttempt(response.attempt);
   const prompt = ensureString(response.prompt, 'prompt');
   const source = ensureShaderSource(response.source);
-  const validationErrors = validateShaderInstance(response.instance);
-  const codeIssues =
-    response.instance && typeof response.instance === 'object' && 'definition' in response.instance
-      ? validateShaderCode(String((response.instance as { definition?: { code?: unknown } }).definition?.code ?? ''))
-      : [];
-  if (validationErrors.length > 0 || codeIssues.length > 0) {
-    throw new AiGenerationApiError('Generation API returned an invalid shader.', 0, 'invalid_shader');
-  }
-  const instance = normalizeShaderInstance(response.instance);
-  if (!instance) throw new AiGenerationApiError('Generation API returned an invalid shader.', 0, 'invalid_shader');
-  const model = typeof response.model === 'string' && response.model.length > 0 ? response.model : undefined;
-  const warnings = Array.isArray(response.warnings)
-    ? response.warnings.filter((warning): warning is string => typeof warning === 'string')
-    : undefined;
+  const instance = normalizeGeneratedShaderInstance(response.instance);
+  const model = optionalNonEmptyString(response.model);
+  const warnings = stringWarnings(response.warnings);
   return {
     requestId,
     candidateRevision,
     status: response.status,
-    attempt: response.attempt,
+    attempt,
     prompt,
     instance: {
       ...instance,
@@ -180,7 +197,7 @@ export function parseAiShaderGenerationResponse(value: unknown): AiShaderGenerat
           prompt,
           ...(model ? { model } : {}),
           requestId,
-          attempt: response.attempt,
+          attempt,
         },
       },
     },
@@ -210,7 +227,7 @@ function parseAiShaderRequestResponse(value: unknown): AiShaderRequestResponse {
   return { requestId, candidateRevision, status: response.status };
 }
 
-export function parseAiShaderValidationResponse(value: unknown): AiShaderValidationResponse {
+function parseAiShaderValidationResponse(value: unknown): AiShaderValidationResponse {
   const { response, requestId, candidateRevision } = parseShaderResponseEnvelope(value);
   if (response.status !== 'accepted' && response.status !== 'client_rejected' && response.status !== 'failed') {
     throw new AiGenerationApiError('Generation API returned an invalid validation status.', 0, 'invalid_response');
@@ -235,35 +252,19 @@ function parseShaderResponseEnvelope(value: unknown) {
   return { response, requestId, candidateRevision: response.candidateRevision };
 }
 
-async function readJsonResponse(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new AiGenerationApiError('Generation API returned invalid JSON.', response.status, 'invalid_json');
-  }
-}
-
 async function requestJson(path: string, init: RequestInit, options: AiGenerationClientOptions): Promise<unknown> {
-  const fetcher = options.fetcher ?? fetch;
   const token = options.bearerToken ?? options.devToken;
   const requestInit = disableGetCaching(init);
-  const response = await fetcher(endpoint(options.baseUrl, path), {
-    credentials: 'include',
-    ...requestInit,
-    headers: {
-      'content-type': 'application/json',
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...requestInit.headers,
-    },
-    signal: options.signal,
+  const response = await fetchApiResponse(path, requestInit, {
+    ...options,
+    bearerToken: token,
   });
-  const body = await readJsonResponse(response);
+  const body = await readApiJson(
+    response,
+    () => new AiGenerationApiError('Generation API returned invalid JSON.', response.status, 'invalid_json'),
+  );
   if (!response.ok) {
-    const errorBody = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
-    const message = typeof errorBody.message === 'string' ? errorBody.message : 'Generation request failed.';
-    const code = typeof errorBody.code === 'string' ? errorBody.code : undefined;
+    const { message, code } = apiErrorFields(body, 'Generation request failed.');
     throw new AiGenerationApiError(message, response.status, code);
   }
   return body;

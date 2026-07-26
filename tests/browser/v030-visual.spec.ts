@@ -1,9 +1,8 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 import {
   expectLayerCanvasToHavePixels,
-  expectNoBrowserIssues,
   gotoDocument,
-  setupBrowserTestPage,
+  registerBrowserTestHooks,
   switchToLayerView,
   switchToNodeView,
 } from './helpers';
@@ -100,13 +99,7 @@ const graphStateDocument = {
   export: { format: 'png', scale: 1, target: 'cover' },
 };
 
-test.beforeEach(async ({ page }) => {
-  await setupBrowserTestPage(page);
-});
-
-test.afterEach(async ({ page }) => {
-  expectNoBrowserIssues(page);
-});
+registerBrowserTestHooks(test);
 
 test('v0.30 blank editor keeps the empty start and layer shell visually readable', async ({ page }) => {
   await gotoDocument(page, blankEditorDocument);
@@ -210,8 +203,8 @@ test('v0.30 style guide exposes reusable primitives and editor states', async ({
     .filter({ has: page.getByRole('heading', { name: 'Controls', exact: true }) });
   await expect(controlsSection).toBeVisible();
 
-  await expect.poll(async () => page.locator('.artifact-icon-button').count()).toBeGreaterThanOrEqual(4);
-  await expect(controlsSection.locator('.artifact-input')).toHaveCount(3);
+  await expect.poll(async () => page.locator('.ui-icon-command').count()).toBeGreaterThanOrEqual(4);
+  await expect(controlsSection.locator('.style-guide-field-stack > .ui-input')).toHaveCount(3);
   await expect.poll(async () => page.locator('.artifact-search-field').count()).toBeGreaterThanOrEqual(2);
   await expect.poll(async () => page.locator('.artifact-badge').count()).toBeGreaterThanOrEqual(4);
   await expect(controlsSection.locator('.artifact-toolbar')).toHaveCount(1);
@@ -232,12 +225,12 @@ test('v0.30 style guide exposes reusable primitives and editor states', async ({
   await expect(page.locator('.editor-target-header')).toHaveCount(4);
   await expect(page.locator('.editor-target-header').first()).toBeVisible();
   await expect(page.locator('.style-guide-inspector-panel')).toBeVisible();
-  await expect(page.locator('.style-guide-inspector-panel .node-inspector-section')).toHaveCount(2);
+  await expect(page.locator('.style-guide-inspector-panel .artifact-inspector-section')).toHaveCount(2);
   await expect(page.locator('.style-guide-inspector-panel .node-field')).toHaveCount(4);
   await expect(page.locator('.style-guide-inspector-panel .node-slider')).toHaveCount(2);
   await expect(page.locator('.style-guide-inspector-panel .node-color-input')).toHaveCount(1);
   await expect(page.locator('.style-guide-inspector-panel .node-check')).toHaveCount(1);
-  await expect(page.locator('.style-guide-inspector-panel .node-inspector-note')).toBeVisible();
+  await expect(page.locator('.style-guide-inspector-panel .artifact-inspector-note')).toBeVisible();
   await expect(page.locator('.style-guide-props-specimen')).toHaveCount(4);
   await expect(page.locator('.style-guide-props-specimen .node-props-panel-open')).toHaveCount(4);
   await expect(page.locator('.style-guide-props-specimen .editor-target-header')).toHaveCount(3);

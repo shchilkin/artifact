@@ -53,14 +53,15 @@ Use this decision rule:
 
 When a Tailwind class string becomes long, repeated, or filled with state
 branches, extract a component or explicit variant instead of copying more
-utilities. Shared primitives should expose product-shaped APIs such as
-`ActionButton`, `ActionLink`, `NodeFrame`, or `LayerPreviewSurface`; callers
-should not reassemble the same chrome from utility strings.
+utilities. Callers should use Foundation `Button` / `ButtonLink` directly and
+product-shaped APIs such as `NodeFrame` or `LayerPreviewSurface`; they should
+not reassemble the same chrome from utility strings.
 
-Use tokens instead of ad hoc colors. Prefer CSS variables and token aliases such
-as `var(--bg)`, `var(--text)`, `var(--accent)`, `bg-bg`, or `border-border`
-over arbitrary color literals in JSX. Arbitrary Tailwind values are acceptable
-only for local geometry that does not describe reusable product meaning.
+Use tokens instead of ad hoc colors. Prefer semantic CSS variables such as
+`var(--surface-app)`, `var(--text-primary)`, `var(--accent-primary)`, and
+`var(--line-default)` over arbitrary color literals in JSX. Arbitrary Tailwind
+values are acceptable only for local geometry that does not describe reusable
+product meaning.
 
 Keep internal planning language out of app copy. Version-plan notes, migration
 instructions, QA strategy, test names, release gates, and agent workflow text

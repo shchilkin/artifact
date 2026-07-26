@@ -1,6 +1,7 @@
-import type { CanvasDocument, ModelLayer, PortableModelAsset } from '../types/config';
+import type { CanvasDocument, PortableModelAsset } from '../types/config';
+import { mapDocumentModelSources } from './documentSourceMapping';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
-import { estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
+import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
 const DB_NAME = 'artifact-local-model-assets';
 const DB_VERSION = 1;
@@ -29,19 +30,8 @@ async function withModelStore<T>(
   return withIndexedDbStore(openDatabase, MODEL_STORE, mode, read);
 }
 
-function dataUrlMime(dataUrl: string) {
-  return /^data:([^;,]+)[;,]/.exec(dataUrl)?.[1] ?? GLB_MIME;
-}
-
 async function blobToDataUrl(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = '';
-  const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.slice(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return `data:${blob.type || GLB_MIME};base64,${btoa(binary)}`;
+  return blobToBase64DataUrl(blob, GLB_MIME);
 }
 
 export function isSupportedModelFile(file: File) {
@@ -83,7 +73,7 @@ async function persistModelAsset(asset: StoredModelAsset): Promise<StoredModelAs
 async function saveModelDataUrlAsset(dataUrl: string, label = 'Imported model'): Promise<StoredModelAsset> {
   return saveModelAsset({
     dataUrl,
-    mime: dataUrlMime(dataUrl),
+    mime: dataUrlMime(dataUrl, GLB_MIME),
     bytes: estimateDataUrlBytes(dataUrl),
     label,
   });
@@ -190,20 +180,4 @@ export function stripDocumentModelAssets(doc: CanvasDocument): CanvasDocument {
   const { modelAssets, ...rest } = doc;
   void modelAssets;
   return rest;
-}
-
-async function mapDocumentModelSources(
-  doc: CanvasDocument,
-  mapSource: (source: string, layer: ModelLayer) => Promise<string>,
-): Promise<CanvasDocument> {
-  let changed = false;
-  const layers = await Promise.all(
-    doc.layers.map(async (layer) => {
-      if (layer.kind !== 'model') return layer;
-      const modelSrc = await mapSource(layer.modelSrc, layer);
-      changed ||= modelSrc !== layer.modelSrc;
-      return modelSrc === layer.modelSrc ? layer : ({ ...layer, modelSrc } satisfies ModelLayer);
-    }),
-  );
-  return changed ? { ...doc, layers } : doc;
 }

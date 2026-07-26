@@ -39,7 +39,7 @@ export function DataTable({
   );
 }
 
-export function EmptySection({ title, message }: { title: string; message: string }) {
+function EmptySection({ title, message }: { title: string; message: string }) {
   return (
     <div className="empty-section">
       <strong>{title}</strong>

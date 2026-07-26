@@ -24,7 +24,7 @@ export function InspectorSection({
 
   return (
     <ArtifactInspectorSection
-      className={`node-inspector-section${open ? ' node-inspector-section-open' : ''}`}
+      className={`artifact-inspector-section${open ? ' artifact-inspector-section-open' : ''}`}
       density="dense"
       dirty={dirty ?? inheritedState.dirty}
       locked={locked ?? inheritedState.locked}
@@ -33,12 +33,12 @@ export function InspectorSection({
       open={open}
       onToggle={onToggle}
       slotClassNames={{
-        body: 'node-inspector-section-body',
-        copy: 'node-inspector-section-copy',
-        indicator: 'node-inspector-section-toggle',
-        summary: 'node-inspector-section-summary',
-        title: 'node-inspector-section-title',
-        trigger: 'node-section-button node-inspector-section-button',
+        body: 'artifact-inspector-section-body',
+        copy: 'artifact-inspector-section-copy',
+        indicator: 'artifact-inspector-section-toggle',
+        summary: 'artifact-inspector-section-summary',
+        title: 'artifact-inspector-section-title',
+        trigger: 'node-section-button artifact-inspector-section-button',
       }}
     >
       {children}

@@ -1,5 +1,5 @@
 export { ControlSection } from './ControlSection';
-export { DataTable, EmptySection } from './DataTable';
+export { DataTable } from './DataTable';
 export { Metric } from './Metric';
 export { MutationNotice } from './MutationNotice';
 export { PageHeader, PeriodField } from './PageHeader';

@@ -1,7 +1,7 @@
 import { createAuthClient } from 'better-auth/react';
 import { getArtifactAuthApiBaseUrl } from './apiBaseUrl';
 
-export const AUTH_BEARER_TOKEN_KEY = 'artifact-better-auth-token';
+const AUTH_BEARER_TOKEN_KEY = 'artifact-better-auth-token';
 
 interface BetterAuthClientResult {
   data?: unknown;
@@ -26,7 +26,7 @@ export function readAuthBearerToken() {
   return localStorage.getItem(AUTH_BEARER_TOKEN_KEY);
 }
 
-export function persistAuthBearerToken(token: string | null) {
+function persistAuthBearerToken(token: string | null) {
   if (typeof localStorage === 'undefined' || !token) return;
   localStorage.setItem(AUTH_BEARER_TOKEN_KEY, token);
 }

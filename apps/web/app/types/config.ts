@@ -753,7 +753,7 @@ export const DEFAULT_MATERIAL_CONFIG: MaterialConfig = {
   materialAnisotropy: 0,
 };
 
-export const MATERIAL_PRESET_LABELS: Record<MaterialPreset, string> = {
+const MATERIAL_PRESET_LABELS: Record<MaterialPreset, string> = {
   matte: 'Matte',
   goldFoil: 'Gold Foil',
   chrome: 'Chrome',

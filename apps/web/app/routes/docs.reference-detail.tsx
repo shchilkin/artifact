@@ -1,6 +1,5 @@
+import { ButtonLink } from '@artifact/ui';
 import { type MetaFunction, useParams } from 'react-router';
-
-import { ActionLink } from '../components/ui/ActionButton';
 import { ALL_NODES, NodePoster, nodeTypeLabel } from './docs.nodes';
 import { DocsSection, DocsShell } from './docs.shared';
 
@@ -40,9 +39,9 @@ export default function DocsReferenceDetail() {
         title="Node not found."
         deck="That reference entry does not exist. Return to the node reference and choose another entry."
       >
-        <ActionLink to="/docs/reference" className="docs-recipe__link" variant="secondary">
+        <ButtonLink to="/docs/reference" className="docs-recipe__link" variant="secondary">
           Back to reference
-        </ActionLink>
+        </ButtonLink>
       </DocsShell>
     );
   }
@@ -50,12 +49,12 @@ export default function DocsReferenceDetail() {
   return (
     <DocsShell active="Reference" eyebrow={nodeTypeLabel(node)} title={`${node.name}.`} deck={node.desc}>
       <div className="docs-node-detail-actions">
-        <ActionLink to={nodeEditorHref(node)} className="docs-recipe__link" variant="primary">
+        <ButtonLink to={nodeEditorHref(node)} className="docs-recipe__link" variant="primary">
           Open in editor
-        </ActionLink>
-        <ActionLink to="/docs/reference" className="docs-workflow-guide__secondary" variant="quiet">
+        </ButtonLink>
+        <ButtonLink to="/docs/reference" className="docs-workflow-guide__secondary" variant="quiet">
           Back to reference
-        </ActionLink>
+        </ButtonLink>
       </div>
 
       <NodePoster node={node} />

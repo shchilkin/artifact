@@ -1,3 +1,4 @@
+import { hashStringToUint32 } from '@artifact/shared/hash';
 import * as THREE from 'three';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 import {
@@ -8,17 +9,28 @@ import {
   type PrimitiveLayer,
 } from '../types/config';
 import { resolveImageSource } from './assetStore';
+import {
+  canvasHasVisibleContent as canvasHasModelContent,
+  createSizedCanvas,
+  rgbaFromHex as rgba,
+} from './canvasRendering';
 import { resolveEnvironmentSource } from './envAssetStore';
 import { resolveModelSource } from './modelAssetStore';
 import {
+  applyPhysicalMaterialTextures,
   applyViewStateToCamera,
   CAMERA_ZOOM_MAX,
   CAMERA_ZOOM_MIN,
+  canvasMaterialTexture,
   clamp,
+  createCanvasTexture,
+  createMaterialEnvironmentMap,
+  createMaterialPatternCanvas,
   createPrimitiveCamera,
   createPrimitiveGeometry,
   createPrimitiveMaterial,
   degToRad,
+  materialValue,
 } from './primitiveScene';
 
 export class ModelAssetUnavailableError extends Error {
@@ -30,9 +42,6 @@ export class ModelAssetUnavailableError extends Error {
 
 const MODEL_FIT_SIZE = 1.9;
 const MODEL_FIT_RADIUS = 0.92;
-const MATERIAL_TEXTURE_SIZE = 160;
-const ENV_TEXTURE_WIDTH = 256;
-const ENV_TEXTURE_HEIGHT = 128;
 
 interface ModelRenderOptions {
   forceFallback?: boolean;
@@ -64,70 +73,8 @@ export type SceneEnvironmentMap = {
 
 type SceneEnvironmentLightSource = HTMLCanvasElement | THREE.Texture | null | undefined;
 
-function hexToRgb(hex: string): [number, number, number] {
-  const normalized = hex.replace('#', '');
-  const value = Number.parseInt(normalized.length === 3 ? normalized.replace(/(.)/g, '$1$1') : normalized, 16);
-  if (!Number.isFinite(value)) return [255, 90, 54];
-  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
-}
-
-function rgba(hex: string, alpha: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function hashString(value: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function nextNoise(seed: { value: number }) {
-  seed.value = (seed.value * 1664525 + 1013904223) >>> 0;
-  return seed.value / 0xffffffff;
-}
-
-function colorMix(a: THREE.Color, b: THREE.Color, amount: number) {
-  return a.clone().lerp(b, clamp(amount, 0, 1));
-}
-
-function colorStyle(color: THREE.Color, alpha = 1) {
-  const r = Math.round(color.r * 255);
-  const g = Math.round(color.g * 255);
-  const b = Math.round(color.b * 255);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function createCanvasTexture(canvas: HTMLCanvasElement, colorSpace?: THREE.ColorSpace) {
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = 4;
-  if (colorSpace) texture.colorSpace = colorSpace;
-  texture.needsUpdate = true;
-  return texture;
-}
-
 function isThreeMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh & { isMesh?: boolean }).isMesh === true;
-}
-
-function canvasHasModelContent(canvas: HTMLCanvasElement): boolean {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return false;
-
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  for (let index = 0; index < pixels.length; index += 4) {
-    const r = pixels[index] ?? 0;
-    const g = pixels[index + 1] ?? 0;
-    const b = pixels[index + 2] ?? 0;
-    const a = pixels[index + 3] ?? 0;
-    if (a > 8 && Math.max(r, g, b) > 16) return true;
-  }
-  return false;
 }
 
 function drawFallbackModel(canvas: HTMLCanvasElement, layer: Scene3DSourceLayer): void {
@@ -180,7 +127,7 @@ function dataUrlToArrayBuffer(dataUrl: string): ArrayBuffer | null {
   return bytes.buffer;
 }
 
-export async function modelSourceToArrayBuffer(source: string): Promise<ArrayBuffer> {
+async function modelSourceToArrayBuffer(source: string): Promise<ArrayBuffer> {
   const dataBuffer = dataUrlToArrayBuffer(source);
   if (dataBuffer) return dataBuffer;
   const response = await fetch(source);
@@ -188,7 +135,7 @@ export async function modelSourceToArrayBuffer(source: string): Promise<ArrayBuf
   return response.arrayBuffer();
 }
 
-export async function parseGltfScene(buffer: ArrayBuffer): Promise<THREE.Object3D> {
+async function parseGltfScene(buffer: ArrayBuffer): Promise<THREE.Object3D> {
   const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
   const loader = new GLTFLoader();
   return new Promise((resolve, reject) => {
@@ -247,7 +194,7 @@ export function loadSceneEnvironmentCanvas(
   return createSceneEnvironmentMap(renderer, background);
 }
 
-export function applyModelFallbackMaterials(root: THREE.Object3D, layer: Scene3DSourceLayer): void {
+function applyModelFallbackMaterials(root: THREE.Object3D, layer: Scene3DSourceLayer): void {
   const fallbackMaterial = new THREE.MeshStandardMaterial({
     color: new THREE.Color(layer.color),
     roughness: 0.52,
@@ -294,99 +241,13 @@ function disposeMaterial(material: THREE.Material): void {
   material.dispose();
 }
 
-function materialValue(value: number | undefined, fallback: number): number {
-  if (!Number.isFinite(value)) return fallback;
-  return Math.max(0, Math.min(1, value ?? fallback));
-}
-
-function drawMaterialPattern(
-  ctx: CanvasRenderingContext2D,
-  config: MaterialConfig,
-  seed: { value: number },
-  base: THREE.Color,
-  accent: THREE.Color,
-) {
-  const grain = materialValue(config.materialGrain, 0);
-  const relief = materialValue(config.materialRelief, 0);
-  const anisotropy = materialValue(config.materialAnisotropy, 0);
-  const size = MATERIAL_TEXTURE_SIZE;
-
-  const gradient = ctx.createLinearGradient(0, 0, size, size);
-  gradient.addColorStop(0, colorStyle(colorMix(base, accent, 0.14 + relief * 0.22)));
-  gradient.addColorStop(0.48, colorStyle(base));
-  gradient.addColorStop(1, colorStyle(colorMix(base, accent, 0.36 + grain * 0.16)));
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  if (anisotropy > 0.04) {
-    ctx.globalAlpha = 0.08 + anisotropy * 0.24;
-    ctx.strokeStyle = colorStyle(accent);
-    ctx.lineWidth = 1;
-    const step = Math.max(3, Math.round(12 - anisotropy * 8));
-    for (let y = -size; y < size * 2; y += step) {
-      const drift = (nextNoise(seed) - 0.5) * 18;
-      ctx.beginPath();
-      ctx.moveTo(-16, y + drift);
-      ctx.lineTo(size + 16, y + size * anisotropy * 0.18 + drift);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  if (config.materialPreset === 'fabric') {
-    ctx.globalAlpha = 0.18 + grain * 0.18;
-    ctx.strokeStyle = colorStyle(colorMix(base, accent, 0.45));
-    for (let i = 0; i < size; i += 10) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i + 18, size);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0, i);
-      ctx.lineTo(size, i + 18);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  if (grain > 0.02) {
-    const speckles = Math.round(420 + grain * 900);
-    for (let i = 0; i < speckles; i += 1) {
-      const x = nextNoise(seed) * size;
-      const y = nextNoise(seed) * size;
-      const alpha = (0.025 + nextNoise(seed) * 0.12) * grain;
-      const light = nextNoise(seed) > 0.5 ? accent : base;
-      ctx.fillStyle = colorStyle(light, alpha);
-      ctx.fillRect(x, y, 1 + nextNoise(seed) * 2, 1 + nextNoise(seed) * 2);
-    }
-  }
-}
-
-function drawScalarPattern(ctx: CanvasRenderingContext2D, config: MaterialConfig, seed: { value: number }) {
-  const roughness = materialValue(config.materialRoughness, DEFAULT_MATERIAL_CONFIG.materialRoughness);
-  const grain = materialValue(config.materialGrain, 0);
-  const relief = materialValue(config.materialRelief, 0);
-  const anisotropy = materialValue(config.materialAnisotropy, 0);
-  const base = 112 + relief * 62;
-
-  ctx.fillStyle = `rgb(${base}, ${base}, ${base})`;
-  ctx.fillRect(0, 0, MATERIAL_TEXTURE_SIZE, MATERIAL_TEXTURE_SIZE);
-
-  if (grain <= 0.01 && relief <= 0.01 && roughness <= 0.01) return;
-  const image = ctx.getImageData(0, 0, MATERIAL_TEXTURE_SIZE, MATERIAL_TEXTURE_SIZE);
-  for (let index = 0; index < image.data.length; index += 4) {
-    const x = (index / 4) % MATERIAL_TEXTURE_SIZE;
-    const y = Math.floor(index / 4 / MATERIAL_TEXTURE_SIZE);
-    const band = Math.sin((y + x * anisotropy * 0.24) * (0.12 + anisotropy * 0.2));
-    const noise = nextNoise(seed) - 0.5;
-    const amount = relief * 90 + grain * noise * 56 + roughness * 18;
-    const value = clamp(base + noise * amount + band * anisotropy * 26, 0, 255);
-    image.data[index] = value;
-    image.data[index + 1] = value;
-    image.data[index + 2] = value;
-    image.data[index + 3] = 255;
-  }
-  ctx.putImageData(image, 0, 0);
+function replaceMeshMaterials(root: THREE.Object3D, createMaterial: () => THREE.Material) {
+  root.traverse((object) => {
+    if (!isThreeMesh(object)) return;
+    if (Array.isArray(object.material)) object.material.forEach(disposeMaterial);
+    else if (object.material) disposeMaterial(object.material);
+    object.material = createMaterial();
+  });
 }
 
 async function loadSceneMaterialTexture(source: string | undefined, colorSpace?: THREE.ColorSpace) {
@@ -402,8 +263,16 @@ async function loadSceneMaterialTexture(source: string | undefined, colorSpace?:
   return texture;
 }
 
-function canvasMaterialTexture(canvas: HTMLCanvasElement | null | undefined, colorSpace?: THREE.ColorSpace) {
-  return canvas ? createCanvasTexture(canvas, colorSpace) : undefined;
+function firstTexture(...textures: Array<THREE.Texture | undefined>) {
+  return textures.find((texture) => texture !== undefined);
+}
+
+function fallbackBumpMap(normalMap: THREE.Texture | undefined, canvas: HTMLCanvasElement) {
+  return normalMap ? undefined : createCanvasTexture(canvas);
+}
+
+function textureOrCanvas(texture: THREE.Texture | undefined, canvas: HTMLCanvasElement, colorSpace?: THREE.ColorSpace) {
+  return texture ?? createCanvasTexture(canvas, colorSpace);
 }
 
 async function createSceneMaterialTextureSet(
@@ -411,21 +280,12 @@ async function createSceneMaterialTextureSet(
   materialTextures?: SceneMaterialTextureCanvases | null,
 ) {
   if (typeof document === 'undefined') return {};
-  const base = new THREE.Color(config.materialBaseColor);
-  const accent = new THREE.Color(config.materialAccentColor);
+  const supplied = materialTextures ?? {};
   const seed = {
-    value: hashString(`${config.materialPreset}:${config.materialBaseColor}:${config.materialAccentColor}`),
+    value: hashStringToUint32(`${config.materialPreset}:${config.materialBaseColor}:${config.materialAccentColor}`),
   };
-
-  const mapCanvas = document.createElement('canvas');
-  mapCanvas.width = MATERIAL_TEXTURE_SIZE;
-  mapCanvas.height = MATERIAL_TEXTURE_SIZE;
-  drawMaterialPattern(mapCanvas.getContext('2d')!, config, seed, base, accent);
-
-  const bumpCanvas = document.createElement('canvas');
-  bumpCanvas.width = MATERIAL_TEXTURE_SIZE;
-  bumpCanvas.height = MATERIAL_TEXTURE_SIZE;
-  drawScalarPattern(bumpCanvas.getContext('2d')!, config, seed);
+  const mapCanvas = createMaterialPatternCanvas(config, seed, 'albedo');
+  const bumpCanvas = createMaterialPatternCanvas(config, seed, 'scene-bump');
 
   const [albedoMap, roughnessMap, metalnessMap, normalMap, alphaMap] = await Promise.all([
     loadSceneMaterialTexture(config.materialAlbedoSrc, THREE.SRGBColorSpace).catch(() => undefined),
@@ -434,68 +294,20 @@ async function createSceneMaterialTextureSet(
     loadSceneMaterialTexture(config.materialNormalSrc).catch(() => undefined),
     loadSceneMaterialTexture(config.materialAlphaSrc).catch(() => undefined),
   ]);
-  const resolvedAlbedoMap = canvasMaterialTexture(materialTextures?.albedo, THREE.SRGBColorSpace) ?? albedoMap;
-  const resolvedRoughnessMap = canvasMaterialTexture(materialTextures?.roughness) ?? roughnessMap;
-  const resolvedMetalnessMap = canvasMaterialTexture(materialTextures?.metalness) ?? metalnessMap;
-  const resolvedNormalMap = canvasMaterialTexture(materialTextures?.normal) ?? normalMap;
-  const resolvedAlphaMap = canvasMaterialTexture(materialTextures?.alpha) ?? alphaMap;
+  const resolvedAlbedoMap = firstTexture(canvasMaterialTexture(supplied.albedo, THREE.SRGBColorSpace), albedoMap);
+  const resolvedRoughnessMap = firstTexture(canvasMaterialTexture(supplied.roughness), roughnessMap);
+  const resolvedMetalnessMap = firstTexture(canvasMaterialTexture(supplied.metalness), metalnessMap);
+  const resolvedNormalMap = firstTexture(canvasMaterialTexture(supplied.normal), normalMap);
+  const resolvedAlphaMap = firstTexture(canvasMaterialTexture(supplied.alpha), alphaMap);
 
   return {
-    map: resolvedAlbedoMap ?? createCanvasTexture(mapCanvas, THREE.SRGBColorSpace),
+    map: textureOrCanvas(resolvedAlbedoMap, mapCanvas, THREE.SRGBColorSpace),
     roughnessMap: resolvedRoughnessMap,
     metalnessMap: resolvedMetalnessMap,
     normalMap: resolvedNormalMap,
     alphaMap: resolvedAlphaMap,
-    bumpMap: resolvedNormalMap ? undefined : createCanvasTexture(bumpCanvas),
+    bumpMap: fallbackBumpMap(resolvedNormalMap, bumpCanvas),
   };
-}
-
-function createSceneMaterialEnvironmentMap(config: MaterialConfig) {
-  if (typeof document === 'undefined') return undefined;
-  const metalness = materialValue(config.materialMetalness, DEFAULT_MATERIAL_CONFIG.materialMetalness);
-  const clearcoat = materialValue(config.materialClearcoat, DEFAULT_MATERIAL_CONFIG.materialClearcoat);
-  if (metalness < 0.08 && clearcoat < 0.18) return undefined;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = ENV_TEXTURE_WIDTH;
-  canvas.height = ENV_TEXTURE_HEIGHT;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return undefined;
-
-  const base = new THREE.Color(config.materialBaseColor);
-  const accent = new THREE.Color(config.materialAccentColor);
-  const sky = colorMix(accent, new THREE.Color('#ffffff'), 0.46);
-  const shadow = colorMix(base, new THREE.Color('#060608'), 0.72);
-  const gradient = ctx.createLinearGradient(0, 0, 0, ENV_TEXTURE_HEIGHT);
-  gradient.addColorStop(0, colorStyle(sky));
-  gradient.addColorStop(0.42, '#20252f');
-  gradient.addColorStop(0.58, '#f4f1e5');
-  gradient.addColorStop(1, colorStyle(shadow));
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, ENV_TEXTURE_WIDTH, ENV_TEXTURE_HEIGHT);
-
-  ctx.globalAlpha = 0.55 + metalness * 0.28;
-  for (const band of [
-    { x: 18, w: 24, a: 0.9 },
-    { x: 82, w: 12, a: 0.58 },
-    { x: 150, w: 36, a: 0.68 },
-    { x: 218, w: 16, a: 0.82 },
-  ]) {
-    const bandGradient = ctx.createLinearGradient(band.x, 0, band.x + band.w, 0);
-    bandGradient.addColorStop(0, 'rgba(255,255,255,0)');
-    bandGradient.addColorStop(0.5, `rgba(255,255,255,${band.a})`);
-    bandGradient.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = bandGradient;
-    ctx.fillRect(band.x, 0, band.w, ENV_TEXTURE_HEIGHT);
-  }
-  ctx.globalAlpha = 1;
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.mapping = THREE.EquirectangularReflectionMapping;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.userData.artifactGeneratedMaterialEnvMap = true;
-  texture.needsUpdate = true;
-  return texture;
 }
 
 async function createSceneMaterial(
@@ -516,23 +328,8 @@ async function createSceneMaterial(
     clearcoatRoughness: Math.max(0.03, roughness * 0.7),
     envMapIntensity: 0.24 + metalness * 1.15 + clearcoat * 0.45,
   };
-  if (textureSet.map) params.map = textureSet.map;
-  if (textureSet.roughnessMap) params.roughnessMap = textureSet.roughnessMap;
-  if (textureSet.metalnessMap) params.metalnessMap = textureSet.metalnessMap;
-  if (textureSet.normalMap) {
-    params.normalMap = textureSet.normalMap;
-    params.normalScale = new THREE.Vector2(1, 1);
-  }
-  if (textureSet.alphaMap) {
-    params.alphaMap = textureSet.alphaMap;
-    params.transparent = true;
-    params.alphaTest = 0.02;
-  }
-  if (textureSet.bumpMap) {
-    params.bumpMap = textureSet.bumpMap;
-    params.bumpScale = relief * 0.075;
-  }
-  const environmentMap = createSceneMaterialEnvironmentMap(config);
+  applyPhysicalMaterialTextures(params, textureSet, relief * 0.075);
+  const environmentMap = createMaterialEnvironmentMap(config);
   if (environmentMap) params.envMap = environmentMap;
 
   const material = new THREE.MeshPhysicalMaterial(params);
@@ -547,12 +344,7 @@ export async function applySceneMaterialConfig(
 ): Promise<void> {
   if (!materialConfig) return;
   const material = await createSceneMaterial(materialConfig, materialTextures);
-  root.traverse((object) => {
-    if (!isThreeMesh(object)) return;
-    if (Array.isArray(object.material)) object.material.forEach(disposeMaterial);
-    else if (object.material) disposeMaterial(object.material);
-    object.material = material.clone();
-  });
+  replaceMeshMaterials(root, () => material.clone());
   material.dispose();
 }
 
@@ -563,21 +355,16 @@ export function applySceneMaterialMode(
 ): void {
   const mode = sceneNode?.materialMode ?? 'original';
   if (mode === 'original') return;
-
-  root.traverse((object) => {
-    if (!isThreeMesh(object)) return;
-    if (Array.isArray(object.material)) object.material.forEach(disposeMaterial);
-    else if (object.material) disposeMaterial(object.material);
-    object.material =
-      mode === 'unlit'
-        ? new THREE.MeshBasicMaterial({ color: new THREE.Color(layer.color) })
-        : new THREE.MeshStandardMaterial({
-            color: new THREE.Color(layer.color),
-            roughness: 0.72,
-            metalness: 0.02,
-            flatShading: true,
-          });
-  });
+  replaceMeshMaterials(root, () =>
+    mode === 'unlit'
+      ? new THREE.MeshBasicMaterial({ color: new THREE.Color(layer.color) })
+      : new THREE.MeshStandardMaterial({
+          color: new THREE.Color(layer.color),
+          roughness: 0.72,
+          metalness: 0.02,
+          flatShading: true,
+        }),
+  );
 }
 
 function createPrimitiveSceneObject(layer: PrimitiveLayer): THREE.Object3D {
@@ -680,35 +467,55 @@ function tonemapEnvironmentChannel(value: number): number {
   return value / (value + 1);
 }
 
-function averageTextureColor(texture: THREE.Texture): THREE.Color | null {
+interface TextureSamplingPlan {
+  data: ArrayLike<number>;
+  width: number;
+  height: number;
+  stride: number;
+  stepX: number;
+  stepY: number;
+}
+
+function textureSamplingPlan(texture: THREE.Texture): TextureSamplingPlan | null {
   const image = texture.image as { data?: ArrayLike<number>; width?: number; height?: number } | undefined;
   const data = image?.data;
   const width = image?.width ?? 0;
   const height = image?.height ?? 0;
   if (!data || width <= 0 || height <= 0) return null;
-
   const stride = data.length / (width * height);
   if (!Number.isFinite(stride) || stride < 3) return null;
+  return {
+    data,
+    width,
+    height,
+    stride,
+    stepX: Math.max(1, Math.floor(width / 48)),
+    stepY: Math.max(1, Math.floor(height / 24)),
+  };
+}
 
-  const stepX = Math.max(1, Math.floor(width / 48));
-  const stepY = Math.max(1, Math.floor(height / 24));
+function averageTextureChannels(texture: THREE.Texture, plan: TextureSamplingPlan) {
   let r = 0;
   let g = 0;
   let b = 0;
   let count = 0;
-
-  for (let y = 0; y < height; y += stepY) {
-    for (let x = 0; x < width; x += stepX) {
-      const index = Math.floor((y * width + x) * stride);
-      r += tonemapEnvironmentChannel(textureChannelValue(data, index, texture));
-      g += tonemapEnvironmentChannel(textureChannelValue(data, index + 1, texture));
-      b += tonemapEnvironmentChannel(textureChannelValue(data, index + 2, texture));
+  for (let y = 0; y < plan.height; y += plan.stepY) {
+    for (let x = 0; x < plan.width; x += plan.stepX) {
+      const index = Math.floor((y * plan.width + x) * plan.stride);
+      r += tonemapEnvironmentChannel(textureChannelValue(plan.data, index, texture));
+      g += tonemapEnvironmentChannel(textureChannelValue(plan.data, index + 1, texture));
+      b += tonemapEnvironmentChannel(textureChannelValue(plan.data, index + 2, texture));
       count += 1;
     }
   }
+  return { r, g, b, count };
+}
 
-  if (count <= 0) return null;
-  return new THREE.Color(r / count, g / count, b / count);
+function averageTextureColor(texture: THREE.Texture): THREE.Color | null {
+  const plan = textureSamplingPlan(texture);
+  if (!plan) return null;
+  const { r, g, b, count } = averageTextureChannels(texture, plan);
+  return count > 0 ? new THREE.Color(r / count, g / count, b / count) : null;
 }
 
 function averageEnvironmentLightColor(source: SceneEnvironmentLightSource): THREE.Color | null {
@@ -810,11 +617,7 @@ export async function renderModelSceneToCanvas(
   viewState?: PrimitiveViewportState,
   options: ModelSceneRenderOptions = {},
 ): Promise<HTMLCanvasElement> {
-  const targetWidth = typeof size === 'number' ? size : size.width;
-  const targetHeight = typeof size === 'number' ? size : size.height;
-  const offscreen = document.createElement('canvas');
-  offscreen.width = Math.max(1, Math.round(targetWidth));
-  offscreen.height = Math.max(1, Math.round(targetHeight));
+  const offscreen = createSizedCanvas(size);
   if (options.forceFallback) {
     drawFallbackModel(offscreen, layer);
     return offscreen;

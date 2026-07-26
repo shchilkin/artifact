@@ -3,8 +3,18 @@ import { readFileSync, statSync } from 'node:fs';
 import { type Browser, expect, type Locator, type Page, type TestInfo, test } from '@playwright/test';
 import { DataTexture, FloatType, RGBAFormat } from 'three';
 import { EXRExporter, NO_COMPRESSION } from 'three/addons/exporters/EXRExporter.js';
+import { makeSourceLayer } from '../../apps/web/app/types/config';
 
-import { expectNoBrowserIssues, gotoDocument, setupBrowserTestPage, switchToNodeView } from './helpers';
+import {
+  expectCanvasHasVisiblePixels,
+  expectImageExportDownload,
+  expectNoBrowserIssues,
+  gotoDocument,
+  readStoredLayerField,
+  registerBrowserTestHooks,
+  setupBrowserTestPage,
+  switchToNodeView,
+} from './helpers';
 
 const tinyModelDataUrl = makeTinyGltfModelDataUrl();
 
@@ -13,56 +23,16 @@ const v036Retro3DDocument = {
   global: { bg: 'transparent', seed: 36, aspect: '1:1' },
   layers: [
     {
+      ...makeSourceLayer('model'),
       id: 'v036-model',
       name: 'Tiny GLB',
-      visible: true,
-      locked: false,
-      kind: 'model',
       modelSrc: tinyModelDataUrl,
       modelName: 'tiny.glb',
       modelMime: 'model/gltf-binary',
       modelBytes: tinyModelDataUrl.length,
-      color: '#ff5a36',
       accentColor: '#f4d35e',
-      opacity: 100,
-      blendMode: 'normal',
-      seedOffset: 0,
-      x: 0.5,
-      y: 0.5,
-      scaleX: 1,
-      scaleY: 1,
-      rotation: 0,
-      primitiveShape: 'sphere',
-      primitiveShading: 'smooth',
       tiltX: -14,
       tiltY: 31,
-      tiltZ: 0,
-      primitiveDepth: 48,
-      noiseType: 'clouds',
-      noiseScale: 28,
-      noiseDetail: 4,
-      noiseContrast: 52,
-      noiseBalance: 50,
-      noiseWarp: 0,
-      noiseTurbulence: 0,
-      noiseThreshold: 0,
-      arrayPattern: 'grid',
-      arrayShape: 'disc',
-      arrayCount: 6,
-      arrayRows: 4,
-      arrayGap: 30,
-      arrayRadius: 120,
-      arraySize: 36,
-      arrayJitter: 0,
-      lineFieldOrientation: 'horizontal',
-      lineFieldDistortion: 'none',
-      lineFieldCount: 28,
-      lineFieldSpacing: 18,
-      lineFieldStroke: 3,
-      lineFieldStrength: 0,
-      lineFieldFrequency: 3,
-      lineFieldBackground: '#000000',
-      lineFieldTransparent: true,
     },
     {
       id: 'v036-retro-resolution',
@@ -223,13 +193,7 @@ const v037SceneMaterialDocument = {
   },
 };
 
-test.beforeEach(async ({ page }) => {
-  await setupBrowserTestPage(page);
-});
-
-test.afterEach(async ({ page }) => {
-  expectNoBrowserIssues(page);
-});
+registerBrowserTestHooks(test);
 
 test('v0.36 3D model scene and retro effect graph renders and exports', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', '3D model export smoke runs once in Chromium.');
@@ -246,15 +210,9 @@ test('v0.36 3D model scene and retro effect graph renders and exports', async ({
   await expect(page.locator('.node-shell-kind-environment')).toContainText(/environment/i);
 
   const outputCanvas = page.locator('.react-flow__node[data-id="__export__"] canvas.node-thumbnail-canvas');
-  await expect(outputCanvas).toBeVisible({ timeout: 15_000 });
-  await expect.poll(async () => outputCanvas.evaluate(canvasHasVisiblePixels), { timeout: 20_000 }).toBe(true);
+  await expectCanvasHasVisiblePixels(outputCanvas, 20_000);
 
-  const exportButton = page.getByRole('button', { name: 'EXPORT' });
-  await expect(exportButton).toBeEnabled({ timeout: 15_000 });
-  const downloadPromise = page.waitForEvent('download');
-  await exportButton.click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/\.png$/i);
+  const download = await expectImageExportDownload(page, /\.png$/i);
   const artifactPath = await download.path();
   expect(artifactPath).toBeTruthy();
   if (!artifactPath) throw new Error('Downloaded export path is unavailable');
@@ -332,8 +290,7 @@ test('v0.37 material node feeds a 3D scene material slot', async ({ page }, test
   await gotoDocument(page, v036Retro3DDocument);
   await switchToNodeView(page);
   const baseSceneCanvas = page.locator('.react-flow__node[data-id="v036-scene"] canvas.node-thumbnail-canvas');
-  await expect(baseSceneCanvas).toBeVisible({ timeout: 15_000 });
-  await expect.poll(async () => baseSceneCanvas.evaluate(canvasHasVisiblePixels), { timeout: 20_000 }).toBe(true);
+  await expectCanvasHasVisiblePixels(baseSceneCanvas, 20_000);
   const baseScenePixels = await reducedCanvasPixels(baseSceneCanvas);
 
   await gotoDocument(page, v037SceneMaterialDocument);
@@ -348,8 +305,7 @@ test('v0.37 material node feeds a 3D scene material slot', async ({ page }, test
   await expect(page.locator('.node-props-panel [data-inspector-property-row="true"]')).not.toHaveCount(0);
 
   const outputCanvas = page.locator('.react-flow__node[data-id="__export__"] canvas.node-thumbnail-canvas');
-  await expect(outputCanvas).toBeVisible({ timeout: 15_000 });
-  await expect.poll(async () => outputCanvas.evaluate(canvasHasVisiblePixels), { timeout: 20_000 }).toBe(true);
+  await expectCanvasHasVisiblePixels(outputCanvas, 20_000);
   const materialScenePixels = await reducedCanvasPixels(sceneNode.locator('canvas.node-thumbnail-canvas'));
   expect(meanAbsoluteDiff(baseScenePixels, materialScenePixels)).toBeGreaterThan(2);
 });
@@ -359,14 +315,12 @@ test('v0.36 layers preview follows graph 3D scene camera state', async ({ page }
 
   await gotoDocument(page, v036LayerSceneParityDocument);
   const layerCanvas = page.locator('.pixi-container canvas').first();
-  await expect(layerCanvas).toBeVisible({ timeout: 15_000 });
-  await expect.poll(async () => layerCanvas.evaluate(canvasHasVisiblePixels), { timeout: 20_000 }).toBe(true);
+  await expectCanvasHasVisiblePixels(layerCanvas, 20_000);
   const layerPixels = await reducedCanvasPixels(layerCanvas);
 
   await switchToNodeView(page);
   const outputCanvas = page.locator('.react-flow__node[data-id="__export__"] canvas.node-thumbnail-canvas');
-  await expect(outputCanvas).toBeVisible({ timeout: 15_000 });
-  await expect.poll(async () => outputCanvas.evaluate(canvasHasVisiblePixels), { timeout: 20_000 }).toBe(true);
+  await expectCanvasHasVisiblePixels(outputCanvas, 20_000);
   const outputPixels = await reducedCanvasPixels(outputCanvas);
 
   expect(meanAbsoluteDiff(layerPixels, outputPixels)).toBeLessThan(24);
@@ -463,22 +417,9 @@ test('v0.36 dropped GLB preserves the graph and lands at the drop point', async 
   await canvas.dispatchEvent('dragover', { clientX: dropPoint.x, clientY: dropPoint.y, dataTransfer });
   await canvas.dispatchEvent('drop', { clientX: dropPoint.x, clientY: dropPoint.y, dataTransfer });
 
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return (
-            doc.layers?.find((layer: { modelName?: string }) => layer.modelName === 'dropped-skull.glb')?.id ?? null
-          );
-        }),
-      { timeout: 15_000 },
-    )
-    .not.toBeNull();
-  const importedModelId = await page.evaluate(() => {
-    const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-    return doc.layers?.find((layer: { modelName?: string }) => layer.modelName === 'dropped-skull.glb')?.id as string;
-  });
+  const importedModelSelector = { key: 'modelName', value: 'dropped-skull.glb' };
+  await expect.poll(() => readStoredLayerField(page, importedModelSelector, 'id'), { timeout: 15_000 }).not.toBeNull();
+  const importedModelId = (await readStoredLayerField(page, importedModelSelector, 'id')) as string;
   const graphAfter = await page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
     return { edges: doc.graph?.edges, positions: doc.graph?.positions };
@@ -903,22 +844,7 @@ async function waitForStored3DAssets(page: Page, refs: { modelRef: string; envir
 
 async function expectSceneOutput(page: Page) {
   const outputCanvas = page.locator('.react-flow__node[data-id="__export__"] canvas.node-thumbnail-canvas');
-  await expect(outputCanvas).toBeVisible({ timeout: 20_000 });
-  await expect.poll(async () => outputCanvas.evaluate(canvasHasVisiblePixels), { timeout: 25_000 }).toBe(true);
-}
-
-function canvasHasVisiblePixels(element: Element): boolean {
-  const canvas = element as HTMLCanvasElement;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx || canvas.width <= 0 || canvas.height <= 0) return false;
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  const stride = Math.max(4, Math.floor(pixels.length / (4 * 4096)) * 4);
-  for (let index = 0; index < pixels.length; index += stride) {
-    const alpha = pixels[index + 3] ?? 0;
-    const channel = Math.max(pixels[index] ?? 0, pixels[index + 1] ?? 0, pixels[index + 2] ?? 0);
-    if (alpha > 8 && channel > 24) return true;
-  }
-  return false;
+  await expectCanvasHasVisiblePixels(outputCanvas, 25_000);
 }
 
 async function reducedCanvasPixels(locator: Locator): Promise<number[]> {

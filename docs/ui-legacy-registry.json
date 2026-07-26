@@ -1,0 +1,444 @@
+{
+  "schemaVersion": 2,
+  "release": "v0.48",
+  "issue": 183,
+  "mode": "contract",
+  "products": {
+    "artifact": {
+      "routeConfig": "apps/web/app/routes.ts",
+      "routes": [
+        {
+          "id": "artifact-home",
+          "path": "/",
+          "module": "routes/home.tsx",
+          "systems": ["ui-foundation", "artifact-design-system"]
+        },
+        {
+          "id": "artifact-editor",
+          "path": "/app",
+          "module": "routes/editor.tsx",
+          "systems": ["ui-foundation", "artifact-design-system"]
+        },
+        {
+          "id": "artifact-projects",
+          "path": "/projects",
+          "module": "routes/projects.tsx",
+          "systems": ["ui-foundation", "artifact-design-system"]
+        },
+        {
+          "id": "artifact-reset-password",
+          "path": "/reset-password",
+          "module": "routes/reset-password.tsx",
+          "systems": ["ui-foundation", "artifact-design-system"]
+        },
+        {
+          "id": "artifact-examples",
+          "path": "/examples",
+          "module": "routes/examples.tsx",
+          "systems": ["artifact-design-system"]
+        },
+        {
+          "id": "artifact-showcase",
+          "path": "/showcase",
+          "module": "routes/showcase.tsx",
+          "systems": ["ui-foundation", "artifact-design-system"]
+        },
+        {
+          "id": "artifact-docs",
+          "path": "/docs",
+          "module": "routes/docs.tsx",
+          "systems": ["artifact-design-system"]
+        },
+        {
+          "id": "artifact-docs-nodes",
+          "path": "/docs/nodes",
+          "module": "routes/docs.nodes.tsx",
+          "systems": ["ui-foundation", "artifact-design-system"]
+        },
+        {
+          "id": "artifact-docs-recipes",
+          "path": "/docs/recipes",
+          "module": "routes/docs.recipes.tsx",
+          "systems": ["artifact-design-system"]
+        },
+        {
+          "id": "artifact-docs-reference",
+          "path": "/docs/reference",
+          "module": "routes/docs.reference.tsx",
+          "systems": ["ui-foundation", "artifact-design-system"]
+        },
+        {
+          "id": "artifact-docs-reference-detail",
+          "path": "/docs/reference/:nodeId",
+          "module": "routes/docs.reference-detail.tsx",
+          "systems": ["ui-foundation", "artifact-design-system"]
+        },
+        {
+          "id": "artifact-style-guide",
+          "path": "/docs/style-guide",
+          "module": "routes/docs.style-guide.tsx",
+          "systems": ["ui-foundation", "artifact-design-system"]
+        }
+      ],
+      "inventoryDocuments": [
+        "docs/editor-workflow-inventory.md",
+        "docs/inspector-system-inventory.md",
+        "docs/canvas-chrome-inventory.md"
+      ]
+    },
+    "backoffice": {
+      "routeConfig": "apps/backoffice/app/routes.ts",
+      "routes": [
+        {
+          "id": "backoffice-sign-in",
+          "path": "/sign-in",
+          "module": "routes/sign-in.tsx",
+          "systems": ["ui-foundation", "backoffice-ui-system"]
+        },
+        {
+          "id": "backoffice-style-guide",
+          "path": "/style-guide",
+          "module": "routes/style-guide.tsx",
+          "systems": ["ui-foundation", "backoffice-ui-system"]
+        },
+        {
+          "id": "backoffice-shell",
+          "path": "layout",
+          "module": "routes/admin-layout.tsx",
+          "systems": ["ui-foundation", "backoffice-ui-system"]
+        },
+        {
+          "id": "backoffice-overview",
+          "path": "/",
+          "module": "routes/overview.tsx",
+          "systems": ["ui-foundation", "backoffice-ui-system"]
+        },
+        {
+          "id": "backoffice-accounts",
+          "path": "/accounts",
+          "module": "routes/accounts.tsx",
+          "systems": ["ui-foundation", "backoffice-ui-system"]
+        },
+        {
+          "id": "backoffice-account-detail",
+          "path": "/accounts/:userId",
+          "module": "routes/account-detail.tsx",
+          "systems": ["ui-foundation", "backoffice-ui-system"]
+        },
+        {
+          "id": "backoffice-usage",
+          "path": "/usage",
+          "module": "routes/usage.tsx",
+          "systems": ["ui-foundation", "backoffice-ui-system"]
+        }
+      ],
+      "inventoryDocuments": ["docs/backoffice.md"]
+    }
+  },
+  "approvedNonGoals": [
+    "CanvasDocument and graph semantics",
+    "renderer and export behavior",
+    "persistence and stored-document migrations",
+    "API, authentication, accounting, and AI provider behavior",
+    "React Router route behavior"
+  ],
+  "foundationMatrix": {
+    "routes": ["apps/web/app/routes/docs.style-guide.tsx", "apps/backoffice/app/routes/style-guide.tsx"],
+    "sections": [
+      {
+        "id": "commands",
+        "component": "FoundationCommandMatrix",
+        "source": "packages/ui/src/foundation-command-specimens.ts",
+        "identifiers": [
+          "button-primary",
+          "button-secondary",
+          "button-quiet",
+          "button-danger",
+          "button-active",
+          "button-disabled",
+          "button-loading",
+          "button-link-primary",
+          "button-link-disabled",
+          "icon-button-default",
+          "icon-button-primary",
+          "icon-button-danger",
+          "icon-button-disabled"
+        ]
+      },
+      {
+        "id": "fields",
+        "component": "FoundationFieldMatrix",
+        "source": "packages/ui/src/foundation-field-specimens.ts",
+        "identifiers": [
+          "input-default",
+          "input-focus",
+          "input-error",
+          "input-disabled",
+          "input-readonly",
+          "textarea-default",
+          "textarea-error",
+          "textarea-disabled",
+          "textarea-readonly",
+          "native-select-default",
+          "native-select-focus",
+          "native-select-error",
+          "native-select-disabled"
+        ]
+      },
+      {
+        "id": "feedback",
+        "component": "FoundationFeedbackMatrix",
+        "source": "packages/ui/src/foundation-feedback-specimens.ts",
+        "identifiers": [
+          "notice-info",
+          "notice-success",
+          "notice-warning",
+          "notice-danger",
+          "skeleton-line",
+          "skeleton-block",
+          "progress-indeterminate",
+          "progress-determinate"
+        ]
+      },
+      {
+        "id": "overlays",
+        "component": "FoundationOverlayMatrix",
+        "source": "packages/ui/src/foundation-overlay-specimens.ts",
+        "identifiers": [
+          "tooltip-closed",
+          "tooltip-open",
+          "tooltip-keyboard",
+          "tooltip-long-content",
+          "popover-closed",
+          "popover-open",
+          "popover-keyboard",
+          "popover-long-content"
+        ]
+      }
+    ]
+  },
+  "migrationBatches": [
+    {
+      "id": "artifact-foundation-adapters",
+      "ownerIssue": 181,
+      "replacementBoundary": "Use @artifact/ui primitives directly; keep Artifact appearance in the Artifact Product Theme and composed product patterns."
+    },
+    {
+      "id": "artifact-feature-entrypoints",
+      "ownerIssue": 181,
+      "replacementBoundary": "Import LayerPanel and NodeCanvas from their feature-folder public entrypoints."
+    },
+    {
+      "id": "artifact-inspector-selectors",
+      "ownerIssue": 181,
+      "replacementBoundary": "Use source-owned artifact-inspector-* anatomy from apps/web/app/components/inspector-system."
+    },
+    {
+      "id": "artifact-semantic-tokens",
+      "ownerIssue": 181,
+      "replacementBoundary": "Use --surface-*, --line-*, --text-*, --accent-*, --state-*, and --font-* semantic tokens."
+    },
+    {
+      "id": "backoffice-zero-baseline",
+      "ownerIssue": 180,
+      "replacementBoundary": "Keep Foundation primitives in @artifact/ui and Backoffice compositions in components/backoffice-ui; do not recreate Ui.tsx."
+    }
+  ],
+  "legacyContracts": [
+    {
+      "id": "artifact-action-command-adapter-imports",
+      "kind": "primitive-import",
+      "batch": "artifact-foundation-adapters",
+      "replacement": "@artifact/ui Button and ButtonLink",
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "(?:ui/ActionButton|['\"]\\./ActionButton['\"])"
+      },
+      "allowedReferences": {}
+    },
+    {
+      "id": "artifact-icon-button-adapter-imports",
+      "kind": "primitive-import",
+      "batch": "artifact-foundation-adapters",
+      "replacement": "@artifact/ui IconButton",
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "(?:ui/IconButton|['\"]\\./IconButton['\"])"
+      },
+      "allowedReferences": {}
+    },
+    {
+      "id": "artifact-input-adapter-imports",
+      "kind": "primitive-import",
+      "batch": "artifact-foundation-adapters",
+      "replacement": "@artifact/ui Input",
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "(?:ui/Input|['\"]\\./Input['\"])"
+      },
+      "allowedReferences": {}
+    },
+    {
+      "id": "artifact-layer-panel-alias-imports",
+      "kind": "alias-import",
+      "batch": "artifact-feature-entrypoints",
+      "replacement": "apps/web/app/components/layers-panel/LayerPanel.tsx",
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "components/LayerPanel"
+      },
+      "allowedReferences": {}
+    },
+    {
+      "id": "artifact-node-canvas-alias-imports",
+      "kind": "alias-import",
+      "batch": "artifact-feature-entrypoints",
+      "replacement": "apps/web/app/components/node-canvas/index.ts",
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "components/NodeCanvas"
+      },
+      "allowedReferences": {}
+    },
+    {
+      "id": "artifact-node-inspector-selectors",
+      "kind": "css-selector",
+      "batch": "artifact-inspector-selectors",
+      "replacement": "artifact-inspector-* source-owned inspector anatomy",
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["css", "ts", "tsx"],
+        "pattern": "node-inspector-[A-Za-z0-9_-]+"
+      },
+      "allowedReferences": {}
+    },
+    {
+      "id": "artifact-sidebar-section-selectors",
+      "kind": "css-selector",
+      "batch": "artifact-inspector-selectors",
+      "replacement": "InspectorSection slots and artifact-inspector-section__* selectors",
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["css", "ts", "tsx"],
+        "pattern": "sidebar-section[A-Za-z0-9_-]*"
+      },
+      "allowedReferences": {}
+    },
+    {
+      "id": "artifact-short-token-aliases",
+      "kind": "css-token-alias",
+      "batch": "artifact-semantic-tokens",
+      "replacement": "Artifact semantic token families documented in docs/style-guide.md",
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["css", "ts", "tsx"],
+        "pattern": "var\\(--(?:app-bg|workspace-bg|panel-bg|panel-raised|surface-bg|surface-hover|surface-input|surface-selected|border-muted|border|border-strong|text|text-dim|bg|sidebar-bg|sidebar-raised|accent|accent-dim|danger|success|warning|mono)(?=\\s*[,)])"
+      },
+      "allowedReferences": {}
+    },
+    {
+      "id": "backoffice-retired-ui-module",
+      "kind": "forbidden-import",
+      "batch": "backoffice-zero-baseline",
+      "replacement": "@artifact/ui plus apps/backoffice/app/components/backoffice-ui",
+      "scan": {
+        "roots": ["apps/backoffice/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "(?:components/Ui|from\\s+['\"][^'\"]*Ui['\"])"
+      },
+      "allowedReferences": {}
+    }
+  ],
+  "removedFiles": [
+    {
+      "path": "apps/web/app/components/ui/ActionButton.tsx",
+      "batch": "artifact-foundation-adapters",
+      "replacement": "@artifact/ui Button and ButtonLink"
+    },
+    {
+      "path": "apps/web/app/components/ui/actionButtonClassName.ts",
+      "batch": "artifact-foundation-adapters",
+      "replacement": "@artifact/ui commandClassName at the remaining product-composition boundary"
+    },
+    {
+      "path": "apps/web/app/components/ui/IconButton.tsx",
+      "batch": "artifact-foundation-adapters",
+      "replacement": "@artifact/ui IconButton"
+    },
+    {
+      "path": "apps/web/app/components/ui/Input.tsx",
+      "batch": "artifact-foundation-adapters",
+      "replacement": "@artifact/ui Input"
+    },
+    {
+      "path": "apps/web/app/components/LayerPanel.tsx",
+      "batch": "artifact-feature-entrypoints",
+      "replacement": "apps/web/app/components/layers-panel/LayerPanel.tsx"
+    },
+    {
+      "path": "apps/web/app/components/NodeCanvas.tsx",
+      "batch": "artifact-feature-entrypoints",
+      "replacement": "apps/web/app/components/node-canvas/index.ts"
+    },
+    {
+      "path": "apps/web/app/components/ui/action-button.css",
+      "batch": "artifact-foundation-adapters",
+      "replacement": "packages/ui/src/foundation.css plus apps/web/app/styles/ui-foundation-theme.css"
+    }
+  ],
+  "removedStylesheetSections": [
+    {
+      "path": "apps/web/app/components/ui/primitives.css",
+      "batch": "artifact-foundation-adapters",
+      "selectors": ["artifact-icon-button*", "artifact-input*"],
+      "replacement": "packages/ui/src/foundation.css plus the Artifact Product Theme; retain unrelated product-pattern selectors"
+    },
+    {
+      "path": "apps/web/app/index.css",
+      "batch": "artifact-inspector-selectors",
+      "selectors": ["node-inspector-*", "sidebar-section*"],
+      "replacement": "apps/web/app/components/inspector-system/inspector-system.css"
+    },
+    {
+      "path": "apps/web/app/components/node-canvas/node-canvas.css",
+      "batch": "artifact-inspector-selectors",
+      "selectors": ["node-inspector-*"],
+      "replacement": "apps/web/app/components/inspector-system/inspector-system.css"
+    },
+    {
+      "path": "apps/web/app/routes/docs.style-guide.css",
+      "batch": "artifact-inspector-selectors",
+      "selectors": ["node-inspector-*"],
+      "replacement": "source-owned Artifact Inspector System specimen selectors"
+    },
+    {
+      "path": "apps/web/app/index.css",
+      "batch": "artifact-semantic-tokens",
+      "selectors": ["short token aliases declared in :root"],
+      "replacement": "apps/web/app/styles/tokens.css semantic token families"
+    },
+    {
+      "path": "apps/web/app/components/node-canvas/node-canvas.css",
+      "batch": "artifact-semantic-tokens",
+      "selectors": ["registered var(--short-token) references"],
+      "replacement": "Artifact semantic token families"
+    },
+    {
+      "path": "apps/web/app/routes/docs.style-guide.css",
+      "batch": "artifact-semantic-tokens",
+      "selectors": ["registered var(--short-token) references"],
+      "replacement": "Artifact semantic token families"
+    },
+    {
+      "path": "apps/web/app/components/editor-workflow/editor-workflow.css",
+      "batch": "artifact-semantic-tokens",
+      "selectors": ["registered var(--short-token) references"],
+      "replacement": "Artifact semantic token families"
+    }
+  ]
+}
