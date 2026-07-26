@@ -1,3 +1,4 @@
+import { Button, IconButton } from '@artifact/ui';
 import { AnimatePresence } from 'framer-motion';
 import { lazy, type RefObject, Suspense, useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router';
@@ -11,9 +12,7 @@ import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
 import { StorageWarningStrip } from '../components/StorageWorkspaceStatus';
 import { getProjectWorkspaceStatus } from '../components/StorageWorkspaceStatusModel';
-import { ActionButton } from '../components/ui/ActionButton';
 import { DialogClose } from '../components/ui/dialog';
-import { IconButton } from '../components/ui/IconButton';
 import { useBrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import {
   isArtifactDocumentFile,
@@ -35,7 +34,7 @@ import { useEditorPanels } from './editor/useEditorPanels';
 import { useEditorPrimitiveExportState } from './editor/useEditorPrimitiveExportState';
 import { type ViewMode, ViewModeToggle } from './editor/ViewModeToggle';
 
-const NodeCanvas = lazy(() => import('../components/NodeCanvas').then((module) => ({ default: module.NodeCanvas })));
+const NodeCanvas = lazy(() => import('../components/node-canvas').then((module) => ({ default: module.NodeCanvas })));
 const MAX_ENVIRONMENT_BYTES = 80 * 1024 * 1024;
 const MAX_MODEL_BYTES = 50 * 1024 * 1024;
 
@@ -90,10 +89,10 @@ function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
         className="canvas-area relative h-full max-h-[min(100%,540px)] max-w-full flex flex-col items-center justify-center gap-2"
         style={{
           aspectRatio: `${previewWidth} / ${previewHeight}`,
-          background: 'var(--sidebar-bg)',
-          border: '1px solid var(--border)',
-          color: 'var(--text-dim)',
-          fontFamily: 'var(--mono)',
+          background: 'var(--surface-panel)',
+          border: '1px solid var(--line-default)',
+          color: 'var(--text-secondary)',
+          fontFamily: 'var(--font-mono)',
           fontSize: '11px',
         }}
       >
@@ -523,7 +522,7 @@ export default function Editor() {
             </ErrorBoundary>
           ) : (
             <div className="node-mode-stage">
-              <Suspense fallback={<div style={{ flex: 1, background: 'var(--bg)' }} />}>
+              <Suspense fallback={<div style={{ flex: 1, background: 'var(--surface-app)' }} />}>
                 <NodeCanvas
                   doc={doc}
                   imageCache={imageCache}
@@ -733,11 +732,11 @@ function DocumentImportConfirm({
       </p>
       <div className="document-import-confirm__actions">
         <DialogClose asChild>
-          <ActionButton variant="quiet" disabled={busy}>
+          <Button variant="quiet" disabled={busy}>
             CANCEL
-          </ActionButton>
+          </Button>
         </DialogClose>
-        <ActionButton
+        <Button
           className="export-btn"
           variant="primary"
           onClick={onConfirm}
@@ -745,7 +744,7 @@ function DocumentImportConfirm({
           aria-label={busy ? 'Saving recovery copy before opening file' : undefined}
         >
           {busy ? 'SAVING' : 'OPEN FILE'}
-        </ActionButton>
+        </Button>
       </div>
     </EditorOverlayFrame>
   );

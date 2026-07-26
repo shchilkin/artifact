@@ -20,7 +20,7 @@ export function InspectorSelect({
 }) {
   return (
     <InspectorField
-      className={`node-inspector-control${disabled ? ' node-inspector-control-disabled' : ''}`}
+      className={`artifact-inspector-control${disabled ? ' artifact-inspector-control-disabled' : ''}`}
       label={label}
       disabled={disabled}
     >

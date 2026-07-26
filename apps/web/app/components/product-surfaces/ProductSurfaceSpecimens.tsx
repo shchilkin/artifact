@@ -1,8 +1,6 @@
-import { InlineNotice, Skeleton } from '@artifact/ui';
+import { Button, ButtonLink, InlineNotice, Skeleton } from '@artifact/ui';
 import { Link } from 'react-router';
-
 import { LogoGlyph } from '../LogoGlyph';
-import { ActionButton, ActionLink } from '../ui/ActionButton';
 import { Badge } from '../ui/Badge';
 import { SearchField } from '../ui/SearchField';
 
@@ -18,20 +16,20 @@ export function ProductSurfaceSpecimens() {
             Artifact
           </span>
           <span>Docs</span>
-          <ActionLink to="/app?new=blank" variant="primary" size="compact">
+          <ButtonLink to="/app?new=blank" variant="primary" size="compact">
             Open editor
-          </ActionLink>
+          </ButtonLink>
         </div>
         <div className="product-pattern-account-states" aria-label="Account navigation states">
-          <ActionButton data-account-state="anonymous" size="compact">
+          <Button data-account-state="anonymous" size="compact">
             Sign in
-          </ActionButton>
-          <ActionButton data-account-state="loading" disabled size="compact">
+          </Button>
+          <Button data-account-state="loading" disabled size="compact">
             Account
-          </ActionButton>
-          <ActionButton data-account-state="authenticated" size="compact">
+          </Button>
+          <Button data-account-state="authenticated" size="compact">
             Sign out
-          </ActionButton>
+          </Button>
         </div>
       </ProductPatternSpecimen>
 
@@ -40,9 +38,9 @@ export function ProductSurfaceSpecimens() {
           <Badge variant="warning">Not found</Badge>
           <strong>Page not found.</strong>
           <span>Return to a known surface or open a blank canvas.</span>
-          <ActionLink to="/" size="compact">
+          <ButtonLink to="/" size="compact">
             Return home
-          </ActionLink>
+          </ButtonLink>
         </div>
       </ProductPatternSpecimen>
 
@@ -64,7 +62,7 @@ export function ProductSurfaceSpecimens() {
             <strong>Night transit</strong>
             <span>Saved in this browser</span>
           </div>
-          <ActionButton size="compact">Open</ActionButton>
+          <Button size="compact">Open</Button>
         </div>
       </ProductPatternSpecimen>
 
@@ -95,12 +93,12 @@ export function ProductSurfaceSpecimens() {
       <ProductPatternSpecimen name="docs-learning" label="Docs learning">
         <div className="product-pattern-learning">
           <div className="product-pattern-learning__filters">
-            <ActionButton size="compact" variant="primary">
+            <Button size="compact" variant="primary">
               All
-            </ActionButton>
-            <ActionButton size="compact" variant="quiet">
+            </Button>
+            <Button size="compact" variant="quiet">
               Effects
-            </ActionButton>
+            </Button>
           </div>
           <InlineNotice>Choose a starting point, then open the editable document.</InlineNotice>
           <Skeleton shape="line" />

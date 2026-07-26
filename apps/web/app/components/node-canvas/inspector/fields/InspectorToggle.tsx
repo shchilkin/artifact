@@ -20,8 +20,8 @@ export function InspectorToggle({
 }) {
   return (
     <PropertyRow
-      className={`node-inspector-toggle${disabled ? ' node-inspector-control-disabled' : ''}${className ? ` ${className}` : ''}`}
-      label={<span className="node-inspector-label">{label}</span>}
+      className={`artifact-inspector-toggle${disabled ? ' artifact-inspector-control-disabled' : ''}${className ? ` ${className}` : ''}`}
+      label={<span className="artifact-inspector-label">{label}</span>}
       disabled={disabled}
       locked={locked}
     >

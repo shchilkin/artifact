@@ -1,10 +1,9 @@
-import { ProgressIndicator, Skeleton } from '@artifact/ui';
+import { Button, ProgressIndicator, Skeleton } from '@artifact/ui';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
 import { PublicPageLayout } from '../components/PublicPageLayout';
 import { ProductPageHeader } from '../components/product-surfaces/ProductPageHeader';
-import { ActionButton } from '../components/ui/ActionButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ASPECT_SIZES, type AspectRatio, type CanvasDocument } from '../types/config';
 import { CURATED_EXAMPLES } from '../utils/curatedExamples';
@@ -296,9 +295,9 @@ export default function Showcase() {
         </section>
 
         <div className="showcase-sentinel" ref={sentinelRef}>
-          <ActionButton variant="primary" onClick={handleGenerateMore} loading={generating}>
+          <Button variant="primary" onClick={handleGenerateMore} loading={generating}>
             {generating ? 'Rendering...' : 'Render more'}
-          </ActionButton>
+          </Button>
           {generating ? (
             <div className="showcase-loading">
               <span>Rendering {RANDOM_BATCH_SIZE} more.</span>

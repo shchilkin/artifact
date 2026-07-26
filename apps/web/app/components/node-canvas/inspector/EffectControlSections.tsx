@@ -999,7 +999,7 @@ function renderIndexedPaletteControls(section: EffectSectionDefinition, props: P
       <div className="indexed-palette-panel">
         <div className="indexed-palette-panel-head">
           <div className="indexed-palette-panel-copy">
-            <span className="node-inspector-label">Active swatches</span>
+            <span className="artifact-inspector-label">Active swatches</span>
             <span className="indexed-palette-panel-note">
               {activeCount} of 6 map pixels; parked colors are ignored.
             </span>
@@ -1007,7 +1007,7 @@ function renderIndexedPaletteControls(section: EffectSectionDefinition, props: P
           <NoPan
             as="button"
             type="button"
-            className="node-inspector-action indexed-palette-random"
+            className="artifact-inspector-action indexed-palette-random"
             onClick={() => onChange(randomIndexedPalettePatch())}
           >
             Rand colors

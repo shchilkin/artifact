@@ -37,8 +37,8 @@ export function InspectorSlider({
   const clampManualValue = (nextValue: number) => Math.min(manualMax, Math.max(min, nextValue));
   return (
     <PropertyRow
-      className={`node-inspector-control${disabled ? ' node-inspector-control-disabled' : ''}`}
-      label={<span className="node-inspector-label">{label}</span>}
+      className={`artifact-inspector-control${disabled ? ' artifact-inspector-control-disabled' : ''}`}
+      label={<span className="artifact-inspector-label">{label}</span>}
       labelAction={
         effectKey && onInfoEnter ? (
           <NoPan
@@ -56,7 +56,7 @@ export function InspectorSlider({
           </NoPan>
         ) : undefined
       }
-      value={<span className="node-inspector-value">{valueLabel ?? value}</span>}
+      value={<span className="artifact-inspector-value">{valueLabel ?? value}</span>}
       disabled={disabled}
     >
       <SliderInputs

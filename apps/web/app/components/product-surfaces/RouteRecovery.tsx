@@ -1,6 +1,5 @@
+import { ButtonLink } from '@artifact/ui';
 import type { ReactNode } from 'react';
-
-import { ActionLink } from '../ui/ActionButton';
 
 export function RouteRecovery({
   detail,
@@ -23,12 +22,12 @@ export function RouteRecovery({
       <h1 id="product-route-recovery-title">{title}</h1>
       <p className="product-route-recovery__detail">{detail}</p>
       <div className="product-route-recovery__actions">
-        <ActionLink to="/" variant="secondary">
+        <ButtonLink to="/" variant="secondary">
           Return home
-        </ActionLink>
-        <ActionLink to="/app?new=blank" variant="primary">
+        </ButtonLink>
+        <ButtonLink to="/app?new=blank" variant="primary">
           Open editor
-        </ActionLink>
+        </ButtonLink>
       </div>
       {diagnostics ? <div className="product-route-recovery__diagnostics">{diagnostics}</div> : null}
     </section>

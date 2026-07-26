@@ -1,9 +1,8 @@
-import { Button, Field, InlineNotice, Input } from '@artifact/ui';
+import { Button, ButtonLink, Field, InlineNotice, Input } from '@artifact/ui';
 import { useCallback, useMemo, useState } from 'react';
 import type { MetaFunction } from 'react-router';
 import { useSearchParams } from 'react-router';
 import { PublicPageLayout } from '../components/PublicPageLayout';
-import { ActionLink } from '../components/ui/ActionButton';
 import { resetArtifactPassword } from '../utils/authClient';
 
 export const meta: MetaFunction = () => [
@@ -92,9 +91,9 @@ export default function ResetPasswordRoute() {
             </Button>
           </form>
 
-          <ActionLink className="auth-page-link" to="/app" variant="quiet">
+          <ButtonLink className="auth-page-link" to="/app" variant="quiet">
             Return to editor
-          </ActionLink>
+          </ButtonLink>
         </section>
       </main>
     </PublicPageLayout>

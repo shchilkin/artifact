@@ -5,7 +5,7 @@ export function BlendModeNote({ value }: { value: string }) {
   const mode = (value in BLEND_MODE_HELP ? value : 'normal') as BlendMode;
 
   return (
-    <p className="node-inspector-note">
+    <p className="artifact-inspector-note">
       {mode}: {BLEND_MODE_HELP[mode]}
     </p>
   );

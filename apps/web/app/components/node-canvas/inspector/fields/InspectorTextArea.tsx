@@ -36,7 +36,7 @@ export function InspectorTextArea({
 
   return (
     <InspectorField
-      className={`node-inspector-control${disabled ? ' node-inspector-control-disabled' : ''}`}
+      className={`artifact-inspector-control${disabled ? ' artifact-inspector-control-disabled' : ''}`}
       controlId={controlId}
       label={label}
       dirty={dirty}

@@ -9,7 +9,7 @@ export function ColorInspector({
   onChange: (patch: Partial<GraphColorNode>) => void;
 }) {
   return (
-    <div className="node-inspector-stack">
+    <div className="artifact-inspector-stack">
       <InspectorTextInput label="Name" value={colorNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSlider
         label="Contrast"

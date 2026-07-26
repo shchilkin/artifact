@@ -132,7 +132,7 @@
   width: 48%;
 }
 
-.canvas-chrome-gallery-state--failed > .action-button {
+.canvas-chrome-gallery-state--failed > .ui-command {
   min-height: var(--control-h-compact);
   height: var(--control-h-compact);
   padding-inline: var(--control-pad-x-compact);
@@ -164,7 +164,7 @@
     overflow-x: auto;
   }
 
-  .canvas-chrome-gallery-state--failed > .action-button {
+  .canvas-chrome-gallery-state--failed > .ui-command {
     min-height: var(--control-h-default);
     height: var(--control-h-default);
   }

@@ -1,8 +1,8 @@
+import { ButtonLink } from '@artifact/ui';
 import { useReducedMotion } from 'framer-motion';
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import type { MetaFunction } from 'react-router';
 import { PublicPageLayout } from '../components/PublicPageLayout';
-import { ActionLink } from '../components/ui/ActionButton';
 import {
   type CanvasDocument,
   DEFAULT_EXPORT,
@@ -641,12 +641,12 @@ function HomeHeroOverlay({ heroRef, heroVisible }: { heroRef: RefObject<HTMLElem
         own.
       </p>
       <div className="home-hero__actions">
-        <ActionLink to="/app?new=blank" variant="primary">
+        <ButtonLink to="/app?new=blank" variant="primary">
           Open editor
-        </ActionLink>
-        <ActionLink to="/showcase" variant="quiet">
+        </ButtonLink>
+        <ButtonLink to="/showcase" variant="quiet">
           View showcase
-        </ActionLink>
+        </ButtonLink>
       </div>
       <p className={`home-hero__hint${!heroVisible ? ' home-hero__hint--used' : ''}`} aria-hidden="true">
         ↓ scroll
@@ -718,13 +718,13 @@ function HomeCtaSection({ ctaRef, ctaVisible }: { ctaRef: RefObject<HTMLElement 
         Open the editor. Start from a blank document.
       </h2>
       <div className="home-cta-row">
-        <ActionLink to="/app?new=blank" variant="primary">
+        <ButtonLink to="/app?new=blank" variant="primary">
           Open editor
           <span aria-hidden="true">→</span>
-        </ActionLink>
-        <ActionLink to="/showcase" variant="quiet">
+        </ButtonLink>
+        <ButtonLink to="/showcase" variant="quiet">
           view showcase
-        </ActionLink>
+        </ButtonLink>
       </div>
       <p className="home-cta-fineprint">
         The default editor opens empty. Add sources, stack layers, route nodes, and export when the piece is ready.

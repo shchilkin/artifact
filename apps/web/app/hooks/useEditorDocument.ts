@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { InsertConnectionConfig } from '../components/NodeCanvas';
+import type { InsertConnectionConfig } from '../components/node-canvas';
 import {
   type AspectRatio,
   type CanvasDocument,

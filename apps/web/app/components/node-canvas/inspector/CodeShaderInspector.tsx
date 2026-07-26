@@ -110,7 +110,7 @@ export function CodeShaderInspector({
             })
           }
         />
-        <p className="node-inspector-note">
+        <p className="artifact-inspector-note">
           Write GLSL for <code>mainImage(uv)</code>. Use <code>u_backdrop</code> for the incoming image and{' '}
           <code>u_has_backdrop</code> to detect it. <code>u_resolution</code>, <code>u_seed</code>, and{' '}
           <code>u_strength</code> are also available. Empty or invalid code stays transparent until it is fixed.

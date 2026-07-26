@@ -31,7 +31,7 @@ export function EnvironmentInspector({
   };
 
   return (
-    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
+    <div className={detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached'}>
       <InspectorSection
         title="File"
         summary={environmentFileSummary(environmentNode)}
@@ -51,7 +51,7 @@ export function EnvironmentInspector({
         <NoPan
           as="button"
           type="button"
-          className="node-inspector-action environment-load-action"
+          className="artifact-inspector-action environment-load-action"
           disabled={!onLoadFile}
           onClick={() => inputRef.current?.click()}
         >

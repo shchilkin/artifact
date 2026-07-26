@@ -608,9 +608,9 @@ Best shadcn candidates and current adoption:
 
 Poor shadcn candidates:
 
-- **Button** as a default import. Public CTAs already use `ActionButton` /
-  `ActionLink`, and editor controls need Artifact-specific pressed, selected,
-  disabled, and focus states.
+- **shadcn Button** as a default import. Public CTAs use UI Foundation `Button`
+  / `ButtonLink`, while the Artifact Product Theme owns pressed, selected,
+  disabled, and focus appearance.
 - **Card** as a layout default. Artifact avoids generic card-heavy composition;
   repeated items should use product-specific frames only when the frame carries
   meaning.

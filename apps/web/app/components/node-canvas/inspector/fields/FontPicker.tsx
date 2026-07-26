@@ -197,7 +197,7 @@ export function FontPicker({
   return (
     <div className="font-picker">
       <InspectorField
-        className="node-inspector-control"
+        className="artifact-inspector-control"
         controlId={triggerId}
         error={fontError ?? undefined}
         label={label}

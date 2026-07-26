@@ -153,8 +153,8 @@ commands.
 ### 1. `EditorCommandBar` and `EditorCommandGroup`
 
 Owns command grouping, labels, separators, density, wrapping/overflow slots,
-and accessible toolbar semantics. It composes `ActionButton`, `IconButton`, and
-menu primitives. `BottomBar`, compact navigation commands, and Layers header
+and accessible toolbar semantics. It composes Foundation `Button`, `IconButton`,
+and menu primitives. `BottomBar`, compact navigation commands, and Layers header
 commands keep their current handlers, permissions, loading rules, and
 responsive visibility decisions.
 
