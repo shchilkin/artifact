@@ -216,6 +216,13 @@ The shared live specimen set that renders every UI Foundation primitive and its
 required interaction states in both the Artifact and Backoffice Product Themes.
 _Avoid_: Component gallery, one-theme style guide
 
+**UI Legacy Registry**:
+The machine-readable, decreasing allowlist that assigns every visible product
+surface to its UI system and groups each remaining compatibility contract into
+a finite migration batch with a named replacement. It governs UI conformance;
+stored-document, API, renderer, and persistence migrations are outside it.
+_Avoid_: Dead-code report, general deprecation list, data migration registry
+
 **Canvas Chrome**:
 The Artifact Design System around graph structure, rendered previews, direct
 manipulation, galleries, and 3D viewports. Canvas Chrome makes editor state

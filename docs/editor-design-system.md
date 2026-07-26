@@ -338,6 +338,12 @@ no open-ended legacy bucket. Obsolete primitives, compatibility aliases, and
 local CSS are removed only after their replacement surface has a live specimen
 and conformance coverage.
 
+The v0.48 expand-phase source of truth is the machine-readable
+[`UI legacy registry`](ui-legacy-registry.json), with its ownership summary in
+[`ui-legacy-registry.md`](ui-legacy-registry.md). The registry maps configured
+routes and embedded editor inventories, names each replacement boundary, and
+allows legacy counts to decrease while rejecting new callers.
+
 ## Full UI Rewrite Sequence
 
 The rewrite proceeds through independently verifiable waves while unrelated
