@@ -21,10 +21,8 @@ import {
   addLooseLayerNodeToDocument,
   addNodeAtDocument,
   bootstrapDocumentGraph,
-  canInsertLayerAbove,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
-  insertLayerAboveInDocument,
   removeGraphAreaInDocument,
   removeLayerFromDocument,
   removeNodesFromAllGraphAreasInDocument,
@@ -119,11 +117,6 @@ function expectInsertedLayerBackedNode(
   return layerId;
 }
 
-function expectFillBInsertedAboveFillA(doc: CanvasDocument, next: CanvasDocument) {
-  expect(canInsertLayerAbove(doc, 'fill-a')).toBe(true);
-  expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'fill-b', 'text-a']);
-}
-
 function expectInsertedRepeatNode(result: ReturnType<typeof addNodeAtDocument>, position: { x: number; y: number }) {
   const repeatNode = result.doc.graph?.repeatNodes?.find((node) => node.id !== 'repeat-a');
   expect(result.selectedLayerId).toBeNull();
@@ -204,68 +197,6 @@ describe('documentCommands', () => {
     expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a', 'image-drop']);
     expect(next.graph?.positions['image-drop']).toEqual({ x: 123, y: 456 });
     expect(next.graph?.edges).toEqual(doc.graph?.edges);
-  });
-
-  it('inserts a layer above a stack row without requiring a graph', () => {
-    const doc = makeDoc();
-    const layer = makeFillLayer({ id: 'fill-b', name: 'Fill B' });
-    const next = insertLayerAboveInDocument(doc, 'fill-a', layer);
-
-    expectFillBInsertedAboveFillA(doc, next);
-    expect(next.graph).toBeUndefined();
-    expect(doc.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a']);
-  });
-
-  it('inserts a layer above a linear graph row and rewires the export path', () => {
-    const graph: CanvasGraph = {
-      edges: [
-        { id: 'e-fill-a-text-a', fromId: 'fill-a', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
-        { id: 'e-text-a-export', fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-      ],
-      positions: {
-        'fill-a': { x: 0, y: 80 },
-        'text-a': { x: 480, y: 80 },
-        [EXPORT_NODE_ID]: { x: 960, y: 80 },
-      },
-      mergeNodes: [],
-      colorNodes: [],
-      repeatNodes: [],
-      areas: [{ id: 'area-a', name: 'Area A', color: '#ff705f', nodeIds: ['fill-a'] }],
-    };
-    const doc = makeDoc(graph);
-    const next = insertLayerAboveInDocument(doc, 'fill-a', makeFillLayer({ id: 'fill-b' }));
-
-    expectFillBInsertedAboveFillA(doc, next);
-    expect(next.graph?.edges).not.toContainEqual(expect.objectContaining({ id: 'e-fill-a-text-a' }));
-    expect(next.graph?.edges).toContainEqual({
-      id: 'e-fill-a-fill-b',
-      fromId: 'fill-a',
-      fromPort: 'out',
-      toId: 'fill-b',
-      toPort: 'bg',
-    });
-    expect(next.graph?.edges).toContainEqual({
-      id: 'e-fill-b-text-a',
-      fromId: 'fill-b',
-      fromPort: 'out',
-      toId: 'text-a',
-      toPort: 'bg',
-    });
-    expect(next.graph?.areas?.[0]?.nodeIds).toEqual(['fill-a']);
-  });
-
-  it('inserts layer rows into custom graphs and syncs the stack export path', () => {
-    const doc = makeDoc(makeGraph());
-    const layer = makeFillLayer({ id: 'fill-b' });
-    const next = insertLayerAboveInDocument(doc, 'fill-a', layer);
-
-    expectFillBInsertedAboveFillA(doc, next);
-    expect(next.graph?.edges).toEqual([
-      { id: 'e-fill-a-fill-b', fromId: 'fill-a', fromPort: 'out', toId: 'fill-b', toPort: 'bg' },
-      { id: 'e-fill-b-text-a', fromId: 'fill-b', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
-      { id: `e-text-a-${EXPORT_NODE_ID}`, fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-    ]);
-    expect(next.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
   });
 
   it('inserts a merge node with source and target edges', () => {
