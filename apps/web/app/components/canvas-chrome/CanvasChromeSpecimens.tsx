@@ -1,8 +1,6 @@
-import { Skeleton } from '@artifact/ui';
+import { Button, IconButton, Skeleton } from '@artifact/ui';
 import type { ReactNode } from 'react';
-import { ActionButton } from '../ui/ActionButton';
 import { EmptyState } from '../ui/EmptyState';
-import { IconButton } from '../ui/IconButton';
 import { Toolbar, ToolbarButton } from '../ui/Toolbar';
 import '../canvas-preview.css';
 import { CANVAS_CHROME_INVARIANTS, CANVAS_CHROME_SURFACES } from './canvasChromeInventory';
@@ -283,7 +281,7 @@ function NodeGallerySpecimen() {
           data-canvas-chrome-state="failed"
         >
           <span>Preview failed</span>
-          <ActionButton variant="secondary">Retry</ActionButton>
+          <Button variant="secondary">Retry</Button>
         </div>
         <div
           className="canvas-chrome-gallery-state canvas-chrome-gallery-state--narrow"
@@ -378,7 +376,7 @@ function ReferenceState({
     <div className="canvas-chrome-reference-state" data-canvas-chrome-state={state}>
       <span>{label}</span>
       <small>{detail}</small>
-      {action ? <ActionButton variant="secondary">Retry</ActionButton> : null}
+      {action ? <Button variant="secondary">Retry</Button> : null}
     </div>
   );
 }

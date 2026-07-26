@@ -16,8 +16,8 @@ export function InspectorColorInput({
 }) {
   return (
     <PropertyRow
-      className={`node-inspector-row${inactive || disabled ? ' node-inspector-row-inactive' : ''}`}
-      label={<span className="node-inspector-label">{label}</span>}
+      className={`artifact-inspector-row${inactive || disabled ? ' artifact-inspector-row-inactive' : ''}`}
+      label={<span className="artifact-inspector-label">{label}</span>}
       disabled={disabled}
     >
       <input

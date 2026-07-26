@@ -16,7 +16,7 @@ export function TransformInspector({
   detached?: boolean;
 }) {
   return (
-    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
+    <div className={detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached'}>
       <InspectorTextInput label="Name" value={transformNode.name} onChange={(name) => onChange({ name })} />
       <InspectorSlider
         label="Horizontal"
@@ -96,7 +96,7 @@ export function TransformInspector({
         max={100}
         onChange={(opacity) => onChange({ opacity })}
       />
-      <p className="node-inspector-note">Transforms the completed source branch after masks and effects render.</p>
+      <p className="artifact-inspector-note">Transforms the completed source branch after masks and effects render.</p>
     </div>
   );
 }

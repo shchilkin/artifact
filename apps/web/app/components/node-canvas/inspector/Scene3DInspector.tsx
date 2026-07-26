@@ -196,7 +196,7 @@ export function Scene3DInspector({
   };
 
   return (
-    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
+    <div className={detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached'}>
       <InspectorSection
         title="Framing"
         summary={`Exposure ${compactPercent(scene3dNode.exposure)}`}
@@ -236,7 +236,7 @@ export function Scene3DInspector({
           onChange={(materialMode) => onChange({ materialMode: materialMode as GraphScene3DNode['materialMode'] })}
         />
         {materialInputConnected ? (
-          <p className="node-inspector-note">Material mode is controlled by the connected PBR material input.</p>
+          <p className="artifact-inspector-note">Material mode is controlled by the connected PBR material input.</p>
         ) : null}
       </InspectorSection>
       <InspectorSection

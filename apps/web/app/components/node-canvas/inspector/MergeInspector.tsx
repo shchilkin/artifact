@@ -12,7 +12,7 @@ export function MergeInspector({
   detached?: boolean;
 }) {
   return (
-    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
+    <div className={detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached'}>
       <InspectorTextInput label="Name" value={mergeNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSelect
         label="Blend"

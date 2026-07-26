@@ -1,6 +1,8 @@
 # UI Legacy Registry
 
-Status: expand-phase contract for v0.48 issue #179.
+Status: shrinking v0.48 contract. Q1 established the finite registry; Q2 and Q3
+have reduced both products to zero registered runtime callers pending the Q4
+conformance gate and Q5 deletion pass.
 
 The machine-readable source of truth is
 [`ui-legacy-registry.json`](./ui-legacy-registry.json). It closes the migration
@@ -49,10 +51,10 @@ Backoffice compositions belong in `components/backoffice-ui`.
 
 | Batch | Current registered contracts | Named replacement | Owner |
 | --- | --- | --- | --- |
-| `artifact-foundation-adapters` | `ActionButton`/`ActionLink`, `IconButton`, and `Input` adapter files and imports; `action-button.css`; their bounded sections in `primitives.css` | Direct `@artifact/ui` primitives plus the Artifact Product Theme | #181 |
-| `artifact-feature-entrypoints` | Root `LayerPanel.tsx` and `NodeCanvas.tsx` aliases and their callers | Feature-folder public entrypoints | #181 |
-| `artifact-inspector-selectors` | `node-inspector-*` and `sidebar-section*` compatibility selectors | Source-owned `artifact-inspector-*` anatomy | #181 |
-| `artifact-semantic-tokens` | Short token aliases used by bounded editor stylesheets and inline styles | `--surface-*`, `--line-*`, `--text-*`, `--accent-*`, `--state-*`, and `--font-*` | #181 |
+| `artifact-foundation-adapters` | Zero runtime callers; compatibility files remain registered for Q5 | Direct `@artifact/ui` primitives plus the Artifact Product Theme | #181 |
+| `artifact-feature-entrypoints` | Zero runtime callers; root aliases remain registered for Q5 | Feature-folder public entrypoints | #181 |
+| `artifact-inspector-selectors` | Zero `node-inspector-*` or `sidebar-section*` references | Source-owned `artifact-inspector-*` anatomy | #181 |
+| `artifact-semantic-tokens` | Zero registered short-token references; declarations removed from `index.css` | `--surface-*`, `--line-*`, `--text-*`, `--accent-*`, `--state-*`, and `--font-*` | #181 |
 | `backoffice-zero-baseline` | No callers | `@artifact/ui` plus `components/backoffice-ui` | #180 |
 
 The exact paths and maximum occurrence counts live only in the JSON registry;

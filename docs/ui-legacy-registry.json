@@ -43,7 +43,12 @@
           "module": "routes/showcase.tsx",
           "systems": ["ui-foundation", "artifact-design-system"]
         },
-        { "id": "artifact-docs", "path": "/docs", "module": "routes/docs.tsx", "systems": ["artifact-design-system"] },
+        {
+          "id": "artifact-docs",
+          "path": "/docs",
+          "module": "routes/docs.tsx",
+          "systems": ["artifact-design-system"]
+        },
         {
           "id": "artifact-docs-nodes",
           "path": "/docs/nodes",
@@ -245,77 +250,60 @@
       "kind": "primitive-import",
       "batch": "artifact-foundation-adapters",
       "replacement": "@artifact/ui Button and ButtonLink",
-      "scan": { "roots": ["apps/web/app"], "extensions": ["ts", "tsx"], "pattern": "(?:^|/)ui/ActionButton" },
-      "allowedReferences": {
-        "apps/web/app/components/ArtifactAuthProvider.tsx": 1,
-        "apps/web/app/components/BottomBar.tsx": 1,
-        "apps/web/app/components/NodeGalleryCanvas.tsx": 1,
-        "apps/web/app/components/ProjectsPanel.tsx": 1,
-        "apps/web/app/components/Sidebar.tsx": 1,
-        "apps/web/app/components/SiteNav.tsx": 1,
-        "apps/web/app/components/add-library/AddLibraryPanel.tsx": 1,
-        "apps/web/app/components/canvas-chrome/CanvasChromeSpecimens.tsx": 1,
-        "apps/web/app/components/layers-panel/LayerPanel.tsx": 1,
-        "apps/web/app/components/node-canvas/NodeCanvas.tsx": 1,
-        "apps/web/app/components/product-surfaces/ProductSurfaceSpecimens.tsx": 1,
-        "apps/web/app/components/product-surfaces/RouteRecovery.tsx": 1,
-        "apps/web/app/routes/docs.nodes.tsx": 1,
-        "apps/web/app/routes/docs.reference-detail.tsx": 1,
-        "apps/web/app/routes/docs.reference.tsx": 1,
-        "apps/web/app/routes/docs.style-guide.tsx": 1,
-        "apps/web/app/routes/editor.tsx": 1,
-        "apps/web/app/routes/home.tsx": 1,
-        "apps/web/app/routes/projects.tsx": 1,
-        "apps/web/app/routes/reset-password.tsx": 1,
-        "apps/web/app/routes/showcase.tsx": 1
-      }
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "(?:^|/)ui/ActionButton"
+      },
+      "allowedReferences": {}
     },
     {
       "id": "artifact-icon-button-adapter-imports",
       "kind": "primitive-import",
       "batch": "artifact-foundation-adapters",
       "replacement": "@artifact/ui IconButton",
-      "scan": { "roots": ["apps/web/app"], "extensions": ["ts", "tsx"], "pattern": "(?:^|/)ui/IconButton" },
-      "allowedReferences": {
-        "apps/web/app/components/ArtifactAuthProvider.tsx": 1,
-        "apps/web/app/components/ProjectsPanel.tsx": 1,
-        "apps/web/app/components/SiteNav.tsx": 1,
-        "apps/web/app/components/canvas-chrome/CanvasChromeSpecimens.tsx": 1,
-        "apps/web/app/components/node-canvas/NodeCanvas.tsx": 1,
-        "apps/web/app/routes/docs.style-guide.tsx": 1,
-        "apps/web/app/routes/editor.tsx": 1
-      }
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "(?:^|/)ui/IconButton"
+      },
+      "allowedReferences": {}
     },
     {
       "id": "artifact-input-adapter-imports",
       "kind": "primitive-import",
       "batch": "artifact-foundation-adapters",
       "replacement": "@artifact/ui Input",
-      "scan": { "roots": ["apps/web/app"], "extensions": ["ts", "tsx"], "pattern": "(?:^|/)ui/Input" },
-      "allowedReferences": {
-        "apps/web/app/routes/docs.style-guide.tsx": 1
-      }
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "(?:^|/)ui/Input"
+      },
+      "allowedReferences": {}
     },
     {
       "id": "artifact-layer-panel-alias-imports",
       "kind": "alias-import",
       "batch": "artifact-feature-entrypoints",
       "replacement": "apps/web/app/components/layers-panel/LayerPanel.tsx",
-      "scan": { "roots": ["apps/web/app"], "extensions": ["ts", "tsx"], "pattern": "['\"]\\./LayerPanel['\"]" },
-      "allowedReferences": {
-        "apps/web/app/components/Sidebar.tsx": 1
-      }
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "['\"]\\./LayerPanel['\"]"
+      },
+      "allowedReferences": {}
     },
     {
       "id": "artifact-node-canvas-alias-imports",
       "kind": "alias-import",
       "batch": "artifact-feature-entrypoints",
       "replacement": "apps/web/app/components/node-canvas/index.ts",
-      "scan": { "roots": ["apps/web/app"], "extensions": ["ts", "tsx"], "pattern": "components/NodeCanvas" },
-      "allowedReferences": {
-        "apps/web/app/hooks/useEditorDocument.ts": 1,
-        "apps/web/app/routes/editor.tsx": 1
-      }
+      "scan": {
+        "roots": ["apps/web/app"],
+        "extensions": ["ts", "tsx"],
+        "pattern": "components/NodeCanvas"
+      },
+      "allowedReferences": {}
     },
     {
       "id": "artifact-node-inspector-selectors",
@@ -327,41 +315,7 @@
         "extensions": ["css", "ts", "tsx"],
         "pattern": "node-inspector-[A-Za-z0-9_-]+"
       },
-      "allowedReferences": {
-        "apps/web/app/components/layer-controls/LayerControls.tsx": 9,
-        "apps/web/app/components/node-canvas/inspector/AiShaderInspectorSections.tsx": 9,
-        "apps/web/app/components/node-canvas/inspector/CodeShaderInspector.tsx": 1,
-        "apps/web/app/components/node-canvas/inspector/ColorInspector.tsx": 1,
-        "apps/web/app/components/node-canvas/inspector/EffectControlSections.tsx": 2,
-        "apps/web/app/components/node-canvas/inspector/EffectInspector.tsx": 5,
-        "apps/web/app/components/node-canvas/inspector/EnvironmentInspector.tsx": 4,
-        "apps/web/app/components/node-canvas/inspector/ExportInspector.tsx": 1,
-        "apps/web/app/components/node-canvas/inspector/GrimeShadowInspector.tsx": 4,
-        "apps/web/app/components/node-canvas/inspector/MaskInspector.tsx": 4,
-        "apps/web/app/components/node-canvas/inspector/MaterialInspector.tsx": 8,
-        "apps/web/app/components/node-canvas/inspector/MergeInspector.tsx": 3,
-        "apps/web/app/components/node-canvas/inspector/PresetShaderInspector.tsx": 2,
-        "apps/web/app/components/node-canvas/inspector/RepeatInspector.tsx": 4,
-        "apps/web/app/components/node-canvas/inspector/Scene3DInspector.tsx": 4,
-        "apps/web/app/components/node-canvas/inspector/ShaderInspector.tsx": 4,
-        "apps/web/app/components/node-canvas/inspector/TransformInspector.tsx": 4,
-        "apps/web/app/components/node-canvas/inspector/fields/BlendModeNote.tsx": 1,
-        "apps/web/app/components/node-canvas/inspector/fields/FontPicker.tsx": 1,
-        "apps/web/app/components/node-canvas/inspector/fields/InspectorColorInput.tsx": 3,
-        "apps/web/app/components/node-canvas/inspector/fields/InspectorLabel.tsx": 1,
-        "apps/web/app/components/node-canvas/inspector/fields/InspectorReadout.tsx": 2,
-        "apps/web/app/components/node-canvas/inspector/fields/InspectorSection.tsx": 8,
-        "apps/web/app/components/node-canvas/inspector/fields/InspectorSelect.tsx": 2,
-        "apps/web/app/components/node-canvas/inspector/fields/InspectorSlider.tsx": 4,
-        "apps/web/app/components/node-canvas/inspector/fields/InspectorTextArea.tsx": 2,
-        "apps/web/app/components/node-canvas/inspector/fields/InspectorTextInput.tsx": 2,
-        "apps/web/app/components/node-canvas/inspector/fields/InspectorToggle.tsx": 3,
-        "apps/web/app/components/node-canvas/inspector/fields/inspectorFields.test.tsx": 1,
-        "apps/web/app/components/node-canvas/node-canvas.css": 93,
-        "apps/web/app/index.css": 29,
-        "apps/web/app/routes/docs.style-guide.css": 1,
-        "apps/web/app/routes/docs.style-guide.tsx": 2
-      }
+      "allowedReferences": {}
     },
     {
       "id": "artifact-sidebar-section-selectors",
@@ -373,10 +327,7 @@
         "extensions": ["css", "ts", "tsx"],
         "pattern": "sidebar-section[A-Za-z0-9_-]*"
       },
-      "allowedReferences": {
-        "apps/web/app/components/Sidebar.tsx": 6,
-        "apps/web/app/index.css": 12
-      }
+      "allowedReferences": {}
     },
     {
       "id": "artifact-short-token-aliases",
@@ -388,15 +339,7 @@
         "extensions": ["css", "ts", "tsx"],
         "pattern": "var\\(--(?:app-bg|workspace-bg|panel-bg|panel-raised|surface-bg|surface-hover|surface-input|surface-selected|border-muted|border|border-strong|text|text-dim|bg|sidebar-bg|sidebar-raised|accent|accent-dim|danger|success|warning|mono)(?=\\s*[,)])"
       },
-      "allowedReferences": {
-        "apps/web/app/components/ErrorBoundary.tsx": 6,
-        "apps/web/app/components/editor-workflow/editor-workflow.css": 2,
-        "apps/web/app/components/node-canvas/node-canvas.css": 245,
-        "apps/web/app/index.css": 1057,
-        "apps/web/app/routes/docs.style-guide.css": 45,
-        "apps/web/app/routes/docs.style-guide.tsx": 1,
-        "apps/web/app/routes/editor.tsx": 5
-      }
+      "allowedReferences": {}
     },
     {
       "id": "backoffice-retired-ui-module",

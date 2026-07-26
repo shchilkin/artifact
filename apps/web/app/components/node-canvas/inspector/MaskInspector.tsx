@@ -13,7 +13,7 @@ export function MaskInspector({
   detached?: boolean;
 }) {
   return (
-    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
+    <div className={detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached'}>
       <InspectorTextInput label="Name" value={maskNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSelect
         label="Mode"
@@ -52,7 +52,7 @@ export function MaskInspector({
         max={100}
         onChange={(opacity) => onChange({ opacity })}
       />
-      <p className="node-inspector-note">Cuts the source input by alpha or brightness from the mask input.</p>
+      <p className="artifact-inspector-note">Cuts the source input by alpha or brightness from the mask input.</p>
     </div>
   );
 }

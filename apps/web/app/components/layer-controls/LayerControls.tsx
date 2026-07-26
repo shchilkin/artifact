@@ -115,7 +115,7 @@ const SOURCE_LAYER_KINDS = new Set<Layer['kind']>(['primitive', 'noise', 'array'
 
 function PlacementResetButton({ onClick }: { onClick: () => void }) {
   return (
-    <button className="node-inspector-action nodrag nopan nowheel" type="button" onClick={onClick}>
+    <button className="artifact-inspector-action nodrag nopan nowheel" type="button" onClick={onClick}>
       Reset placement
     </button>
   );
@@ -690,7 +690,7 @@ function SourceContentSection({
         value={layer.accentColor}
         onChange={(v) => onChange({ accentColor: v } as Partial<SourceLayer>)}
       />
-      {note && <p className="node-inspector-note">{note}</p>}
+      {note && <p className="artifact-inspector-note">{note}</p>}
       {layer.kind !== 'primitive' && (
         <>
           <InspectorSlider
@@ -700,7 +700,7 @@ function SourceContentSection({
             overrideMax={9999}
             onChange={(v) => onChange({ seedOffset: v } as Partial<SourceLayer>)}
           />
-          <p className="node-inspector-note">
+          <p className="artifact-inspector-note">
             Changes this node's generated pattern without changing the document seed.
           </p>
         </>
@@ -773,7 +773,7 @@ function PrimitiveStructureControls({
         }
       />
       {surface === 'nodes' && (
-        <p className="node-inspector-note">Camera angle is controlled in the preview: drag rotates, wheel zooms.</p>
+        <p className="artifact-inspector-note">Camera angle is controlled in the preview: drag rotates, wheel zooms.</p>
       )}
       <InspectorSlider
         label="Spin"
@@ -978,7 +978,7 @@ function ArrayStructureControls({
         overrideMax={180}
         onChange={(v) => onChange({ arrayJitter: v } as Partial<SourceLayer>)}
       />
-      {arrayLabels.note && <p className="node-inspector-note">{arrayLabels.note}</p>}
+      {arrayLabels.note && <p className="artifact-inspector-note">{arrayLabels.note}</p>}
     </>
   );
 }
@@ -1076,7 +1076,7 @@ function ModelFileAction({
   return (
     <>
       <button
-        className="node-inspector-action nodrag nopan nowheel"
+        className="artifact-inspector-action nodrag nopan nowheel"
         type="button"
         onClick={() => inputRef.current?.click()}
       >
@@ -1237,7 +1237,9 @@ export function LayerControls({
   const [scaleLocked, setScaleLocked] = useState(true);
   const [openSection, setOpenSection] = useState<LayerControlSection>('content');
   const modelFileInputRef = useRef<HTMLInputElement>(null);
-  const sectionClassName = detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached';
+  const sectionClassName = detached
+    ? 'artifact-inspector-stack'
+    : 'artifact-inspector-stack artifact-inspector-detached';
   const renderProps = {
     layer,
     sectionClassName,

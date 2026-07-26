@@ -1,16 +1,13 @@
-import { Field, InlineNotice, Input } from '@artifact/ui';
+import { Button, Field, IconButton, InlineNotice, Input } from '@artifact/ui';
 import { type CSSProperties, type FormEvent, type ReactNode, useState } from 'react';
-
 import type { BrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import type { ProjectCloudSyncState } from '../hooks/useProjects';
 import type { SavedProject } from '../utils/projectLibrary';
 import { formatBytes, projectSizeBytes } from '../utils/storageStatus';
 import { type WorkspaceStatusRow, workspaceStatusRows, workspaceWarnings } from './StorageWorkspaceStatusModel';
-import { ActionButton } from './ui/ActionButton';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { EmptyState } from './ui/EmptyState';
-import { IconButton } from './ui/IconButton';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
 
 interface Props {
@@ -89,9 +86,9 @@ export function ProjectsPanel({
               {projects.length} / {maxProjects}
             </span>
             <SheetClose asChild>
-              <ActionButton aria-label="Close projects" variant="quiet">
+              <Button aria-label="Close projects" variant="quiet">
                 x
-              </ActionButton>
+              </Button>
             </SheetClose>
           </div>
         </SheetHeader>
@@ -173,7 +170,7 @@ function ProjectSaveForm({
             onChange={(event) => setName(event.target.value)}
           />
         </Field>
-        <ActionButton
+        <Button
           className="library-save-button"
           disabled={formState.saveDisabled}
           type="submit"
@@ -181,7 +178,7 @@ function ProjectSaveForm({
           aria-label={formState.ariaLabel}
         >
           {formState.buttonLabel}
-        </ActionButton>
+        </Button>
       </div>
       <p className="project-save-note">Projects save editable work in this browser. Share downloads portable files.</p>
     </form>
@@ -233,14 +230,14 @@ function ProjectWorkspaceSummary({
           <ProjectPlainDetailRow label="Project data" value={formatBytes(totalProjectBytes)} />
         </div>
       </details>
-      <ActionButton
+      <Button
         className="project-new-blank-action w-full mt-2"
         onClick={onNewBlank}
         aria-label="Create new project from projects"
         variant="quiet"
       >
         CREATE NEW PROJECT
-      </ActionButton>
+      </Button>
     </div>
   );
 }
@@ -718,14 +715,14 @@ function ProjectLoadAction({
 }) {
   if (!showLoad) return null;
   return (
-    <ActionButton
+    <Button
       className="library-card-action library-card-action-load"
       aria-label={`Load ${project.name}`}
       onClick={onLoad}
       variant={loadVariant}
     >
       LOAD
-    </ActionButton>
+    </Button>
   );
 }
 
@@ -742,14 +739,14 @@ function ProjectDeleteButtonAction({
 
   return (
     <>
-      <ActionButton
+      <Button
         className="library-card-action library-card-action-delete"
         aria-label={`Delete ${project.name}`}
         onClick={() => setConfirmOpen(true)}
         variant={deleteVariant}
       >
         DEL
-      </ActionButton>
+      </Button>
       <ProjectDeleteDialog
         open={confirmOpen}
         project={project}
@@ -780,12 +777,12 @@ function ProjectDeleteDialog({
         </DialogDescription>
         <div className="project-delete-dialog__actions">
           <DialogClose asChild>
-            <ActionButton variant="quiet">CANCEL</ActionButton>
+            <Button variant="quiet">CANCEL</Button>
           </DialogClose>
           <DialogClose asChild>
-            <ActionButton variant="danger" onClick={onConfirmDelete}>
+            <Button variant="danger" onClick={onConfirmDelete}>
               DELETE
-            </ActionButton>
+            </Button>
           </DialogClose>
         </div>
       </DialogContent>
@@ -838,14 +835,14 @@ function ProjectCardSecondaryActions({
 function ProjectCopyAction({ onCopy, project }: { onCopy?: () => void; project: SavedProject }) {
   if (!onCopy) return null;
   return (
-    <ActionButton
+    <Button
       className="library-card-action library-card-action-copy"
       aria-label={`Save copy of ${project.name}`}
       onClick={onCopy}
       variant="quiet"
     >
       COPY
-    </ActionButton>
+    </Button>
   );
 }
 
@@ -860,26 +857,26 @@ function ProjectCloudAction({
 }) {
   if (syncState?.phase === 'syncing') {
     return (
-      <ActionButton
+      <Button
         className="library-card-action library-card-action-cloud"
         aria-label={`Syncing ${project.name} to cloud`}
         disabled
         variant="quiet"
       >
         SYNCING
-      </ActionButton>
+      </Button>
     );
   }
   if (!onSaveToCloud) return null;
   return (
-    <ActionButton
+    <Button
       className="library-card-action library-card-action-cloud"
       aria-label={syncState ? `Retry cloud sync for ${project.name}` : `Save ${project.name} to cloud`}
       onClick={onSaveToCloud}
       variant="quiet"
     >
       {syncState ? 'RETRY' : 'CLOUD'}
-    </ActionButton>
+    </Button>
   );
 }
 

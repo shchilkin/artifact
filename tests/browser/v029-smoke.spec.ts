@@ -150,7 +150,7 @@ test('node gallery dialog exposes the canvas-chrome viewport contract', async ({
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('text preview')).toBeVisible();
   const closeButton = dialog.getByRole('button', { name: 'Close gallery' });
-  await expect(closeButton).toHaveClass(/artifact-icon-button/);
+  await expect(closeButton).toHaveClass(/ui-icon-command/);
   const closeButtonSize = await closeButton.evaluate((button) => {
     const styles = getComputedStyle(button);
     return { width: Number.parseFloat(styles.width), height: Number.parseFloat(styles.height) };

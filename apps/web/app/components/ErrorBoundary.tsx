@@ -39,9 +39,9 @@ export class ErrorBoundary extends Component<Props, State> {
             justifyContent: 'center',
             gap: '0.75rem',
             padding: '1.5rem',
-            background: 'var(--bg)',
-            color: 'var(--text-dim)',
-            fontFamily: 'var(--mono)',
+            background: 'var(--surface-app)',
+            color: 'var(--text-secondary)',
+            fontFamily: 'var(--font-mono)',
             fontSize: '12px',
           }}
         >
@@ -52,9 +52,9 @@ export class ErrorBoundary extends Component<Props, State> {
             style={{
               padding: '0.4rem 1rem',
               background: 'transparent',
-              border: '1px solid var(--border)',
-              color: 'var(--text-dim)',
-              fontFamily: 'var(--mono)',
+              border: '1px solid var(--line-default)',
+              color: 'var(--text-secondary)',
+              fontFamily: 'var(--font-mono)',
               fontSize: '11px',
               cursor: 'pointer',
               borderRadius: '3px',

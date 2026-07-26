@@ -1,7 +1,6 @@
+import { Button } from '@artifact/ui';
 import { useMemo, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
-
-import { ActionButton } from '../components/ui/ActionButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SearchField } from '../components/ui/SearchField';
 import { EFFECT_FAMILY_GUIDE } from '../utils/effectDocs';
@@ -71,7 +70,7 @@ export default function DocsReference() {
         />
         <div className="docs-type-filter docs-type-filter--inline" aria-label="Filter reference nodes">
           {REFERENCE_FILTERS.map((item) => (
-            <ActionButton
+            <Button
               key={item}
               className={`docs-type-filter__item${filter === item ? ' docs-type-filter__item--active' : ''}`}
               aria-pressed={filter === item}
@@ -80,7 +79,7 @@ export default function DocsReference() {
               variant={filter === item ? 'primary' : 'quiet'}
             >
               {item}
-            </ActionButton>
+            </Button>
           ))}
         </div>
         <span className="docs-search-count">{visibleNodes.length} nodes</span>

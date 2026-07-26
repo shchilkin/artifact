@@ -408,9 +408,9 @@ until the migration is complete.
 - **Accessibility**: section triggers expose disclosure state; labels, hints,
   errors, and status are associated with native controls; responsive layout
   preserves DOM and keyboard order.
-- **Compatibility**: runtime inspectors consume the source-owned patterns;
-  legacy selectors remain as a bounded compatibility seam until the v0.48
-  conformance gate removes them.
+- **Compatibility**: runtime inspectors consume the source-owned
+  `artifact-inspector-*` patterns directly; v0.48 removed the registered legacy
+  selector seam.
 - **Specimens**: `/docs/style-guide` shows deterministic ordinary and dense
   layouts with the complete state vocabulary.
 

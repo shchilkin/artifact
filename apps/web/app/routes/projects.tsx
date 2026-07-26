@@ -1,12 +1,10 @@
-import { InlineNotice, Skeleton } from '@artifact/ui';
+import { ButtonLink, InlineNotice, Skeleton } from '@artifact/ui';
 import { useMemo, useState } from 'react';
 import type { MetaFunction } from 'react-router';
 import { useNavigate } from 'react-router';
-
 import { ProjectsList } from '../components/ProjectsPanel';
 import { PublicPageLayout } from '../components/PublicPageLayout';
 import { ProductPageHeader } from '../components/product-surfaces/ProductPageHeader';
-import { ActionLink } from '../components/ui/ActionButton';
 import { useProjects } from '../hooks/useProjects';
 import {
   activeProjectBindingFor,
@@ -96,9 +94,9 @@ function ProjectsPageHeader() {
       title="Projects"
       deck="Open saved work from this browser or recover a previous draft."
       actions={
-        <ActionLink to="/app?new=blank" variant="primary">
+        <ButtonLink to="/app?new=blank" variant="primary">
           New project
-        </ActionLink>
+        </ButtonLink>
       }
     />
   );

@@ -25,7 +25,7 @@ describe('runtime inspector field adapters', () => {
     expect(html).toContain('data-inspector-density="dense"');
     expect(html).toContain('aria-expanded="true"');
     expect(html).toContain('aria-controls=');
-    expect(html).toContain('node-inspector-section');
+    expect(html).toContain('artifact-inspector-section');
     expect(html).toContain('Controls');
   });
 

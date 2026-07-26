@@ -1430,11 +1430,11 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
     const canvas = document.querySelector('.pixi-container canvas');
     return {
       tokens: [
-        token('--app-bg'),
-        token('--workspace-bg'),
-        token('--panel-bg'),
-        token('--surface-bg'),
-        token('--surface-selected'),
+        token('--surface-app'),
+        token('--surface-workspace'),
+        token('--surface-panel'),
+        token('--surface-control'),
+        token('--surface-control-selected'),
       ],
       sidebarBg: sidebar ? getComputedStyle(sidebar).backgroundColor : '',
       mainBg: main ? getComputedStyle(main).backgroundColor : '',
@@ -1921,7 +1921,7 @@ test('layers can add Pixelate with formatted creative controls', async ({ page }
   await expect(pixelateRow).toBeVisible({ timeout: 15_000 });
   await pixelateRow.click();
   await expect(page.locator('.layer-inspector-drawer')).toContainText('Block Size');
-  await expect(page.locator('.layer-inspector-drawer .node-inspector-value')).toContainText('6px');
+  await expect(page.locator('.layer-inspector-drawer .artifact-inspector-value')).toContainText('6px');
   await expectLayerCanvasToHavePixels(page);
 });
 
@@ -2271,7 +2271,7 @@ test('effect node inspector exposes and persists local seed offsets', async ({ p
   await effectNode.locator('.node-shell-frame').click();
 
   await page.locator('.node-props-panel-open button').filter({ hasText: /^Node/ }).first().click();
-  const seedControl = page.locator('.node-props-panel-open .node-inspector-control').filter({ hasText: /^Seed/ });
+  const seedControl = page.locator('.node-props-panel-open .artifact-inspector-control').filter({ hasText: /^Seed/ });
   const seedSlider = seedControl.locator('input[type="range"]').first();
   await expect(seedSlider).toBeVisible({ timeout: 15_000 });
   await seedSlider.evaluate((input) => {
@@ -2359,9 +2359,11 @@ test('node properties show whether the selected target feeds output', async ({ p
     };
     return {
       panel: read(panel),
-      section: read(panel.querySelector('.node-inspector-section-open')),
-      control: read(panel.querySelector('.node-inspector-control, .node-inspector-row, .node-inspector-toggle')),
-      summary: read(panel.querySelector('.node-inspector-section-summary')),
+      section: read(panel.querySelector('.artifact-inspector-section-open')),
+      control: read(
+        panel.querySelector('.artifact-inspector-control, .artifact-inspector-row, .artifact-inspector-toggle'),
+      ),
+      summary: read(panel.querySelector('.artifact-inspector-section-summary')),
     };
   });
   expect(controlSurfaceStyles.section?.background).toBeTruthy();
@@ -2981,7 +2983,7 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
 
   await expectPixelateNode(page);
   await expect(page.locator('.node-props-panel')).toContainText('Block Size');
-  await expect(page.locator('.node-props-panel .node-inspector-value')).toContainText('6px');
+  await expect(page.locator('.node-props-panel .artifact-inspector-value')).toContainText('6px');
   await switchToLayerView(page);
   await expectLayerCanvasToHavePixels(page);
 });

@@ -1,9 +1,9 @@
+import { Button } from '@artifact/ui';
 import { useCallback, useState } from 'react';
 import { EditorCommandBar } from './editor-workflow/EditorCommandBar';
 import { EditorCommandGroup } from './editor-workflow/EditorCommandGroup';
 import { EditorOverlayFrame } from './editor-workflow/EditorOverlayFrame';
 import type { ProjectWorkspaceStatus } from './StorageWorkspaceStatusModel';
-import { ActionButton } from './ui/ActionButton';
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from './ui/dropdown-menu';
 
 interface Props {
@@ -52,7 +52,7 @@ export function BottomBar({
   return (
     <EditorCommandBar className="bottom-bar" label="Editor actions">
       <EditorCommandGroup className="bottom-history-group" label="Document history">
-        <ActionButton
+        <Button
           onClick={onNewBlank}
           aria-label="Create new project"
           title="Create new project"
@@ -60,8 +60,8 @@ export function BottomBar({
           className="bottom-command"
         >
           NEW
-        </ActionButton>
-        <ActionButton
+        </Button>
+        <Button
           onClick={onUndo}
           disabled={!canUndo}
           aria-label="Undo"
@@ -75,8 +75,8 @@ export function BottomBar({
               {undoCount}
             </span>
           ) : null}
-        </ActionButton>
-        <ActionButton
+        </Button>
+        <Button
           onClick={onRedo}
           disabled={!canRedo}
           aria-label="Redo"
@@ -85,8 +85,8 @@ export function BottomBar({
           className="bottom-command bottom-icon-command"
         >
           <span aria-hidden="true">↪</span>
-        </ActionButton>
-        <ActionButton
+        </Button>
+        <Button
           className="bottom-command rand-btn"
           onClick={onRandomize}
           aria-label="Randomize document"
@@ -94,12 +94,12 @@ export function BottomBar({
           variant="quiet"
         >
           RANDOM
-        </ActionButton>
+        </Button>
       </EditorCommandGroup>
 
       <EditorCommandGroup className="bottom-secondary-group" label="File actions">
         <div className="bottom-file-group">
-          <ActionButton
+          <Button
             onClick={onOpenDocument}
             aria-label="Open document file"
             title="Open .artifact or .artifact.json"
@@ -107,7 +107,7 @@ export function BottomBar({
             className="bottom-command bottom-file-action"
           >
             OPEN
-          </ActionButton>
+          </Button>
           <ShareMenu
             copied={copied}
             onCopyLink={handleCopyLink}
@@ -126,7 +126,7 @@ export function BottomBar({
           onSaveProjectPackage={onSaveProjectPackage}
         />
         <ProjectWorkspaceButton status={projectWorkspaceStatus} onClick={onProjectsToggle} />
-        <ActionButton
+        <Button
           className="export-btn"
           onClick={onExport}
           loading={exportBusy}
@@ -134,7 +134,7 @@ export function BottomBar({
           aria-label={exportBusy ? 'Exporting artwork' : 'Export artwork'}
         >
           {exportBusy ? '…' : 'EXPORT'}
-        </ActionButton>
+        </Button>
       </EditorCommandGroup>
     </EditorCommandBar>
   );
@@ -166,14 +166,14 @@ function MoreMenu({
       title="More editor actions"
       description="Open, share, or download editable files."
       trigger={
-        <ActionButton
+        <Button
           aria-label="More editor actions"
           title="Open, share, or download editable files"
           variant="quiet"
           className="bottom-command bottom-more-menu-trigger"
         >
           MORE
-        </ActionButton>
+        </Button>
       }
     >
       <DropdownMenuItem onSelect={onOpenDocument}>Open document</DropdownMenuItem>
@@ -212,14 +212,14 @@ function ShareMenu({
       title="Share link or download editable files"
       description="Copy an editor link or download editable files."
       trigger={
-        <ActionButton
+        <Button
           aria-label="Share link or download editable files"
           title="Copy an editor link or download editable files"
           variant="quiet"
           className="bottom-command share-menu-trigger bottom-file-action"
         >
           SHARE
-        </ActionButton>
+        </Button>
       }
     >
       <ShareMenuItems
@@ -262,7 +262,7 @@ function ShareMenuItems({
 
 function ProjectWorkspaceButton({ status, onClick }: { status: ProjectWorkspaceStatus; onClick: () => void }) {
   return (
-    <ActionButton
+    <Button
       onClick={onClick}
       variant="quiet"
       className={`bottom-command project-workspace-button project-workspace-button-${status.tone}`}
@@ -272,6 +272,6 @@ function ProjectWorkspaceButton({ status, onClick }: { status: ProjectWorkspaceS
       <span>PROJECTS</span>
       <span className="project-workspace-dot" aria-hidden="true" />
       {status.badge && <span className="project-workspace-badge">{status.badge}</span>}
-    </ActionButton>
+    </Button>
   );
 }

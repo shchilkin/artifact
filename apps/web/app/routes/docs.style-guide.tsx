@@ -49,9 +49,9 @@ import { NodeShell } from '../components/node-canvas/nodes/NodeShell';
 import { NodePropertiesPanel } from '../components/node-canvas/panel/NodePropertiesPanel';
 import '@xyflow/react/dist/style.css';
 import '../components/node-canvas/node-canvas.css';
+import { Button, IconButton, Input } from '@artifact/ui';
 import { PublicPageLayout } from '../components/PublicPageLayout';
 import { ProductSurfaceSpecimens } from '../components/product-surfaces/ProductSurfaceSpecimens';
-import { ActionButton } from '../components/ui/ActionButton';
 import { Badge } from '../components/ui/Badge';
 import {
   Dialog,
@@ -63,8 +63,6 @@ import {
 } from '../components/ui/dialog';
 import { EmptyState } from '../components/ui/EmptyState';
 import { FloatingMenu } from '../components/ui/floating-menu';
-import { IconButton } from '../components/ui/IconButton';
-import { Input } from '../components/ui/Input';
 import { MenuDivider, MenuItem } from '../components/ui/MenuItem';
 import { Panel, PanelBody, PanelHeader } from '../components/ui/Panel';
 import { PreviewFrame } from '../components/ui/PreviewFrame';
@@ -400,7 +398,7 @@ export default function DocsStyleGuide() {
             </div>
             <TokenSpec name="surface panel" value="--surface-panel" color="var(--surface-panel)" />
             <TokenSpec name="surface input" value="--surface-control" color="var(--surface-control)" />
-            <TokenSpec name="selected" value="--surface-selected" color="var(--surface-selected)" />
+            <TokenSpec name="selected" value="--surface-control-selected" color="var(--surface-control-selected)" />
             <TokenSpec name="accent" value="--accent-primary" color="var(--accent-primary)" />
           </div>
         </StyleSection>
@@ -433,13 +431,13 @@ export default function DocsStyleGuide() {
         >
           <div className="style-guide-grid">
             <Specimen label="Action buttons">
-              <ActionButton variant="primary">Primary</ActionButton>
-              <ActionButton variant="secondary">Secondary</ActionButton>
-              <ActionButton variant="quiet">Quiet</ActionButton>
-              <ActionButton variant="danger">Danger</ActionButton>
-              <ActionButton variant="secondary" disabled>
+              <Button variant="primary">Primary</Button>
+              <Button variant="secondary">Secondary</Button>
+              <Button variant="quiet">Quiet</Button>
+              <Button variant="danger">Danger</Button>
+              <Button variant="secondary" disabled>
                 Disabled
-              </ActionButton>
+              </Button>
             </Specimen>
             <Specimen label="Icon buttons">
               <IconButton label="Add layer" icon="+" variant="primary" />
@@ -450,7 +448,7 @@ export default function DocsStyleGuide() {
             <Specimen label="Inputs and search" stack>
               <div className="style-guide-field-stack">
                 <Input aria-label="Title input" defaultValue="Cover Type" />
-                <Input aria-label="Error input" defaultValue="Missing source" invalid />
+                <Input aria-label="Error input" defaultValue="Missing source" aria-invalid="true" />
                 <Input aria-label="Disabled input" defaultValue="Locked value" disabled />
                 <SearchField aria-label="Search primitives" value="texture" readOnly onClear={noop} />
               </div>
@@ -473,16 +471,16 @@ export default function DocsStyleGuide() {
             <Specimen label="Editor command groups and notices" stack>
               <EditorCommandBar className="style-guide-editor-command-bar" label="Editor command groups">
                 <EditorCommandGroup label="History commands">
-                  <ActionButton variant="quiet">New</ActionButton>
-                  <ActionButton variant="quiet" disabled>
+                  <Button variant="quiet">New</Button>
+                  <Button variant="quiet" disabled>
                     Undo
-                  </ActionButton>
+                  </Button>
                 </EditorCommandGroup>
                 <EditorCommandGroup label="Output commands">
-                  <ActionButton variant="quiet">Projects</ActionButton>
-                  <ActionButton variant="primary" loading aria-label="Exporting artwork">
+                  <Button variant="quiet">Projects</Button>
+                  <Button variant="primary" loading aria-label="Exporting artwork">
                     Export
-                  </ActionButton>
+                  </Button>
                 </EditorCommandGroup>
               </EditorCommandBar>
               <EditorWorkflowNotice
@@ -528,8 +526,8 @@ export default function DocsStyleGuide() {
                 body="Start with a source, then shape the composition with layers or nodes."
                 actions={
                   <>
-                    <ActionButton variant="primary">Add source</ActionButton>
-                    <ActionButton variant="quiet">Open project</ActionButton>
+                    <Button variant="primary">Add source</Button>
+                    <Button variant="quiet">Open project</Button>
                   </>
                 }
               />
@@ -912,20 +910,20 @@ function WorkflowPatternStateMatrix() {
               overflowed={state === 'overflowed-group'}
             >
               <EditorCommandGroup label={`${stateLabel(state)} commands`}>
-                <ActionButton
+                <Button
                   variant="quiet"
                   disabled={state === 'disabled-command'}
                   loading={state === 'loading-command'}
                   data-state={state === 'active-menu-trigger' ? 'open' : undefined}
                 >
                   Command
-                </ActionButton>
+                </Button>
                 {state === 'count-status-badge' ? <Badge variant="selected">3 selected</Badge> : null}
                 {state === 'overflowed-group' ? (
                   <>
-                    <ActionButton variant="quiet">Share</ActionButton>
-                    <ActionButton variant="quiet">Projects</ActionButton>
-                    <ActionButton variant="primary">Export</ActionButton>
+                    <Button variant="quiet">Share</Button>
+                    <Button variant="quiet">Projects</Button>
+                    <Button variant="primary">Export</Button>
                   </>
                 ) : null}
               </EditorCommandGroup>
@@ -1000,7 +998,7 @@ function WorkflowPatternStateMatrix() {
               aria-busy={state === 'busy' ? 'true' : undefined}
               action={
                 state === 'actionable' ? (
-                  <ActionButton variant="quiet">Retry</ActionButton>
+                  <Button variant="quiet">Retry</Button>
                 ) : state === 'dismissible' ? (
                   <IconButton label="Dismiss notice specimen" icon="×" size="compact" />
                 ) : undefined
@@ -1059,9 +1057,9 @@ function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_
     return (
       <div className="style-guide-workflow-state" data-editor-specimen="overlay-open">
         <span className="style-guide-workflow-state__label">{label}</span>
-        <ActionButton variant="secondary" onClick={() => setOpen(true)}>
+        <Button variant="secondary" onClick={() => setOpen(true)}>
           Open {label}
-        </ActionButton>
+        </Button>
         {open ? (
           <div
             className="editor-overlay-frame style-guide-editor-overlay-content"
@@ -1071,10 +1069,10 @@ function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_
           >
             <strong>{label}</strong>
             <span>Choose an editor action.</span>
-            <ActionButton variant="quiet">Secondary action</ActionButton>
-            <ActionButton variant="primary" onClick={() => setOpen(false)}>
+            <Button variant="quiet">Secondary action</Button>
+            <Button variant="primary" onClick={() => setOpen(false)}>
               Done
-            </ActionButton>
+            </Button>
           </div>
         ) : null}
       </div>
@@ -1101,29 +1099,25 @@ function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_
         title={`${label} overlay`}
         description="Choose an editor action."
         trigger={
-          <ActionButton
-            variant="secondary"
-            onPointerDown={() => setOpenMethod('pointer')}
-            onKeyDown={recordKeyboardOpen}
-          >
+          <Button variant="secondary" onPointerDown={() => setOpenMethod('pointer')} onKeyDown={recordKeyboardOpen}>
             Open {label}
-          </ActionButton>
+          </Button>
         }
       >
         <div className="style-guide-editor-overlay-content">
           <strong>{label}</strong>
           <span>{state === 'nested-scope' ? 'Effects / Texture / Grain' : 'Choose an editor action.'}</span>
-          <ActionButton variant="quiet" disabled={state === 'disabled-item'}>
+          <Button variant="quiet" disabled={state === 'disabled-item'}>
             Secondary action
-          </ActionButton>
+          </Button>
           {state === 'busy' ? (
-            <ActionButton variant="primary" onClick={finish}>
+            <Button variant="primary" onClick={finish}>
               Finish busy state
-            </ActionButton>
+            </Button>
           ) : (
-            <ActionButton variant="primary" onClick={() => setOpen(false)}>
+            <Button variant="primary" onClick={() => setOpen(false)}>
               Done
-            </ActionButton>
+            </Button>
           )}
         </div>
       </EditorOverlayFrame>
@@ -1166,7 +1160,7 @@ function OverlayPrimitiveSpecimens() {
       <div className="style-guide-overlay-actions">
         <Dialog>
           <DialogTrigger asChild>
-            <ActionButton variant="secondary">Open dialog specimen</ActionButton>
+            <Button variant="secondary">Open dialog specimen</Button>
           </DialogTrigger>
           <DialogContent className="style-guide-dialog-content">
             <DialogTitle className="style-guide-overlay-title">Dialog specimen</DialogTitle>
@@ -1178,13 +1172,13 @@ function OverlayPrimitiveSpecimens() {
               <Badge>Radix mechanics</Badge>
             </div>
             <DialogClose asChild>
-              <ActionButton variant="primary">Close dialog specimen</ActionButton>
+              <Button variant="primary">Close dialog specimen</Button>
             </DialogClose>
           </DialogContent>
         </Dialog>
         <Sheet>
           <SheetTrigger asChild>
-            <ActionButton variant="secondary">Open sheet specimen</ActionButton>
+            <Button variant="secondary">Open sheet specimen</Button>
           </SheetTrigger>
           <SheetContent className="style-guide-sheet-content">
             <SheetHeader className="style-guide-sheet-header">
@@ -1199,7 +1193,7 @@ function OverlayPrimitiveSpecimens() {
             </SheetBody>
             <SheetFooter className="style-guide-sheet-footer">
               <SheetClose asChild>
-                <ActionButton variant="primary">Close sheet specimen</ActionButton>
+                <Button variant="primary">Close sheet specimen</Button>
               </SheetClose>
             </SheetFooter>
           </SheetContent>
@@ -1222,14 +1216,14 @@ function EditorOverlaySpecimens() {
         onOpenChange={setPopoverOpen}
         title="Editor popover specimen"
         description="Choose an item from the anchored editor menu."
-        trigger={<ActionButton variant="secondary">Open editor popover</ActionButton>}
+        trigger={<Button variant="secondary">Open editor popover</Button>}
       >
         <div className="style-guide-editor-overlay-content">
           <strong>Add source</strong>
           <span>Choose an item or dismiss this menu.</span>
-          <ActionButton variant="primary" onClick={() => setPopoverOpen(false)}>
+          <Button variant="primary" onClick={() => setPopoverOpen(false)}>
             Done
-          </ActionButton>
+          </Button>
         </div>
       </EditorOverlayFrame>
       <EditorOverlayFrame
@@ -1238,14 +1232,14 @@ function EditorOverlaySpecimens() {
         mobile
         title="Editor mobile sheet specimen"
         description="Choose an item from the mobile editor menu."
-        trigger={<ActionButton variant="secondary">Open editor mobile sheet</ActionButton>}
+        trigger={<Button variant="secondary">Open editor mobile sheet</Button>}
       >
         <div className="style-guide-editor-overlay-content">
           <strong>Add on mobile</strong>
           <span>Search and choose an item.</span>
-          <ActionButton variant="primary" onClick={() => setSheetOpen(false)}>
+          <Button variant="primary" onClick={() => setSheetOpen(false)}>
             Done
-          </ActionButton>
+          </Button>
         </div>
       </EditorOverlayFrame>
     </>
@@ -1268,9 +1262,9 @@ function FloatingMenuSpecimen() {
   return (
     <>
       <div ref={triggerRef}>
-        <ActionButton variant="secondary" onClick={openMenu}>
+        <Button variant="secondary" onClick={openMenu}>
           Open menu specimen
-        </ActionButton>
+        </Button>
       </div>
       {menu.open ? (
         <FloatingMenu
@@ -1309,11 +1303,11 @@ function InspectorFieldSpecimens() {
         open={sectionOpen}
         onToggle={() => setSectionOpen((open) => !open)}
       >
-        <div className="node-inspector-control">
+        <div className="artifact-inspector-control">
           <InspectorLabel>Title</InspectorLabel>
           <InspectorTextInput value={title} placeholder="Cover title" onChange={setTitle} />
         </div>
-        <div className="node-inspector-control">
+        <div className="artifact-inspector-control">
           <InspectorLabel>Caption</InspectorLabel>
           <InspectorTextArea value={caption} onChange={setCaption} />
         </div>
