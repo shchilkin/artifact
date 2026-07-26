@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "release": "v0.48",
-  "issue": 179,
-  "mode": "expand",
+  "issue": 183,
+  "mode": "contract",
   "products": {
     "artifact": {
       "routeConfig": "apps/web/app/routes.ts",
@@ -253,7 +253,7 @@
       "scan": {
         "roots": ["apps/web/app"],
         "extensions": ["ts", "tsx"],
-        "pattern": "(?:^|/)ui/ActionButton"
+        "pattern": "(?:ui/ActionButton|['\"]\\./ActionButton['\"])"
       },
       "allowedReferences": {}
     },
@@ -265,7 +265,7 @@
       "scan": {
         "roots": ["apps/web/app"],
         "extensions": ["ts", "tsx"],
-        "pattern": "(?:^|/)ui/IconButton"
+        "pattern": "(?:ui/IconButton|['\"]\\./IconButton['\"])"
       },
       "allowedReferences": {}
     },
@@ -277,7 +277,7 @@
       "scan": {
         "roots": ["apps/web/app"],
         "extensions": ["ts", "tsx"],
-        "pattern": "(?:^|/)ui/Input"
+        "pattern": "(?:ui/Input|['\"]\\./Input['\"])"
       },
       "allowedReferences": {}
     },
@@ -289,7 +289,7 @@
       "scan": {
         "roots": ["apps/web/app"],
         "extensions": ["ts", "tsx"],
-        "pattern": "['\"]\\./LayerPanel['\"]"
+        "pattern": "components/LayerPanel"
       },
       "allowedReferences": {}
     },
@@ -354,7 +354,7 @@
       "allowedReferences": {}
     }
   ],
-  "legacyFiles": [
+  "removedFiles": [
     {
       "path": "apps/web/app/components/ui/ActionButton.tsx",
       "batch": "artifact-foundation-adapters",
@@ -391,7 +391,7 @@
       "replacement": "packages/ui/src/foundation.css plus apps/web/app/styles/ui-foundation-theme.css"
     }
   ],
-  "legacyStylesheetSections": [
+  "removedStylesheetSections": [
     {
       "path": "apps/web/app/components/ui/primitives.css",
       "batch": "artifact-foundation-adapters",

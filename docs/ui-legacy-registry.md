@@ -1,15 +1,14 @@
 # UI Legacy Registry
 
-Status: shrinking v0.48 contract. Q1 established the finite registry; Q2 and Q3
-have reduced both products to zero registered runtime callers pending the Q4
-conformance gate and Q5 deletion pass.
+Status: contracted v0.48 guard. Q1 established the finite registry; Q2 through
+Q4 proved the replacement boundary, and Q5 removed the registered compatibility
+surface after closing the final zero-caller gap in `SearchField`.
 
 The machine-readable source of truth is
-[`ui-legacy-registry.json`](./ui-legacy-registry.json). It closes the migration
-inventory without deleting any compatibility contract. The registry assigns
+[`ui-legacy-registry.json`](./ui-legacy-registry.json). The registry assigns
 all 19 configured route modules to UI Foundation and the relevant Product
-System, binds embedded editor surfaces to their existing inventories, and
-records every approved legacy reference as a finite, decreasing allowlist.
+System, binds embedded editor surfaces to their existing inventories, and keeps
+removed imports, selectors, token aliases, and files as forbidden contracts.
 
 Run the guard with:
 
@@ -18,9 +17,8 @@ npm run quality:ui-legacy-registry
 ```
 
 The guard fails when a configured route has no system assignment, a Foundation
-Matrix identifier drifts, a registered legacy reference appears in a new file,
-or an existing file gains more occurrences. Removing occurrences is allowed so
-that #180 and #181 can contract the registry in place.
+Matrix identifier drifts, a removed legacy reference appears, or one of the
+seven deleted compatibility files is recreated.
 
 ## Surface Assignment
 
@@ -51,19 +49,20 @@ Backoffice compositions belong in `components/backoffice-ui`.
 
 | Batch | Current registered contracts | Named replacement | Owner |
 | --- | --- | --- | --- |
-| `artifact-foundation-adapters` | Zero runtime callers; compatibility files remain registered for Q5 | Direct `@artifact/ui` primitives plus the Artifact Product Theme | #181 |
-| `artifact-feature-entrypoints` | Zero runtime callers; root aliases remain registered for Q5 | Feature-folder public entrypoints | #181 |
+| `artifact-foundation-adapters` | Compatibility files removed; imports and file paths are forbidden | Direct `@artifact/ui` primitives plus the Artifact Product Theme | #181, #183 |
+| `artifact-feature-entrypoints` | Root aliases removed; imports and file paths are forbidden | Feature-folder public entrypoints | #181, #183 |
 | `artifact-inspector-selectors` | Zero `node-inspector-*` or `sidebar-section*` references | Source-owned `artifact-inspector-*` anatomy | #181 |
 | `artifact-semantic-tokens` | Zero registered short-token references; declarations removed from `index.css` | `--surface-*`, `--line-*`, `--text-*`, `--accent-*`, `--state-*`, and `--font-*` | #181 |
 | `backoffice-zero-baseline` | No callers | `@artifact/ui` plus `components/backoffice-ui` | #180 |
 
-The exact paths and maximum occurrence counts live only in the JSON registry;
+The exact forbidden patterns and removed paths live only in the JSON registry;
 this document describes ownership and replacement boundaries rather than
-duplicating the allowlist.
+duplicating the machine contract.
 
-`legacyFiles` identifies files that may disappear once they have zero callers.
-`legacyStylesheetSections` identifies only the named selectors or token uses
-inside otherwise active stylesheets; those files are not deletion candidates.
+`removedFiles` identifies the seven paths that must stay absent.
+`removedStylesheetSections` records selectors or token uses removed from
+otherwise active stylesheets; those parent stylesheets are not deletion
+candidates, and the global forbidden-pattern contracts prevent reintroduction.
 
 ## Foundation Matrix Contract
 

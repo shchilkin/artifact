@@ -22,10 +22,12 @@ Current planning status:
 
 - v0.48 is the active UI Conformance And Legacy Removal release. The finite
   legacy registry, Artifact zero-caller migration, and Backoffice zero-baseline
-  proof are complete. The current Q4 slice makes both Product Themes share one
-  executable Foundation conformance contract and adds Backoffice desktop/mobile
-  browser coverage to required PR CI before Q5 removes registered compatibility
-  files. See [`version-plans/v0.48.md`](./version-plans/v0.48.md).
+  proof are complete. Q4 made both Product Themes share one executable
+  Foundation conformance contract and added Backoffice desktop/mobile browser
+  coverage to required PR CI. Q5 now removes the seven registered
+  compatibility files and converts the legacy registry into a
+  no-reintroduction guard before the release gate. See
+  [`version-plans/v0.48.md`](./version-plans/v0.48.md).
 - v0.47.0 was released on 2026-07-25 as the Artifact Canvas Chrome release.
   Graph, node, edge, port, area, artwork preview, thumbnail, gallery, and 3D
   viewport surfaces now share source-owned Artifact patterns while preserving

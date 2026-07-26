@@ -134,7 +134,7 @@ by `apps/web/app/routes/generator.tsx`:
 | `apps/web/app/routes/generator.tsx` | Main page: all state, undo/redo, image cache, event handlers |
 | `apps/web/app/components/Sidebar.tsx` | Layer list + selected-layer controls (sliders, color pickers, toggles) |
 | `apps/web/app/components/CanvasPreview.tsx` | Live canvas preview; drag-to-reposition text/image layers |
-| `apps/web/app/components/LayerPanel.tsx` | Drag-to-reorder layer list, add/remove/duplicate/rename |
+| `apps/web/app/components/layers-panel/LayerPanel.tsx` | Drag-to-reorder layer list, add/remove/duplicate/rename |
 | `apps/web/app/components/PresetsPanel.tsx` | Save/load/delete named presets (stored in `localStorage`) |
 | `apps/web/app/hooks/useDocumentRenderer.ts` | Hook that drives the async render loop for preview |
 | `apps/web/app/utils/lcg.ts` | Deterministic LCG RNG seeded by `doc.global.seed` |

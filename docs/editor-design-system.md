@@ -107,10 +107,12 @@ desktop and mobile Chromium as its own required CI job. Assertion steps include
 the theme and specimen identifier so a failure names the owning contract.
 
 Artifact runtime callers now import `Button`, `ButtonLink`, `IconButton`, and
-`Input` directly from UI Foundation. Product-specific layout stays in feature
-classes and semantic Theme Contract values rather than compatibility wrappers.
-The former adapter and alias files remain registered, uncalled deletion
-candidates until the v0.48 contract phase. Artifact AI Generation and
+`Input` directly from UI Foundation. The registered compatibility modules and
+root feature aliases are removed, and their paths remain forbidden by the UI
+legacy guard. Product-specific layout stays in feature classes and semantic
+Theme Contract values.
+The former adapter and alias files were retained as uncalled deletion candidates
+through Q4, then removed in the v0.48 contract phase. Artifact AI Generation and
 Backoffice sign-in remain the two original composed proof consumers; their
 generation, accounting, asset-import, safe-return, autofill, and auth behavior
 stays product-owned.
@@ -343,11 +345,12 @@ no open-ended legacy bucket. Obsolete primitives, compatibility aliases, and
 local CSS are removed only after their replacement surface has a live specimen
 and conformance coverage.
 
-The v0.48 expand-phase source of truth is the machine-readable
+The v0.48 contract source of truth is the machine-readable
 [`UI legacy registry`](ui-legacy-registry.json), with its ownership summary in
 [`ui-legacy-registry.md`](ui-legacy-registry.md). The registry maps configured
 routes and embedded editor inventories, names each replacement boundary, and
-allows legacy counts to decrease while rejecting new callers.
+rejects removed callers, selectors, token aliases, and compatibility file
+paths if they are reintroduced.
 
 ## Full UI Rewrite Sequence
 
