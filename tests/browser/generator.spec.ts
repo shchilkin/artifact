@@ -1430,11 +1430,11 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
     const canvas = document.querySelector('.pixi-container canvas');
     return {
       tokens: [
-        token('--app-bg'),
-        token('--workspace-bg'),
-        token('--panel-bg'),
-        token('--surface-bg'),
-        token('--surface-selected'),
+        token('--surface-app'),
+        token('--surface-workspace'),
+        token('--surface-panel'),
+        token('--surface-control'),
+        token('--surface-control-selected'),
       ],
       sidebarBg: sidebar ? getComputedStyle(sidebar).backgroundColor : '',
       mainBg: main ? getComputedStyle(main).backgroundColor : '',
