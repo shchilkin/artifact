@@ -22,7 +22,7 @@ orchestration.
 - **v0.47** owns canvas, graph, preview, thumbnail, gallery, and 3D workspace
   chrome. v0.45 may preserve integration with these surfaces, but must not
   restyle their interaction chrome.
-- **v0.49** owns the future Chat mode, Context Assistant, Change Preview, and
+- **v0.50** owns the future Chat mode, Context Assistant, Change Preview, and
   new AI-assisted creation surfaces. v0.45 must not add a Chat tab or resume AI
   feature work.
 - A surface already migrated in v0.44 keeps its product-pattern ownership.
@@ -31,7 +31,7 @@ orchestration.
   legacy-removal gate.
 
 The current editor has two peer modes, `Layers` and `Nodes`. `Chat` is not a
-current editor mode. References to `Chat / Layers / Nodes` describe the v0.49
+current editor mode. References to `Chat / Layers / Nodes` describe the v0.50
 product contract, not a v0.45 navigation requirement.
 
 ## Closed Surface Inventory
@@ -66,7 +66,7 @@ redo, export, project, document-import, or storage behavior into UI patterns.
 | --- | --- | --- |
 | Layers panel header | title, aspect-ratio trigger/menu, Add trigger, focus-visible, narrow | **v0.45 E3** |
 | Empty layer-panel start | empty copy and existing add/start actions | **v0.45 E3** |
-| Empty canvas start | image, text, existing AI shortcut, noise, starter recipes, help/showcase links | **v0.45 E3**; new AI behavior is **v0.49** |
+| Empty canvas start | image, text, existing AI shortcut, noise, starter recipes, help/showcase links | **v0.45 E3**; new AI behavior is **v0.50** |
 | Layer row | default, selected, hidden, locked, selected+hidden, nested, long name, inline rename, drag, drop-before, drop-after | **v0.45 E3** |
 | Layer row metadata | kind, hidden/locked status, area membership, existing AI loading/error/history badges | **v0.45 E3 visual migration** |
 | Layer row actions | select, rename, show/hide, lock display, duplicate, delete, More menu | **v0.45 E3** |
@@ -78,7 +78,7 @@ redo, export, project, document-import, or storage behavior into UI patterns.
 | Reordering and organization feedback | drag handle, allowed/blocked drag, before/after target, move into/out of area | **v0.45 E3** |
 | Layer property content opened by selection | fields, sections, errors, disabled/locked editing, live/commit gestures | **v0.46** |
 | Direct manipulation of the selected layer on the preview | handles, locked/hidden handles, pointer targets, drop overlay | **v0.47** |
-| New scoped Layer assistant | invocation, context scope, progress, proposal, Change Preview | **v0.49** |
+| New scoped Layer assistant | invocation, context scope, progress, proposal, Change Preview | **v0.50** |
 
 The layer migration preserves selection, multi-selection, rename, reorder,
 visibility, lock, duplicate, delete, area organization, and undo behavior. A
@@ -100,7 +100,7 @@ redefine that command.
 | Insert into Layers | click/Enter insert, focus outcome, unchanged document command | **v0.45 E4** |
 | Insert or drag into Nodes | click/Enter insert, drag payload, unchanged graph command | **v0.45 E4** |
 | Node-canvas drop-target feedback | valid/invalid target and canvas placement chrome | **v0.47** |
-| AI-generated source types or assistant-authored library flows | waiting, generation, recovery, provenance, proposal | **v0.49** |
+| AI-generated source types or assistant-authored library flows | waiting, generation, recovery, provenance, proposal | **v0.50** |
 
 Add Library remains an Artifact product pattern rather than a generic command
 palette. Its specimens must use injected local fixtures for favorites, recent
@@ -122,7 +122,7 @@ timing.
 | Existing AI generation status over node thumbnails | loading, error, history/current badge | **v0.47 visual integration**; existing generation behavior remains unchanged |
 | Primitive and Scene 3D viewport chrome | active, locked, reset, camera controls, keyboard controls | **v0.47** |
 | Node property panels reached from canvas selection | all property controls and validation | **v0.46** |
-| Scoped Node assistant and transient assistant projections | scope, progress, proposal, Change Preview | **v0.49** |
+| Scoped Node assistant and transient assistant projections | scope, progress, proposal, Change Preview | **v0.50** |
 
 v0.45 may compose Add Library inside the node toolbar or pane menu, but the
 surrounding canvas toolbar, context-menu, and drop-target chrome remains v0.47.
@@ -132,7 +132,7 @@ surrounding canvas toolbar, context-menu, and drop-target chrome remains v0.47.
 The existing AI generation command, existing layer AI status badges, and
 already-shipped generation feedback remain visible and receive only the
 v0.45 pattern conformance needed by their current host surface. The following
-new surfaces are exclusively **v0.49**:
+new surfaces are exclusively **v0.50**:
 
 - full-screen Chat mode and the third `Chat` navigation tab;
 - Chat history, messages, Run progress, cancellation, retry, and recovery;
@@ -272,5 +272,5 @@ Use the lowest layer that proves the contract:
   visual snapshots.
 
 v0.45 is not complete while any surface in this inventory lacks its assigned
-specimen or focused behavior seam, or while a v0.46, v0.47, or v0.49 surface has
+specimen or focused behavior seam, or while a v0.46, v0.47, or v0.50 surface has
 been pulled forward without an explicit plan change.

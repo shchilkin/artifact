@@ -67,8 +67,8 @@ Current planning status:
   API, and production web verification passed before publication. All five
   delivery issues and milestone #7 are closed. Document, graph, renderer,
   persistence, export, and AI behavior remain unchanged. Property inspectors,
-  canvas chrome, final conformance, and new AI creation remain sequenced through
-  v0.46-v0.49. See
+  canvas chrome, final conformance, application-shell loading boundaries, and
+  new AI creation remain sequenced through v0.46-v0.50. See
   [`version-plans/v0.45.md`](./version-plans/v0.45.md) and
   [`releases/v0.45.0.md`](./releases/v0.45.0.md).
 - v0.44 was released on 2026-07-23 as the Artifact Product Surfaces release.
@@ -101,12 +101,18 @@ Current planning status:
   [`editor-design-system.md`](./editor-design-system.md),
   [`version-plans/v0.42.md`](./version-plans/v0.42.md), and
   [`releases/v0.42.0.md`](./releases/v0.42.0.md).
-- v0.49 is the rescheduled AI-Assisted Creation release: authenticated
+- v0.49 is the Application Shell And Loading Boundaries release: production
+  route ownership, minimal React Router shells, route-owned CSS, useful SPA
+  hydration and static public prerendering, truthful vendor/renderer
+  boundaries, and enforced JavaScript/CSS budgets. It is blocked by the v0.48
+  conformance gate. See
+  [`version-plans/v0.49.md`](./version-plans/v0.49.md).
+- v0.50 is the rescheduled AI-Assisted Creation release: authenticated
   full-screen Chat, editable Creative Directions and Compositions, durable Runs,
   revision-bound Change Sets, adaptive image generation, and an explicitly
   invoked Context Assistant for Layers and Nodes. AI feature work remains
-  paused until the v0.48 conformance gate closes. See
-  [`version-plans/v0.49.md`](./version-plans/v0.49.md) and
+  paused until the v0.49 application-shell gate closes. See
+  [`version-plans/v0.50.md`](./version-plans/v0.50.md) and
   [`ai-assisted-creation.md`](./ai-assisted-creation.md).
 - v0.41.3 was released on 2026-07-21 as the isolated model-drop graph stability
   patch. Validation of v0.41.2 recovery found that dropping a GLB/GLTF in Nodes
@@ -185,8 +191,8 @@ Current planning status:
   storage/render risks are recorded without pulling product work into the
   release.
 - Deferred product and infrastructure tracks below remain candidates after the
-  bounded UI-system program and v0.49 AI release unless promoted through a
-  separate version plan.
+  active sequence through v0.50 unless promoted through a separate version
+  plan.
 - The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
   should not be treated as hidden scope for landing work, Showcase / How-to
   work, command palette, server-backed sharing, or renderer/persistence
@@ -390,7 +396,7 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Future candidates outside the active v0.45-v0.49 sequence:
+Future candidates outside the active v0.45-v0.50 sequence:
 
 - **3D Scene Polish, Palettes, And Dither Variants** — build on the v0.36 model
   foundation with named old-game palettes, richer deterministic dither
@@ -947,7 +953,8 @@ established the shared UI Foundation, v0.43 proved the Backoffice UI System,
 v0.44 completed the non-editor Artifact product surfaces, v0.45 completed the
 editor shell, Layers organization, and Add Library, and v0.46 completed the
 property-inspector migration. Editor migration remains sequenced through
-v0.47-v0.48; new AI-assisted creation resumes only after that gate in v0.49.
+v0.47-v0.48; v0.49 then owns application-shell and loading boundaries before
+new AI-assisted creation resumes in v0.50.
 Earlier version plans are release history, not active target buckets. Their
 detailed acceptance criteria and validation notes live under
 `docs/version-plans/` and `docs/releases/`.
@@ -992,7 +999,7 @@ Current shipped baseline:
 
 ### Future Candidate Tracks
 
-The accepted v0.45-v0.49 sequence remains the active release path. The ideas
+The accepted v0.45-v0.50 sequence remains the active release path. The ideas
 below are future candidates only and require a dedicated version plan before
 implementation is called release scope:
 
@@ -1394,7 +1401,8 @@ Recommended order:
 
 1. Continue with node-canvas, preview, and 3D chrome in v0.47.
 2. Close compatibility aliases and cross-app conformance in v0.48.
-3. Resume new AI-assisted creation in v0.49 only after the UI-system gate.
+3. Establish measurable application-shell and loading boundaries in v0.49.
+4. Resume new AI-assisted creation in v0.50 only after the v0.49 gate.
 
 ## Non-goals for now
 

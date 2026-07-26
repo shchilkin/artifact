@@ -119,7 +119,7 @@ controllers and machines. #171 is a visual and accessibility migration only.
 | Add Library search, filters, preview, and insertion | v0.45 editor workflow, not property editing |
 | Layer rows, area folders, command bars, menus, and workflow notices | v0.45 editor workflow |
 | Canvas handles, node frames, graph viewport, thumbnails, galleries, and 3D viewport controls | v0.47 canvas chrome |
-| New Chat mode, Context Assistant, Change Preview, and scoped assistants | v0.49 AI-assisted creation |
+| New Chat mode, Context Assistant, Change Preview, and scoped assistants | v0.50 AI-assisted creation |
 | Public navigation, Projects library, Docs forms, route recovery, and account surfaces | v0.44 product surfaces |
 | Backoffice account, policy, usage, and mutation forms | v0.43 Backoffice UI System |
 | UI Foundation field anatomy | v0.42; the Artifact inspector composes it rather than forking it |

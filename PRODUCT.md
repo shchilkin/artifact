@@ -150,7 +150,7 @@ deliberate, polished, rough, or export-ready.
 - The canonical document and rendering contracts are documented in
   `docs/state-model.md` and `docs/rendering.md`.
 - The accepted Chat, Creative Direction, revision, and Change Preview contract
-  is documented in `docs/ai-assisted-creation.md` and the v0.49 version plan.
+  is documented in `docs/ai-assisted-creation.md` and the v0.50 version plan.
 - Browser evidence for full editor workflows and adapted mobile behavior lives
   in `tests/browser/generator.spec.ts` and `tests/browser/mobile.spec.ts`.
 

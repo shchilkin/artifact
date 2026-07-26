@@ -110,9 +110,10 @@ CI should run:
   visual-regression suite or WCAG certification.
 - Accepted release risk: compatibility wrappers and legacy aliases remain
   until the v0.48 zero-caller conformance gate.
-- Accepted release risk: the build retains 11 inherited Fast Refresh warnings
-  and the large Three.js vendor-chunk warning. The accepted React Router/chunk
-  follow-up is documented separately for v0.49.
+- The inherited Fast Refresh warnings were resolved in the post-v0.47 cleanup.
+  The large Three.js vendor-chunk warning remains an accepted warning until the
+  v0.49 route-level loading contract measures whether it affects representative
+  user flows.
 - Accepted release risk: browser logs retain existing blank-frame fallback and
   development-only missing-route diagnostics; no final release-gate scenario
   failed.
