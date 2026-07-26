@@ -20,13 +20,12 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.48 is the active UI Conformance And Legacy Removal release. The finite
-  legacy registry, Artifact zero-caller migration, and Backoffice zero-baseline
-  proof are complete. Q4 made both Product Themes share one executable
-  Foundation conformance contract and added Backoffice desktop/mobile browser
-  coverage to required PR CI. Q5 now removes the seven registered
-  compatibility files and converts the legacy registry into a
-  no-reintroduction guard before the release gate. See
+- v0.48.0 is the UI Conformance And Legacy Removal release candidate with its
+  local release gate complete. The finite legacy registry has zero unresolved
+  entries, both Product Themes share one executable Foundation conformance
+  contract in required PR CI, and the seven registered compatibility files are
+  removed behind a no-reintroduction guard. Q6 owns only delivery CI, exact-SHA
+  staging, production promotion, and publication evidence. See
   [`version-plans/v0.48.md`](./version-plans/v0.48.md).
 - v0.47.0 was released on 2026-07-25 as the Artifact Canvas Chrome release.
   Graph, node, edge, port, area, artwork preview, thumbnail, gallery, and 3D
@@ -109,11 +108,11 @@ Current planning status:
   [`editor-design-system.md`](./editor-design-system.md),
   [`version-plans/v0.42.md`](./version-plans/v0.42.md), and
   [`releases/v0.42.0.md`](./releases/v0.42.0.md).
-- v0.49 is the Application Shell And Loading Boundaries release: production
-  route ownership, minimal React Router shells, route-owned CSS, useful SPA
-  hydration and static public prerendering, truthful vendor/renderer
-  boundaries, and enforced JavaScript/CSS budgets. It is blocked by the v0.48
-  conformance gate. See
+- v0.49 is the next Application Shell And Loading Boundaries release:
+  production route ownership, minimal React Router shells, route-owned CSS,
+  useful SPA hydration and static public prerendering, truthful vendor/renderer
+  boundaries, and enforced JavaScript/CSS budgets. Its first delivery issue,
+  #238, becomes available after the v0.48 publication gate. See
   [`version-plans/v0.49.md`](./version-plans/v0.49.md).
 - v0.50 is the rescheduled AI-Assisted Creation release: authenticated
   full-screen Chat, editable Creative Directions and Compositions, durable Runs,
@@ -212,10 +211,10 @@ Current planning status:
 
 Next deferred product tracks:
 
-- **Dependency Advisory Remediation** — immediately after the v0.41 deployment,
-  triage and remediate the current 14 npm audit advisories by reachable runtime
-  impact and package ownership. Upgrade or replace root causes with focused
-  tests; do not hide findings with audit exceptions or inline suppressions.
+- **Dependency Advisory Remediation** — triage and remediate the 17 advisories
+  reported by the v0.48 clean install by reachable runtime impact and package
+  ownership. Upgrade or replace root causes with focused tests; do not hide
+  findings with audit exceptions or inline suppressions.
 
 - 3D Material Nodes follow-up work remains focused on deeper material authoring:
   map scale/rotation, richer example packs, broader browser WebGL coverage, and
@@ -1407,9 +1406,10 @@ candidate track.
 
 Recommended order:
 
-1. Continue with node-canvas, preview, and 3D chrome in v0.47.
-2. Close compatibility aliases and cross-app conformance in v0.48.
-3. Establish measurable application-shell and loading boundaries in v0.49.
+1. Publish the completed v0.48 conformance and legacy-removal candidate.
+2. Establish the v0.49 route ownership, loading matrix, and budgets in #238.
+3. Narrow application shells, CSS ownership, hydration, and dependency
+   boundaries against that approved contract.
 4. Resume new AI-assisted creation in v0.50 only after the v0.49 gate.
 
 ## Non-goals for now
