@@ -40,7 +40,6 @@ const jobColumns = `
 export class PostgresAiGenerationJobRepository implements AiGenerationJobRepository {
   constructor(private readonly client: PostgresQueryClient) {}
 
-  // fallow-ignore-next-line unused-class-member
   async create(input: CreateAiGenerationJobInput): Promise<AiGenerationJobRow> {
     try {
       const result = await this.client.query<AiGenerationJobRow>(
@@ -83,7 +82,6 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
     }
   }
 
-  // fallow-ignore-next-line unused-class-member
   async findByIdForUser(id: string, userId: string): Promise<AiGenerationJobRow | null> {
     const result = await this.client.query<AiGenerationJobRow>(
       `
@@ -97,7 +95,6 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
     return result.rows[0] ?? null;
   }
 
-  // fallow-ignore-next-line unused-class-member
   async findByIdempotencyKey(userId: string, idempotencyKey: string): Promise<AiGenerationJobRow | null> {
     const result = await this.client.query<AiGenerationJobRow>(
       `
@@ -111,7 +108,6 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
     return result.rows[0] ?? null;
   }
 
-  // fallow-ignore-next-line unused-class-member
   async markRunning(id: string, startedAt: Date): Promise<AiGenerationJobRow> {
     const result = await this.client.query<AiGenerationJobRow>(
       `
@@ -127,7 +123,6 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
     return requireRow(result.rows, `Generation job not found: ${id}`);
   }
 
-  // fallow-ignore-next-line unused-class-member
   async markSucceeded(id: string, outputAssetId: string, completedAt: Date): Promise<AiGenerationJobRow> {
     const result = await this.client.query<AiGenerationJobRow>(
       `
@@ -143,7 +138,6 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
     return requireRow(result.rows, `Generation job not found: ${id}`);
   }
 
-  // fallow-ignore-next-line unused-class-member
   async markCancelled(id: string, cancelledAt: Date): Promise<AiGenerationJobRow> {
     const result = await this.client.query<AiGenerationJobRow>(
       `
@@ -159,7 +153,6 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
     return requireRow(result.rows, `Generation job not found: ${id}`);
   }
 
-  // fallow-ignore-next-line unused-class-member
   async markFailed(
     id: string,
     error: {
@@ -188,7 +181,6 @@ export class PostgresAiGenerationJobRepository implements AiGenerationJobReposit
     return requireRow(result.rows, `Generation job not found: ${id}`);
   }
 
-  // fallow-ignore-next-line unused-class-member
   async countActiveJobs(userId: string): Promise<number> {
     const result = await this.client.query<{ count: string | number }>(
       `

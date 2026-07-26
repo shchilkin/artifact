@@ -1,4 +1,5 @@
 import type { CanvasDocument } from '../types/config';
+import { apiErrorFields, fetchApiResponse, readApiJson } from './apiClient';
 import { hydrateCloudProjectDocument, prepareCloudProjectDocument } from './cloudProjectAssets';
 import type { PreparePortableDocumentOptions } from './documentAssets';
 import { normalizeDocument } from './documentPersistence';
@@ -25,6 +26,19 @@ interface CloudProjectResponse {
   updatedAt: string;
 }
 
+function isCloudProjectResponse(value: unknown): value is CloudProjectResponse {
+  if (!value || typeof value !== 'object') return false;
+  const project = value as Partial<CloudProjectResponse>;
+  return (
+    typeof project.id === 'string' &&
+    typeof project.name === 'string' &&
+    typeof project.createdAt === 'string' &&
+    typeof project.updatedAt === 'string' &&
+    Boolean(project.doc) &&
+    typeof project.doc === 'object'
+  );
+}
+
 interface CloudProjectsClientOptions extends PreparePortableDocumentOptions {
   baseUrl?: string;
   bearerToken?: string | null;
@@ -32,37 +46,14 @@ interface CloudProjectsClientOptions extends PreparePortableDocumentOptions {
   signal?: AbortSignal;
 }
 
-function endpoint(baseUrl: string | undefined, path: string) {
-  return `${baseUrl?.replace(/\/$/, '') ?? ''}${path}`;
-}
-
-async function readJsonResponse(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new CloudProjectsApiError('Cloud projects API returned invalid JSON.', response.status, 'invalid_json');
-  }
-}
-
 async function requestJson(path: string, init: RequestInit, options: CloudProjectsClientOptions): Promise<unknown> {
-  const fetcher = options.fetcher ?? fetch;
-  const response = await fetcher(endpoint(options.baseUrl, path), {
-    credentials: 'include',
-    ...init,
-    headers: {
-      'content-type': 'application/json',
-      ...(options.bearerToken ? { authorization: `Bearer ${options.bearerToken}` } : {}),
-      ...init.headers,
-    },
-    signal: options.signal,
-  });
-  const body = await readJsonResponse(response);
+  const response = await fetchApiResponse(path, init, options);
+  const body = await readApiJson(
+    response,
+    () => new CloudProjectsApiError('Cloud projects API returned invalid JSON.', response.status, 'invalid_json'),
+  );
   if (!response.ok) {
-    const errorBody = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
-    const message = typeof errorBody.message === 'string' ? errorBody.message : 'Cloud project request failed.';
-    const code = typeof errorBody.code === 'string' ? errorBody.code : undefined;
+    const { message, code } = apiErrorFields(body, 'Cloud project request failed.');
     throw new CloudProjectsApiError(message, response.status, code);
   }
   return body;
@@ -72,17 +63,10 @@ function parseProject(value: unknown): SavedProject {
   if (!value || typeof value !== 'object') {
     throw new CloudProjectsApiError('Cloud projects API returned an invalid project.', 0, 'invalid_response');
   }
-  const project = value as Partial<CloudProjectResponse>;
-  if (
-    typeof project.id !== 'string' ||
-    typeof project.name !== 'string' ||
-    typeof project.createdAt !== 'string' ||
-    typeof project.updatedAt !== 'string' ||
-    !project.doc ||
-    typeof project.doc !== 'object'
-  ) {
+  if (!isCloudProjectResponse(value)) {
     throw new CloudProjectsApiError('Cloud projects API returned an incomplete project.', 0, 'invalid_response');
   }
+  const project = value;
   return {
     id: project.id,
     name: project.name,

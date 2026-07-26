@@ -42,7 +42,7 @@ export function inspectorStateLabels({
   return labels;
 }
 
-export function inspectorValidationLabel(validation: Exclude<InspectorValidationState, 'idle'>) {
+function inspectorValidationLabel(validation: Exclude<InspectorValidationState, 'idle'>) {
   if (validation === 'validating') return 'Checking';
   if (validation === 'valid') return 'Valid';
   return 'Error';

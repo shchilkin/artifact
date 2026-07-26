@@ -4,6 +4,7 @@ import {
   editorDocumentFixture,
   expectNoBrowserIssues,
   expectStoredLayerCount,
+  expectStoredLayerField,
   fillLayerFixture,
   setupBrowserTestPage,
   switchToLayerView,
@@ -169,14 +170,7 @@ test('node gallery dialog exposes the canvas-chrome viewport contract', async ({
   await rotateHandle.focus();
   await expect(rotateHandle).toBeFocused();
   await page.keyboard.press('ArrowRight');
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return doc.layers?.find((layer: { id: string }) => layer.id === 'gallery-text')?.rotation;
-      }),
-    )
-    .toBe(1);
+  await expectStoredLayerField(page, { key: 'id', value: 'gallery-text' }, 'rotation', 1);
 
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);

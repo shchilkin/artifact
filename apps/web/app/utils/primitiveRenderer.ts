@@ -2,6 +2,11 @@ import * as THREE from 'three';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 import type { PrimitiveLayer } from '../types/config';
 import {
+  canvasHasVisibleContent as canvasHasPrimitiveContent,
+  createSizedCanvas,
+  rgbaFromHex as rgba,
+} from './canvasRendering';
+import {
   addSceneLights,
   applyMeshTransform,
   applyViewStateToCamera,
@@ -22,33 +27,6 @@ const PRIMITIVE_RENDER_MAX = 1024;
 
 interface PrimitiveRenderOptions {
   forceFallback?: boolean;
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  const normalized = hex.replace('#', '');
-  const value = Number.parseInt(normalized.length === 3 ? normalized.replace(/(.)/g, '$1$1') : normalized, 16);
-  if (!Number.isFinite(value)) return [255, 90, 54];
-  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
-}
-
-function rgba(hex: string, alpha: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function canvasHasPrimitiveContent(canvas: HTMLCanvasElement): boolean {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return false;
-
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  for (let index = 0; index < pixels.length; index += 4) {
-    const r = pixels[index] ?? 0;
-    const g = pixels[index + 1] ?? 0;
-    const b = pixels[index + 2] ?? 0;
-    const a = pixels[index + 3] ?? 0;
-    if (a > 8 && Math.max(r, g, b) > 16) return true;
-  }
-  return false;
 }
 
 export const primitiveRendererTestInternals = {
@@ -150,11 +128,7 @@ export async function renderPrimitiveToCanvas(
   materialConfig?: ResolvedMaterialConfig,
   materialTextures?: MaterialTextureCanvases | null,
 ): Promise<HTMLCanvasElement> {
-  const targetWidth = typeof size === 'number' ? size : size.width;
-  const targetHeight = typeof size === 'number' ? size : size.height;
-  const offscreen = document.createElement('canvas');
-  offscreen.width = Math.max(1, Math.round(targetWidth));
-  offscreen.height = Math.max(1, Math.round(targetHeight));
+  const offscreen = createSizedCanvas(size);
   if (options.forceFallback) {
     drawFallbackPrimitive(offscreen, layer, materialConfig);
     return offscreen;

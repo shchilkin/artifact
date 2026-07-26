@@ -1,6 +1,74 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "ignoreDependencies": ["@artifact/shared", "isbot"],
+  "entry": ["apps/api/scripts/dev-watch.ts", "apps/api/src/healthcheck.ts", "scripts/dev-local-ai.ts"],
+  "ignoreUnresolvedImports": [
+    "/app/types/config.ts",
+    "/app/utils/documentPersistence.ts",
+    "/app/utils/nodeGraph.ts",
+    "/app/utils/renderer.ts",
+    "/app/utils/render/customCodeShader.ts"
+  ],
+  "usedClassMembers": [
+    {
+      "implements": "AccountTierRepository",
+      "members": ["findAccess", "sumQuotaAdjustments"]
+    },
+    {
+      "implements": "AdminAuditRepository",
+      "members": ["append", "lockAction", "findByActionEntity", "findLatestByAction"]
+    },
+    {
+      "implements": "AiGenerationJobRepository",
+      "members": [
+        "create",
+        "findByIdForUser",
+        "findByIdempotencyKey",
+        "markRunning",
+        "markSucceeded",
+        "markCancelled",
+        "markFailed",
+        "countActiveJobs"
+      ]
+    },
+    {
+      "implements": "AiOperationRepository",
+      "members": ["markRunning", "markAwaitingValidation", "markSucceeded"]
+    },
+    {
+      "implements": "AiShaderRequestRepository",
+      "members": [
+        "claim",
+        "attachOperation",
+        "findByIdForUser",
+        "markGenerated",
+        "markAccepted",
+        "markClientRejected",
+        "beginRepair",
+        "completeRepair",
+        "markFailed"
+      ]
+    },
+    {
+      "implements": "AssetRepository",
+      "members": [
+        "create",
+        "findByIdForUser",
+        "findProjectAssetByFingerprintForUser",
+        "listProjectAssetsForUser",
+        "softDelete",
+        "softDeleteManyForUser"
+      ]
+    },
+    {
+      "implements": "CloudProjectRepository",
+      "members": ["listForUser", "upsert", "deleteForUser"]
+    },
+    {
+      "implements": "AiUsageRepository",
+      "members": ["releaseMonthlyGeneration"]
+    }
+  ],
   "audit": {
     "healthBaseline": "docs/fallow/v0.36-health-baseline.json",
     "dupesBaseline": "docs/fallow/v0.36-dupes-baseline.json"
@@ -8,6 +76,18 @@
   "ignoreExports": [
     {
       "file": "apps/api/src/db/postgres.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "apps/api/src/db/postgresAccountTiers.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "apps/api/src/db/postgresAiAccounting.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "apps/api/src/db/postgresAiOperations.ts",
       "exports": ["*"]
     },
     {
@@ -19,12 +99,24 @@
       "exports": ["*"]
     },
     {
+      "file": "apps/api/src/db/postgresProjects.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "apps/api/src/db/postgresShaderRequests.ts",
+      "exports": ["*"]
+    },
+    {
       "file": "apps/api/src/db/postgresUsage.ts",
       "exports": ["*"]
     },
     {
       "file": "apps/api/src/db/postgresUsers.ts",
       "exports": ["*"]
+    },
+    {
+      "file": "apps/web/app/utils/modelRenderer.ts",
+      "exports": ["loadEquirectangularTexture"]
     }
   ]
 }

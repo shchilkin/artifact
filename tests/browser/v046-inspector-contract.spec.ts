@@ -1,7 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 import { INSPECTOR_SPECIMEN_IDS } from '../../apps/web/app/components/inspector-system/inspector-specimens';
-import { expectNoBrowserIssues, gotoDocument, setupBrowserTestPage, switchToNodeView } from './helpers';
+import { gotoDocument, registerBrowserTestHooks, switchToNodeView } from './helpers';
 
 const runtimeInspectorDocument = {
   schemaVersion: 1,
@@ -95,13 +95,7 @@ const codeShaderInspectorDocument = {
   export: { format: 'png', scale: 1, target: 'cover' },
 };
 
-test.beforeEach(async ({ page }) => {
-  await setupBrowserTestPage(page);
-});
-
-test.afterEach(async ({ page }) => {
-  expectNoBrowserIssues(page);
-});
+registerBrowserTestHooks(test);
 
 test('inspector contract exposes ordinary and dense states with keyboard disclosure', async ({ page }) => {
   await page.goto('/docs/style-guide');
@@ -136,10 +130,7 @@ test('inspector contract exposes ordinary and dense states with keyboard disclos
   await disclosure.focus();
   await expect(disclosure).toBeFocused();
   expect(await disclosure.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none');
-  await page.keyboard.press('Space');
-  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
-  await page.keyboard.press('Enter');
-  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+  await toggleDisclosureWithKeyboard(page, disclosure);
 
   const invalidInput = ordinary.getByLabel('Copies');
   await expect(invalidInput).toHaveAttribute('aria-invalid', 'true');
@@ -194,10 +185,7 @@ test('layer and node property surfaces consume the runtime inspector contract', 
   const disclosure = layerSection.getByRole('button').first();
   await disclosure.focus();
   await expect(disclosure).toBeFocused();
-  await page.keyboard.press('Space');
-  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
-  await page.keyboard.press('Enter');
-  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+  await toggleDisclosureWithKeyboard(page, disclosure);
 
   await switchToNodeView(page);
   await page.locator('.react-flow__node').filter({ hasText: 'Inspector fill' }).click();
@@ -236,3 +224,10 @@ test('Code Shader inspector associates accepted, unavailable, dirty, and invalid
   expect(errorMessageId).toBeTruthy();
   await expect(page.locator(`#${errorMessageId}`)).toContainText('mainImage');
 });
+
+async function toggleDisclosureWithKeyboard(page: Page, disclosure: Locator): Promise<void> {
+  await page.keyboard.press('Space');
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Enter');
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+}

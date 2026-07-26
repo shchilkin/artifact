@@ -1,6 +1,7 @@
-import type { CanvasDocument, GraphEnvironmentNode, GraphScene3DNode, PortableEnvironmentAsset } from '../types/config';
+import type { CanvasDocument, PortableEnvironmentAsset } from '../types/config';
+import { mapDocumentEnvironmentSources } from './documentSourceMapping';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
-import { estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
+import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
 const DB_NAME = 'artifact-local-environment-assets';
 const DB_VERSION = 1;
@@ -30,19 +31,8 @@ async function withEnvironmentStore<T>(
   return withIndexedDbStore(openDatabase, ENV_STORE, mode, read);
 }
 
-function dataUrlMime(dataUrl: string) {
-  return /^data:([^;,]+)[;,]/.exec(dataUrl)?.[1] ?? EXR_MIME;
-}
-
 async function blobToDataUrl(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = '';
-  const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.slice(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return `data:${blob.type || EXR_MIME};base64,${btoa(binary)}`;
+  return blobToBase64DataUrl(blob, EXR_MIME);
 }
 
 export function isSupportedEnvironmentFile(file: File) {
@@ -93,7 +83,7 @@ async function saveEnvironmentDataUrlAsset(
 ): Promise<StoredEnvironmentAsset> {
   return saveEnvironmentAsset({
     dataUrl,
-    mime: dataUrlMime(dataUrl),
+    mime: dataUrlMime(dataUrl, EXR_MIME),
     bytes: estimateDataUrlBytes(dataUrl),
     label,
   });
@@ -222,32 +212,4 @@ export function stripDocumentEnvironmentAssets(doc: CanvasDocument): CanvasDocum
   const { envAssets, ...rest } = doc;
   void envAssets;
   return rest;
-}
-
-async function mapDocumentEnvironmentSources(
-  doc: CanvasDocument,
-  mapSource: (source: string, node: GraphEnvironmentNode | GraphScene3DNode) => Promise<string>,
-): Promise<CanvasDocument> {
-  const graph = doc.graph;
-  if (!graph?.environmentNodes?.length && !graph?.scene3dNodes?.length) return doc;
-  let changed = false;
-  const environmentNodes = await Promise.all(
-    (graph.environmentNodes ?? []).map(async (node) => {
-      if (!node.environmentSrc) return node;
-      const environmentSrc = await mapSource(node.environmentSrc, node);
-      changed ||= environmentSrc !== node.environmentSrc;
-      return environmentSrc === node.environmentSrc
-        ? node
-        : ({ ...node, environmentSrc } satisfies GraphEnvironmentNode);
-    }),
-  );
-  const scene3dNodes = await Promise.all(
-    (graph.scene3dNodes ?? []).map(async (node) => {
-      if (!node.environmentSrc) return node;
-      const environmentSrc = await mapSource(node.environmentSrc, node);
-      changed ||= environmentSrc !== node.environmentSrc;
-      return environmentSrc === node.environmentSrc ? node : ({ ...node, environmentSrc } satisfies GraphScene3DNode);
-    }),
-  );
-  return changed ? { ...doc, graph: { ...graph, environmentNodes, scene3dNodes } } : doc;
 }

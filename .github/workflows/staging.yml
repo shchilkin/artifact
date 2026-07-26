@@ -19,9 +19,6 @@ concurrency:
   group: staging-deploy
   cancel-in-progress: false
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
 jobs:
   deploy-staging:
     name: Deploy verified development revision
@@ -51,7 +48,7 @@ jobs:
 
     steps:
       - name: Checkout verified development revision
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_sha || inputs.revision || github.sha }}
@@ -102,7 +99,7 @@ jobs:
           fi
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm

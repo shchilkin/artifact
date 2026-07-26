@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { type InspectorStateProps, inspectorStateAttributes, inspectorStateLabels } from './inspectorState';
 import './inspector-system.css';
 
-export type InspectorDensity = 'ordinary' | 'dense';
+type InspectorDensity = 'ordinary' | 'dense';
 
 interface InspectorSectionProps extends Omit<ComponentPropsWithoutRef<'section'>, 'title'>, InspectorStateProps {
   children: ReactNode;

@@ -67,6 +67,5 @@ export {
   OpenAiShaderResponseError,
   OpenAiShaderTimeoutError,
   type ShaderGenerationProvider,
-  type ShaderGenerationResult,
 } from './openaiShader.js';
 export { createXAiImageProvider } from './xai.js';

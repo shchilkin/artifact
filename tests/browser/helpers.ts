@@ -1,16 +1,48 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page, test as playwrightTest } from '@playwright/test';
 
 const consoleIssues = new WeakMap<Page, string[]>();
 
-export async function setupBrowserTestPage(
-  page: Page,
-  options: {
-    captureNodeDragWarnings?: boolean;
-    ignoreExpectedHttp400?: boolean;
-    ignoreExpectedHttp401?: boolean;
-    ignoreExpectedHttp404?: boolean;
-  } = {},
-): Promise<void> {
+type BrowserTestPageOptions = {
+  captureNodeDragWarnings?: boolean;
+  ignoreExpectedHttp400?: boolean;
+  ignoreExpectedHttp401?: boolean;
+  ignoreExpectedHttp404?: boolean;
+};
+
+const expectedHttpIssues: ReadonlyArray<{
+  option: keyof Pick<
+    BrowserTestPageOptions,
+    'ignoreExpectedHttp400' | 'ignoreExpectedHttp401' | 'ignoreExpectedHttp404'
+  >;
+  status: string;
+}> = [
+  { option: 'ignoreExpectedHttp400', status: '400' },
+  { option: 'ignoreExpectedHttp401', status: '401' },
+  { option: 'ignoreExpectedHttp404', status: '404' },
+];
+
+function isExpectedHttpIssue(text: string, options: BrowserTestPageOptions): boolean {
+  return expectedHttpIssues.some(
+    ({ option, status }) =>
+      options[option] === true && text.includes(`Failed to load resource:`) && text.includes(`status of ${status}`),
+  );
+}
+
+function shouldIgnoreConsoleMessage(type: string, text: string, options: BrowserTestPageOptions): boolean {
+  if (isBenignBrowserTestIssue(text) || isExpectedHttpIssue(text, options)) return true;
+  return type === 'error' && text.includes('clerk.accounts.dev') && text.includes('Failed to fetch');
+}
+
+function shouldCaptureConsoleMessage(type: string, text: string, options: BrowserTestPageOptions): boolean {
+  if (type === 'error') return true;
+  return (
+    options.captureNodeDragWarnings === true &&
+    type === 'warning' &&
+    text.includes('trying to drag a node that is not initialized')
+  );
+}
+
+export async function setupBrowserTestPage(page: Page, options: BrowserTestPageOptions = {}): Promise<void> {
   const issues: string[] = [];
   consoleIssues.set(page, issues);
 
@@ -26,20 +58,10 @@ export async function setupBrowserTestPage(
   });
 
   page.on('console', (message) => {
+    const type = message.type();
     const text = message.text();
-    if (isBenignBrowserTestIssue(text)) return;
-    if (options.ignoreExpectedHttp400 && /Failed to load resource:.*status of 400/.test(text)) return;
-    if (options.ignoreExpectedHttp401 && /Failed to load resource:.*status of 401/.test(text)) return;
-    if (options.ignoreExpectedHttp404 && /Failed to load resource:.*status of 404/.test(text)) return;
-    if (message.type() === 'error' && /clerk\.accounts\.dev/.test(text) && /Failed to fetch/.test(text)) return;
-    if (message.type() === 'error') issues.push(`${message.type()}: ${text}`);
-    if (
-      options.captureNodeDragWarnings &&
-      message.type() === 'warning' &&
-      text.includes('trying to drag a node that is not initialized')
-    ) {
-      issues.push(`${message.type()}: ${text}`);
-    }
+    if (shouldIgnoreConsoleMessage(type, text, options)) return;
+    if (shouldCaptureConsoleMessage(type, text, options)) issues.push(`${type}: ${text}`);
   });
   page.on('pageerror', (error) => {
     if (isBenignBrowserTestIssue(error.message)) return;
@@ -49,6 +71,11 @@ export async function setupBrowserTestPage(
 
 export function expectNoBrowserIssues(page: Page): void {
   expect(consoleIssues.get(page) ?? []).toEqual([]);
+}
+
+export function registerBrowserTestHooks(testApi: typeof playwrightTest) {
+  testApi.beforeEach(async ({ page }) => setupBrowserTestPage(page));
+  testApi.afterEach(async ({ page }) => expectNoBrowserIssues(page));
 }
 
 export async function pressForwardTab(page: Page): Promise<void> {
@@ -126,25 +153,25 @@ async function gotoReadyEditor(page: Page, url: string): Promise<void> {
 
 export async function expectLayerCanvasToHavePixels(page: Page): Promise<void> {
   const canvas = page.locator('.pixi-container canvas').first();
-  await expect(canvas).toBeVisible({ timeout: 15_000 });
-  await expect.poll(async () => canvas.evaluate(canvasHasVisiblePixels), { timeout: 15_000 }).toBe(true);
+  await expectCanvasHasVisiblePixels(canvas);
 }
 
-function canvasHasVisiblePixels(element: Element): boolean {
+export async function expectCanvasHasVisiblePixels(canvas: Locator, timeout = 15_000): Promise<void> {
+  await expect(canvas).toBeVisible({ timeout });
+  await expect.poll(() => canvas.evaluate(canvasHasVisiblePixels), { timeout }).toBe(true);
+}
+
+export function canvasHasVisiblePixels(element: Element): boolean {
   const canvas = element as HTMLCanvasElement;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx || canvas.width <= 0 || canvas.height <= 0) return false;
+  if (!ctx) return false;
+  if (canvas.width <= 0 || canvas.height <= 0) return false;
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  let maxChannel = 0;
-  let visibleSamples = 0;
   const pixelStride = Math.max(4, Math.floor(pixels.length / (4 * 4096)) * 4);
-  for (let index = 0; index < pixels.length; index += pixelStride) {
-    const alpha = pixels[index + 3];
-    const channel = Math.max(pixels[index], pixels[index + 1], pixels[index + 2]);
-    maxChannel = Math.max(maxChannel, channel);
-    if (alpha > 8 && channel > 24) visibleSamples += 1;
-  }
-  return visibleSamples > 0 && maxChannel > 24;
+  const sampleCount = Math.ceil(pixels.length / pixelStride);
+  return Array.from({ length: sampleCount }, (_, sample) => sample * pixelStride).some(
+    (index) => pixels[index + 3] > 8 && Math.max(pixels[index], pixels[index + 1], pixels[index + 2]) > 24,
+  );
 }
 
 export async function expectStoredLayerCount(page: Page, expected: number | { atLeast: number }): Promise<void> {
@@ -171,6 +198,42 @@ export async function expectStoredImageLayerAssetUri(page: Page): Promise<void> 
       { timeout: 15_000 },
     )
     .toMatch(/^artifact-asset:\/\//);
+}
+
+export async function readStoredLayerField(
+  page: Page,
+  selector: { key: string; value: unknown },
+  field: string,
+): Promise<unknown> {
+  return page.evaluate(
+    ({ selector: layerSelector, field: layerField }) => {
+      const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
+      const layer = doc.layers?.find(
+        (candidate: Record<string, unknown>) => candidate[layerSelector.key] === layerSelector.value,
+      );
+      return layer?.[layerField] ?? null;
+    },
+    { selector, field },
+  );
+}
+
+export async function expectStoredLayerField(
+  page: Page,
+  selector: { key: string; value: unknown },
+  field: string,
+  expected: unknown,
+): Promise<void> {
+  await expect.poll(() => readStoredLayerField(page, selector, field), { timeout: 15_000 }).toEqual(expected);
+}
+
+export async function expectImageExportDownload(page: Page, filename = /\.(png|jpe?g)$/i) {
+  const exportButton = page.getByRole('button', { name: 'EXPORT' });
+  await expect(exportButton).toBeEnabled({ timeout: 15_000 });
+  const downloadPromise = page.waitForEvent('download');
+  await exportButton.click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(filename);
+  return download;
 }
 
 export async function switchToNodeView(page: Page): Promise<void> {
