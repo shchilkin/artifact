@@ -6,9 +6,10 @@ This inventory closes the property-editing boundary for
 [v0.46 Artifact Inspector System](version-plans/v0.46.md). It assigns every
 current Artifact inspector surface to one migration issue or to an explicit
 non-goal. The source-owned patterns established with this inventory are live in
-`/docs/style-guide`. Production inspector implementations now consume them
-directly or through thin compatibility adapters; legacy selectors remain only
-as the bounded v0.48 removal seam.
+`/docs/style-guide`. Production inspector implementations consume the
+source-owned anatomy directly. v0.48 Q2 removed the bounded
+`node-inspector-*` and `sidebar-section*` selector seam without changing state
+ownership or mutations.
 
 The migration changes anatomy, field association, visible state, validation
 feedback, density, focus, and responsive layout. It must not change document
@@ -31,8 +32,8 @@ camera ownership, provider policy, or accepted AI results.
   hosts. Inspector migrations consume that anatomy rather than replacing it.
 - The v0.47 canvas-chrome release owns direct-manipulation handles, node
   housings, previews, galleries, and primitive camera controls.
-- Compatibility selectors and the legacy `node-inspector-*` and
-  `sidebar-section*` implementations remain until the v0.48 conformance gate.
+- v0.48 Q2 removed the compatibility selectors; runtime inspectors use the
+  source-owned `artifact-inspector-*` anatomy.
 
 ## Closed Surface Inventory
 
@@ -119,7 +120,7 @@ controllers and machines. #171 is a visual and accessibility migration only.
 | Add Library search, filters, preview, and insertion | v0.45 editor workflow, not property editing |
 | Layer rows, area folders, command bars, menus, and workflow notices | v0.45 editor workflow |
 | Canvas handles, node frames, graph viewport, thumbnails, galleries, and 3D viewport controls | v0.47 canvas chrome |
-| New Chat mode, Context Assistant, Change Preview, and scoped assistants | v0.49 AI-assisted creation |
+| New Chat mode, Context Assistant, Change Preview, and scoped assistants | v0.50 AI-assisted creation |
 | Public navigation, Projects library, Docs forms, route recovery, and account surfaces | v0.44 product surfaces |
 | Backoffice account, policy, usage, and mutation forms | v0.43 Backoffice UI System |
 | UI Foundation field anatomy | v0.42; the Artifact inspector composes it rather than forking it |
@@ -192,9 +193,9 @@ accessible state exposure, not domain state or mutations.
   provider imports.
 - Stable state attributes are a browser-test and styling seam, not serialized
   document fields.
-- Source-owned patterns and compatibility selectors coexist until v0.48
-  removes the legacy CSS seam. Runtime fields no longer fork label, validation,
-  disclosure, or status anatomy.
+- Runtime fields use the source-owned `artifact-inspector-*` anatomy. Label,
+  validation, disclosure, and status anatomy no longer depend on a legacy CSS
+  selector seam.
 
 ## Deterministic Specimens
 

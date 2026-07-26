@@ -6,11 +6,29 @@ import {
 } from '@artifact/ui';
 import { expect, test } from '@playwright/test';
 import {
+  expectCommandMatrixConformance,
   expectDescriptionsToResolve,
+  expectFeedbackMatrixConformance,
+  expectFieldMatrixConformance,
   expectMobileFieldGeometry,
   expectOverlayMatrixBehavior,
+  type FoundationThemeExpectation,
   focusFoundationSpecimenWithKeyboard,
 } from '../../../../tests/browser/uiFoundationTestHelpers';
+
+const BACKOFFICE_FOUNDATION_THEME = {
+  name: 'Backoffice',
+  commandFontFamily: 'Inter',
+  commandRadius: '5px',
+  fieldFontFamily: 'Inter',
+  fieldRadius: '3px',
+  feedbackFontFamily: 'Inter',
+  feedbackRadius: '4px',
+  popoverFontFamily: 'Inter',
+  popoverRadius: '5px',
+  tooltipFontFamily: 'Inter',
+  tooltipRadius: '4px',
+} satisfies FoundationThemeExpectation;
 
 test('Backoffice exposes the same command Foundation Matrix in its Product Theme', async ({ page }) => {
   const apiRequests: string[] = [];
@@ -62,6 +80,8 @@ test('Backoffice exposes the same command Foundation Matrix in its Product Theme
   expect(fingerprint).toMatchObject({ borderRadius: '5px', letterSpacing: 'normal', textTransform: 'none' });
   expect(fingerprint.outlineStyle).not.toBe('none');
 
+  await expectCommandMatrixConformance(page, matrix, BACKOFFICE_FOUNDATION_THEME);
+
   await page.setViewportSize({ width: 390, height: 844 });
   const dimensions = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
@@ -112,6 +132,7 @@ test('Backoffice exposes the same associated Foundation fields with native state
   await expect(focusSelect).toBeFocused();
   expect(await focusSelect.evaluate((select) => getComputedStyle(select).outlineStyle)).not.toBe('none');
 
+  await expectFieldMatrixConformance(matrix, BACKOFFICE_FOUNDATION_THEME);
   await expectMobileFieldGeometry(page, matrix);
 });
 
@@ -145,6 +166,8 @@ test('Backoffice exposes the same feedback semantics and reduced-motion async st
   );
   await expect(indeterminate.locator('.ui-progress-indicator__value')).toHaveCSS('animation-name', 'none');
 
+  await expectFeedbackMatrixConformance(matrix, BACKOFFICE_FOUNDATION_THEME);
+
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(
     0,
@@ -155,12 +178,7 @@ test('Backoffice exposes the same Tooltip and Popover mechanics in its Product T
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/style-guide');
 
-  await expectOverlayMatrixBehavior(page, {
-    popoverFontFamily: 'Inter',
-    popoverRadius: '5px',
-    tooltipFontFamily: 'Inter',
-    tooltipRadius: '4px',
-  });
+  await expectOverlayMatrixBehavior(page, BACKOFFICE_FOUNDATION_THEME);
 });
 
 test('Backoffice documents its operational shell and route states at desktop and mobile widths', async ({ page }) => {

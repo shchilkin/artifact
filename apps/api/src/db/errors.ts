@@ -1,6 +1,6 @@
 export const ACTIVE_GENERATION_JOB_INDEX = 'ai_generation_jobs_one_active_per_user_idx';
 export const ACTIVE_AI_OPERATION_INDEX = 'ai_operations_one_active_per_user_idx';
-export const AI_OPERATION_IDEMPOTENCY_CONSTRAINT = 'ai_operations_user_feature_idempotency_unique';
+const AI_OPERATION_IDEMPOTENCY_CONSTRAINT = 'ai_operations_user_feature_idempotency_unique';
 
 export class ActiveAiOperationExistsError extends Error {
   constructor(

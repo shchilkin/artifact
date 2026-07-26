@@ -14,7 +14,7 @@ Artifact's print-like visual language.
 | Principle | Rule |
 | --- | --- |
 | One source of truth | Reused control sizing, typography, borders, focus rings, shadows, and state colors belong in tokens or shared primitives. |
-| Product-shaped primitives | Prefer `ActionButton`, `SearchField`, `Panel`, `LayerRow`, `NodeFrame`, and `InspectorField` over generic wrappers that callers restyle each time. |
+| Product-shaped primitives | Prefer Foundation `Button` / `ButtonLink` plus product-owned `SearchField`, `Panel`, `LayerRow`, `NodeFrame`, and `InspectorField` over generic wrappers that callers restyle each time. |
 | Explicit variants | Use named variants such as `primary`, `secondary`, `quiet`, `danger`, `selected`, `locked`, and `hidden`; avoid ad hoc boolean combinations. |
 | Accessible mechanics, Artifact visuals | Radix/shadcn can provide behavior and accessibility, but Artifact tokens define the appearance. |
 | Style guide before broad migration | New or migrated primitives should be visible in a deterministic style-guide route before broad editor adoption. |
@@ -97,30 +97,36 @@ Backoffice `/style-guide`. Both surfaces must render the same
 density, geometry, motion, and color continue to come from their distinct
 Product Themes.
 
-Artifact's existing `ActionButton`, `ActionLink`, and `IconButton` remain
-compatibility wrappers during the expand phase. They delegate anatomy and
-defaults to UI Foundation while preserving legacy class names needed by current
-consumer-specific layout CSS. The existing Artifact AI Generation composer is
-the first composed product consumer: its prompt, provider and quality fields,
-submit/loading and recovery commands, and feedback/progress states use UI
-Foundation directly while generation, accounting, and asset-import behavior
-remain product-owned. Backoffice sign-in is the second proof consumer: its
-email and password fields, submit/pending command, and authentication error use
-UI Foundation while the safe return path, autofill semantics, and auth client
-behavior remain product-owned. Other product forms remain scheduled
-consumer-migration work. Removing compatibility selectors belongs to the final
-contract phase, not the first tracers.
+The v0.48 conformance gate enforces that boundary with shared Playwright
+assertions rather than theme-neutral golden screenshots. It checks every
+registered specimen identifier for readable geometry, then resolves
+representative semantic colors, spacing, typography, focus, disabled, error,
+loading, reduced-motion, keyboard, and overflow states against the active
+Theme Contract. Artifact runs in Chromium, Firefox, and WebKit; Backoffice runs
+desktop and mobile Chromium as its own required CI job. Assertion steps include
+the theme and specimen identifier so a failure names the owning contract.
+
+Artifact runtime callers now import `Button`, `ButtonLink`, `IconButton`, and
+`Input` directly from UI Foundation. The registered compatibility modules and
+root feature aliases are removed, and their paths remain forbidden by the UI
+legacy guard. Product-specific layout stays in feature classes and semantic
+Theme Contract values.
+The former adapter and alias files were retained as uncalled deletion candidates
+through Q4, then removed in the v0.48 contract phase. Artifact AI Generation and
+Backoffice sign-in remain the two original composed proof consumers; their
+generation, accounting, asset-import, safe-return, autofill, and auth behavior
+stays product-owned.
 
 ### Base UI Primitives
 
 Artifact-specific primitives live under `apps/web/app/components/ui/*` and
-should be reused across public and editor surfaces. The command wrappers at
-this tier consume UI Foundation; the remaining primitives stay product-owned
-until their scheduled extraction or migration:
+should be reused across public and editor surfaces. Foundation commands and
+fields come directly from `@artifact/ui`; the remaining composed primitives
+stay product-owned:
 
-- `ActionButton` / `ActionLink`
-- `IconButton`
-- `Input`
+- `Button` / `ButtonLink` from `@artifact/ui`
+- `IconButton` from `@artifact/ui`
+- `Input` from `@artifact/ui`
 - `SearchField`
 - `Tabs`
 - `Sheet`
@@ -139,11 +145,11 @@ Current v0.30 status:
 - Base UI primitives now use the semantic token family directly:
   `--surface-*`, `--line-*`, `--text-*`, `--accent-*`, `--control-*`,
   `--motion-*`, and `--ease-*`.
-- Legacy short aliases such as `--bg`, `--border`, `--accent`, `--text`, and
-  `--mono` still exist in `apps/web/app/index.css` as compatibility aliases for
-  large editor CSS surfaces, but new shared primitives should not depend on
-  them.
-- `ActionButton`, `IconButton`, `Input`, `SearchField`, `Badge`, `Toolbar`,
+- v0.48 removed the registered short aliases from `apps/web/app/index.css`;
+  bounded editor stylesheets and inline styles now use semantic token families
+  directly.
+- Foundation `Button`, `ButtonLink`, `IconButton`, and `Input`, plus
+  product-owned `SearchField`, `Badge`, `Toolbar`,
   `SegmentedControl`, `Dialog`, `Sheet`, `FloatingMenu`, `MenuItem`, `Panel`,
   `EmptyState`, `PreviewFrame`, and `Tabs` are the current source-owned base
   primitive set.
@@ -213,14 +219,14 @@ requirements, and five bounded source-owned patterns for the editor are closed
 in the [Artifact editor-workflow inventory](editor-workflow-inventory.md).
 That inventory is the contract for v0.45 and the editor-pattern dependency used
 by v0.46 and v0.47. It also keeps the future Chat mode and assistant surfaces in
-v0.49 rather than treating them as current editor navigation.
+v0.50 rather than treating them as current editor navigation.
 
 The v0.46 property boundary is closed in the
 [Artifact inspector-system inventory](inspector-system-inventory.md). Its
 source-owned `InspectorSection`, `InspectorField`, `PropertyRow`, and
 `InspectorStatus` patterns are represented by ordinary and dense live
-specimens. Production forms consume the contract directly or through bounded
-compatibility adapters; v0.48 owns removal of the remaining legacy selectors.
+specimens. Production forms consume the contract directly through the
+`artifact-inspector-*` anatomy; v0.48 removed the registered legacy selectors.
 
 ## Radix And shadcn Boundary
 
@@ -229,7 +235,8 @@ wrappers. For v0.30, no additional dependency is required by default.
 
 Current v0.30 audit decision:
 
-- Keep `ActionButton` / `ActionLink` as the canonical shared command primitive.
+- Keep UI Foundation `Button` / `ButtonLink` as the canonical shared command
+  primitives.
 - Keep `Dialog`, `Sheet`, `Tabs`, and `FloatingMenu` as source-owned wrappers
   around Radix mechanics.
 - Treat Radix/shadcn as behavior infrastructure, not as an imported visual
@@ -268,7 +275,7 @@ Libraries not needed for v0.30:
 3. Add the style-guide route with current primitives and known states.
 4. Add Playwright coverage for the style-guide route: visible states, readable
    boxes, keyboard focus, and non-overlap checks.
-5. Migrate low-risk primitives first: `ActionButton`, `IconButton`, `Input`,
+5. Migrate low-risk primitives first: Foundation `Button`, `ButtonLink`, `IconButton`, `Input`,
    `SearchField`, `Badge`, `ToolbarButton`, `MenuItem`, `Panel`,
    `EmptyState`, and `PreviewFrame`.
 6. Migrate shared overlays next: `Dialog`, `Sheet`, `FloatingMenu`, `Tabs`,
@@ -283,12 +290,12 @@ Libraries not needed for v0.30:
 
 After v0.30 closes the baseline, extract the rest of the app in this order:
 
-1. **Token alias cleanup**: keep semantic tokens as the canonical API, keep
-   short aliases only as a temporary compatibility layer, and remove new
-   references to short aliases from shared primitives.
-2. **Editor command surfaces**: migrate `BottomBar`, `SiteNav`, public route
-   CTAs, icon controls, and compact command groups to `ActionButton`,
-   `IconButton`, `Toolbar`, and `SegmentedControl` variants.
+1. **Token alias cleanup**: completed in v0.48 for the finite registered alias
+   set; semantic tokens are the canonical API.
+2. **Editor command surfaces**: `BottomBar`, `SiteNav`, public route CTAs, icon
+   controls, and compact command groups consume Foundation `Button`,
+   `ButtonLink`, and `IconButton` directly, alongside product-owned `Toolbar`
+   and `SegmentedControl` compositions.
 3. **Forms and inspector fields**: consolidate repeated text inputs, search
    inputs, selects, toggles, sliders, color fields, and section labels into
    product-shaped inspector primitives instead of one-off CSS blocks.
@@ -338,6 +345,13 @@ no open-ended legacy bucket. Obsolete primitives, compatibility aliases, and
 local CSS are removed only after their replacement surface has a live specimen
 and conformance coverage.
 
+The v0.48 contract source of truth is the machine-readable
+[`UI legacy registry`](ui-legacy-registry.json), with its ownership summary in
+[`ui-legacy-registry.md`](ui-legacy-registry.md). The registry maps configured
+routes and embedded editor inventories, names each replacement boundary, and
+rejects removed callers, selectors, token aliases, and compatibility file
+paths if they are reintroduced.
+
 ## Full UI Rewrite Sequence
 
 The rewrite proceeds through independently verifiable waves while unrelated
@@ -359,10 +373,10 @@ feature work, including further AI Chat work, remains paused:
 The rewrite is planned as a sequence of releases under one UI-system program,
 not as one oversized version. Each release must have one thesis, one primary
 surface or risk boundary, explicit acceptance criteria, and its own validation
-gate. The current AI-Assisted Creation release remains paused and will be
-rescheduled after the final UI-system migration gate. Milestones and issues are
-published only after the release boundaries, ticket granularity, and blocking
-edges have been approved.
+gate. AI-Assisted Creation remains paused through the v0.49 application-shell
+and loading-boundary release. Milestones and issues are published only after
+the release boundaries, ticket granularity, and blocking edges have been
+approved.
 
 The accepted release sequence is:
 
@@ -375,8 +389,11 @@ The accepted release sequence is:
   from wave 5.
 - **v0.47 — Artifact Canvas Chrome**: wave 6.
 - **v0.48 — UI Conformance And Legacy Removal**: wave 7.
-- **v0.49 — AI-Assisted Creation**: the paused AI release resumes only after
-  the v0.48 gate.
+- **v0.49 — Application Shell And Loading Boundaries**: make route ownership,
+  hydration, CSS, vendor, and renderer loading boundaries measurable before
+  another large product surface lands.
+- **v0.50 — AI-Assisted Creation**: the paused AI release resumes only after
+  the v0.49 gate.
 
 Each UI-system milestone should contain four to eight implementation issues.
 Every issue must fit one fresh implementation context, produce an independently
@@ -397,7 +414,8 @@ The accepted cross-release blocking edges are:
   may proceed in parallel after that frontier, although tags remain numerically
   ordered.
 - v0.48 is blocked by v0.43, v0.44, v0.45, v0.46, and v0.47.
-- v0.48 blocks v0.49 AI-Assisted Creation.
+- v0.48 blocks v0.49 Application Shell And Loading Boundaries.
+- v0.49 blocks v0.50 AI-Assisted Creation.
 
 Within each milestone, establish its inventory and prerequisite contract first,
 allow independent migration slices to work from that frontier, and keep the
@@ -412,7 +430,8 @@ here or covered by one of the reduced composed-surface specimens below.
 
 Already represented in `/docs/style-guide`:
 
-- base primitives: `ActionButton`, `IconButton`, `Input`, `SearchField`,
+- base primitives: Foundation `Button`, `ButtonLink`, `IconButton`, `Input`;
+  product-owned `SearchField`,
   `Badge`, `Toolbar`, `SegmentedControl`, `Tabs`, `Dialog`, `Sheet`,
   `FloatingMenu`, `MenuItem`, `Panel`, `EmptyState`, and `PreviewFrame`
 - editor primitives: `LayerRow`, `NodeFrame`, `NodeShell`,

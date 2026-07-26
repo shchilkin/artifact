@@ -72,7 +72,7 @@
 }
 
 .editor-row-frame[data-editor-row-selected="true"] {
-  background: var(--surface-selected);
+  background: var(--surface-control-selected);
 }
 
 .editor-row-frame[data-editor-row-hidden="true"] {
@@ -178,7 +178,7 @@
 }
 
 .editor-organization-group[data-editor-organization-selected-content="true"] {
-  background: var(--surface-selected);
+  background: var(--surface-control-selected);
 }
 
 .editor-organization-group[data-editor-organization-narrow="true"] {

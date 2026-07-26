@@ -11,7 +11,7 @@ export function GrimeShadowInspector({
   detached?: boolean;
 }) {
   return (
-    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
+    <div className={detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached'}>
       <InspectorTextInput label="Name" value={grimeShadowNode.name} onChange={(name) => onChange({ name })} />
       <InspectorSlider
         label="Horizontal"
@@ -89,7 +89,9 @@ export function GrimeShadowInspector({
         checked={grimeShadowNode.shadowOnly}
         onChange={(shadowOnly) => onChange({ shadowOnly })}
       />
-      <p className="node-inspector-note">Builds layered dirty shadow from the visible alpha of the source branch.</p>
+      <p className="artifact-inspector-note">
+        Builds layered dirty shadow from the visible alpha of the source branch.
+      </p>
     </div>
   );
 }

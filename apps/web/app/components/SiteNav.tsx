@@ -1,11 +1,9 @@
+import { Button, commandClassName, IconButton } from '@artifact/ui';
 import { AnimatePresence, motion } from 'framer-motion';
 import { type ReactNode, useState } from 'react';
 import { Link, NavLink } from 'react-router';
 import { useArtifactAuth } from '../hooks/useArtifactAuth';
 import { LogoGlyph } from './LogoGlyph';
-import { ActionButton } from './ui/ActionButton';
-import { actionButtonClassName } from './ui/actionButtonClassName';
-import { IconButton } from './ui/IconButton';
 
 const LINKS = [
   { to: '/projects', label: 'Projects' },
@@ -75,10 +73,7 @@ function DesktopNavLinks({ compact, auth }: { compact?: boolean; auth: ReturnTyp
         </NavLink>
       ))}
       <GitHubNavLink className="site-nav-link" />
-      <NavLink
-        to="/app?new=blank"
-        className={({ isActive }) => actionButtonClassName({ active: isActive, variant: 'primary' })}
-      >
+      <NavLink to="/app?new=blank" className={() => commandClassName('primary')}>
         Open editor
       </NavLink>
       <AccountButton auth={auth} />
@@ -155,9 +150,7 @@ function MobileNavMenu({
       <NavLink
         to="/app?new=blank"
         onClick={onClose}
-        className={({ isActive }) =>
-          actionButtonClassName({ active: isActive, className: 'site-nav-mobile-action', variant: 'primary' })
-        }
+        className={() => commandClassName('primary', 'site-nav-mobile-action')}
       >
         Open editor
       </NavLink>
@@ -187,9 +180,9 @@ function AccountButton({ auth }: { auth: ReturnType<typeof useArtifactAuth> }) {
   if (!auth.configured) return null;
   const copy = accountButtonCopy(auth);
   return (
-    <ActionButton variant="secondary" onClick={copy.onClick} disabled={!auth.loaded}>
+    <Button variant="secondary" onClick={copy.onClick} disabled={!auth.loaded}>
       {copy.label}
-    </ActionButton>
+    </Button>
   );
 }
 

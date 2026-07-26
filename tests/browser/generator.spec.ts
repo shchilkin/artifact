@@ -4,11 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { expect, type Locator, type Page, type Route, test } from '@playwright/test';
 import {
   clickEditorControl,
+  expectImageExportDownload,
   expectLayerCanvasToHavePixels,
   expectNoBrowserIssues,
   expectStoredImageLayerAssetUri,
   expectStoredLayerCount,
+  expectStoredLayerField,
   gotoDocument,
+  readStoredLayerField,
   setupBrowserTestPage,
   switchToLayerView,
   switchToNodeView,
@@ -1427,11 +1430,11 @@ test('editor visual hierarchy separates panels canvas and selected rows', async 
     const canvas = document.querySelector('.pixi-container canvas');
     return {
       tokens: [
-        token('--app-bg'),
-        token('--workspace-bg'),
-        token('--panel-bg'),
-        token('--surface-bg'),
-        token('--surface-selected'),
+        token('--surface-app'),
+        token('--surface-workspace'),
+        token('--surface-panel'),
+        token('--surface-control'),
+        token('--surface-control-selected'),
       ],
       sidebarBg: sidebar ? getComputedStyle(sidebar).backgroundColor : '',
       mainBg: main ? getComputedStyle(main).backgroundColor : '',
@@ -1918,7 +1921,7 @@ test('layers can add Pixelate with formatted creative controls', async ({ page }
   await expect(pixelateRow).toBeVisible({ timeout: 15_000 });
   await pixelateRow.click();
   await expect(page.locator('.layer-inspector-drawer')).toContainText('Block Size');
-  await expect(page.locator('.layer-inspector-drawer .node-inspector-value')).toContainText('6px');
+  await expect(page.locator('.layer-inspector-drawer .artifact-inspector-value')).toContainText('6px');
   await expectLayerCanvasToHavePixels(page);
 });
 
@@ -2268,7 +2271,7 @@ test('effect node inspector exposes and persists local seed offsets', async ({ p
   await effectNode.locator('.node-shell-frame').click();
 
   await page.locator('.node-props-panel-open button').filter({ hasText: /^Node/ }).first().click();
-  const seedControl = page.locator('.node-props-panel-open .node-inspector-control').filter({ hasText: /^Seed/ });
+  const seedControl = page.locator('.node-props-panel-open .artifact-inspector-control').filter({ hasText: /^Seed/ });
   const seedSlider = seedControl.locator('input[type="range"]').first();
   await expect(seedSlider).toBeVisible({ timeout: 15_000 });
   await seedSlider.evaluate((input) => {
@@ -2299,12 +2302,7 @@ test('layer text drag keeps effect stack active during movement', async ({ page 
   expect(await moveHandle.evaluate((handle) => getComputedStyle(handle).outlineStyle)).not.toBe('none');
   await page.keyboard.press('ArrowRight');
   await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return doc.layers?.find((layer: { id: string }) => layer.id === 'layer-text-effect-text')?.x;
-      }),
-    )
+    .poll(() => readStoredLayerField(page, { key: 'id', value: 'layer-text-effect-text' }, 'x'))
     .toBeCloseTo(0.5 + 1 / 540);
 
   const before = await getCanvasRgbAt(page, 0.18, 0.18);
@@ -2361,9 +2359,11 @@ test('node properties show whether the selected target feeds output', async ({ p
     };
     return {
       panel: read(panel),
-      section: read(panel.querySelector('.node-inspector-section-open')),
-      control: read(panel.querySelector('.node-inspector-control, .node-inspector-row, .node-inspector-toggle')),
-      summary: read(panel.querySelector('.node-inspector-section-summary')),
+      section: read(panel.querySelector('.artifact-inspector-section-open')),
+      control: read(
+        panel.querySelector('.artifact-inspector-control, .artifact-inspector-row, .artifact-inspector-toggle'),
+      ),
+      summary: read(panel.querySelector('.artifact-inspector-section-summary')),
     };
   });
   expect(controlSurfaceStyles.section?.background).toBeTruthy();
@@ -2983,7 +2983,7 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
 
   await expectPixelateNode(page);
   await expect(page.locator('.node-props-panel')).toContainText('Block Size');
-  await expect(page.locator('.node-props-panel .node-inspector-value')).toContainText('6px');
+  await expect(page.locator('.node-props-panel .artifact-inspector-value')).toContainText('6px');
   await switchToLayerView(page);
   await expectLayerCanvasToHavePixels(page);
 });
@@ -3648,16 +3648,7 @@ test('selected layer nodes can be muted with keyboard shortcut', async ({ page }
   await page.keyboard.press('m');
 
   await expect(fillNode).toHaveClass(/node-shell-muted/);
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return doc.layers?.find((layer: { id: string }) => layer.id === 'wide-fill')?.visible;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe(false);
+  await expectStoredLayerField(page, { key: 'id', value: 'wide-fill' }, 'visible', false);
 
   await page.keyboard.press('m');
   await expect(fillNode).not.toHaveClass(/node-shell-muted/);
@@ -3804,12 +3795,8 @@ test('dragging a node away from its area separates the node', async ({ page }) =
 test('dragging a layer row out of an area separates the layer', async ({ page }) => {
   await gotoDocument(page, areaSeparationDocument);
 
-  const source = page.locator('.layer-area-folder .layer-row-nested').filter({ hasText: 'Area noise' }).first();
-  const target = page.locator('.layer-row').filter({ hasText: 'Outside fill' }).first();
-  await expect(source).toBeVisible();
-  await expect(target).toBeVisible();
-
-  await source.dragTo(target);
+  await dragLayerRowOverText(page, 'Area noise', 'Outside fill');
+  await dropLayerRowOnText(page, 'Outside fill');
 
   await expect(page.locator('.layer-area-folder').first().locator('.layer-area-count')).toHaveText('1 layer');
   await expectStoredAreaNodeIds(page, ['area-fill']);
@@ -4322,23 +4309,6 @@ async function getStoredGraphArea(page: Page) {
   });
 }
 
-async function expectStoredLayerField(
-  page: Page,
-  lookup: { key: 'id' | 'name'; value: string },
-  field: string,
-  expected: unknown,
-) {
-  await expect
-    .poll(
-      async () => {
-        const layer = await getStoredLayerBy(page, lookup.key, lookup.value);
-        return layer?.[field];
-      },
-      { timeout: 15_000 },
-    )
-    .toBe(expected);
-}
-
 async function getVisibleLayerRow(page: Page, text: string) {
   const row = page.locator('.layer-row').filter({ hasText: text }).first();
   await expect(row).toBeVisible({ timeout: 15_000 });
@@ -4461,15 +4431,6 @@ async function addLayerFromHeader(page: Page, addLibraryLabel: RegExp, searchTex
     .locator('.add-library-row')
     .filter({ has: page.locator('.add-library-row-label', { hasText: addLibraryLabel }) })
     .click();
-}
-
-async function expectImageExportDownload(page: Page) {
-  const exportButton = page.getByRole('button', { name: 'EXPORT' });
-  await expect(exportButton).toBeEnabled({ timeout: 15_000 });
-  const downloadPromise = page.waitForEvent('download');
-  await exportButton.click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/\.(png|jpe?g)$/i);
 }
 
 async function downloadJsonFromButton(page: Page, buttonName: string) {

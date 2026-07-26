@@ -1,11 +1,11 @@
 .style-guide-main {
-  color: var(--text);
+  color: var(--text-primary);
   font-family: var(--body);
 }
 
 .style-guide-specimen-label,
 .style-guide-token-name {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -15,7 +15,7 @@
 
 .style-guide-section-body {
   margin: 0;
-  color: var(--text-dim);
+  color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.7;
 }
@@ -47,15 +47,15 @@
 
 .style-guide-specimen {
   min-width: 0;
-  border: 1px solid var(--border);
-  background: color-mix(in oklch, var(--panel-bg) 88%, transparent);
+  border: 1px solid var(--line-default);
+  background: color-mix(in oklch, var(--surface-panel) 88%, transparent);
 }
 
 .style-guide-specimen-label {
   display: flex;
   min-height: 34px;
   align-items: center;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line-default);
   padding: 0 12px;
   color: var(--text-muted);
   font-size: 10px;
@@ -83,8 +83,8 @@
 
 .style-guide-token {
   min-height: 112px;
-  border: 1px solid var(--border);
-  background: var(--token-bg, var(--surface-bg));
+  border: 1px solid var(--line-default);
+  background: var(--token-bg, var(--surface-card));
   padding: 12px;
 }
 
@@ -101,8 +101,8 @@
   min-height: 112px;
   align-items: center;
   gap: 14px;
-  border: 1px solid var(--border);
-  background: var(--surface-bg);
+  border: 1px solid var(--line-default);
+  background: var(--surface-card);
   padding: 12px;
 }
 
@@ -111,15 +111,15 @@
 }
 
 .style-guide-token-name {
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 10px;
 }
 
 .style-guide-token-value {
   display: block;
   margin-top: 52px;
-  color: var(--text-dim);
-  font-family: var(--mono);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -168,9 +168,9 @@
   display: grid;
   width: min(420px, calc(100vw - 32px));
   gap: 14px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--line-strong);
   background: var(--surface-panel);
-  box-shadow: 0 22px 70px color-mix(in oklch, var(--bg) 70%, transparent);
+  box-shadow: 0 22px 70px color-mix(in oklch, var(--surface-app) 70%, transparent);
   padding: 18px;
   transform: translate(-50%, -50%);
 }
@@ -187,11 +187,11 @@
 }
 
 .style-guide-sheet-header {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line-default);
 }
 
 .style-guide-sheet-footer {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line-default);
 }
 
 .style-guide-sheet-body {
@@ -203,7 +203,7 @@
 
 .style-guide-overlay-title {
   margin: 0;
-  color: var(--text);
+  color: var(--text-primary);
   font-family: var(--display);
   font-size: 28px;
   font-weight: 900;
@@ -214,7 +214,7 @@
 
 .style-guide-overlay-copy {
   margin: 0;
-  color: var(--text-dim);
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -234,8 +234,8 @@
   display: grid;
   width: 100%;
   max-width: 720px;
-  border: 1px solid var(--border);
-  background: var(--panel-bg);
+  border: 1px solid var(--line-default);
+  background: var(--surface-panel);
 }
 
 .style-guide-node-grid {
@@ -261,11 +261,15 @@
 .style-guide-node-toolbar-specimen {
   min-width: 0;
   overflow-x: auto;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-default);
   background:
-    radial-gradient(circle at 14px 14px, color-mix(in oklch, var(--accent) 18%, transparent) 1px, transparent 2px) 0 0 /
-    24px 24px,
-    var(--workspace-bg);
+    radial-gradient(
+      circle at 14px 14px,
+      color-mix(in oklch, var(--accent-primary) 18%, transparent) 1px,
+      transparent 2px
+    )
+    0 0 / 24px 24px,
+    var(--surface-workspace);
   padding: 14px;
   scrollbar-width: none;
 }
@@ -291,11 +295,15 @@
   min-height: 420px;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-default);
   background:
-    radial-gradient(circle at 14px 14px, color-mix(in oklch, var(--accent) 18%, transparent) 1px, transparent 2px) 0 0 /
-    24px 24px,
-    var(--workspace-bg);
+    radial-gradient(
+      circle at 14px 14px,
+      color-mix(in oklch, var(--accent-primary) 18%, transparent) 1px,
+      transparent 2px
+    )
+    0 0 / 24px 24px,
+    var(--surface-workspace);
 }
 
 .style-guide-node-frame-specimen .react-flow {
@@ -315,14 +323,14 @@
   display: grid;
   min-height: 116px;
   place-items: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-default);
   background:
-    radial-gradient(circle at 24% 28%, color-mix(in oklch, var(--accent) 26%, transparent), transparent 34%),
-    linear-gradient(135deg, var(--surface-input), var(--bg));
+    radial-gradient(circle at 24% 28%, color-mix(in oklch, var(--accent-primary) 26%, transparent), transparent 34%),
+    linear-gradient(135deg, var(--surface-control), var(--surface-app));
 }
 
 .style-guide-node-frame-preview span {
-  color: var(--text-dim);
+  color: var(--text-secondary);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: var(--control-letter-spacing);
@@ -333,11 +341,11 @@
   display: grid;
   min-height: 120px;
   place-items: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-default);
   background:
-    radial-gradient(circle at 30% 20%, color-mix(in oklch, var(--accent) 30%, transparent), transparent 34%),
-    linear-gradient(135deg, var(--surface-input), var(--bg));
-  color: var(--text-dim);
+    radial-gradient(circle at 30% 20%, color-mix(in oklch, var(--accent-primary) 30%, transparent), transparent 34%),
+    linear-gradient(135deg, var(--surface-control), var(--surface-app));
+  color: var(--text-secondary);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -380,7 +388,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-default);
   background: var(--surface-workspace);
   padding: var(--space-2);
 }
@@ -411,7 +419,7 @@
   min-height: 72px;
   align-content: center;
   gap: var(--space-1);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-default);
   background: var(--surface-panel);
   padding: var(--space-3);
 }
@@ -467,7 +475,7 @@
   min-width: 0;
   align-content: start;
   gap: var(--space-2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-default);
   background: var(--surface-panel);
   padding: var(--space-3);
 }
@@ -511,11 +519,11 @@
 .style-guide-inspector-panel {
   display: grid;
   width: min(100%, 520px);
-  border: 1px solid var(--border-strong);
-  background: var(--sidebar-bg);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-panel);
 }
 
-.style-guide-inspector-panel .node-inspector-section:last-child {
+.style-guide-inspector-panel .artifact-inspector-section:last-child {
   border-bottom: 0;
 }
 
@@ -533,15 +541,15 @@
 .style-guide-props-specimen {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--app-bg);
+  border: 1px solid var(--line-default);
+  background: var(--surface-app);
 }
 
 .style-guide-props-label {
   display: flex;
   min-height: 34px;
   align-items: center;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line-default);
   color: var(--text-muted);
   font-size: 10px;
   font-weight: 700;

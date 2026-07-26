@@ -1,4 +1,4 @@
-import { Skeleton } from '@artifact/ui';
+import { Button, Skeleton } from '@artifact/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CanvasDocument, CanvasGraph, ImageLayer, Layer, TextLayer } from '../types/config';
 import { ASPECT_SIZES } from '../types/config';
@@ -8,7 +8,6 @@ import { preloadImageSources } from '../utils/preloadImageSources';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../utils/renderer';
 import { CanvasHandles } from './CanvasHandles';
 import { defaultMediaViewState, type MediaViewState } from './NodeGalleryViewState';
-import { ActionButton } from './ui/ActionButton';
 
 const GALLERY_GRAPH_RENDER_CACHE_LIMIT = 96;
 const galleryGraphRenderCache = new Map<string, Promise<HTMLCanvasElement>>();
@@ -346,7 +345,7 @@ export function NodeGalleryCanvas({
       {renderState === 'failed' && (
         <div className="node-gallery-status node-gallery-status--failed" role="alert">
           <span>Preview unavailable</span>
-          <ActionButton
+          <Button
             className="node-gallery-retry"
             variant="secondary"
             onClick={(event) => {
@@ -355,7 +354,7 @@ export function NodeGalleryCanvas({
             }}
           >
             Retry
-          </ActionButton>
+          </Button>
         </div>
       )}
     </div>

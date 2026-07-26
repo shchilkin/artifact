@@ -402,7 +402,7 @@
   line-height: var(--leading-readable);
 }
 
-.account-modal-close.artifact-icon-button {
+.account-modal-close.ui-icon-command {
   flex: 0 0 auto;
 }
 

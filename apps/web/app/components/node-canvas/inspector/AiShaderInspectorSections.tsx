@@ -101,7 +101,7 @@ function AiShaderPrimaryAction({ generation, label }: { generation: AiShaderGene
   return (
     <button
       type="button"
-      className="node-inspector-action nodrag nopan nowheel"
+      className="artifact-inspector-action nodrag nopan nowheel"
       disabled={generation.generating || !generation.canCreateWithAi}
       onClick={() => void generation.create('openai')}
     >
@@ -126,7 +126,7 @@ function AiShaderAccessStatus({ generation }: { generation: AiShaderGeneration }
     );
   }
   if (check.access.enabled) {
-    return <p className="node-inspector-access-summary">{enabledAccessSummary(check.access)}</p>;
+    return <p className="artifact-inspector-access-summary">{enabledAccessSummary(check.access)}</p>;
   }
   const reason = check.access.disabledReason;
   return (
@@ -161,7 +161,7 @@ function AiShaderAccessAction({ label, onClick }: { label: string; onClick: () =
   return (
     <button
       type="button"
-      className="node-inspector-action node-inspector-action-secondary nodrag nopan nowheel"
+      className="artifact-inspector-action artifact-inspector-action-secondary nodrag nopan nowheel"
       onClick={onClick}
     >
       {label}
@@ -181,7 +181,7 @@ function AiShaderFallbackAction({ generation, visible }: { generation: AiShaderG
   return (
     <button
       type="button"
-      className="node-inspector-action node-inspector-action-secondary nodrag nopan nowheel"
+      className="artifact-inspector-action artifact-inspector-action-secondary nodrag nopan nowheel"
       disabled={generation.generating || !generation.canCreate}
       onClick={() => void generation.create('localFallback')}
     >
@@ -194,7 +194,7 @@ function CharacterCount({ value }: { value: string }) {
   const tooLong = value.length > AI_SHADER_PROMPT_MAX_LENGTH;
   return (
     <p
-      className={`node-inspector-character-count${tooLong ? ' node-inspector-character-count-warning' : ''}`}
+      className={`artifact-inspector-character-count${tooLong ? ' artifact-inspector-character-count-warning' : ''}`}
       aria-live="polite"
     >
       {value.length} / {AI_SHADER_PROMPT_MAX_LENGTH}
@@ -258,7 +258,7 @@ function AiShaderRefineContent({ generation }: { generation: AiShaderGeneration 
       <CharacterCount value={instruction} />
       <button
         type="button"
-        className="node-inspector-action nodrag nopan nowheel"
+        className="artifact-inspector-action nodrag nopan nowheel"
         disabled={!canRefine}
         onClick={() => void refine()}
       >

@@ -1,5 +1,5 @@
+import { Button } from '@artifact/ui';
 import { forwardRef, type KeyboardEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { ActionButton } from '../ui/ActionButton';
 import { Badge } from '../ui/Badge';
 import { EmptyState } from '../ui/EmptyState';
 import { SearchField } from '../ui/SearchField';
@@ -859,10 +859,10 @@ function AddLibraryDetailContent({
         <span className="add-library-detail-result">{addLibraryResultLabel(item)}</span>
         <p>{item.description}</p>
         <AddLibraryTags tags={item.tags} />
-        <ActionButton type="button" variant="primary" onClick={() => onAdd(item)}>
+        <Button type="button" variant="primary" onClick={() => onAdd(item)}>
           Add {item.label}
-        </ActionButton>
-        <ActionButton
+        </Button>
+        <Button
           type="button"
           className={favoriteClassName(favorite)}
           variant="quiet"
@@ -870,7 +870,7 @@ function AddLibraryDetailContent({
           onClick={() => onToggleFavorite(item)}
         >
           {favorite ? 'Favorited' : 'Add favorite'}
-        </ActionButton>
+        </Button>
       </div>
     </>
   );

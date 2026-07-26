@@ -135,7 +135,7 @@ function ShaderColorGrid({
       {config.addable && palette.length < config.max && (
         <button
           type="button"
-          className="node-inspector-action node-inspector-action-secondary nodrag nopan nowheel"
+          className="artifact-inspector-action artifact-inspector-action-secondary nodrag nopan nowheel"
           onClick={() =>
             updatePalette([...palette, config.defaults[palette.length % config.defaults.length] ?? '#ffffff'])
           }

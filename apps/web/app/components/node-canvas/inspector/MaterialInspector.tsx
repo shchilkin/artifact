@@ -92,7 +92,7 @@ export function MaterialInspector({
   const normalLocked = connectedTextureInputs?.has('normal') ?? false;
 
   return (
-    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
+    <div className={detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached'}>
       <InspectorTextInput label="Name" value={materialNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorColorInput
         label="Base"
@@ -168,7 +168,7 @@ export function MaterialInspector({
           />
         ))}
       </InspectorSection>
-      <p className="node-inspector-note">Connect this surface to a 3D node material input.</p>
+      <p className="artifact-inspector-note">Connect this surface to a 3D node material input.</p>
     </div>
   );
 }
@@ -219,7 +219,7 @@ function MaterialTextureSlotControl({
     } as Partial<GraphMaterialNode>);
 
   return (
-    <div className="node-inspector-resource">
+    <div className="artifact-inspector-resource">
       <InspectorReadout
         label={slot.label}
         status={lockedByInput ? 'Read-only · Controlled by graph input' : undefined}
@@ -232,18 +232,18 @@ function MaterialTextureSlotControl({
               : slot.hint
         }
       />
-      <div className="node-inspector-inline-actions">
+      <div className="artifact-inspector-inline-actions">
         <NoPan
           as="button"
           type="button"
-          className="node-inspector-action"
+          className="artifact-inspector-action"
           disabled={lockedByInput}
           onClick={() => inputRef.current?.click()}
         >
           {source ? 'Replace' : 'Load'}
         </NoPan>
         {source && !lockedByInput ? (
-          <NoPan as="button" type="button" className="node-inspector-action" onClick={clearTexture}>
+          <NoPan as="button" type="button" className="artifact-inspector-action" onClick={clearTexture}>
             Clear
           </NoPan>
         ) : null}

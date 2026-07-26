@@ -100,7 +100,7 @@ export function ShaderInspector({
   };
 
   return (
-    <div className={detached ? 'node-inspector-stack' : 'node-inspector-stack node-inspector-detached'}>
+    <div className={detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached'}>
       <InspectorTextInput label="Name" value={shaderNode.name} onChange={(value) => onChange({ name: value })} />
       <InspectorSelect
         label="Shader type"
@@ -139,7 +139,7 @@ export function ShaderInspector({
       {!preset && shaderNode.role === 'effect' && sourceConnected && (
         <ShaderCompositeSection shaderNode={shaderNode} onChange={onChange} />
       )}
-      <p className="node-inspector-note">{shaderInspectorRoleNote(shaderNode.shaderKind, shaderNode.role)}</p>
+      <p className="artifact-inspector-note">{shaderInspectorRoleNote(shaderNode.shaderKind, shaderNode.role)}</p>
     </div>
   );
 }

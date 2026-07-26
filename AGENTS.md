@@ -111,8 +111,10 @@ plan first:
   `docs/version-plans/v0.42.md`
 - v0.43-v0.48 staged Backoffice and Artifact UI-system rewrite:
   `docs/version-plans/v0.43.md` through `docs/version-plans/v0.48.md`
-- v0.49 AI-assisted creation after the UI-system gate:
+- v0.49 application shell and loading boundaries after the UI-system gate:
   `docs/version-plans/v0.49.md`
+- v0.50 AI-assisted creation after the application-shell gate:
+  `docs/version-plans/v0.50.md`
 - v0.31 code quality and Fallow integration:
   `docs/version-plans/v0.31.md`
 - v0.30 editor visual baseline and design-system foundation:

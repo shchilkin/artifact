@@ -106,3 +106,13 @@
   --ui-brand-signal: var(--brand-mark-signal);
   --ui-brand-shadow: var(--brand-mark-shadow);
 }
+
+.artifact-product-theme .ui-command[aria-current="page"] {
+  background: var(--ui-command-surface-active);
+}
+
+.artifact-product-theme .ui-command--primary[aria-current="page"] {
+  border-color: var(--ui-command-accent-hover);
+  background: var(--ui-command-accent-hover);
+  color: var(--ui-command-accent-contrast);
+}

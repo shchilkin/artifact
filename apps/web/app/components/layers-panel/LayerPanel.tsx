@@ -1,3 +1,4 @@
+import { Button } from '@artifact/ui';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import type {
@@ -21,7 +22,6 @@ import {
   EditorRowMetadata,
   EditorRowPrimary,
 } from '../editor-workflow/EditorRowFrame';
-import { ActionButton } from '../ui/ActionButton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { LayerAddMenu } from './LayerAddMenu';
@@ -402,13 +402,13 @@ function LayerSelectionActions({
   return (
     <EditorCommandGroup className="layer-selection-actions" label="Selected layer actions">
       <span>{selectedActionLayerIds.length} selected</span>
-      <ActionButton variant="quiet" onClick={() => onCreateAreaFromSelection(selectedActionLayerIds)}>
+      <Button variant="quiet" onClick={() => onCreateAreaFromSelection(selectedActionLayerIds)}>
         Area
-      </ActionButton>
+      </Button>
       {graphAreas.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <ActionButton variant="quiet">Add</ActionButton>
+            <Button variant="quiet">Add</Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="layer-area-dropdown-menu">
             {graphAreas.map((area) => (
@@ -423,13 +423,13 @@ function LayerSelectionActions({
         </DropdownMenu>
       )}
       {hasAreaMembership ? (
-        <ActionButton variant="quiet" onClick={() => onRemoveSelectionFromAreas(selectedActionLayerIds)}>
+        <Button variant="quiet" onClick={() => onRemoveSelectionFromAreas(selectedActionLayerIds)}>
           Remove from area
-        </ActionButton>
+        </Button>
       ) : null}
-      <ActionButton variant="quiet" onClick={onClearSelection}>
+      <Button variant="quiet" onClick={onClearSelection}>
         Clear selection
-      </ActionButton>
+      </Button>
     </EditorCommandGroup>
   );
 }

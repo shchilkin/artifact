@@ -1,4 +1,4 @@
-import { Field, InlineNotice, Input } from '@artifact/ui';
+import { Button, Field, IconButton, InlineNotice, Input } from '@artifact/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArtifactAuthContext, type ArtifactAuthState, anonymousAuth } from '../hooks/useArtifactAuth';
 import {
@@ -8,9 +8,7 @@ import {
   readAuthBearerToken,
   requestArtifactPasswordReset,
 } from '../utils/authClient';
-import { ActionButton } from './ui/ActionButton';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
-import { IconButton } from './ui/IconButton';
 
 type AccountMode = 'recover' | 'sign-in' | 'sign-up';
 
@@ -169,22 +167,22 @@ function AccountPanel({ onAuthenticated, onClose }: { onAuthenticated: () => Pro
         </div>
 
         <div className="account-mode-tabs" role="group" aria-label="Account mode">
-          <ActionButton
+          <Button
             aria-pressed={mode === 'sign-in'}
             className={mode === 'sign-in' ? 'active' : ''}
             onClick={() => updateMode('sign-in')}
             variant="quiet"
           >
             Sign in
-          </ActionButton>
-          <ActionButton
+          </Button>
+          <Button
             aria-pressed={mode === 'sign-up'}
             className={mode === 'sign-up' ? 'active' : ''}
             onClick={() => updateMode('sign-up')}
             variant="quiet"
           >
             Create
-          </ActionButton>
+          </Button>
         </div>
 
         <form aria-label={accountModeTitle[mode]} className="account-form" onSubmit={handleSubmit}>
@@ -220,14 +218,14 @@ function AccountPanel({ onAuthenticated, onClose }: { onAuthenticated: () => Pro
           ) : null}
 
           {mode === 'sign-in' ? (
-            <ActionButton
+            <Button
               className="account-inline-action"
               size="compact"
               onClick={() => updateMode('recover')}
               variant="quiet"
             >
               Forgot password?
-            </ActionButton>
+            </Button>
           ) : null}
 
           {error ? (
@@ -241,13 +239,13 @@ function AccountPanel({ onAuthenticated, onClose }: { onAuthenticated: () => Pro
             </InlineNotice>
           ) : null}
 
-          <ActionButton className="account-submit" loading={pending} type="submit" variant="primary">
+          <Button className="account-submit" loading={pending} type="submit" variant="primary">
             {pending ? 'Working' : mode === 'recover' ? 'Send reset link' : accountModeTitle[mode]}
-          </ActionButton>
+          </Button>
           {mode === 'recover' ? (
-            <ActionButton className="account-secondary-action" onClick={() => updateMode('sign-in')} variant="quiet">
+            <Button className="account-secondary-action" onClick={() => updateMode('sign-in')} variant="quiet">
               Back to sign in
-            </ActionButton>
+            </Button>
           ) : null}
         </form>
       </DialogContent>

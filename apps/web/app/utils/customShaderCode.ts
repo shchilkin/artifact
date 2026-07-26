@@ -3,7 +3,7 @@ import type { ShaderDefinition, ShaderInstance } from '../types/config';
 
 export type CustomShaderCodeIssue = ReturnType<typeof validateShaderCode>[number];
 
-export const DEFAULT_CUSTOM_SHADER_DEFINITION: ShaderDefinition = {
+const DEFAULT_CUSTOM_SHADER_DEFINITION: ShaderDefinition = {
   version: 1,
   id: 'code-shader-definition',
   label: 'Code Shader',

@@ -21,14 +21,14 @@ export function InspectorReadout({
 }) {
   return (
     <PropertyRow
-      className={`node-inspector-readout${className ? ` ${className}` : ''}`}
+      className={`artifact-inspector-readout${className ? ` ${className}` : ''}`}
       hint={detail}
       label={label}
       locked={locked}
       status={status}
       validation={validation}
     >
-      <output className="node-inspector-readout-value">{value}</output>
+      <output className="artifact-inspector-readout-value">{value}</output>
     </PropertyRow>
   );
 }

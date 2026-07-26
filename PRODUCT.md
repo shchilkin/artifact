@@ -1,128 +1,179 @@
 # Product
 
-## Register
+<!-- impeccable:product-schema 1 -->
 
-product
+## Platform
+
+web
 
 ## Users
 
-Indie musicians and designers at their intersection — people who make their own album art and want aesthetic control without hiring anyone. They know what "risograph" means. They are the creator and the art director simultaneously. They use this on a phone between ideas or on a laptop before an upload. Context: lo-fi studio, bedroom, transit. Mood: shaping a cover with intent, whether the result is spare, elegant, textured, loud, or rough.
+Artifact is primarily for independent musicians and visual creators who make
+artwork for music releases, posters, and related visual material. Album covers
+are the product's entry point, not its boundary.
+
+The primary user often acts as both creator and art director. They want direct
+control without needing a production team and may move between a quick idea,
+visual exploration, detailed composition, and a finished export.
+
+The complete creative workflow must work on a desktop or laptop. Mobile is a
+full but adapted entry point for capturing an idea, using Chat when available,
+opening and reviewing projects, making focused edits, and exporting. Mobile
+does not need to reproduce desktop interface density.
 
 ## Product Purpose
 
-A creative image/poster editor for covers, posters, music visuals, and
-eventually project/case-study presentation pages. Artifact starts as a
-browser-first editor: choose a seed, layer or node workflow, presets, effects,
-typography, procedural textures, primitives, and export-ready aspect ratios.
+Artifact is a browser-based creative studio for turning an idea into editable
+visual work. It supports covers, posters, music visuals, and other composed
+image artifacts while keeping the result structured enough to revise, reopen,
+and export reliably.
 
-The tool is for people who want direct control over image, type, texture,
-effects, and composition. Artifact should not prescribe the final style: the
-work may be clean, rough, elegant, loud, restrained, or experimental. The
-long-term product should feel less like a one-shot randomizer and more like a
-compact creative studio: fast enough for sketches, controllable enough for
-finished work.
+Success means a creator can move from direction to composition to finished
+output without surrendering editability. Fast exploration and detailed control
+belong to the same product and the same project rather than to separate,
+flattened workflows.
 
-Terminology rule: Artifact is an **editor** and a compact creative studio. Use
-"generate" only for specific actions that create source material, such as AI
-images, procedural textures, random seeds, or thumbnail rendering. Do not call
-the product, workspace, primary route, or public CTA a "generator".
+Artifact must not prescribe the style of the finished work. The result may be
+spare, polished, textured, loud, rough, elegant, or experimental.
 
-Public-surface terminology:
+## Positioning
 
-- **Showcase** is the made-in-Artifact gallery: curated work first, seeded
-  random work second, and future reviewed agent-generated work once that
-  pipeline can produce editable projects safely.
-- **How-to / recipes** is a future learning surface for specific workflows. Do
-  not turn the showcase into a manual.
-- **Open editor** and **New blank canvas** both open the editor with a blank
-  canvas by default. Showcase tiles are the path into existing editable
-  projects.
+Artifact turns a creative direction into an editable project that can be
+developed through Chat, Layers, and Nodes without losing document structure or
+preview/export parity. Layers and Nodes provide this foundation today; Chat is
+the accepted next peer mode, not a separate AI product or a reduced editor.
 
-## Product Direction
+This positions Artifact between one-shot generators, which tend to flatten the
+result, and broad professional editors, which can make early creative
+exploration unnecessarily heavy. Artifact combines a fast path to a compelling
+artifact with a deeper path to inspect and shape how it was made.
 
-Artifact has two editing modes with different jobs:
+## Operating Context
 
-- **Layers** are for speed: quick stacking, fast toggles, rough ordering, and
-  direct edits.
-- **Nodes** are for advanced work: branching, merging, effect chains, reusable
-  procedural sources, and precise output structure.
+Creators use Artifact while developing release artwork and related visual
+material: beginning from a blank project or showcase example, importing or
+generating source material, composing it, iterating on effects and structure,
+and exporting a finished asset. Work may begin as a short mobile interaction
+and continue as a focused desktop session.
 
-The node canvas is not a decorative diagram. It is the user's map of the
-composition. Node category color is product information: fill, image, text,
-emoji, effect, primitive, noise, array, merge, color, and export nodes should
-remain distinguishable by color in node frames, handles, badges, selection, and
-focus. Selection must resolve to the selected node's category color, not to a
-global red/orange accent. The output path should read as a route through the
-graph; category color identifies the node, output color identifies the active
-result path.
+Artifact has two current editing modes with different jobs:
 
-Both modes must operate on one document. If a user organizes a composition in
-nodes, the layer view should not become misleading; grouping, folders, or graph
-areas should help the layer view respect the node structure instead of showing a
-flat list that tells a different story.
+- **Layers** support speed: stacking, ordering, visibility, direct edits, and
+  familiar composition work.
+- **Nodes** support advanced control: branching, merging, reusable sources,
+  effect chains, explicit output structure, and graph-level organization.
 
-The next product arc is control:
+Both modes operate on the same creative document. The layer view must not tell
+a misleading story when the project has been organized through nodes.
 
-- more predictable effect controls
-- more focused effects and procedural sources
-- typography and font workflows that make strong type covers easy
-- a showcase wall of made-in-Artifact work that makes the empty canvas less
-  intimidating without mixing gallery browsing with how-to teaching
-- a future how-to / recipes surface for learning specific workflows
-- predictable export where aspect ratio is respected by every render surface
+The planned Chat mode adds conversational creation and revision to the same
+Project. It produces editable Creative Directions and Compositions, preserves
+continuity with Layers and Nodes, and keeps assistant changes reviewable before
+they become durable revisions.
 
-Artifact should borrow the useful skeleton of mature SaaS tools without
-borrowing their corporate feeling. The product needs clear information
-architecture, search, keyboard navigation, predictable states, accessibility,
-error handling, and consistent interaction patterns across Layers and Nodes.
-Those are reliability features, not a visual identity.
+## Capabilities and Constraints
 
-What Artifact should avoid is the admin-panel version of those patterns:
-neutral dashboards, table-first management screens, generic card grids, verbose
-configuration copy, and anything that makes the editor feel like a corporate
-content tool. The editor chrome should stay direct, compact, creative, dark,
-print-like, mono, and low-chrome. Its menus should behave like fast
-command/library palettes, not like SaaS settings catalogs.
+Current product capabilities include:
 
-Visual legibility is a product feature. The editor canvas may be dark and
-print-like, but it cannot be muddy: grid dots, graph edges, node boundaries,
-selected states, focus rings, hidden/muted states, and output-path states must
-remain readable at normal zoom without requiring the user to squint or hover.
-If a visual direction makes the graph feel atmospheric but harder to parse, the
-direction loses.
+- a canonical serializable `CanvasDocument` shared by editing, preview,
+  thumbnails, project storage, and export;
+- layer and node workflows for image, type, fill, procedural, effect, 3D, and
+  compositing work;
+- deterministic seeded sources and editable effect parameters;
+- local projects and imported assets, authenticated cloud project
+  infrastructure, portable `.artifact.json` documents, and image export;
+- a made-in-Artifact Showcase whose projects open as editable documents;
+- responsive product surfaces, keyboard interaction, and reduced-motion
+  support.
 
-## Brand Personality
+Accepted planned capabilities include:
 
-Deliberate. Tactile. Lo-fi in its materials, precise in its control. The
-personality of a photocopied zine or risograph proof belongs to the interface
-language, not to every user output.
+- Chat, Layers, and Nodes as three peer modes of one Project;
+- editable Creative Directions and derived Compositions;
+- Project-owned documents, revisions, Chats, Runs, and assets outside the
+  renderer document;
+- visual Change Previews before assistant edits are applied;
+- explicitly invoked, scope-bound assistance rather than unsolicited critique
+  or background changes.
 
-## Anti-references
+Durable constraints:
 
-- Overdesigned dev-tool aesthetic: heavy neon gradients, crypto-bro purple, glowing grid backgrounds, too many visual effects competing with the UI itself.
-- Generic "modern" SaaS without identity: Canva, Adobe Express — polished, neutral, corporate-safe.
-- Corporate admin/productivity UI: dashboards, management tables, verbose setup
-  panels, and configuration-heavy flows that make creative actions feel like
-  back-office operations.
-- Any design where someone could guess the palette from the domain name alone.
+- `CanvasDocument` remains serializable creative state and the canonical input
+  to preview and export. Runtime objects and orchestration records stay outside
+  it.
+- Preview, thumbnails, Layers, Nodes, and export must use the same renderer
+  semantics for the same document state.
+- Generated images remain replaceable sources inside an editable composition;
+  they are not treated as a fully decomposed document.
+- Assistant proposals cannot silently overwrite conflicting manual edits.
+- Full creative work is desktop-capable; mobile adapts the workflow by task
+  instead of promising identical interface density.
+- Product, release, pricing, customer, and performance claims require evidence;
+  future work must not fabricate them.
 
-## Banned Words
+Terminology commitments:
 
-- weird
+- Artifact is an **editor** and a **creative studio**. Use "generate" only for
+  a specific source-making action, not for the product, workspace, or primary
+  public CTA.
+- **Showcase** is the made-in-Artifact gallery. It is not a manual.
+- **How-to / recipes** is the separate learning surface for specific workflows.
+- **Open editor** and **New blank canvas** start blank; Showcase projects are
+  the path into existing editable work.
+- **Creative Direction** is an editable direction or moodboard-like document;
+  **Composition** is an editable concrete output document.
 
-Avoid broad labels that judge the whole output as strange. Prefer language that
-names material, control, or finish: expressive, elegant, textured, rough,
-experimental, polished, deliberate, layered, editable, or export-ready.
+## Brand Commitments
 
-## Design Principles
+The product name is **Artifact**. Its voice is deliberate, direct, tactile,
+and precise. The interface may carry a lo-fi, print-oriented material identity,
+but that identity belongs to the tool and must not dictate the user's output.
 
-1. **The tool has a material language.** The UI can feel print-like, tactile, and direct without deciding what the user's finished work should look like.
-2. **Control without noise.** Every slider, button, and label earns its place. The interface is a mixing board, not a feature list. Remove chrome, not controls.
-3. **Mobile is the first canvas.** This tool is used in moments — between ideas, on the go. Pocket-first layout is not an afterthought; it's the primary constraint.
-4. **The seed is identity.** The seed number is a creative artifact — a serial number for a piece of art. It should be treated with weight, not as a form field.
-5. **Honest materials.** Monospace, raw borders, no decorative chrome. Craft is in the composition. The UI doesn't perform aesthetics — it enables them.
-6. **Graph color is grammar.** Category color, output-path color, and selection color each carry different meaning. Do not collapse them into one global accent.
+Artifact should feel like a compact creative instrument, not a corporate admin
+product. Mature interaction mechanics such as search, keyboard navigation,
+clear state, accessibility, and error recovery are welcome; neutral dashboard
+language, verbose setup flows, and management-first framing are not.
+
+Avoid broad language that judges an output as strange. In particular, do not
+use **weird** as product or marketing language. Prefer words that name material,
+control, process, or finish: editable, layered, textured, expressive,
+deliberate, polished, rough, or export-ready.
+
+## Evidence on Hand
+
+- The runnable Artifact editor and public surfaces live in `apps/web`.
+- The Showcase implementation and editable starter documents live in
+  `apps/web/app/routes/showcase.tsx` and
+  `apps/web/app/utils/starterDocuments.ts`.
+- A real project identity asset is available at
+  `apps/web/app/assets/Vantaa Underground Logo.png`.
+- The canonical document and rendering contracts are documented in
+  `docs/state-model.md` and `docs/rendering.md`.
+- The accepted Chat, Creative Direction, revision, and Change Preview contract
+  is documented in `docs/ai-assisted-creation.md` and the v0.50 version plan.
+- Browser evidence for full editor workflows and adapted mobile behavior lives
+  in `tests/browser/generator.spec.ts` and `tests/browser/mobile.spec.ts`.
+
+There is no confirmed evidence of named customers, testimonials, press,
+pricing, comparative benchmarks, or broad market adoption. Product and
+marketing work must not invent these forms of proof.
+
+## Product Principles
+
+1. **Editable by default.** Creative output remains a project that can be
+   understood, revised, and reopened rather than a flattened dead end.
+2. **One project, multiple depths.** Chat, Layers, and Nodes serve different
+   ways of working while preserving the same project and creative state.
+3. **Fast start, deep control.** Early exploration should be lightweight
+   without preventing precise composition later.
+4. **The visible result is trustworthy.** Preview, thumbnails, project
+   reopening, and export must agree about the artifact being made.
+5. **Adapt by task, not by density.** Desktop supports the complete workflow;
+   mobile preserves meaningful continuity through the tasks suited to it.
 
 ## Accessibility & Inclusion
 
-WCAG AA minimum. All interactive controls meet 44px touch target size. Color contrast checked at AA for text on background. Reduced motion respected for transitions.
+WCAG AA is the minimum product standard. Interactive controls require usable
+keyboard and focus behavior, touch targets should be at least 44px, text and
+state contrast must remain legible, and reduced motion must preserve meaning
+without forcing unnecessary animation.

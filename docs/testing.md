@@ -15,6 +15,7 @@ npm run test:browser:firefox           # focused Firefox browser tests
 npm run test:browser:webkit            # focused WebKit/Safari-family browser tests
 npm run test:browser:mobile            # focused mobile Chromium/WebKit layout smoke
 npm run test:browser:release           # full browser gate split across fresh local dev servers
+npm run test:browser:ui-conformance    # both Product Themes: Foundation Matrix plus composed specimens
 npm run test:browser:install           # install Chromium, Firefox, and WebKit for Playwright
 npm run perf:node-editor               # opt-in node editor performance benchmark
 npm run --silent fallow                # report-only code-quality baseline in JSON
@@ -209,6 +210,14 @@ fallback badges.
   target changed earlier in the drag.
 - Effect node inspector coverage verifies that local effect `seedOffset`
   controls are exposed in Nodes mode and persist into the document.
+- The v0.48 two-product conformance gate uses the same package-owned specimen
+  identifiers in Artifact `/docs/style-guide` and Backoffice `/style-guide`.
+  Shared assertions resolve semantic color, spacing, typography, focus,
+  disabled, error, loading, reduced-motion, target-size, and overflow behavior
+  against each active Product Theme. Failure steps name the theme and specimen.
+  Artifact runs in the cross-browser matrix; Backoffice desktop/mobile Chromium
+  is a separate required CI job and also covers its operational composed
+  specimens.
 
 These tests are intentionally few and high-signal. They protect WebGL, browser
 input events, and preview/export integration without turning the suite into a
@@ -219,10 +228,17 @@ locked Playwright version, so Chromium, Firefox, WebKit, and their system
 dependencies are already present instead of being installed during every run.
 Pull-request browser coverage is split by Playwright project
 (`chromium`, `firefox`, `webkit`, `mobile-chromium`, and `mobile-webkit`) so the
-cross-browser gate runs in parallel. A lightweight browser-change detector skips
+cross-browser gate runs in parallel. Browser-relevant changes also run the
+Backoffice desktop/mobile project as a required job. A lightweight
+browser-change detector skips
 the browser matrix for documentation-only pull requests; code, workflow,
 package, Playwright config, app, shared package, or browser-test changes still
 run the browser gate.
+
+`npm run quality:ui-legacy-registry` is also part of `npm run check`. In v0.48
+contract mode it requires every registered caller allowlist to stay empty and
+fails when a removed import, selector, short token alias, or one of the seven
+deleted compatibility file paths is reintroduced.
 
 Local release prep should use `npm run test:browser:release`. It runs Chromium
 in bounded test groups, then Firefox, WebKit, and the mobile projects, with a

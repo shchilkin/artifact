@@ -1,3 +1,4 @@
+import { Button } from '@artifact/ui';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ALL_EMOJIS,
@@ -35,13 +36,12 @@ import { getScene3DTarget, getSceneEnvironmentNode, getSceneModelLayer } from '.
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetHeader } from './editor-target/EditorTargetHeader';
 import { InspectorSection as ArtifactInspectorSection } from './inspector-system';
-import { LayerPanel } from './LayerPanel';
 import { LayerControls } from './layer-controls/LayerControls';
 import type { LayerPanelProps } from './layers-panel/LayerPanel';
+import { LayerPanel } from './layers-panel/LayerPanel';
 import { EnvironmentInspector } from './node-canvas/inspector/EnvironmentInspector';
 import { InspectorReadout, InspectorToggle } from './node-canvas/inspector/fields';
 import { Scene3DInspector } from './node-canvas/inspector/Scene3DInspector';
-import { ActionButton } from './ui/ActionButton';
 
 type SidebarLayerPanelProps = Pick<
   LayerPanelProps,
@@ -80,14 +80,14 @@ function Section({ title, children, defaultOpen = false, hidden = false }: Secti
   if (hidden) return null;
   return (
     <ArtifactInspectorSection
-      className="sidebar-section"
+      className="artifact-inspector-section"
       density="ordinary"
       open={open}
       onToggle={() => setOpen((value) => !value)}
       slotClassNames={{
-        body: 'sidebar-section-body',
-        indicator: 'sidebar-section-indicator',
-        trigger: 'sidebar-section-trigger',
+        body: 'artifact-inspector-section__body',
+        indicator: 'artifact-inspector-section__indicator',
+        trigger: 'artifact-inspector-section__trigger',
       }}
       title={title}
     >
@@ -317,7 +317,7 @@ function SelectedLayerSections({
   };
 
   return (
-    <div className="layer-inspector-sections sidebar-sections">
+    <div className="layer-inspector-sections artifact-inspector-sidebar">
       {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact minimal />}
       <SelectedLayerBasics selectedLayer={selectedLayer} onPatch={applyPatch} />
       <SelectedImageSourceSection layer={selectedLayer} inputRef={fileInputRef} onImageFile={handleImageFile} />
@@ -352,7 +352,7 @@ function SelectedScene3DSections({
     onDocChange(updateEnvironmentNodeInDocument(doc, node.id, patch));
 
   return (
-    <div className="layer-inspector-sections sidebar-sections">
+    <div className="layer-inspector-sections artifact-inspector-sidebar">
       {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact minimal />}
       <SelectedScene3DInputSettings model={model} environment={environment} scene={scene} />
       <Scene3DInspector scene3dNode={scene} onChange={updateScene} detached />
@@ -507,7 +507,7 @@ function ImageSourceSection({
           event.currentTarget.value = '';
         }}
       />
-      <ActionButton
+      <Button
         className="image-source-replace-action"
         onClick={() => inputRef.current?.click()}
         onDragOver={(event) => event.preventDefault()}
@@ -519,7 +519,7 @@ function ImageSourceSection({
         variant="quiet"
       >
         Replace image
-      </ActionButton>
+      </Button>
     </Section>
   );
 }

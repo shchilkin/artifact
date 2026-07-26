@@ -103,7 +103,7 @@
   line-height: 1.35;
 }
 
-.canvas-chrome-reference-state > .action-button {
+.canvas-chrome-reference-state > .ui-command {
   width: max-content;
   min-height: var(--control-h-compact);
   height: var(--control-h-compact);
@@ -123,8 +123,8 @@
   }
 
   .canvas-chrome-specimen .artifact-toolbar-button,
-  .canvas-chrome-specimen .artifact-icon-button,
-  .canvas-chrome-specimen .action-button {
+  .canvas-chrome-specimen .ui-icon-command,
+  .canvas-chrome-specimen .ui-command {
     min-width: var(--control-h-default);
     min-height: var(--control-h-default);
     height: var(--control-h-default);
