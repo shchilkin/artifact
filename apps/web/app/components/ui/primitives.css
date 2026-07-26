@@ -1,5 +1,3 @@
-.artifact-icon-button,
-.artifact-input,
 .artifact-search-field,
 .artifact-badge,
 .artifact-toolbar-button,
@@ -10,7 +8,6 @@
   font-family: var(--font-mono);
 }
 
-.artifact-icon-button,
 .artifact-toolbar-button,
 .artifact-segmented-trigger {
   border: 1px solid var(--line-default);
@@ -29,15 +26,12 @@
     opacity var(--motion-fast) var(--ease-out);
 }
 
-.artifact-icon-button:hover,
 .artifact-toolbar-button:hover,
 .artifact-segmented-trigger:hover {
   border-color: var(--text-secondary);
   color: var(--text-primary);
 }
 
-.artifact-icon-button:focus-visible,
-.artifact-input:focus-visible,
 .artifact-search-field:focus-within,
 .artifact-toolbar-button:focus-visible,
 .artifact-segmented-trigger:focus-visible {
@@ -45,39 +39,12 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-.artifact-icon-button:disabled,
 .artifact-toolbar-button:disabled,
 .artifact-segmented-trigger:disabled {
   cursor: default;
   opacity: var(--state-disabled-opacity);
 }
 
-.artifact-icon-button {
-  display: inline-flex;
-  width: var(--control-h-default);
-  height: var(--control-h-default);
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.artifact-icon-button--compact {
-  width: var(--control-h-compact);
-  height: var(--control-h-compact);
-}
-
-.artifact-icon-button--primary {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-  color: var(--surface-app);
-}
-
-.artifact-icon-button--danger {
-  border-color: color-mix(in oklch, var(--state-danger) 68%, var(--line-default));
-  color: var(--state-danger);
-}
-
-.artifact-input,
 .artifact-search-field {
   min-height: var(--control-h-default);
   border: 1px solid var(--line-default);
@@ -86,23 +53,8 @@
   font-size: var(--control-font-size-md);
 }
 
-.artifact-input {
-  width: 100%;
-  padding: 0 var(--control-pad-x-default);
-}
-
-.artifact-input::placeholder,
 .artifact-search-input::placeholder {
   color: var(--text-muted);
-}
-
-.artifact-input:disabled {
-  cursor: default;
-  opacity: var(--state-disabled-opacity);
-}
-
-.artifact-input--error {
-  border-color: var(--state-danger);
 }
 
 .artifact-search-field {

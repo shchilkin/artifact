@@ -235,6 +235,11 @@ the browser matrix for documentation-only pull requests; code, workflow,
 package, Playwright config, app, shared package, or browser-test changes still
 run the browser gate.
 
+`npm run quality:ui-legacy-registry` is also part of `npm run check`. In v0.48
+contract mode it requires every registered caller allowlist to stay empty and
+fails when a removed import, selector, short token alias, or one of the seven
+deleted compatibility file paths is reintroduced.
+
 Local release prep should use `npm run test:browser:release`. It runs Chromium
 in bounded test groups, then Firefox, WebKit, and the mobile projects, with a
 fresh React Router dev server for every development segment. Production-preview

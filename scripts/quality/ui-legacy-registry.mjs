@@ -68,8 +68,8 @@ export async function auditLegacyContract(repoRoot, contract) {
 
 function validateRegistryShape(registry) {
   const errors = [];
-  if (registry.schemaVersion !== 1) errors.push('schemaVersion must be 1');
-  if (registry.mode !== 'expand') errors.push('mode must remain "expand" for issue #179');
+  if (registry.schemaVersion !== 2) errors.push('schemaVersion must be 2 in contract mode');
+  if (registry.mode !== 'contract') errors.push('mode must be "contract" after issue #183');
 
   const batchIds = new Set();
   for (const batch of registry.migrationBatches ?? []) {
@@ -85,6 +85,9 @@ function validateRegistryShape(registry) {
     if (!batchIds.has(contract.batch))
       errors.push(`legacy contract ${contract.id} references unknown batch ${contract.batch}`);
     if (!contract.replacement) errors.push(`legacy contract ${contract.id} has no named replacement`);
+    if (Object.keys(contract.allowedReferences ?? {}).length > 0) {
+      errors.push(`legacy contract ${contract.id} retains an allowlist in contract mode`);
+    }
     try {
       new RegExp(contract.scan.pattern, 'g');
     } catch (error) {
@@ -101,17 +104,17 @@ function validateRegistryShape(registry) {
     }
   }
 
-  const legacyFilePaths = new Set();
-  for (const legacyFile of registry.legacyFiles ?? []) {
-    if (legacyFilePaths.has(legacyFile.path)) errors.push(`duplicate legacy file: ${legacyFile.path}`);
-    legacyFilePaths.add(legacyFile.path);
-    if (!batchIds.has(legacyFile.batch))
-      errors.push(`legacy file ${legacyFile.path} references unknown batch ${legacyFile.batch}`);
-    if (!legacyFile.replacement) errors.push(`legacy file ${legacyFile.path} has no named replacement`);
+  const removedFilePaths = new Set();
+  for (const removedFile of registry.removedFiles ?? []) {
+    if (removedFilePaths.has(removedFile.path)) errors.push(`duplicate removed legacy file: ${removedFile.path}`);
+    removedFilePaths.add(removedFile.path);
+    if (!batchIds.has(removedFile.batch))
+      errors.push(`removed legacy file ${removedFile.path} references unknown batch ${removedFile.batch}`);
+    if (!removedFile.replacement) errors.push(`removed legacy file ${removedFile.path} has no named replacement`);
   }
 
   const stylesheetPaths = new Set();
-  for (const stylesheet of registry.legacyStylesheetSections ?? []) {
+  for (const stylesheet of registry.removedStylesheetSections ?? []) {
     const stylesheetKey = `${stylesheet.path}:${stylesheet.batch}`;
     if (stylesheetPaths.has(stylesheetKey)) errors.push(`duplicate legacy stylesheet section: ${stylesheetKey}`);
     stylesheetPaths.add(stylesheetKey);
@@ -178,13 +181,21 @@ async function auditFoundationMatrix(repoRoot, registry) {
   return errors;
 }
 
-async function auditDeclaredLegacyFiles(repoRoot, registry) {
+export async function auditRemovedLegacySurface(repoRoot, registry) {
   const errors = [];
-  for (const entry of [...(registry.legacyFiles ?? []), ...(registry.legacyStylesheetSections ?? [])]) {
+  for (const entry of registry.removedFiles ?? []) {
+    try {
+      await readFile(path.join(repoRoot, entry.path), 'utf8');
+      errors.push(`removed legacy file was reintroduced: ${entry.path}`);
+    } catch (error) {
+      if (error.code !== 'ENOENT') errors.push(`could not audit removed legacy file ${entry.path}: ${error.message}`);
+    }
+  }
+  for (const entry of registry.removedStylesheetSections ?? []) {
     try {
       await readFile(path.join(repoRoot, entry.path), 'utf8');
     } catch {
-      errors.push(`declared legacy file does not exist: ${entry.path}`);
+      errors.push(`active stylesheet containing a removed section no longer exists: ${entry.path}`);
     }
   }
   return errors;
@@ -195,7 +206,7 @@ export async function auditLegacyRegistry(repoRoot, registry) {
   const routeAudit = await auditRouteCoverage(repoRoot, registry);
   errors.push(...routeAudit.errors);
   errors.push(...(await auditFoundationMatrix(repoRoot, registry)));
-  errors.push(...(await auditDeclaredLegacyFiles(repoRoot, registry)));
+  errors.push(...(await auditRemovedLegacySurface(repoRoot, registry)));
 
   const baselines = {};
   for (const contract of registry.legacyContracts) {
@@ -230,7 +241,7 @@ async function main() {
   }
 
   process.stdout.write(
-    `UI legacy registry passed: ${result.routeCount} routes, ${result.matrixSectionCount} Foundation Matrix sections, ${registry.legacyContracts.length} bounded legacy contracts.\n`,
+    `UI legacy registry passed: ${result.routeCount} routes, ${result.matrixSectionCount} Foundation Matrix sections, ${registry.legacyContracts.length} forbidden legacy contracts, ${registry.removedFiles?.length ?? 0} removed files.\n`,
   );
 }
 

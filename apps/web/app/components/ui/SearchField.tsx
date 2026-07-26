@@ -1,8 +1,7 @@
-import { Input } from '@artifact/ui';
+import { IconButton, Input } from '@artifact/ui';
 import { forwardRef, type InputHTMLAttributes } from 'react';
 
 import { cn } from '@/lib/utils';
-import { IconButton } from './IconButton';
 
 import './primitives.css';
 
