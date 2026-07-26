@@ -6,11 +6,29 @@ import {
 } from '@artifact/ui';
 import { expect, test } from '@playwright/test';
 import {
+  expectCommandMatrixConformance,
   expectDescriptionsToResolve,
+  expectFeedbackMatrixConformance,
+  expectFieldMatrixConformance,
   expectMobileFieldGeometry,
   expectOverlayMatrixBehavior,
+  type FoundationThemeExpectation,
   focusFoundationSpecimenWithKeyboard,
 } from './uiFoundationTestHelpers';
+
+const ARTIFACT_FOUNDATION_THEME = {
+  name: 'Artifact',
+  commandFontFamily: 'Space Mono',
+  commandRadius: '3px',
+  fieldFontFamily: 'Space Mono',
+  fieldRadius: '3px',
+  feedbackFontFamily: 'Space Mono',
+  feedbackRadius: '3px',
+  popoverFontFamily: 'Barlow Condensed',
+  popoverRadius: '4px',
+  tooltipFontFamily: 'Space Mono',
+  tooltipRadius: '3px',
+} satisfies FoundationThemeExpectation;
 
 test('Artifact exposes the shared command Foundation Matrix in its Product Theme', async ({ page }) => {
   await page.goto('/docs/style-guide');
@@ -60,6 +78,8 @@ test('Artifact exposes the shared command Foundation Matrix in its Product Theme
   expect(fingerprint.letterSpacing).not.toBe('0px');
   expect(fingerprint.outlineStyle).not.toBe('none');
 
+  await expectCommandMatrixConformance(page, matrix, ARTIFACT_FOUNDATION_THEME);
+
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(() => ({
@@ -103,6 +123,7 @@ test('Artifact exposes associated Foundation fields with keyboard focus and nati
   await expect(focusSelect).toBeFocused();
   expect(await focusSelect.evaluate((select) => getComputedStyle(select).outlineStyle)).not.toBe('none');
 
+  await expectFieldMatrixConformance(matrix, ARTIFACT_FOUNDATION_THEME);
   await expectMobileFieldGeometry(page, matrix);
 });
 
@@ -136,6 +157,8 @@ test('Artifact exposes shared feedback semantics and reduced-motion async states
   );
   await expect(indeterminate.locator('.ui-progress-indicator__value')).toHaveCSS('animation-name', 'none');
 
+  await expectFeedbackMatrixConformance(matrix, ARTIFACT_FOUNDATION_THEME);
+
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(
     0,
@@ -146,10 +169,5 @@ test('Artifact exposes shared Tooltip and Popover mechanics in its Product Theme
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/docs/style-guide');
 
-  await expectOverlayMatrixBehavior(page, {
-    popoverFontFamily: 'Barlow Condensed',
-    popoverRadius: '4px',
-    tooltipFontFamily: 'Space Mono',
-    tooltipRadius: '3px',
-  });
+  await expectOverlayMatrixBehavior(page, ARTIFACT_FOUNDATION_THEME);
 });

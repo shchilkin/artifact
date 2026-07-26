@@ -66,6 +66,7 @@
     "test:e2e:backoffice:run": "npm --workspace @artifact/backoffice run test:browser --",
     "test:browser:mobile": "npm --workspace @artifact/web run test:browser:mobile --",
     "test:browser:release": "node scripts/run-browser-release.mjs",
+    "test:browser:ui-conformance": "npm run test:browser -- --project=chromium --project=firefox --project=webkit ui-foundation.spec.ts && npm run test:browser:backoffice -- style-guide.spec.ts",
     "test:browser:headed": "npm --workspace @artifact/web run test:browser -- --headed",
     "test:browser:install": "playwright install --with-deps chromium firefox webkit",
     "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs"
