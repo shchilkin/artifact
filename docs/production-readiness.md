@@ -79,6 +79,59 @@ CI should run:
 
 ## Manual QA
 
+### v0.48.0 Release Prep And Evidence
+
+- Package metadata is bumped to `0.48.0` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.48.0.md` is prepared from the release template without a
+  visible internal checklist.
+- The finite UI legacy registry has no unresolved or approved exception bucket;
+  both live Foundation Matrix routes consume one executable conformance
+  contract under their respective Product Themes.
+- The seven registered compatibility files are removed. The contract-mode
+  registry rejects their paths, imports, aliases, selectors, and token
+  references if any are reintroduced.
+- `npm run release:verify -- --version 0.48.0`, `npm run check`, and
+  `npm run build` passed locally on 2026-07-26. The check includes 20 UI
+  Foundation tests, 721 Web tests, 261 passing API tests with 5 skipped, 11
+  Backoffice tests, 26 deployment tests, and 3 legacy-registry contract tests,
+  plus formatting, lint, and all type checks.
+- `npm run test:browser:ui-conformance` passed all 24 scenarios: Artifact in
+  Chromium, Firefox, and WebKit plus Backoffice in desktop/mobile Chromium.
+- The complete browser release gate scheduled 554 scenarios across Artifact
+  Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, and Backoffice
+  desktop/mobile Chromium: 501 passed on the first attempt, 3 passed through
+  the configured retry, and 50 were intentional skips. Focused no-retry reruns
+  passed Chromium 3D render/export and WebKit Pixelate; the capability-gated
+  WebKit 3D scenario skipped as designed.
+- Live Artifact and Backoffice style-guide surfaces were reviewed at 1440-pixel
+  desktop and 390-pixel mobile widths. Artifact preserved the token hierarchy,
+  Foundation Matrix, and single-column mobile flow; Backoffice preserved
+  operational, status, error, focus, command, and mobile containment states.
+- `npm run perf:node-editor` is not required because v0.48 changes no graph
+  traversal, renderer path, render signature, thumbnail queue, pointer
+  geometry, or node-editor interaction hot path.
+- Delivery PR/CI, exact-SHA staging, production promotion, tag, deployment, and
+  publication evidence will be recorded here before the release is called
+  complete.
+- Accepted release risk: conformance is representative rather than a complete
+  pixel visual-regression suite or WCAG certification.
+- Accepted release risk: the large Three.js vendor-chunk warning remains until
+  v0.49 measures route-level loading impact and enforces approved budgets.
+- Accepted release risk: existing browser diagnostics may report blank-frame
+  fallback, intentional missing-route, or Vite development-server
+  dependency-reload messages. Production-preview navigation passed; every
+  release scenario must still complete successfully.
+- Accepted release risk: the full gate needed three configured retries for one
+  Chromium 3D startup and two WebKit startup/teardown scenarios. Focused
+  no-retry reruns passed both runnable scenarios, while the WebKit 3D case
+  returned its intended capability skip.
+- Accepted release risk: `npm ci` reports 17 inherited dependency advisories
+  (3 low, 4 moderate, and 10 high). v0.48 changes no dependency versions;
+  reachability and remediation remain in the dedicated trace-backed dependency
+  track.
+
 ### v0.47.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.47.0` in `package.json`,
