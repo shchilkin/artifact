@@ -112,9 +112,30 @@ CI should run:
 - `npm run perf:node-editor` is not required because v0.48 changes no graph
   traversal, renderer path, render signature, thumbnail queue, pointer
   geometry, or node-editor interaction hot path.
-- Delivery PR/CI, exact-SHA staging, production promotion, tag, deployment, and
-  publication evidence will be recorded here before the release is called
-  complete.
+- Release PR #255 merged the candidate into `development` as
+  `b99617eb871bc446f4e60bff6b22c7703c2adf12`. Post-merge CI run
+  `30220797650` and exact-SHA staging run `30221248677` passed before the
+  stable staging surfaces moved to that revision.
+- Promotion PR #256 merged the verified tree into `main` as production commit
+  `bffb2630412d22daccf6501264d15fe419ed31ff`. Promotion CI run `30222076131`
+  and post-merge main CI run `30223394401` passed all required quality,
+  browser, security, release-metadata, and container checks.
+- Promotion CI initially reported one Firefox camera-control timing failure.
+  The exact focused test passed 10/10 on a clean non-reused local server, the
+  failed full Firefox job passed on rerun without a code change, and the
+  post-merge main plus all three official release gates passed. The failure was
+  treated as an observed test flake rather than hidden with a weaker assertion.
+- Release workflow run `30223750260` created annotated tag `v0.48.0` and the
+  draft release after the full gate. The tag resolves to production commit
+  `bffb2630412d22daccf6501264d15fe419ed31ff`.
+- Production workflow run `30224634899` verified the full gate, staged and
+  checked the Vercel deployment, deployed the VPS stack from the tagged commit,
+  verified production API contract version 1, promoted the web deployment, and
+  verified the production domain. Provider-backed AI smoke was intentionally
+  disabled for this UI-only release.
+- Publish workflow run `30225681270` repeated the full release gate and
+  published [`v0.48.0`](https://github.com/shchilkin/artifact/releases/tag/v0.48.0)
+  on 2026-07-27. Issues #179 through #184 and milestone #5 are closed.
 - Accepted release risk: conformance is representative rather than a complete
   pixel visual-regression suite or WCAG certification.
 - Accepted release risk: the large Three.js vendor-chunk warning remains until
