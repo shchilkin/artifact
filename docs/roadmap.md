@@ -20,13 +20,16 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.48.0 is the UI Conformance And Legacy Removal release candidate with its
-  local release gate complete. The finite legacy registry has zero unresolved
-  entries, both Product Themes share one executable Foundation conformance
-  contract in required PR CI, and the seven registered compatibility files are
-  removed behind a no-reintroduction guard. Q6 owns only delivery CI, exact-SHA
-  staging, production promotion, and publication evidence. See
-  [`version-plans/v0.48.md`](./version-plans/v0.48.md).
+- v0.48.0 was released on 2026-07-27 as the UI Conformance And Legacy Removal
+  release. The finite legacy registry has zero unresolved entries, both Product
+  Themes share one executable Foundation conformance contract, and the seven
+  registered compatibility files are removed behind a no-reintroduction guard.
+  Tag `v0.48.0` resolves to production commit
+  `bffb2630412d22daccf6501264d15fe419ed31ff`; exact-SHA staging, production API
+  contract version 1, production web verification, and publication passed. All
+  six delivery issues and milestone #5 are closed. See
+  [`version-plans/v0.48.md`](./version-plans/v0.48.md) and
+  [`releases/v0.48.0.md`](./releases/v0.48.0.md).
 - v0.47.0 was released on 2026-07-25 as the Artifact Canvas Chrome release.
   Graph, node, edge, port, area, artwork preview, thumbnail, gallery, and 3D
   viewport surfaces now share source-owned Artifact patterns while preserving
@@ -108,11 +111,12 @@ Current planning status:
   [`editor-design-system.md`](./editor-design-system.md),
   [`version-plans/v0.42.md`](./version-plans/v0.42.md), and
   [`releases/v0.42.0.md`](./releases/v0.42.0.md).
-- v0.49 is the next Application Shell And Loading Boundaries release:
+- v0.49 is the active Application Shell And Loading Boundaries release:
   production route ownership, minimal React Router shells, route-owned CSS,
   useful SPA hydration and static public prerendering, truthful vendor/renderer
   boundaries, and enforced JavaScript/CSS budgets. Its first delivery issue,
-  #238, becomes available after the v0.48 publication gate. See
+  #238, is the current dependency frontier after the v0.48 publication gate.
+  See
   [`version-plans/v0.49.md`](./version-plans/v0.49.md).
 - v0.50 is the rescheduled AI-Assisted Creation release: authenticated
   full-screen Chat, editable Creative Directions and Compositions, durable Runs,
@@ -1401,16 +1405,15 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-Finish the already-planned editor UI-system sequence before starting a new
-candidate track.
+Use the completed UI-system sequence as the gate for the application-shell
+release before starting a new candidate track.
 
 Recommended order:
 
-1. Publish the completed v0.48 conformance and legacy-removal candidate.
-2. Establish the v0.49 route ownership, loading matrix, and budgets in #238.
-3. Narrow application shells, CSS ownership, hydration, and dependency
+1. Establish the v0.49 route ownership, loading matrix, and budgets in #238.
+2. Narrow application shells, CSS ownership, hydration, and dependency
    boundaries against that approved contract.
-4. Resume new AI-assisted creation in v0.50 only after the v0.49 gate.
+3. Resume new AI-assisted creation in v0.50 only after the v0.49 gate.
 
 ## Non-goals for now
 
