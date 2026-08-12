@@ -34,7 +34,6 @@ import {
   addLooseLayerNodeToDocument,
   addNodeAtDocument,
   bootstrapDocumentGraph,
-  createAiImageLayer,
   createEffectPresetLayer,
   createImageLayerFromSource,
   createLayerOfKind,
@@ -42,7 +41,6 @@ import {
   createTextPresetLayer,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
-  insertLayerAboveInDocument,
   removeLayerFromDocument,
   reorderDocumentLayers,
   setDocumentAspect,
@@ -86,36 +84,12 @@ import { randomDocument } from '../utils/randomConfig';
 import { isSelectableScene3DTarget } from '../utils/scene3DInputs';
 import type { TextPresetId } from '../utils/textPresets';
 
-type EditorLayerInsertAction =
-  | { kind: 'layer'; layerKind: Exclude<LayerKind, 'effect'> }
-  | { kind: 'textPreset'; preset: TextPresetId }
-  | { kind: 'aiImage' }
-  | { kind: 'noisePreset'; preset: NoisePresetId }
-  | { kind: 'arrayPreset'; preset: ArrayPresetId }
-  | { kind: 'effect'; preset: EffectPreset };
-
 function isEditableUndoTarget(target: EventTarget | null) {
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
 }
 
 function isUndoShortcut(event: KeyboardEvent) {
   return (event.metaKey || event.ctrlKey) && event.key === 'z' && !isEditableUndoTarget(event.target);
-}
-
-const INSERT_LAYER_BUILDERS = {
-  layer: (action: Extract<EditorLayerInsertAction, { kind: 'layer' }>) => createLayerOfKind(action.layerKind),
-  textPreset: (action: Extract<EditorLayerInsertAction, { kind: 'textPreset' }>) =>
-    createTextPresetLayer(action.preset),
-  aiImage: () => createAiImageLayer(),
-  noisePreset: (action: Extract<EditorLayerInsertAction, { kind: 'noisePreset' }>) =>
-    makeNoisePresetLayer(action.preset),
-  arrayPreset: (action: Extract<EditorLayerInsertAction, { kind: 'arrayPreset' }>) =>
-    makeArrayPresetLayer(action.preset),
-  effect: (action: Extract<EditorLayerInsertAction, { kind: 'effect' }>) => createEffectPresetLayer(action.preset),
-} satisfies Record<string, (action: never) => Layer>;
-
-function createLayerForInsertAction(action: EditorLayerInsertAction): Layer {
-  return INSERT_LAYER_BUILDERS[action.kind](action as never);
 }
 
 export function useEditorDocument(nodeModeEnabled: boolean) {
@@ -345,15 +319,6 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     (preset: ArrayPresetId) => {
       const layer = makeArrayPresetLayer(preset);
       updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
-      setSelectedLayerId(layer.id);
-    },
-    [updateDocument],
-  );
-
-  const insertLayerAbove = useCallback(
-    (targetLayerId: string, action: EditorLayerInsertAction) => {
-      const layer = createLayerForInsertAction(action);
-      updateDocument((current) => insertLayerAboveInDocument(current, targetLayerId, layer), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
@@ -612,7 +577,6 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     addTextPreset,
     addNoisePreset,
     addArrayPreset,
-    insertLayerAbove,
     addImageFromSource,
     addModelFromAsset,
     addEnvironmentFromAsset,
