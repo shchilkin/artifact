@@ -1,5 +1,9 @@
 # Editor Design System
 
+The isolated `examples/viber-embed` host specimen has its own portable CSS and
+native dialog controls. It is a consumer integration example, not editor UI.
+Its desktop and mobile states are verified by `verify:runtime-embed`.
+
 For the general project UI standard, read [`style-guide.md`](./style-guide.md)
 first. This document extends that guide with editor-specific migration notes,
 primitive tiers, Radix/shadcn boundaries, and v0.30 style-guide route rules.

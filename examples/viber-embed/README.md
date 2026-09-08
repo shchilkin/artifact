@@ -1,0 +1,73 @@
+# Standalone Viber embed
+
+This is a plain HTML/JavaScript host for a document-backed cover. It runs from a
+production Vite build outside the Artifact workspace and installs the actual
+runtime tarball. Neither the host nor the generated site imports editor source.
+
+## Run with a local artwork
+
+From the Artifact repository:
+
+```sh
+npm run prepare:runtime-embed -- /absolute/path/to/viber.artifact
+```
+
+The command prints a new temporary output directory. It builds and packs the
+runtime, runs a real `npm install` in that directory, copies these example files,
+and copies the specified Composition there. It derives the five-track embed
+recipe from the retained conformance recipe and updates its provenance hash.
+An isolated Chrome page renders a 512px PNG poster using the embedded font.
+Chrome must be installed; `ARTIFACT_BROWSER_CHANNEL` may select another
+installed Playwright Chromium channel.
+
+```sh
+npm run verify:runtime-embed -- /absolute/output/directory
+npm run serve:runtime-embed -- /absolute/output/directory/dist 4184
+```
+
+Open `http://127.0.0.1:4184`. The static server binds only to loopback. The
+output includes the `.tgz`, isolated dependency lockfile, built `dist/`,
+`evidence.json`, and (after verification) browser screenshots and
+`verification.json`.
+
+The Composition and embedded font are local inputs, not committed examples or
+package contents. Do not publish this generated directory until the owner has
+confirmed redistribution rights for all included assets. The package stays on
+the unpublished `0.3.0-alpha.0` experiment; identify each local build by its
+tarball SHA-256, not by version alone.
+
+## Integrate in another site
+
+1. Install the generated `.tgz` using npm in the host project.
+2. Place the Composition, `.motion.json` and PNG poster at host-owned asset URLs.
+3. Copy/adapt `embed.js` and the artwork markup/CSS. Call `mountArtwork` when
+   the fullscreen preview opens; call the returned `destroy()` when it closes.
+4. Keep the static image available through loading, errors and reduced motion.
+
+```js
+import { mountArtwork } from './embed.js';
+
+const artwork = mountArtwork({
+  container: document.querySelector('#artwork'),
+  playButton: document.querySelector('#play'),
+  neutralButton: document.querySelector('#neutral'),
+  status: document.querySelector('#status'),
+  compositionUrl: '/artworks/viber.artifact',
+  recipeUrl: '/artworks/viber.motion.json',
+});
+
+// On closing the preview:
+artwork.destroy();
+```
+
+The host owns loading, visibility, buttons, resize and reduced-motion policy.
+The runtime owns font/image decoding, layer interpretation, motion evaluation
+and rendering. `render.html`/`render.js` are local poster preparation tools and
+need not be shipped as visitor-facing routes. The pixel comparison checks
+poster-to-runtime continuity, not parity against a separately captured editor
+export.
+
+The authored embed loop animates only four of the fifteen layers: the phone
+(sway and tilt), emoji drift, grain and glitch. Other procedural effects remain
+at their authored amounts; text and the advisory label stay fixed. This example
+provides time-based animation with play/pause, not pointer-driven layer input.

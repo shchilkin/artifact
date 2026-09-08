@@ -149,6 +149,7 @@ export interface ArtifactRuntimeProject {
       aspect?: string;
     };
     layers: Array<Record<string, unknown>>;
+    fontAssets?: unknown[];
     graph?: ArtifactRuntimeGraph;
   };
 }

@@ -1,5 +1,12 @@
 # Rendering Architecture
 
+The external `@shchilkin/artifact-runtime` session also resolves portable
+`document.fontAssets` for `artifact-font://` text references. Embedded fonts use
+session-local `FontFace` names and are released with the prepared document;
+explicit host mappings take precedence. Missing or undecodable bytes reject
+faithful runtime initialization instead of silently substituting typography.
+See `examples/viber-embed/README.md` for the standalone host boundary.
+
 This document explains how Artifact turns a `CanvasDocument` into pixels and how preview/export parity should be protected.
 
 ## Rendering promise

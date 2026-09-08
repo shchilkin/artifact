@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Вайбер · Вялый Джо</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Вялый Джо / 2026</p>
+      <h1>Вайбер</h1>
+      <button class="cover" id="open" type="button" aria-label="Открыть обложку Вайбер">
+        <img src="/viber.png" alt="Обложка Вайбер: телефон, цветные помехи и крупная типографика" width="512" height="512" />
+        <span>Открыть обложку ↗</span>
+      </button>
+      <p class="caption">Телефон покачивается. Фон живёт своим ритмом.</p>
+    </main>
+    <dialog aria-labelledby="artwork-title">
+      <header><h2 id="artwork-title">Вайбер <span>· Вялый Джо</span></h2><button id="close" type="button">Закрыть</button></header>
+      <div id="artwork" class="artwork" data-state="static">
+        <img src="/viber.png" alt="Обложка Вайбер" width="512" height="512" />
+      </div>
+      <footer>
+        <div class="transport">
+          <button id="play" type="button" hidden>Пауза</button>
+          <button id="neutral" type="button" hidden>Исходный кадр</button>
+        </div>
+        <p id="status" role="status"></p>
+      </footer>
+    </dialog>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

@@ -4,6 +4,10 @@ Glitch-aesthetic album cover editor. Procedural 3D primitives, emoji and
 image layers, 30+ GPU shader effects, node-graph composition, seeded randomness,
 aspect ratio support, and equirectangular environment map export.
 
+For embedding a document-backed animated cover in another website, see the
+[standalone Viber example](examples/viber-embed/README.md) and
+[experimental runtime API](packages/runtime/README.md).
+
 ## Stack
 
 - React Router v7 (SPA mode, `ssr: false`) + TypeScript + Vite

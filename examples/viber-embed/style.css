@@ -1,0 +1,139 @@
+:root {
+  color-scheme: dark;
+  --bg: #141210;
+  --text: #ede5db;
+  --muted: #b7aa9b;
+  --line: #51473d;
+  --accent: #ed795c;
+  font:
+    16px / 1.5 system-ui,
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  width: min(100% - 48px, 512px);
+  margin: 48px auto;
+}
+.eyebrow {
+  color: var(--muted);
+  font: 12px monospace;
+  letter-spacing: 0.08em;
+}
+h1 {
+  font-size: clamp(40px, 8vw, 64px);
+  line-height: 1;
+  margin: 16px 0 32px;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 8px 16px;
+  min-height: 44px;
+  cursor: pointer;
+}
+button:hover {
+  border-color: var(--accent);
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.cover {
+  display: block;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+}
+.cover img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.cover span {
+  display: block;
+  padding: 12px 16px;
+}
+.caption {
+  color: var(--muted);
+  font-size: 14px;
+}
+dialog {
+  background: var(--bg);
+  color: var(--text);
+  width: min(100% - 24px, 720px);
+  max-height: calc(100dvh - 24px);
+  padding: 24px;
+  border: 1px solid var(--line);
+}
+dialog::backdrop {
+  background: #000d;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+h2 {
+  font-size: 18px;
+  margin: 0;
+}
+h2 span {
+  color: var(--muted);
+  font-weight: 400;
+}
+.artwork {
+  position: relative;
+  width: min(100%, 512px, 65dvh);
+  aspect-ratio: 1;
+  margin: auto;
+}
+.artwork img,
+.artwork canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.artwork canvas[hidden],
+[hidden] {
+  display: none;
+}
+.artwork[data-state="ready"] img {
+  visibility: hidden;
+}
+.transport {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 24px;
+}
+#status {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+  min-height: 21px;
+}
+@media (max-width: 480px) {
+  main {
+    margin-top: 32px;
+  }
+  dialog {
+    padding: 16px;
+  }
+  h2 span {
+    display: block;
+  }
+}

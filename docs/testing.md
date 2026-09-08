@@ -2,6 +2,14 @@
 
 ## Running tests
 
+`npm run prepare:runtime-embed -- /absolute/path/to/viber.artifact` builds a
+temporary independent consumer using a real installation of the packed runtime.
+`npm run verify:runtime-embed -- /printed/output/directory` verifies the
+production build in Chrome: embedded font loading, exact poster/neutral
+continuity, animation and pause, repeated lifecycle cleanup, lazy loading,
+mobile reduced motion, corrupt assets, and interrupted initialization. Private
+Composition/font bytes and screenshots remain outside the repository.
+
 ```bash
 npm test                               # web Vitest suite
 npm run test:api                       # API tests

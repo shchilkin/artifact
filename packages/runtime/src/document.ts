@@ -1,3 +1,4 @@
+import { embeddedFontMappings, loadEmbeddedFonts } from './fonts.js';
 import { parseArtifactRuntimeProject } from './project.js';
 import {
   applyChromaticAberration,
@@ -387,9 +388,13 @@ export function analyzeArtifactRuntimeProject(
     ? getLinearGraphOrder(project.document.graph, layerIds, issues)
     : layers.map((layer) => layer.id);
   const requiredFonts = new Set<string>();
+  const fontOptions = {
+    ...options,
+    fontFamilies: { ...embeddedFontMappings(project), ...options.fontFamilies },
+  };
 
   for (const layer of layers) {
-    reportLayerCapabilities(layer, options, requiredFonts, issues);
+    reportLayerCapabilities(layer, fontOptions, requiredFonts, issues);
   }
 
   const unresolvedFonts = collectUnresolvedFonts(layers, issues);
@@ -406,12 +411,14 @@ export function analyzeArtifactRuntimeProject(
 }
 
 async function resolveImages(layers: RuntimeLayer[], cache: Map<string, HTMLImageElement>) {
-  await Promise.all(
+  const results = await Promise.allSettled(
     layers.map(async (layer) => {
       if (layer.kind !== 'image' || typeof layer.src !== 'string' || cache.has(layer.src)) return;
       cache.set(layer.src, await loadRuntimeImage(layer.src));
     }),
   );
+  const failed = results.find((result) => result.status === 'rejected');
+  if (failed?.status === 'rejected') throw failed.reason;
 }
 
 function cloneProject(project: ArtifactRuntimeProject): ArtifactRuntimeProject {
@@ -534,6 +541,7 @@ export interface PreparedArtifactRuntimeProject {
   readonly orderedLayerIds: readonly string[];
   readonly fontOptions: AnalyzeArtifactRuntimeProjectOptions;
   readonly imageCache: Map<string, HTMLImageElement>;
+  readonly releaseFonts: () => void;
 }
 
 export async function prepareArtifactRuntimeProject(
@@ -545,24 +553,35 @@ export async function prepareArtifactRuntimeProject(
   if (!report.supported) throw new ArtifactRuntimeUnsupportedError(report);
   const orderedLayers = orderLayers(project, report);
   const imageCache = new Map<string, HTMLImageElement>();
-  await resolveImages(orderedLayers, imageCache);
-  const fonts = new Map<string, number>();
-  for (const layer of orderedLayers) {
-    if (layer.kind !== 'text') continue;
-    const family = fontFamilyForLayer(layer, options);
-    if (family) fonts.set(family, Math.max(fonts.get(family) ?? 0, Number(layer.size ?? 64)));
+  const loadedFonts = await loadEmbeddedFonts(project, options);
+  const fontOptions = { ...options, fontFamilies: loadedFonts.fontFamilies };
+  try {
+    await resolveImages(orderedLayers, imageCache);
+    const fonts = new Map<string, number>();
+    for (const layer of orderedLayers) {
+      if (layer.kind !== 'text') continue;
+      const family = fontFamilyForLayer(layer, fontOptions);
+      if (family) fonts.set(family, Math.max(fonts.get(family) ?? 0, Number(layer.size ?? 64)));
+    }
+    await Promise.all([...fonts].map(([family, size]) => ensureFontLoaded(family, size)));
+    return {
+      project,
+      report,
+      orderedLayerIds: orderedLayers.map((layer) => layer.id),
+      fontOptions,
+      imageCache,
+      releaseFonts: loadedFonts.release,
+    };
+  } catch (error) {
+    for (const image of imageCache.values()) image.src = '';
+    imageCache.clear();
+    loadedFonts.release();
+    throw error;
   }
-  await Promise.all([...fonts].map(([family, size]) => ensureFontLoaded(family, size)));
-  return {
-    project,
-    report,
-    orderedLayerIds: orderedLayers.map((layer) => layer.id),
-    fontOptions: { ...options },
-    imageCache,
-  };
 }
 
 export function releasePreparedArtifactRuntimeProject(prepared: PreparedArtifactRuntimeProject) {
+  prepared.releaseFonts();
   for (const image of prepared.imageCache.values()) {
     try {
       image.src = '';

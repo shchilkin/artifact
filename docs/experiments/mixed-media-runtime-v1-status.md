@@ -1,12 +1,78 @@
 # Mixed Media Runtime v1 implementation status
 
 Status: implemented and locally verified on `experiment/artifact-motion-lab`.
-The runtime proof is ready for owner choreography review; exact Viber typography
-remains blocked on an owner-supplied, redistribution-cleared local font mapping.
+The September standalone embed follow-up loads the owner-supplied embedded font
+locally. Choreography acceptance and asset redistribution rights remain owner
+review gates; font availability is no longer a local integration blocker.
 
 This record reports implementation against the accepted
 [`mixed-media-runtime-v1.md`](./mixed-media-runtime-v1.md) contract. It does not
 change that contract or claim portfolio migration readiness.
+
+## Standalone website follow-up — 2026-09-08
+
+The earlier packed smoke proved factory imports, not an actual website render.
+`examples/viber-embed` now closes that gap: a separate temporary npm consumer
+installs the packed runtime, builds a plain HTML/JavaScript host and renders the
+real Viber Composition in Chrome without workspace-source imports. Reproduction
+commands and integration boundaries are in its README.
+
+The newly supplied `viber.artifact` retains the same fifteen layers and adds
+embedded font bytes. Its SHA-256 is
+`ae7527970dc0bdeef41b7d467a68876d93993e2a1b73d8df62682beea62882ff`.
+Runtime preparation now decodes those bytes into session-local FontFaces;
+explicit host mappings still take precedence. Missing payloads remain
+unresolved, corrupt bytes fail initialization, and destroy/failure cleanup
+removes owned fonts. No font bytes or private Composition are committed or
+included in the npm package.
+
+The standalone recipe selects five tracks on four layers: phone sway/tilt,
+emoji drift, grain and glitch. Its SHA-256 is
+`0a9c4bef1ce6b1236b606162a5490e6234099beb6af52e256ccc272c2d30ebdf`.
+The full conformance recipe and existing raster prototype are unchanged.
+This is time-based motion with transport controls, not pointer-driven layers.
+
+The host retains a static PNG while loading or on failure; dynamically loads
+the runtime on opening; pauses when hidden; exposes pause and neutral-frame
+controls; and releases its session on closing. Reduced motion retains the
+poster without loading the runtime, Composition or recipe. The preparation
+script renders that poster through the package with the embedded font. Exact
+poster/neutral pixel equality therefore proves transition continuity, not an
+independent comparison against an editor export.
+
+Browser evidence, tarball SHA, input hashes and isolated install lockfile are
+recorded in the generated local directory. The package remains unpublished
+`0.3.0-alpha.0`; the tarball SHA distinguishes this build from the original
+experiment. No portfolio files, deployment, merge or package publication are
+part of this follow-up. Public hosting remains gated on asset/font rights;
+the local technical proof does not confer redistribution permission.
+
+Validated follow-up build:
+
+- Runtime tarball SHA-256:
+  `a1f46ce92d09da17f13eb74da395c317659cc89e7b0abd8517efd95d8f56dee5`.
+- Runtime unit tests: 7 files, 40 tests passed. Web unit/render tests: 84 files,
+  677 tests passed. Runtime/web typechecks, format check and full web/backoffice
+  production build passed. Lint has no errors and retains 11 existing
+  react-refresh warnings in `docs.nodes.tsx`.
+- Packed Chrome verification passed eight groups: lazy initial load; embedded
+  font plus exact neutral/poster equality, animation and pause; ten clean
+  reopen cycles; no console errors or workspace imports; mobile reduced motion;
+  asset failure fallback; corrupt font fallback; close-during-load/reopen and
+  live reduced-motion cleanup.
+- Desktop and 390px mobile screenshots were inspected. CLI-driven Chrome also
+  opened the page and its artwork dialog without browser errors.
+- Local output directory:
+  `/var/folders/v9/vx4pp4v55fng41gsp3g7bn1w0000gn/T/artifact-viber-embed-h3bXNh`.
+  `verification.json` records browser identity, hashes and completed checks.
+- Local preview: `http://127.0.0.1:4184/`. A session-only macOS launchd job
+  `dev.artifact.viber-embed` keeps this server independent of the agent terminal.
+  It does not start after logout/reboot. Stop it with
+  `launchctl bootout gui/$(id -u)/dev.artifact.viber-embed`; restart later using
+  `serve:runtime-embed` or regenerate the temporary output if it was cleaned.
+
+The sections below preserve the original conformance record and its original
+metadata-only fixture/font blocker as historical evidence.
 
 ## Implemented slice
 
