@@ -2,6 +2,7 @@ import { Container, Filter, Renderer, RenderTexture, Sprite, Texture } from 'pix
 
 export interface ArtifactGpuEffectLayer {
   noiseWarp?: number;
+  runtimeNoiseWarpPhase?: number;
   tearAmt?: number;
   tearSize?: number;
   vortex?: number;
@@ -33,6 +34,7 @@ uniform vec4 inputClamp;
 const NOISE_WARP_FRAGMENT = `${HEADER}
 uniform float uIntensity;
 uniform float uSeed;
+uniform float uPhase;
 
 float h21(vec2 p) {
   p = fract(p * vec2(234.34, 435.345));
@@ -54,10 +56,11 @@ float smooth21(vec2 p) {
 void main() {
   ${NORM_UV}
   vec2 seed2 = vec2(uSeed * 0.001, uSeed * 0.0007);
-  float ox = smooth21(norm * 4.0 + seed2)         - 0.5;
-  float oy = smooth21(norm * 4.0 + seed2 + 100.0) - 0.5;
-  ox += (smooth21(norm * 9.0 + seed2 * 2.0) - 0.5) * 0.4;
-  oy += (smooth21(norm * 9.0 + seed2 * 2.0 + 50.0) - 0.5) * 0.4;
+  vec2 drift = vec2(uPhase, uPhase * 0.63);
+  float ox = smooth21(norm * 4.0 + seed2 + drift)         - 0.5;
+  float oy = smooth21(norm * 4.0 + seed2 + 100.0 + drift) - 0.5;
+  ox += (smooth21(norm * 9.0 + seed2 * 2.0 + drift) - 0.5) * 0.4;
+  oy += (smooth21(norm * 9.0 + seed2 * 2.0 + 50.0 + drift) - 0.5) * 0.4;
   vec2 warped = clamp(norm + vec2(ox, oy) * uIntensity, 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
@@ -99,8 +102,8 @@ function createFilter(fragment: string, uniforms: Record<string, unknown>) {
   return filter;
 }
 
-export function createNoiseWarpFilter(amount: number, seed: number) {
-  return createFilter(NOISE_WARP_FRAGMENT, { uIntensity: amount * 0.0008, uSeed: seed });
+export function createNoiseWarpFilter(amount: number, seed: number, phase = 0) {
+  return createFilter(NOISE_WARP_FRAGMENT, { uIntensity: amount * 0.0008, uSeed: seed, uPhase: phase });
 }
 
 export function createVortexFilter(amount: number) {
@@ -117,7 +120,8 @@ export function createTearFilter(amount: number, size: number, seed: number) {
 
 export function buildArtifactGpuEffectFilters(layer: ArtifactGpuEffectLayer, seed: number): Filter[] {
   const filters: Filter[] = [];
-  if (Number(layer.noiseWarp ?? 0) > 0) filters.push(createNoiseWarpFilter(Number(layer.noiseWarp), seed));
+  if (Number(layer.noiseWarp ?? 0) > 0)
+    filters.push(createNoiseWarpFilter(Number(layer.noiseWarp), seed, layer.runtimeNoiseWarpPhase));
   if (Number(layer.vortex ?? 0) > 0) filters.push(createVortexFilter(Number(layer.vortex)));
   if (Number(layer.tearAmt ?? 0) > 0) {
     filters.push(createTearFilter(Number(layer.tearAmt), Number(layer.tearSize ?? 3), seed));

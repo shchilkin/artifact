@@ -43,6 +43,7 @@
     "verify:runtime-viber": "node scripts/verify-runtime-viber.mjs",
     "prepare:runtime-embed": "node scripts/prepare-runtime-embed.mjs",
     "verify:runtime-embed": "node scripts/verify-runtime-embed.mjs",
+    "verify:runtime-signal": "node scripts/verify-runtime-signal.mjs",
     "serve:runtime-embed": "node scripts/runtime-embed-server.mjs",
     "verify:runtime-packed-consumer": "npm run build:runtime && node scripts/verify-runtime-packed-consumer.mjs",
     "turbo:build": "turbo run build --filter=@artifact/shared --filter=@artifact/api --filter=@artifact/web",

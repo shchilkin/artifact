@@ -65,6 +65,61 @@ function recipe(): MixedMediaMotionRecipe {
 }
 
 describe('mixed-media-2d@1 motion recipe', () => {
+  it('supports neutral, deterministic effect phases without changing authored strength or seed', () => {
+    const composition = project();
+    composition.document.layers.push(
+      { id: 'warp', kind: 'effect', preset: 'noiseWarp', noiseWarp: 100, seedOffset: 12 },
+      { id: 'glitch', kind: 'effect', preset: 'glitch', glitch: 24, seedOffset: 8 },
+    );
+    const value = recipe();
+    value.tracks = [
+      {
+        ...value.tracks[0],
+        id: 'grain-phase',
+        target: { layerId: 'grain', layerKind: 'effect' },
+        control: 'effect.grain.phase',
+        range: { min: -8, max: 8 },
+        stepFps: 12,
+      },
+      {
+        ...value.tracks[0],
+        id: 'warp-phase',
+        target: { layerId: 'warp', layerKind: 'effect' },
+        control: 'effect.noiseWarp.phase',
+        range: { min: -0.5, max: 0.5 },
+      },
+      {
+        ...value.tracks[0],
+        id: 'glitch-phase',
+        target: { layerId: 'glitch', layerKind: 'effect' },
+        control: 'effect.glitch.phase',
+        range: { min: -2, max: 2 },
+      },
+    ];
+    expect(analyzeMixedMediaMotionRecipe(composition, value).compatible).toBe(true);
+    const neutral = evaluateMixedMediaMotion(value, 0);
+    expect([...neutral.values()].flatMap(Object.values)).toEqual([0, 0, 0]);
+    expect(evaluateMixedMediaMotion(value, 4)).toEqual(neutral);
+    const before = JSON.stringify(composition);
+    const animated = applyEvaluatedMotion(composition.document.layers, evaluateMixedMediaMotion(value, 1));
+    expect(animated.find((layer) => layer.id === 'grain')).toMatchObject({ grain: 40, runtimeGrainPhase: 8 });
+    expect(animated.find((layer) => layer.id === 'warp')).toMatchObject({
+      noiseWarp: 100,
+      seedOffset: 12,
+      runtimeNoiseWarpPhase: 0.5,
+    });
+    expect(animated.find((layer) => layer.id === 'glitch')).toMatchObject({
+      glitch: 24,
+      seedOffset: 8,
+      runtimeGlitchPhase: 2,
+    });
+    expect(JSON.stringify(composition)).toBe(before);
+    value.tracks[1].target.layerId = 'grain';
+    expect(
+      analyzeMixedMediaMotionRecipe(composition, value).issues.some((issue) => issue.code === 'unsupported-control'),
+    ).toBe(true);
+  });
+
   it('parses sidecars through the same canonical envelope validation used by compatibility analysis', () => {
     expect(parseMixedMediaMotionRecipe(recipe())).toEqual(recipe());
     expect(() => parseMixedMediaMotionRecipe({ ...recipe(), tracks: [{ id: 'broken' }] })).toThrow(

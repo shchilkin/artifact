@@ -2,6 +2,11 @@
 
 ## Running tests
 
+`npm run verify:runtime-signal -- /prepared/output /optional/previous/viber.png`
+checks isolated procedural phase motion, deterministic seek/loops, opaque
+foreground preservation, the previous neutral frame, mode switching and cadence.
+See `docs/experiments/effect-phase-v1.md` for the exact assertions and tolerances.
+
 `npm run prepare:runtime-embed -- /absolute/path/to/viber.artifact` builds a
 temporary independent consumer using a real installation of the packed runtime.
 `npm run verify:runtime-embed -- /printed/output/directory` verifies the

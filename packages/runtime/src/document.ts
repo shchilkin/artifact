@@ -128,6 +128,9 @@ type RuntimeLayer = Record<string, unknown> & {
   rotation?: number;
   runtimeEmojiDrift?: number;
   runtimeEmojiPhase?: number;
+  runtimeGrainPhase?: number;
+  runtimeGlitchPhase?: number;
+  runtimeNoiseWarpPhase?: number;
   scaleX?: number;
   scaleY?: number;
   scanlines?: number;
@@ -443,15 +446,16 @@ async function applyEffect(
   layer: RuntimeLayer,
   seed: number,
   scale: number,
+  chromaticSampling: Map<string, Uint32Array>,
 ) {
   const effectSeed = seed + Number(layer.seedOffset ?? 0);
-  applyGlitchEffect(context, width, height, layer, scale, lcg(effectSeed ^ 0x1a2b3c));
+  applyGlitchEffect(context, width, height, layer, scale, lcg(effectSeed ^ 0x1a2b3c, layer.runtimeGlitchPhase));
   applyScanlines(context, width, height, layer, scale);
   applyGrain(context, width, height, layer, effectSeed);
   const ca = Number(layer.ca ?? 0);
   if (ca > 0) {
     const imageData = context.getImageData(0, 0, width, height);
-    applyChromaticAberration(imageData.data, width, height, Math.round(ca * scale));
+    applyChromaticAberration(imageData.data, width, height, Math.round(ca * scale), chromaticSampling);
     context.putImageData(imageData, 0, 0);
   }
   if (![layer.noiseWarp, layer.vortex, layer.tearAmt].some((value) => typeof value === 'number' && value > 0)) {
@@ -464,6 +468,7 @@ async function applyEffect(
 }
 
 interface RuntimeLayerRenderContext {
+  chromaticSampling: Map<string, Uint32Array>;
   canvas: HTMLCanvasElement;
   context: CanvasRenderingContext2D;
   fontOptions: AnalyzeArtifactRuntimeProjectOptions;
@@ -496,14 +501,23 @@ const RUNTIME_LAYER_RENDERERS: Readonly<Record<string, RuntimeLayerRenderer>> = 
     if (!family) throw new ArtifactRuntimeUnsupportedError(render.report);
     drawTextLayer(context, width, height, layer, scale, family);
   },
-  effect(layer, { canvas, context, height, scale, seed, width }) {
-    return applyEffect(canvas, context, width, height, layer, seed, scale);
+  effect(layer, { canvas, context, height, scale, seed, width, chromaticSampling }) {
+    return applyEffect(canvas, context, width, height, layer, seed, scale, chromaticSampling);
   },
 };
 
 async function renderRuntimeLayer(layer: RuntimeLayer, render: RuntimeLayerRenderContext) {
   const renderer = layer.visible === false ? undefined : RUNTIME_LAYER_RENDERERS[layer.kind];
   return (await renderer?.(layer, render)) ?? render.canvas;
+}
+
+function isGpuOnlyEffect(layer: RuntimeLayer) {
+  return (
+    layer.visible !== false &&
+    layer.kind === 'effect' &&
+    ['noiseWarp', 'vortex', 'tear'].includes(layer.preset ?? '') &&
+    [layer.glitch, layer.grain, layer.scanlines, layer.ca].every((amount) => !amount || amount <= 0)
+  );
 }
 
 function positiveDimension(value: number) {
@@ -536,6 +550,7 @@ function orderLayers(project: ArtifactRuntimeProject, report: ArtifactRuntimeCap
 }
 
 export interface PreparedArtifactRuntimeProject {
+  readonly chromaticSampling: Map<string, Uint32Array>;
   readonly project: ArtifactRuntimeProject;
   readonly report: ArtifactRuntimeCapabilityReport;
   readonly orderedLayerIds: readonly string[];
@@ -565,6 +580,7 @@ export async function prepareArtifactRuntimeProject(
     }
     await Promise.all([...fonts].map(([family, size]) => ensureFontLoaded(family, size)));
     return {
+      chromaticSampling: new Map(),
       project,
       report,
       orderedLayerIds: orderedLayers.map((layer) => layer.id),
@@ -581,6 +597,7 @@ export async function prepareArtifactRuntimeProject(
 }
 
 export function releasePreparedArtifactRuntimeProject(prepared: PreparedArtifactRuntimeProject) {
+  prepared.chromaticSampling.clear();
   prepared.releaseFonts();
   for (const image of prepared.imageCache.values()) {
     try {
@@ -653,19 +670,49 @@ export async function renderPreparedArtifactRuntimeProject(
 
   for (let index = startLayerIndex; index < orderedLayers.length; index += 1) {
     const layer = orderedLayers[index];
-    const layerContext = renderCanvas.getContext('2d', { willReadFrequently: true });
-    if (!layerContext) throw new Error('Artifact Runtime could not create a 2D context.');
-    renderCanvas = await renderRuntimeLayer(layer, {
-      canvas: renderCanvas,
-      context: layerContext,
-      fontOptions: prepared.fontOptions,
-      height,
-      imageCache: prepared.imageCache,
-      report: prepared.report,
-      scale,
-      seed: prepared.project.document.global.seed,
-      width,
-    });
+    // Keep consecutive GPU-only effects on the GPU between passes. Do not
+    // cross the prefix-cache boundary or any CPU/compositing layer.
+    let batchEnd = index;
+    if (isGpuOnlyEffect(layer)) {
+      while (
+        batchEnd !== cacheThroughIndex &&
+        batchEnd + 1 < orderedLayers.length &&
+        isGpuOnlyEffect(orderedLayers[batchEnd + 1])
+      )
+        batchEnd++;
+    }
+    if (batchEnd > index) {
+      const { buildArtifactGpuEffectFilters, gpuRenderToCanvas } = await import('./gpu.js');
+      const filters = orderedLayers
+        .slice(index, batchEnd + 1)
+        .flatMap((effect) =>
+          buildArtifactGpuEffectFilters(effect, prepared.project.document.global.seed + Number(effect.seedOffset ?? 0)),
+        );
+      if (filters.length)
+        renderCanvas = await gpuRenderToCanvas({
+          filters,
+          width,
+          height,
+          source: renderCanvas,
+          onUnavailable: 'throw',
+        });
+      index = batchEnd;
+    } else {
+      const layerContext = renderCanvas.getContext('2d', { willReadFrequently: true });
+      if (!layerContext) throw new Error('Artifact Runtime could not create a 2D context.');
+      renderCanvas = await renderRuntimeLayer(layer, {
+        chromaticSampling: prepared.chromaticSampling,
+        canvas: renderCanvas,
+        context: layerContext,
+        fontOptions: prepared.fontOptions,
+        height,
+        imageCache: prepared.imageCache,
+        report: prepared.report,
+        scale,
+        seed: prepared.project.document.global.seed,
+        width,
+      });
+    }
     if (cacheKey && options.prefixCache && index === cacheThroughIndex) {
       const cached = createRenderCanvas(options.canvas, width, height);
       const cachedContext = cached.getContext('2d');

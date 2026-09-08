@@ -52,7 +52,24 @@ recipe.compositionSha256 = createHash('sha256').update(composition).digest('hex'
 const tracks = new Set(['portrait-sway-x', 'portrait-tilt', 'emoji-drift', 'grain-breathe', 'glitch-impulses']);
 recipe.tracks = recipe.tracks.filter((track) => tracks.has(track.id));
 const recipeText = `${JSON.stringify(recipe, null, 2)}\n`;
-await writeFile(join(output, 'public/viber.motion.json'), recipeText);
+await writeFile(join(output, 'public/viber-classic.motion.json'), recipeText);
+const signal = JSON.parse(
+  await readFile(join(repository, 'docs/experiments/fixtures/viber-signal.motion.json'), 'utf8'),
+);
+signal.compositionSha256 = recipe.compositionSha256;
+const variants = {
+  combined: signal.tracks,
+  flow: signal.tracks.filter((track) => track.id === 'signal-flow'),
+  grain: signal.tracks.filter((track) => track.id === 'signal-grain'),
+  glitch: signal.tracks.filter((track) => track.id.startsWith('signal-glitch-')),
+};
+const recipeHashes = {};
+for (const [name, variantTracks] of Object.entries(variants)) {
+  const serialized = `${JSON.stringify({ ...signal, tracks: variantTracks }, null, 2)}\n`;
+  const filename = name === 'combined' ? 'viber.motion.json' : `viber-${name}.motion.json`;
+  await writeFile(join(output, 'public', filename), serialized);
+  recipeHashes[name] = createHash('sha256').update(serialized).digest('hex');
+}
 run('npm', ['run', 'build'], output);
 const { server, url } = await serveEmbed(join(output, 'dist'));
 let browser;
@@ -80,9 +97,11 @@ const report = {
     .update(await readFile(join(output, pack.filename)))
     .digest('hex'),
   compositionSha256: recipe.compositionSha256,
-  recipeSha256: createHash('sha256').update(recipeText).digest('hex'),
-  animatedLayers: new Set(recipe.tracks.map((track) => track.target.layerId)).size,
-  tracks: recipe.tracks.length,
+  recipeSha256: recipeHashes.combined,
+  recipeHashes,
+  classicRecipeSha256: createHash('sha256').update(recipeText).digest('hex'),
+  animatedLayers: new Set(signal.tracks.map((track) => track.target.layerId)).size,
+  tracks: signal.tracks.length,
 };
 await writeFile(join(output, 'evidence.json'), `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));

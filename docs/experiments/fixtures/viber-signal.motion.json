@@ -1,0 +1,71 @@
+{
+  "kind": "artifact-motion-recipe",
+  "schemaVersion": 1,
+  "profile": "mixed-media-2d@1",
+  "compositionSha256": "ae7527970dc0bdeef41b7d467a68876d93993e2a1b73d8df62682beea62882ff",
+  "timeline": { "durationSeconds": 8, "mode": "loop" },
+  "tracks": [
+    {
+      "id": "signal-flow",
+      "target": { "layerId": "layer-1780509791460-474", "layerKind": "effect" },
+      "control": "effect.noiseWarp.phase",
+      "source": { "type": "oscillator", "frequencyHz": 0.125 },
+      "range": { "min": -0.75, "max": 0.75 }
+    },
+    {
+      "id": "signal-grain",
+      "target": { "layerId": "layer-1780509546581-404", "layerKind": "effect" },
+      "control": "effect.grain.phase",
+      "source": {
+        "type": "keyframes",
+        "keyframes": [{ "offset": 0, "value": 0 }, { "offset": 0.5, "value": 1 }, { "offset": 1, "value": 0 }]
+      },
+      "range": { "min": -48, "max": 48 },
+      "stepFps": 12
+    },
+    {
+      "id": "signal-glitch-pattern",
+      "target": { "layerId": "layer-1780509662261-414", "layerKind": "effect" },
+      "control": "effect.glitch.phase",
+      "source": {
+        "type": "keyframes",
+        "keyframes": [
+          { "offset": 0, "value": 0 },
+          { "offset": 0.18, "value": 0 },
+          { "offset": 0.19, "value": 1 },
+          { "offset": 0.215, "value": 1 },
+          { "offset": 0.23, "value": 0 },
+          { "offset": 0.63, "value": 0 },
+          { "offset": 0.65, "value": -1 },
+          { "offset": 0.68, "value": -1 },
+          { "offset": 0.7, "value": 0 },
+          { "offset": 1, "value": 0 }
+        ]
+      },
+      "range": { "min": -2, "max": 2 },
+      "stepFps": 12
+    },
+    {
+      "id": "signal-glitch-impulse",
+      "target": { "layerId": "layer-1780509662261-414", "layerKind": "effect" },
+      "control": "effect.glitch.intensity",
+      "source": {
+        "type": "keyframes",
+        "keyframes": [
+          { "offset": 0, "value": 0 },
+          { "offset": 0.18, "value": 0 },
+          { "offset": 0.19, "value": 1 },
+          { "offset": 0.215, "value": 1 },
+          { "offset": 0.23, "value": 0 },
+          { "offset": 0.63, "value": 0 },
+          { "offset": 0.65, "value": 0.7 },
+          { "offset": 0.68, "value": 0.7 },
+          { "offset": 0.7, "value": 0 },
+          { "offset": 1, "value": 0 }
+        ]
+      },
+      "range": { "min": 0.35, "max": 1.65 },
+      "stepFps": 12
+    }
+  ]
+}

@@ -29,9 +29,15 @@ describe('Artifact GPU effects', () => {
       expect.stringContaining('float chunkId'),
     ]);
     expect(filters.map(({ uniforms }) => uniforms)).toEqual([
-      { uIntensity: 0.08, uSeed: 4242 },
+      { uIntensity: 0.08, uSeed: 4242, uPhase: 0 },
       { uIntensity: 0.6 },
       { uIntensity: 0.028, uChunkH: 0.004, uSeed: 4242 },
     ]);
+  });
+  it('moves the Noise Warp field without changing its authored seed or strength', async () => {
+    filters.length = 0;
+    const { buildArtifactGpuEffectFilters } = await import('./gpu.js');
+    buildArtifactGpuEffectFilters({ noiseWarp: 100, runtimeNoiseWarpPhase: 0.4 }, 4242);
+    expect(filters[0].uniforms).toEqual({ uIntensity: 0.08, uSeed: 4242, uPhase: 0.4 });
   });
 });

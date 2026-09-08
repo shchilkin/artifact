@@ -28,10 +28,16 @@ const EFFECT_CONTROL_DESCRIPTORS = [
   { control: 'effect.tear.intensity', preset: 'tear', property: 'tearAmt' },
   { control: 'effect.vortex.intensity', preset: 'vortex', property: 'vortex' },
 ] as const satisfies ReadonlyArray<{ control: MixedMediaMotionControl; preset: string; property: string }>;
+const EFFECT_PHASE_DESCRIPTORS = [
+  { control: 'effect.grain.phase', preset: 'grain', property: 'runtimeGrainPhase' },
+  { control: 'effect.glitch.phase', preset: 'glitch', property: 'runtimeGlitchPhase' },
+  { control: 'effect.noiseWarp.phase', preset: 'noiseWarp', property: 'runtimeNoiseWarpPhase' },
+] as const satisfies ReadonlyArray<{ control: MixedMediaMotionControl; preset: string; property: string }>;
 const MOTION_CONTROLS = new Set<MixedMediaMotionControl>([
   ...TRANSFORM_CONTROLS,
   ...EMOJI_CONTROLS,
   ...EFFECT_CONTROL_DESCRIPTORS.map(({ control }) => control),
+  ...EFFECT_PHASE_DESCRIPTORS.map(({ control }) => control),
 ]);
 
 type RuntimeLayer = Record<string, unknown> & { id: string; kind: string; preset?: string };
@@ -49,15 +55,16 @@ function finite(value: unknown): value is number {
 }
 
 function neutralValue(control: MixedMediaMotionControl): number {
-  return control === 'transform.scale' || control === 'transform.opacity' || control.startsWith('effect.') ? 1 : 0;
+  return control === 'transform.scale' || control === 'transform.opacity' || control.endsWith('.intensity') ? 1 : 0;
 }
 
 export function supportedMotionControlsForLayer(layer: Record<string, unknown>): MixedMediaMotionControl[] {
   if (layer.kind === 'image') return [...TRANSFORM_CONTROLS];
   if (layer.kind === 'emoji') return [...EMOJI_CONTROLS];
   if (layer.kind === 'effect' && typeof layer.preset === 'string') {
-    const descriptor = EFFECT_CONTROL_DESCRIPTORS.find(({ preset }) => preset === layer.preset);
-    return descriptor ? [descriptor.control] : [];
+    return [...EFFECT_CONTROL_DESCRIPTORS, ...EFFECT_PHASE_DESCRIPTORS]
+      .filter(({ preset }) => preset === layer.preset)
+      .map(({ control }) => control);
   }
   return [];
 }
@@ -361,6 +368,10 @@ function applyControls(layer: RuntimeLayer, controls: Partial<Record<MixedMediaM
   for (const { control, property } of EFFECT_CONTROL_DESCRIPTORS) {
     const multiplier = controls[control];
     if (multiplier !== undefined) result[property] = number(layer[property], 0) * multiplier;
+  }
+  for (const { control, property } of EFFECT_PHASE_DESCRIPTORS) {
+    const phase = controls[control];
+    if (phase !== undefined) result[property] = phase;
   }
   return result;
 }

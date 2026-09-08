@@ -4,6 +4,12 @@ Experimental browser runtime for portable `.artifact` compositions. The
 `mixed-media-2d@1` profile supports a bounded set of 2D layers and linear graphs;
 unsupported compositions fail with a capability report.
 
+The experimental phase extension adds `effect.noiseWarp.phase` (continuous
+noise-domain drift), `effect.grain.phase` and `effect.glitch.phase` (signed,
+integer-stepped local pattern indices). All start at zero and leave authored
+strength/seed unchanged; intensity controls still multiply the authored amount.
+These controls belong in the versioned motion recipe, not DOM event handlers.
+
 ```ts
 import { createMixedMediaArtwork } from '@shchilkin/artifact-runtime';
 

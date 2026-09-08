@@ -11,6 +11,48 @@ change that contract or claim portfolio migration readiness.
 
 ## Standalone website follow-up — 2026-09-08
 
+### Selected effect phase follow-up
+
+The owner subsequently approved trying flowing Noise Warp, evolving Grain and
+authored Glitch events, with the phone and typography held still. The bounded
+control extension and its preserved compatibility rules are documented in
+[`effect-phase-v1.md`](./effect-phase-v1.md). The standalone page now provides
+combined/isolated effect choices and the retained previous embed variant.
+
+Latest local evidence:
+
+- Output directory:
+  `/var/folders/v9/vx4pp4v55fng41gsp3g7bn1w0000gn/T/artifact-viber-embed-IA1HtR`.
+  The session-only server at `http://127.0.0.1:4184/` now serves its `dist/`.
+- Package remains unpublished `0.3.0-alpha.0`; tarball SHA-256:
+  `3a1c3fcf5783aaa6532cf0e53c59ad1a54bc4889de466b38c4d7a1eb487ab58b`.
+- Signal recipe SHA-256:
+  `eea181b97d95ea8cd5b6570970130600f881978800ac66db7e6a186e8d0a197e`.
+  Composition SHA remains unchanged. Three layers, four tracks, eight seconds.
+- At 1.6 seconds: flow changes 66,520 pixels; grain 65,831; glitch 14,486;
+  combined 66,533. All four modes preserve 190,171 opaque foreground-interior
+  pixels exactly. A one-pixel antialias fringe is excluded, as described in the
+  phase proof; the initial raw mask showed at most two one-channel/one-level
+  edge differences from background compositing, not layer movement.
+- Every mode has zero differences for repeated out-of-order seeks, the loop
+  boundary, batched versus separate GPU passes, and the prior build's neutral
+  poster. Grain holds within its authored step; Glitch is neutral between events.
+- Neutral RGBA SHA-256 remains
+  `661308ce7b43745da02c99c13be638986dd7bc171b4f1c14dada61a7c61cbbc5`.
+- Final isolated Chrome warm sample at 512px: 60.07 fps, frame p50 10.7 ms,
+  p95 25.7 ms, zero frames over 100 ms; creation 36.2 ms. An earlier batched
+  sample reached 39.75 fps under different local load. These are local samples,
+  not a cross-device 60 fps guarantee. Unbatched candidates missed 30 fps;
+  batching and bounded chromatic sampling reuse closed that local gate.
+- `verify:runtime-signal` and all eight `verify:runtime-embed` groups passed.
+  Mode selection also passed CLI-driven Chrome verification. Screenshot and
+  detailed per-mode checksums are in `signal-ui.png`, `signal-verification.json`
+  and `verification.json` in the output directory.
+- Runtime suite: 44 tests. No pointer response, editor timeline, portfolio
+  migration, font redistribution, package publication or merge was added.
+
+The initial standalone-embed record below is retained for comparison.
+
 The earlier packed smoke proved factory imports, not an actual website render.
 `examples/viber-embed` now closes that gap: a separate temporary npm consumer
 installs the packed runtime, builds a plain HTML/JavaScript host and renders the

@@ -3,6 +3,7 @@ export interface TextureEffectLayer {
   grain?: number;
   scanlines?: number;
   scanlineWidth?: number;
+  runtimeGrainPhase?: number;
 }
 
 interface DrawableLayer {
@@ -260,8 +261,10 @@ function glitchFillStyle(index: number, opacity: number): string {
   return index % 2 === 0 ? `rgba(0,210,255,${opacity})` : `rgba(255,0,200,${opacity})`;
 }
 
-export function lcg(seed: number) {
-  let state = (seed ^ 0x12345678) >>> 0;
+export function lcg(seed: number, phase = 0) {
+  // Phase is a local pattern index, never a mutation of the Composition seed.
+  // Zero follows the original random stream exactly; fractional indices hold.
+  let state = (seed ^ 0x12345678 ^ Math.imul(Math.trunc(phase), 0x9e3779b1)) >>> 0;
   return () => {
     state = (Math.imul(1664525, state) + 1013904223) >>> 0;
     return state / 0x100000000;
@@ -309,26 +312,43 @@ export function applyGlitchEffect(
   ctx.restore();
 }
 
-export function applyChromaticAberration(data: Uint8ClampedArray, width: number, height: number, amountValue: number) {
+export function applyChromaticAberration(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  amountValue: number,
+  samplingCache?: Map<string, Uint32Array>,
+) {
   if (amountValue <= 0) return;
   const amount = Math.round(amountValue);
   const centerX = width / 2;
   const centerY = height / 2;
   const copy = new Uint8ClampedArray(data);
   const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const index = pixelIndex(width, x, y);
-      const deltaX = (x - centerX) / maxDistance;
-      const deltaY = (y - centerY) / maxDistance;
-      const redX = Math.min(width - 1, Math.max(0, Math.round(x + deltaX * amount)));
-      const redY = Math.min(height - 1, Math.max(0, Math.round(y + deltaY * amount)));
-      const blueX = Math.min(width - 1, Math.max(0, Math.round(x - deltaX * amount)));
-      const blueY = Math.min(height - 1, Math.max(0, Math.round(y - deltaY * amount)));
-      data[index] = copy[pixelIndex(width, redX, redY)];
-      data[index + 2] = copy[pixelIndex(width, blueX, blueY) + 2];
+  const key = `${width}:${height}:${amount}`;
+  let sampling = samplingCache?.get(key);
+  if (!sampling) {
+    sampling = new Uint32Array(width * height * 2);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = pixelIndex(width, x, y);
+        const deltaX = (x - centerX) / maxDistance;
+        const deltaY = (y - centerY) / maxDistance;
+        const redX = Math.min(width - 1, Math.max(0, Math.round(x + deltaX * amount)));
+        const redY = Math.min(height - 1, Math.max(0, Math.round(y + deltaY * amount)));
+        const blueX = Math.min(width - 1, Math.max(0, Math.round(x - deltaX * amount)));
+        const blueY = Math.min(height - 1, Math.max(0, Math.round(y - deltaY * amount)));
+        sampling[index / 2] = pixelIndex(width, redX, redY);
+        sampling[index / 2 + 1] = pixelIndex(width, blueX, blueY) + 2;
+      }
     }
+    // One geometry per prepared artwork, bounded independently of seek history.
+    samplingCache?.clear();
+    samplingCache?.set(key, sampling);
+  }
+  for (let index = 0; index < data.length; index += 4) {
+    data[index] = copy[sampling[index / 2]];
+    data[index + 2] = copy[sampling[index / 2 + 1]];
   }
 }
 
@@ -342,7 +362,7 @@ export function applyGrain(
   const amount = layer.grain ?? 0;
   if (amount <= 0) return;
 
-  const grainRng = lcg(seed * 3331);
+  const grainRng = lcg(seed * 3331, layer.runtimeGrainPhase);
   const offscreen = document.createElement('canvas');
   offscreen.width = width;
   offscreen.height = height;

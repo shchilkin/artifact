@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { drawEmojiLayer, lcg } from './rendering.js';
+import { applyChromaticAberration, drawEmojiLayer, lcg } from './rendering.js';
 
 interface CapturedEmoji {
   alpha: number;
@@ -82,4 +82,34 @@ describe('deterministic emoji choreography', () => {
       ),
     ).toBe(true);
   });
+});
+
+describe('stepped effect pattern phases', () => {
+  const sample = (phase?: number) => {
+    const rng = lcg(42, phase);
+    return Array.from({ length: 4 }, () => rng());
+  };
+  it('preserves the original seeded pattern at neutral and holds within a phase step', () => {
+    expect(sample(0)).toEqual(sample());
+    expect(sample(2.2)).toEqual(sample(2.9));
+    expect(sample(2)).not.toEqual(sample(3));
+    expect(sample(-2)).not.toEqual(sample(2));
+    expect(sample(0)).toEqual(sample());
+  });
+});
+
+it('reuses chromatic sampling geometry without reusing the previous frame pixels', () => {
+  const cache = new Map<string, Uint32Array>();
+  for (const [width, height, amount, offset] of [
+    [8, 6, 2, 0],
+    [8, 6, 2, 33],
+    [6, 8, 3, 19],
+  ]) {
+    const input = Uint8ClampedArray.from({ length: width * height * 4 }, (_, i) => (i * 17 + offset) % 256);
+    const fresh = input.slice();
+    const cached = input.slice();
+    applyChromaticAberration(fresh, width, height, amount);
+    applyChromaticAberration(cached, width, height, amount, cache);
+    expect(cached).toEqual(fresh);
+  }
 });

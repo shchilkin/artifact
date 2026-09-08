@@ -1,5 +1,15 @@
 # Rendering Architecture
 
+The experimental effect-phase extension is documented in
+[`effect-phase-v1.md`](experiments/effect-phase-v1.md). Its transient Noise Warp,
+Grain and Glitch controls default to neutral zero; canonical editor documents
+gain no new durable fields. Prepared runtime sessions cache one chromatic
+sampling map by size/displacement and release it on destroy; this reuses
+geometry only and never retains previous-frame source pixels.
+Consecutive GPU-only runtime effects share ordered filter passes with one
+upload/readback, stopping at CPU layers and prefix-cache boundaries. The
+signal browser check also renders an unbatched reference for parity.
+
 The external `@shchilkin/artifact-runtime` session also resolves portable
 `document.fontAssets` for `artifact-font://` text references. Embedded fonts use
 session-local `FontFace` names and are released with the prepared document;

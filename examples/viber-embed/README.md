@@ -14,14 +14,16 @@ npm run prepare:runtime-embed -- /absolute/path/to/viber.artifact
 
 The command prints a new temporary output directory. It builds and packs the
 runtime, runs a real `npm install` in that directory, copies these example files,
-and copies the specified Composition there. It derives the five-track embed
-recipe from the retained conformance recipe and updates its provenance hash.
+and copies the specified Composition there. It prepares the three-effect signal
+recipe, its isolated effect variants and the retained five-track embed recipe,
+updating their provenance hashes.
 An isolated Chrome page renders a 512px PNG poster using the embedded font.
 Chrome must be installed; `ARTIFACT_BROWSER_CHANNEL` may select another
 installed Playwright Chromium channel.
 
 ```sh
 npm run verify:runtime-embed -- /absolute/output/directory
+npm run verify:runtime-signal -- /absolute/output/directory /optional/previous/viber.png
 npm run serve:runtime-embed -- /absolute/output/directory/dist 4184
 ```
 
@@ -67,7 +69,11 @@ need not be shipped as visitor-facing routes. The pixel comparison checks
 poster-to-runtime continuity, not parity against a separately captured editor
 export.
 
-The authored embed loop animates only four of the fifteen layers: the phone
-(sway and tilt), emoji drift, grain and glitch. Other procedural effects remain
-at their authored amounts; text and the advisory label stay fixed. This example
-provides time-based animation with play/pause, not pointer-driven layer input.
+The default signal loop animates only three background effects: Noise Warp
+field flow, stepped Grain evolution and two Glitch events. Phone placement,
+emoji placement, text and the advisory label stay fixed. The motion selector
+also offers each effect separately and the previous phone/emoji/grain/glitch
+variant. Switching destroys the previous session and starts the selected recipe
+at its neutral frame. This example provides time-based animation with play/pause,
+not pointer-driven layer input. Control semantics and scope are documented in
+`docs/experiments/effect-phase-v1.md` in the source repository.
