@@ -6,6 +6,8 @@ import { serveEmbed } from './runtime-embed-server.mjs';
 
 const root = resolve(process.argv[2]);
 const evidence = JSON.parse(await readFile(join(root, 'evidence.json'), 'utf8'));
+const outlined = evidence.textMode === 'svg-outlines';
+const expectedFontCount = outlined ? 0 : 1;
 const manifest = JSON.parse(await readFile(join(root, 'dist/.vite/manifest.json'), 'utf8'));
 const runtimeBundle = Object.entries(manifest).find(([name]) => name.endsWith('artifact-runtime/dist/index.js'))?.[1]
   ?.file;
@@ -46,7 +48,7 @@ try {
   await page.getByRole('button', { name: openName }).click();
   await page.locator('#artwork[data-state="ready"]').waitFor();
   assert.equal(requests.includes(`${url}/${runtimeBundle}`), true);
-  assert.equal(await page.evaluate(fontCount), 1);
+  assert.equal(await page.evaluate(fontCount), expectedFontCount);
   assert.equal(await page.locator('#artwork canvas').isVisible(), true);
   await page.getByRole('button', { name: 'Исходный кадр' }).click();
   // Wait for the async seek to commit by comparing against the generated poster.
@@ -78,7 +80,7 @@ try {
   await page.waitForTimeout(250);
   assert.equal(await page.evaluate(pixelHash), paused);
   results.push(
-    'Embedded font loads; neutral exactly matches poster; selected-layer motion changes pixels; pause holds',
+    `${outlined ? 'Font-free outlines render' : 'Embedded font loads'}; neutral exactly matches poster; selected-layer motion changes pixels; pause holds`,
   );
   await page.screenshot({ path: join(root, 'desktop.png') });
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
@@ -86,9 +88,10 @@ try {
   for (let i = 0; i < 10; i++) {
     await page.getByRole('button', { name: openName }).click();
     await page.locator('#artwork[data-state="ready"]').waitFor();
-    assert.equal(await page.evaluate(fontCount), 1);
+    assert.equal(await page.evaluate(fontCount), expectedFontCount);
     await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await page.waitForFunction(() => [...document.fonts].every((face) => !face.family.startsWith('ArtifactEmbedded')));
+    await page.waitForFunction(() => document.querySelectorAll('canvas').length === 0);
     assert.equal(await page.locator('canvas').count(), 0);
   }
   results.push('Ten open/play/close cycles release the font and canvas');
@@ -130,18 +133,38 @@ try {
   assert.equal(await failurePage.evaluate(fontCount), 0);
   results.push('Asset failure preserves the static image');
   await failure.close();
-  const invalidFont = await browser.newContext();
-  const invalidFontPage = await invalidFont.newPage();
-  const brokenComposition = JSON.parse(await readFile(join(root, 'dist/viber.artifact'), 'utf8'));
-  brokenComposition.document.fontAssets[0].dataUrl = 'data:font/ttf;base64,AAAA';
-  await invalidFontPage.route('**/viber.artifact', (route) => route.fulfill({ json: brokenComposition }));
-  await invalidFontPage.goto(url);
-  await invalidFontPage.getByRole('button', { name: openName }).click();
-  await invalidFontPage.getByRole('status').filter({ hasText: 'Не удалось' }).waitFor();
-  assert.equal(await invalidFontPage.locator('#artwork img').isVisible(), true);
-  assert.equal(await invalidFontPage.evaluate(fontCount), 0);
-  results.push('Corrupt embedded font fails explicitly without replacing the poster or leaking fonts');
-  await invalidFont.close();
+  if (outlined) {
+    const composition = JSON.parse(await readFile(join(root, 'dist/viber.artifact'), 'utf8'));
+    assert.equal(composition.document.fontAssets, undefined);
+    assert.deepEqual(composition.manifest.fonts, []);
+    assert.equal(
+      composition.document.layers.some((layer) => layer.kind === 'text'),
+      false,
+    );
+    const paths = composition.document.layers.filter((layer) =>
+      composition.outlineConversion.layerIds.includes(layer.id),
+    );
+    assert.equal(paths.length, 4);
+    for (const layer of paths) {
+      const svg = Buffer.from(layer.src.split(',')[1], 'base64').toString();
+      assert.match(svg, /<path\b/);
+      assert.doesNotMatch(svg, /<text\b|@font-face|data:font|font-family/);
+    }
+    results.push('Four separate SVG path layers; no text nodes, embedded font assets or font requirements');
+  } else {
+    const invalidFont = await browser.newContext();
+    const invalidFontPage = await invalidFont.newPage();
+    const brokenComposition = JSON.parse(await readFile(join(root, 'dist/viber.artifact'), 'utf8'));
+    brokenComposition.document.fontAssets[0].dataUrl = 'data:font/ttf;base64,AAAA';
+    await invalidFontPage.route('**/viber.artifact', (route) => route.fulfill({ json: brokenComposition }));
+    await invalidFontPage.goto(url);
+    await invalidFontPage.getByRole('button', { name: openName }).click();
+    await invalidFontPage.getByRole('status').filter({ hasText: 'Не удалось' }).waitFor();
+    assert.equal(await invalidFontPage.locator('#artwork img').isVisible(), true);
+    assert.equal(await invalidFontPage.evaluate(fontCount), 0);
+    results.push('Corrupt embedded font fails explicitly without replacing the poster or leaking fonts');
+    await invalidFont.close();
+  }
 
   const delayed = await browser.newContext();
   const delayedPage = await delayed.newPage();
@@ -160,7 +183,7 @@ try {
   releaseRequest();
   await delayedPage.getByRole('button', { name: openName }).click();
   await delayedPage.locator('#artwork[data-state="ready"]').waitFor();
-  assert.equal(await delayedPage.evaluate(fontCount), 1);
+  assert.equal(await delayedPage.evaluate(fontCount), expectedFontCount);
   await delayedPage.emulateMedia({ reducedMotion: 'reduce' });
   await delayedPage.getByRole('status').filter({ hasText: 'уменьшение движения' }).waitFor();
   await delayedPage.waitForFunction(() =>

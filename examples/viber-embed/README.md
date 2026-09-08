@@ -9,20 +9,38 @@ runtime tarball. Neither the host nor the generated site imports editor source.
 From the Artifact repository:
 
 ```sh
-npm run prepare:runtime-embed -- /absolute/path/to/viber.artifact
+npm run prepare:runtime-embed -- /absolute/path/to/viber.artifact --outline-text
 ```
 
 The command prints a new temporary output directory. It builds and packs the
 runtime, runs a real `npm install` in that directory, copies these example files,
-and copies the specified Composition there. It prepares the three-effect signal
+and creates a web derivative of the specified Composition there. It prepares the three-effect signal
 recipe, its isolated effect variants and the retained five-track embed recipe,
 updating their provenance hashes.
-An isolated Chrome page renders a 512px PNG poster using the embedded font.
+With `--outline-text`, the four Viber text layers become separate SVG path image
+layers with their original IDs and graph connections. Their transforms are baked
+into transparent 540px vector plates; opacity and blend mode stay on each layer.
+The converter reuses the runtime text painter, calibrates the font's baseline in
+Chrome, and exports paths using the existing build-only Skia dependency. It removes
+font payloads and inventory from the web derivative. No original font file is
+copied into `public/` or `dist/`. The source file remains editable and untouched.
+The source and derivative hashes are both recorded in `evidence.json`.
+
+This is an explicit square-cover export, not a general editor conversion command.
+It requires embedded fonts at build time and fails if they cannot be resolved.
+It does not support outlining text motion tracks: recipes must target the
+derivative's layer kinds. Viber's effect/phone/emoji recipes need no such changes.
+Browser font hinting is not preserved by SVG paths, so small stems can look
+slightly thinner; compare the local before/after image before public use.
+
+Omit `--outline-text` to retain the earlier embedded-font consumer proof.
+An isolated Chrome page renders the derivative's 512px PNG poster.
 Chrome must be installed; `ARTIFACT_BROWSER_CHANNEL` may select another
 installed Playwright Chromium channel.
 
 ```sh
 npm run verify:runtime-embed -- /absolute/output/directory
+npm run verify:runtime-outlines -- /absolute/output/directory /absolute/path/to/viber.artifact
 npm run verify:runtime-signal -- /absolute/output/directory /optional/previous/viber.png
 npm run serve:runtime-embed -- /absolute/output/directory/dist 4184
 ```
@@ -32,9 +50,29 @@ output includes the `.tgz`, isolated dependency lockfile, built `dist/`,
 `evidence.json`, and (after verification) browser screenshots and
 `verification.json`.
 
+The optional previous poster in the signal check must be from the same text mode;
+that check requires pixel equality. Use `verify:runtime-outlines` for the
+embedded-text versus outline comparison: it records per-layer bounds and alpha
+coverage at 512, 540 and 1080px, with a two-pixel bounds / 3-of-255 mean-alpha
+regression tolerance. It also blocks `FontFace` construction during outlined
+rendering. This is not a claim of exact raster parity. Its comparison PNG places
+the original on the left and the outlined derivative on the right.
+
+Run the converter's five checks against the private fixture without committing it:
+
+```sh
+ARTIFACT_OUTLINE_FIXTURE=/absolute/path/to/viber.artifact npm run test:runtime-outlines
+```
+
+Without that environment variable the four data/error tests run and the local
+font conformance check is explicitly skipped. Node with TypeScript stripping is
+required by the build-only shared painter import (locally verified on Node 25).
+
 The Composition and embedded font are local inputs, not committed examples or
 package contents. Do not publish this generated directory until the owner has
-confirmed redistribution rights for all included assets. The package stays on
+confirmed rights for all included assets. Outlining removes the font-file delivery
+dependency; it is not itself permission to publish artwork or font-derived shapes.
+The package stays on
 the unpublished `0.3.0-alpha.0` experiment; identify each local build by its
 tarball SHA-256, not by version alone.
 

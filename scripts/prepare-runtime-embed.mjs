@@ -4,6 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
+import { measureOutlineBaselines, outlineRuntimeText } from './outline-runtime-text.mjs';
 import { serveEmbed } from './runtime-embed-server.mjs';
 
 const repository = resolve(import.meta.dirname, '..');
@@ -43,7 +44,19 @@ await writeFile(
 // A real installation in a new directory: no workspace aliases or symlinks.
 run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund'], output);
 await mkdir(join(output, 'public'), { recursive: true });
-const composition = await readFile(resolve(compositionPath));
+const sourceComposition = await readFile(resolve(compositionPath));
+const outlines = process.argv.includes('--outline-text');
+let composition = sourceComposition;
+if (outlines) {
+  const browser = await chromium.launch({ channel: process.env.ARTIFACT_BROWSER_CHANNEL ?? 'chrome' });
+  try {
+    const source = JSON.parse(sourceComposition);
+    const baselines = await measureOutlineBaselines(await browser.newPage(), source);
+    composition = Buffer.from(`${JSON.stringify(outlineRuntimeText(source, baselines), null, 2)}\n`);
+  } finally {
+    await browser.close();
+  }
+}
 await writeFile(join(output, 'public/viber.artifact'), composition);
 const recipe = JSON.parse(await readFile(join(repository, 'docs/experiments/fixtures/viber.motion.json'), 'utf8'));
 recipe.compositionSha256 = createHash('sha256').update(composition).digest('hex');
@@ -97,6 +110,8 @@ const report = {
     .update(await readFile(join(output, pack.filename)))
     .digest('hex'),
   compositionSha256: recipe.compositionSha256,
+  sourceCompositionSha256: createHash('sha256').update(sourceComposition).digest('hex'),
+  textMode: outlines ? 'svg-outlines' : 'embedded-font',
   recipeSha256: recipeHashes.combined,
   recipeHashes,
   classicRecipeSha256: createHash('sha256').update(recipeText).digest('hex'),

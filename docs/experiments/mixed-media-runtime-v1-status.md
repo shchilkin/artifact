@@ -1,15 +1,79 @@
 # Mixed Media Runtime v1 implementation status
 
 Status: implemented and locally verified on `experiment/artifact-motion-lab`.
-The September standalone embed follow-up loads the owner-supplied embedded font
-locally. Choreography acceptance and asset redistribution rights remain owner
-review gates; font availability is no longer a local integration blocker.
+The September standalone embed now has an owner-requested SVG-outline derivative:
+the served cover no longer requires or contains the original font file. The
+editable source and embedded-font proof remain intact. Outline appearance and
+asset rights remain owner review gates; this does not authorize public hosting.
 
 This record reports implementation against the accepted
 [`mixed-media-runtime-v1.md`](./mixed-media-runtime-v1.md) contract. It does not
 change that contract or claim portfolio migration readiness.
 
 ## Standalone website follow-up — 2026-09-08
+
+### Font-free text outline follow-up
+
+The owner requested converting the typography to curves. The explicit
+`prepare:runtime-embed -- <source> --outline-text` path now converts the four
+text layers into four separate transparent SVG path plates. Original layer IDs,
+graph order, opacity and blending remain intact. Placement is baked into each
+540px plate; there is no new editor layer type, runtime fallback, or text timeline.
+The original `.artifact` is not modified. No private artwork, font bytes, or
+generated outline paths are committed or included in the runtime tarball.
+
+The offline converter uses the existing Skia build dependency and shared runtime
+text painter. A Chrome-only preparation step measures the font baseline: native
+Skia's `middle` baseline initially displaced this unusual pixel font. Export now
+uses Chrome's alphabetic offset. Only square Compositions with available embedded
+fonts are accepted; this fixture proof is not a universal typography exporter.
+Font registrations are removed on success and failure. The production derivative
+contains no text nodes, font assets or required fonts; it renders even when the
+browser's `FontFace` constructor is made to throw.
+
+Latest local output (the server at `http://127.0.0.1:4184/` serves this `dist/`):
+
+- `/var/folders/v9/vx4pp4v55fng41gsp3g7bn1w0000gn/T/artifact-viber-embed-lML3IY`.
+- Original source SHA-256 remains
+  `ae7527970dc0bdeef41b7d467a68876d93993e2a1b73d8df62682beea62882ff`.
+- Outlined Composition SHA-256:
+  `f3de11ac0ae4d5dcdef8d1650485b9e235ff3aa8555975ecc99c81a81cc7f2d4`.
+- Signal recipe SHA-256:
+  `7850d086660f496407be091e3fd61e02875717d732e6d3829599e34798e43617`.
+- Runtime tarball is unchanged:
+  `3a1c3fcf5783aaa6532cf0e53c59ad1a54bc4889de466b38c4d7a1eb487ab58b`.
+- Capability: `ready`, linear graph, no issues, required/unresolved fonts empty.
+- Conversion checks: five passed, including deterministic output, source/graph
+  immutability, unchanged non-text layers, explicit missing/corrupt-font failures
+  and native font cleanup. The private-fixture test is optional in generic CI.
+- Browser geometry comparisons: four layers at 512, 540 and 1080px. Bounding
+  edges differ by at most two pixels; mean alpha error over the full transparent
+  plate is at most 2.641/255. **Not exact raster parity:** removing font hinting
+  changes small-stem coverage (up to 15.4% less alpha-weighted glyph area for the
+  small white artist text at 512px). The stricter initial 2% area gate failed.
+  The final regression gate bounds placement and mean alpha error, not glyph-area
+  equality. Owner inspection of `outlines-comparison.png` (original left, outlines
+  right) remains necessary; these tests do not establish subjective acceptance.
+- Packed embed checks pass all eight groups, including zero loaded FontFaces,
+  exact new-poster/neutral equality, pause, ten reopen cycles, reduced motion,
+  load failure fallback and close-during-load cleanup. The retained embedded-font
+  path remains available without the flag and passes all eight groups again.
+- All four effect variants preserve 188,160 opaque foreground-interior pixels
+  exactly. Repeated seeks, loop boundary and separate/batched passes have zero
+  pixel differences. Neutral RGBA SHA-256:
+  `a258baad876b8b6a41542ed7836e1efe0f8abed36fb9e3bb30868ef14c83942b`.
+- Local 512px warm sample: 60.02 fps, p50 10.6ms, p95 26.5ms, zero frames over
+  100ms; session creation 39.3ms. This is not a cross-device performance promise.
+- Runtime 44 tests, runtime typecheck, format check and packed production build
+  pass. Lint retains only the 11 existing `docs.nodes.tsx` refresh warnings.
+  CLI-driven Chrome shows the page and dialog, all motion choices, ready
+  canvas, zero FontFaces and no browser errors. `outline-ui.png`,
+  `outlines-verification.json`, `verification.json` and
+  `signal-verification.json` retain the local evidence.
+
+Outlining closes the technical font-file delivery dependency. It does not grant
+publication rights for artwork or font-derived shapes. Portfolio integration,
+publication, merge and deployment are still outside this task.
 
 ### Selected effect phase follow-up
 
@@ -19,11 +83,11 @@ control extension and its preserved compatibility rules are documented in
 [`effect-phase-v1.md`](./effect-phase-v1.md). The standalone page now provides
 combined/isolated effect choices and the retained previous embed variant.
 
-Latest local evidence:
+Pre-outline local evidence (retained for comparison):
 
 - Output directory:
   `/var/folders/v9/vx4pp4v55fng41gsp3g7bn1w0000gn/T/artifact-viber-embed-IA1HtR`.
-  The session-only server at `http://127.0.0.1:4184/` now serves its `dist/`.
+  This was served before the outline follow-up above.
 - Package remains unpublished `0.3.0-alpha.0`; tarball SHA-256:
   `3a1c3fcf5783aaa6532cf0e53c59ad1a54bc4889de466b38c4d7a1eb487ab58b`.
 - Signal recipe SHA-256:
