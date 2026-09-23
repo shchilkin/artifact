@@ -195,7 +195,14 @@ impl DocumentSession {
                         return Err(CoreError("Image tiling is not supported"));
                     }
                 }
-                "effect" => validate_effect(layer)?,
+                "effect" => {
+                    validate_effect(layer)?;
+                    // CA is stored in output pixels at the pilot's canonical
+                    // 3000px export size. Scale only the transient preview plan.
+                    if width != 3000 && number(layer, "ca", 0.0) > 0.0 {
+                        layer["ca"] = json!(number(layer, "ca", 0.0) * width as f64 / 3000.0);
+                    }
+                }
                 "emoji" => {
                     let emojis = layer["emojis"]
                         .as_array()

@@ -81,12 +81,14 @@ struct PilotView: View {
                     if let image = model.preview {
                         Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .accessibilityLabel("Rendered artwork, 3000 by 3000 pixels")
+                            .accessibilityLabel("Rendered artwork, 1000 by 1000 pixels")
                     }
                     if let error = model.renderMessage { Text(error).foregroundStyle(.red) }
                 } else {
                     ContentUnavailableView("Open an Artifact project", systemImage: "doc", description: Text("Choose an .artifact file to inspect its layers."))
                 }
+                if model.isExporting { ProgressView("Exporting PNG…") }
+                if let error = model.exportMessage { Text(error).foregroundStyle(.red) }
                 if let message = model.message {
                     Text(message).foregroundStyle(.red).textSelection(.enabled)
                         .accessibilityLabel("Error: \(message)")
@@ -102,7 +104,7 @@ struct PilotView: View {
             Button("Undo", action: model.undo).disabled(model.summary?.canUndo != true)
             Button("Redo", action: model.redo).disabled(model.summary?.canRedo != true)
             Button("Save Copy…", action: model.saveCopy).disabled(model.summary == nil)
-            Button("Export PNG…", action: model.exportPNG).disabled(model.preview == nil || model.isRendering)
+            Button("Export PNG…", action: model.exportPNG).disabled(model.summary == nil || model.isExporting)
         }
     }
 }

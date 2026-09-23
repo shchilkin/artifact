@@ -12,6 +12,13 @@ struct RenderFailure: LocalizedError {
 // Rendering objects live here, outside the serialized document and SwiftUI state.
 actor RenderWorker {
     static let shared = RenderWorker()
+    func png(plan: String) throws -> Data {
+        let image = try render(plan: plan)
+        try Task.checkCancellation()
+        let data = try PilotRenderer.pngData(image)
+        try Task.checkCancellation()
+        return data
+    }
     func render(plan: String) throws -> CGImage {
         try Task.checkCancellation()
         return try PilotRenderer(planJSON: plan).render()
@@ -182,12 +189,15 @@ final class PilotRenderer {
         return image
     }
     static func writePNG(_ image: CGImage, to url: URL) throws {
+        try pngData(image).write(to: url, options: .atomic)
+    }
+    static func pngData(_ image: CGImage) throws -> Data {
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil) else {
             throw RenderFailure(message: "Cannot create PNG")
         }
         CGImageDestinationAddImage(destination, image, nil)
         guard CGImageDestinationFinalize(destination) else { throw RenderFailure(message: "Cannot encode PNG") }
-        try (data as Data).write(to: url, options: .atomic)
+        return data as Data
     }
 }

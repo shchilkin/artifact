@@ -80,3 +80,19 @@ fn zero_effect_is_identity_and_seeded_grain_is_reproducible() {
         effect_rgba(input, 4, 4, "{\"grain\":100}", 4243).unwrap()
     );
 }
+
+#[test]
+fn preview_scales_pixel_effect_without_mutating_export_or_document() {
+    let mut p = package();
+    p["document"]["graph"] = Value::Null;
+    p["document"]["layers"] = json!([{"id":"ca","kind":"effect","ca":27}]);
+    let session = DocumentSession::open(&p.to_string()).unwrap();
+    let before = session.export_json();
+    let preview: Value =
+        serde_json::from_str(&session.render_plan_json(1000, 1000).unwrap()).unwrap();
+    let export: Value =
+        serde_json::from_str(&session.render_plan_json(3000, 3000).unwrap()).unwrap();
+    assert_eq!(preview["layers"][0]["ca"].as_f64(), Some(9.0));
+    assert_eq!(export["layers"][0]["ca"], 27);
+    assert_eq!(session.export_json(), before);
+}

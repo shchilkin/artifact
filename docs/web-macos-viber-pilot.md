@@ -502,3 +502,46 @@ drag handles, full typography/layout parity, and production editor integration
 remain outside this slice. Viber shadows are separate text layers: editing the
 title does not automatically rewrite its shadow. Glyphs outside the embedded
 font's coverage are not promised. The original supplied package is unchanged.
+
+## Working preview and independent export (2026-09-23)
+
+The owner approved starting the next increment after checkpoint
+`checkpoint/web-macos-viber-text-2026-09-23`. Both clients now render working
+previews at 1000 x 1000, and Export PNG renders the current document afresh at
+3000 x 3000. Export never downloads or upscales the working preview. The
+native PNG encoding step runs on the render actor; file writing is atomic.
+
+Preview and export own separate cancellable jobs. Committing an edit, Undo,
+Redo or a successfully opened project invalidates both immediately. Web
+invalidation happens at the mutation boundary before React effect cleanup;
+completion after worker work or PNG encoding cannot publish an old revision.
+Native revision checks prevent obsolete images from replacing the preview
+and obsolete exports from overwriting a destination. Export errors clear the
+busy state and permit retry. Native cancellation is cooperative between
+layers; a running Rust FFI kernel finishes before observing cancellation.
+
+The same Rust plan preserves graph order, assets, normalized placement and
+effect parameters. Chromatic aberration is the exception requiring size
+conversion: its stored pixel offset is calibrated to the existing 3000px
+export, so the plan scales it for smaller renders without touching the
+document or the standalone effect-kernel API. Grain, scanline rounding and
+font rasterization can vary with resolution. Preview is a working image, not
+a pixel-exact downsample of the final export; no effects are omitted.
+
+Validation so far:
+
+- 17 Rust tests and 14 Web worker/job tests pass; Clippy, scoped lint/format,
+  TypeScript, native/WASM and Vite production builds pass.
+- `npm run test:core-preview` passes controlled late completion, edit/open
+  invalidation, failed export and retry checks through the actual native
+  ProjectModel; it also runs the real preview/export renderer. Its final PNG
+  is byte-identical to the pre-change native 3000px output.
+- Three native samples per size: median 0.508s at 1000px versus 3.866s at
+  3000px, including PNG encoding. Peak RSS medians were approximately 81 MB
+  and 520 MB. These isolated-process measurements do not establish UI latency
+  or app-wide memory budgets. Evidence: `test-results/core-pilot/preview/`.
+- Updated Web and Mac GUI acceptance is pending manual file selection.
+
+Production renderer/state ownership, adaptive Retina sizing, keeping an old
+frame visible during work, full-resolution idle refinement, and persistent
+render caches are outside this increment. There is no new release or deployment.

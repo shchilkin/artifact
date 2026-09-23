@@ -34,6 +34,29 @@ final class ProjectModel: ObservableObject {
     @Published var preview: NSImage?
     @Published var isRendering = false
     @Published var renderMessage: String?
+    static let previewSize: UInt32 = 1000
+    static let exportSize: UInt32 = 3000
+    @Published var isExporting = false
+    @Published var exportMessage: String?
+    private var exportTask: Task<Void, Never>?
+    private let renderImage: (String) async throws -> CGImage
+    private let renderPNGData: (String) async throws -> Data
+
+    convenience init() {
+        self.init(
+            renderImage: { try await RenderWorker.shared.render(plan: $0) },
+            renderPNGData: { try await RenderWorker.shared.png(plan: $0) }
+        )
+    }
+
+    init(
+        renderImage: @escaping (String) async throws -> CGImage,
+        renderPNGData: @escaping (String) async throws -> Data
+    ) {
+        self.renderImage = renderImage
+        self.renderPNGData = renderPNGData
+    }
+
     private var renderRevision = 0
     private var renderTask: Task<Void, Never>?
 
@@ -41,15 +64,19 @@ final class ProjectModel: ObservableObject {
         renderRevision += 1
         let revision = renderRevision
         renderTask?.cancel()
+        exportTask?.cancel()
+        isExporting = false
+        exportMessage = nil
         preview = nil
         guard let session else { return }
         do {
-            let plan = try session.renderPlanJson(width: 3000, height: 3000)
+            let plan = try session.renderPlanJson(width: Self.previewSize, height: Self.previewSize)
             isRendering = true
             renderMessage = nil
+            let render = renderImage
             renderTask = Task { [weak self] in
                 let result: Result<CGImage, Error>
-                do { result = .success(try await RenderWorker.shared.render(plan: plan)) }
+                do { result = .success(try await render(plan)) }
                 catch { result = .failure(error) }
                 guard let self, self.renderRevision == revision, !Task.isCancelled else { return }
                 self.isRendering = false
@@ -65,13 +92,37 @@ final class ProjectModel: ObservableObject {
     }
 
     func exportPNG() {
-        guard let image = preview?.cgImage(forProposedRect: nil, context: nil, hints: nil), !isRendering else { return }
+        guard session != nil, !isExporting else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         panel.nameFieldStringValue = "\(URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent).png"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do { try PilotRenderer.writePNG(image, to: url); message = nil }
-        catch { message = displayMessage(error) }
+        exportPNG(to: url)
+    }
+
+    // Export always renders a fresh full-size plan. An edit/open invalidates it
+    // before it can write, even if a renderer ignores cooperative cancellation.
+    func exportPNG(to url: URL) {
+        guard let session, !isExporting else { return }
+        let revision = renderRevision
+        do {
+            let plan = try session.renderPlanJson(width: Self.exportSize, height: Self.exportSize)
+            let render = renderPNGData
+            isExporting = true
+            exportMessage = nil
+            exportTask = Task { [weak self] in
+                do {
+                    let data = try await render(plan)
+                    guard let self, self.renderRevision == revision, !Task.isCancelled else { return }
+                    try data.write(to: url, options: .atomic)
+                    self.isExporting = false
+                } catch {
+                    guard let self, self.renderRevision == revision, !Task.isCancelled else { return }
+                    self.isExporting = false
+                    self.exportMessage = self.displayMessage(error)
+                }
+            }
+        } catch { exportMessage = displayMessage(error) }
     }
     private var session: NativeSession?
     private var savedJSON = ""

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { openProject, readSummary, type SessionSummary, type WebSession } from '../src/index';
 import { TextInspector } from './TextInspector';
-import { useArtwork } from './useArtwork';
+import { PREVIEW_SIZE, useArtwork } from './useArtwork';
 
 export function Pilot() {
   const session = useRef<WebSession | null>(null);
@@ -49,6 +49,7 @@ export function Pilot() {
       const next = readSummary(candidate);
       const currentJSON = candidate.export_json();
       const first = next.layers.find((layer) => (layer.scanlines ?? 0) > 0) ?? next.layers[0];
+      artwork.invalidate();
       session.current?.free();
       session.current = candidate;
       candidate = null;
@@ -71,6 +72,7 @@ export function Pilot() {
     if (!session.current) return;
     try {
       action(session.current);
+      artwork.invalidate();
       const next = readSummary(session.current);
       setSummary(next);
       setAmount(next.layers.find((layer) => layer.id === selectedId)?.scanlines?.toString() ?? '');
@@ -136,11 +138,13 @@ export function Pilot() {
         <button type="button" disabled={!summary || loading} onClick={saveCopy}>
           Save copy
         </button>
-        {artwork.url && (
-          <a className="export" href={artwork.url} download={`${name.replace(/\.artifact$/, '')}.png`}>
-            Export PNG
-          </a>
-        )}
+        <button
+          type="button"
+          disabled={!summary || loading || artwork.exporting}
+          onClick={() => artwork.exportPNG(name)}
+        >
+          {artwork.exporting ? 'Exporting PNG…' : 'Export PNG'}
+        </button>
       </header>
       <p className="filename">
         {name}
@@ -148,6 +152,7 @@ export function Pilot() {
         {loading ? ' · Opening…' : ''}
       </p>
       {error && <p role="alert">{error}</p>}
+      {artwork.exportError && <p role="alert">{artwork.exportError}</p>}
       <div className="workspace">
         <nav aria-label="Layers">
           <h2>Layers {summary ? `(${summary.layers.length})` : ''}</h2>
@@ -225,7 +230,13 @@ export function Pilot() {
               )}
               {artwork.busy && <p role="status">Rendering artwork…</p>}
               {artwork.error && <p role="alert">{artwork.error}</p>}
-              {artwork.url && <img className="artwork" src={artwork.url} alt="Rendered artwork, 3000 by 3000 pixels" />}
+              {artwork.url && (
+                <img
+                  className="artwork"
+                  src={artwork.url}
+                  alt={`Rendered artwork, ${PREVIEW_SIZE} by ${PREVIEW_SIZE} pixels`}
+                />
+              )}
             </>
           ) : (
             <p>Choose an .artifact file to inspect its layers. Files stay on this device.</p>

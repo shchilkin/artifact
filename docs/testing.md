@@ -10,6 +10,10 @@ and Swift/UniFFI, checks a sequential WASM -> Swift -> WASM package handoff,
 and verifies native text rendering, including multiline text and exact PNG
 restoration after Undo. It requires built bindings and the private Viber
 fixture; adapter checks do not substitute for GUI acceptance.
+`npm run test:core-preview` runs the native `ProjectModel` with controlled
+out-of-order completions, edit/open cancellation, export failure/retry and a
+real 1000px preview/3000px export. Build native bindings first. Web render-job
+ownership tests are included in `test:core-web` alongside the worker tests.
 
 
 ## Running tests

@@ -1,38 +1,83 @@
-import { type RefObject, useEffect, useState } from 'react';
+import { type RefObject, useEffect, useRef, useState } from 'react';
 import type { WebSession } from '../src';
 import { renderProject } from '../src/render';
+import { RenderJobs } from '../src/renderJobs';
+
+export const PREVIEW_SIZE = 1000;
+const EXPORT_SIZE = 3000;
+
+async function renderPNG(session: WebSession, size: number, signal: AbortSignal) {
+  const start = performance.now();
+  const canvas = await renderProject(session, size, signal);
+  signal.throwIfAborted();
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((result) => (result ? resolve(result) : reject(new Error('PNG encoding failed'))), 'image/png'),
+  );
+  signal.throwIfAborted();
+  performance.measure(`artifact-pilot:${size === PREVIEW_SIZE ? 'preview' : 'export'}`, { start });
+  return blob;
+}
 
 export function useArtwork(session: RefObject<WebSession | null>, revision: unknown) {
-  const [artwork, setArtwork] = useState<{ url: string; error: string; busy: boolean; revision?: unknown }>({
-    url: '',
-    error: '',
-    busy: false,
-  });
+  const jobs = useRef(new RenderJobs());
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const [artwork, setArtwork] = useState({ url: '', error: '', revision: undefined as unknown });
+
+  // Invalidate synchronously at document mutations, before React effect cleanup.
+  function invalidate() {
+    jobs.current.invalidate();
+    setExporting(false);
+    setExportError('');
+  }
+
   useEffect(() => {
-    void revision;
     const current = session.current;
     if (!current) return;
-    const controller = new AbortController();
     let url = '';
-    void renderProject(current, 3000, controller.signal)
-      .then(
-        (canvas) =>
-          new Promise<Blob>((resolve, reject) =>
-            canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('PNG encoding failed'))), 'image/png'),
-          ),
-      )
-      .then((blob) => {
-        if (controller.signal.aborted) return;
+    const owner = jobs.current;
+    void owner.run(
+      'preview',
+      (signal) => renderPNG(current, PREVIEW_SIZE, signal),
+      (blob) => {
         url = URL.createObjectURL(blob);
-        setArtwork({ url, error: '', busy: false, revision });
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setArtwork({ url: '', error: String(error), busy: false, revision });
-      });
+        setArtwork({ url, error: '', revision });
+      },
+      (error) => setArtwork({ url: '', error: String(error), revision }),
+    );
     return () => {
-      controller.abort();
+      owner.cancel('preview');
       if (url) URL.revokeObjectURL(url);
     };
   }, [session, revision]);
-  return artwork.revision === revision ? artwork : { url: '', error: '', busy: Boolean(revision) };
+
+  useEffect(() => {
+    const owner = jobs.current;
+    return () => owner.invalidate();
+  }, []);
+
+  function exportPNG(name: string) {
+    const current = session.current;
+    if (!current || exporting) return;
+    setExporting(true);
+    setExportError('');
+    void jobs.current.run(
+      'export',
+      (signal) => renderPNG(current, EXPORT_SIZE, signal),
+      (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${name.replace(/\.artifact$/, '')}.png`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      },
+      (error) => setExportError(String(error)),
+      () => setExporting(false),
+    );
+  }
+
+  const visible =
+    artwork.revision === revision ? { ...artwork, busy: false } : { url: '', error: '', busy: Boolean(revision) };
+  return { ...visible, exporting, exportError, exportPNG, invalidate };
 }

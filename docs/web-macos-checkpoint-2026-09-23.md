@@ -22,7 +22,11 @@ Local fixture, GUI evidence, and the built native app are backed up separately
 from Git because they are ignored/private. System-panel automation remains
 unreliable; manual Open/Save works. Its root cause has not been established.
 
-## Proposed next increment (not yet authorized for implementation)
+## Next increment
+
+The owner authorized starting this sequence after the checkpoint. Item 1 is
+implemented locally; GUI acceptance is tracked in the pilot document. Items
+2–3 remain proposed follow-ups rather than part of this change.
 
 Product promise: create a second cover from the existing project in both
 clients, with responsive editing and a reliable save/reopen/export flow.
