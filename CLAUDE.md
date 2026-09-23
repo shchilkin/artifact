@@ -1,5 +1,13 @@
 # CLAUDE.md — Album Cover Utils
 
+Web + native macOS architecture is described in ADR 0014,
+`docs/web-macos-editor-workspace.md` and `docs/web-macos-main-web-integration.md`.
+The real Web editor uses supported shared Rust property commands via WASM;
+its existing document/history owner, renderer and advanced graph remain intact.
+SwiftUI exposes layers, canvas, basic nodes and inspectors. The separate Web
+pilot is a compatibility test harness; its historical evidence is in
+`docs/web-macos-viber-pilot.md`. Native full Web parity is not complete.
+
 ## Project Purpose
 
 Browser-based album cover editor: users compose layered artwork with emojis, images, text, fills, and WebGL post-effects, then export as PNG/JPEG. The app lives at `/app` (React Router route).

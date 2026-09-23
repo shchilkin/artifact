@@ -242,3 +242,24 @@ Canvas creation, compositing, PixiJS effects, Three.js primitive rendering, and
 React Flow state remain on the main thread. The current worker model is
 intentionally incremental: move pure pixel math first, keep document semantics
 and renderer APIs stable, then measure before moving more work.
+
+
+### Shared-core web pilot
+
+The isolated `packages/artifact-core-web` pilot now runs its seven Rust/WASM
+CPU effect kernels in a dedicated worker. Its one-worker-per-render ownership
+allows AbortController invalidation to terminate in-flight WASM immediately.
+RGBA buffers transfer in both directions; text/image drawing and Canvas
+composition stay on the main thread. This does not change the production
+renderer workers above. See [pilot verification](./web-macos-viber-pilot.md#web-effect-worker-2026-09-23)
+for cancellation, error handling and real-browser PNG/interaction evidence.
+
+The preview/export split uses 1000 x 1000 for working images and a fresh
+3000 x 3000 render on export. Three isolated native render-check processes per
+size on 2026-09-23 gave median render-plus-PNG times of 0.508s and 3.866s
+(7.6x ratio), and median peak RSS of 80,969,728 and 520,077,312 bytes.
+These are local process measurements, not app-wide memory or interaction
+latency guarantees. The 3000px PNG matched the pre-change output byte for byte.
+Raw samples: `test-results/core-pilot/preview/performance.json` and
+`native-{size}-{run}.txt`. Chrome exposes completed-job timings as
+`artifact-pilot:preview` and `artifact-pilot:export` performance measures.

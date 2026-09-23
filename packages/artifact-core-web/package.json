@@ -1,0 +1,20 @@
+{
+  "name": "@artifact/core-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./commands": "./src/commands.ts"
+  },
+  "scripts": {
+    "build": "node ../../scripts/core-pilot/build.mjs wasm",
+    "demo": "vite demo --host 127.0.0.1 --port 4186 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  }
+}

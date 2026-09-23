@@ -1,3 +1,4 @@
+import { warmSharedCommands } from '@artifact/core-web/commands';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { InsertConnectionConfig } from '../components/node-canvas';
 import {
@@ -119,6 +120,9 @@ function createLayerForInsertAction(action: EditorLayerInsertAction): Layer {
 }
 
 export function useEditorDocument(nodeModeEnabled: boolean) {
+  useEffect(() => {
+    void warmSharedCommands();
+  }, []);
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
   const [documentSaveStatus, setDocumentSaveStatus] = useState<{ ok: boolean; savedAt: string | null }>({
     ok: true,

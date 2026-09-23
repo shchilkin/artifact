@@ -164,8 +164,11 @@ component names and state labels, but should not narrate the migration plan.
 
 ## Project scope
 
-Artifact is a browser-only creative image/poster editor that starts with
-album covers. It has a hybrid editing model:
+Artifact has a production browser creative image/poster editor that starts with
+album covers, plus an isolated native macOS/shared Rust document-command pilot
+(see `docs/web-macos-viber-pilot.md`). The pilot does not replace production
+state or rendering. The Viber Web -> Mac -> Web open/edit/save/PNG workflow
+is verified locally, with minor rendering differences accepted. It has a hybrid editing model:
 
 - a canonical layered document (`CanvasDocument`)
 - an optional node graph (`doc.graph`) for advanced graph-driven composition

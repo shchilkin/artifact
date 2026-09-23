@@ -43,3 +43,9 @@ apps/api/recovered-images/
 # The committed production favicon is public/favicon.svg.
 apps/web/public/favicon.png
 .vercel
+
+# Rust/native pilot build products and generated bindings.
+/target/
+/tools.local/
+/apps/macos/Generated/
+/apps/macos/.build/
