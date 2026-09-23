@@ -20,6 +20,21 @@ Related architecture docs:
 
 Current planning status:
 
+- **Web + native macOS architecture direction (2026-09-23):** retain the React
+  web editor and add a native SwiftUI macOS client in this monorepo, with shared
+  Rust editor logic compiled natively and to WASM. iOS, iPadOS, Android, Windows,
+  and Linux clients are outside scope. This is an accepted direction, not a
+  shipped capability or an addition to the v0.49/v0.50 release scope. Renderer
+  selection remains open. The local document-command pilot passes Rust, WASM,
+  and Swift conformance on Viber. The local Web -> Mac -> Web open/edit/save/PNG
+  workflow passes, with minor rendering differences accepted. Broader editor
+  coverage and performance budgets remain open. The next text slice implements
+  content, size, color, and X/Y edits with shared atomic undo/redo. Text binding
+  conformance and the full Web -> Mac -> Web text edit/save/render workflow
+  pass, including both clients' undo/redo. System file panels required owner
+  assistance because automation is unreliable.
+  See [pilot evidence](./web-macos-viber-pilot.md) and
+  [ADR 0014](./adr/0014-web-and-native-macos-with-shared-rust-core.md).
 - v0.48.0 was released on 2026-07-27 as the UI Conformance And Legacy Removal
   release. The finite legacy registry has zero unresolved entries, both Product
   Themes share one executable Foundation conformance contract, and the seven

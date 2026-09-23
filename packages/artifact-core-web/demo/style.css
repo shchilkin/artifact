@@ -1,0 +1,169 @@
+:root {
+  color-scheme: dark;
+  --background: #171512;
+  --surface: #24201b;
+  --text: #eee7db;
+  --muted: #b8ad9c;
+  --border: #675e52;
+  --accent: #d77963;
+  font-family: system-ui, sans-serif;
+  color: var(--text);
+  background: var(--background);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 1200px;
+  margin: auto;
+  padding: 24px;
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+h1 {
+  font-size: 20px;
+  margin-right: auto;
+}
+h2 {
+  font-size: 18px;
+}
+button,
+input {
+  font: inherit;
+}
+button,
+input[type="number"],
+input[type="text"],
+textarea {
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 10px 14px;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #37241e;
+}
+.open {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.open input {
+  max-width: 220px;
+}
+.filename,
+.muted {
+  color: var(--muted);
+}
+.filename {
+  overflow-wrap: anywhere;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+}
+nav {
+  padding: 12px 18px 12px 0;
+  border-right: 1px solid var(--border);
+}
+nav button {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  width: 100%;
+  gap: 4px;
+  margin: 8px 0;
+}
+small {
+  color: var(--muted);
+}
+section {
+  padding: 24px 32px;
+}
+form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 240px;
+  margin-bottom: 16px;
+}
+[role="alert"] {
+  color: #ffb5a4;
+}
+@media (max-width: 650px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+  nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    max-height: 260px;
+    overflow: auto;
+  }
+  section {
+    padding: 20px 0;
+  }
+}
+
+.artwork {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 24px;
+}
+a.export {
+  color: var(--text);
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.text-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.text-fields input {
+  width: 100%;
+}
+textarea {
+  display: block;
+  width: 100%;
+  margin: 8px 0 16px;
+  padding: 10px;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  resize: vertical;
+}
+
+.text-inspector label {
+  max-width: none;
+}

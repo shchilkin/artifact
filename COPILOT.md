@@ -1,6 +1,10 @@
 # COPILOT.md
 
-This repo is a browser-only React Router app with a hybrid layer-stack and node-canvas editor. Use these instructions when making changes, and see `AGENTS.md` for the fuller QA and architecture playbook.
+The production editor is a React Router app with a hybrid layer-stack and node-canvas editor. Use these instructions when making changes, and see `AGENTS.md` for the fuller QA and architecture playbook.
+
+The isolated Web + native macOS command pilot is described in
+`docs/web-macos-viber-pilot.md` and ADR 0014. It does not replace the production
+web document owner or renderer. The Viber Web -> Mac -> Web open/edit/save/PNG workflow is verified locally; minor rendering differences are accepted.
 
 ## Read architecture docs first
 

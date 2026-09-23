@@ -1,5 +1,17 @@
 # Testing
 
+The experimental Rust document-command pilot is isolated from production state
+ownership. See [Web + native macOS pilot](./web-macos-viber-pilot.md) for its
+binding conformance, verified Viber GUI round trip and remaining coverage.
+`npm run test:core-web` covers the pilot effect-worker lifecycle, cancellation
+and failure paths; real-browser PNG comparisons are recorded in the pilot evidence.
+`npm run test:core-text` compares text edits and undo/redo across Rust, WASM,
+and Swift/UniFFI, checks a sequential WASM -> Swift -> WASM package handoff,
+and verifies native text rendering, including multiline text and exact PNG
+restoration after Undo. It requires built bindings and the private Viber
+fixture; adapter checks do not substitute for GUI acceptance.
+
+
 ## Running tests
 
 ```bash

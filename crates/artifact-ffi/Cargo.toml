@@ -1,0 +1,21 @@
+[package]
+name = "artifact-ffi"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+artifact-core = { path = "../artifact-core" }
+uniffi = "=0.32.1"
+thiserror = "2"
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[[bin]]
+name = "artifact-bindgen"
+path = "src/bindgen.rs"
+required-features = ["bindgen"]

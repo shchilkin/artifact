@@ -242,3 +242,14 @@ Canvas creation, compositing, PixiJS effects, Three.js primitive rendering, and
 React Flow state remain on the main thread. The current worker model is
 intentionally incremental: move pure pixel math first, keep document semantics
 and renderer APIs stable, then measure before moving more work.
+
+
+### Shared-core web pilot
+
+The isolated `packages/artifact-core-web` pilot now runs its seven Rust/WASM
+CPU effect kernels in a dedicated worker. Its one-worker-per-render ownership
+allows AbortController invalidation to terminate in-flight WASM immediately.
+RGBA buffers transfer in both directions; text/image drawing and Canvas
+composition stay on the main thread. This does not change the production
+renderer workers above. See [pilot verification](./web-macos-viber-pilot.md#web-effect-worker-2026-09-23)
+for cancellation, error handling and real-browser PNG/interaction evidence.

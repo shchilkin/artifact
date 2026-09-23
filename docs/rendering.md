@@ -1,5 +1,13 @@
 # Rendering Architecture
 
+The isolated [Web + native macOS pilot](./web-macos-viber-pilot.md) now renders
+Viber with shared Rust ordering/effect kernels and platform text/image adapters.
+Its native preview/PNG export work. Minor noise/effect differences are accepted
+for the pilot; the Viber Web -> Mac -> Web open/edit/save/PNG workflow is verified locally.
+Its web CPU effects run in a dedicated worker; source drawing and Canvas composition
+remain on the main thread, with byte-identical PNG output verified for Viber. It is not integrated
+into the production entry points below.
+
 This document explains how Artifact turns a `CanvasDocument` into pixels and how preview/export parity should be protected.
 
 ## Rendering promise

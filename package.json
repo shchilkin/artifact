@@ -9,7 +9,8 @@
     "apps/backoffice",
     "apps/web",
     "packages/shared",
-    "packages/ui"
+    "packages/ui",
+    "packages/artifact-core-web"
   ],
   "scripts": {
     "favicon": "npm --workspace @artifact/web run favicon",
@@ -69,7 +70,14 @@
     "test:browser:ui-conformance": "npm run test:browser -- --project=chromium --project=firefox --project=webkit ui-foundation.spec.ts && npm run test:browser:backoffice -- style-guide.spec.ts",
     "test:browser:headed": "npm --workspace @artifact/web run test:browser -- --headed",
     "test:browser:install": "playwright install --with-deps chromium firefox webkit",
-    "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs"
+    "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs",
+    "build:core-pilot": "node scripts/core-pilot/build.mjs",
+    "test:core-pilot": "node scripts/core-pilot/verify.mjs",
+    "dev:core-pilot": "npm --workspace @artifact/core-web run demo",
+    "test:core-render": "node scripts/core-pilot/verify-render.mjs",
+    "test:core-roundtrip": "node scripts/core-pilot/verify-roundtrip.mjs",
+    "test:core-web": "npm --workspace @artifact/core-web run test",
+    "test:core-text": "node scripts/core-pilot/verify-text.mjs"
   },
   "dependencies": {
     "@react-router/node": "^7.14.2",
