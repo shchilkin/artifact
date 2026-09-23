@@ -59,6 +59,10 @@ impl NativeSession {
         Ok(self.lock()?.set_text(&layer_id, &patch_json)?)
     }
 
+    pub fn set_image(&self, layer_id: String, patch_json: String) -> Result<bool, SessionError> {
+        Ok(self.lock()?.set_image(&layer_id, &patch_json)?)
+    }
+
     pub fn undo(&self) -> Result<bool, SessionError> {
         Ok(self.lock()?.undo())
     }

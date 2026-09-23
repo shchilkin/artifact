@@ -73,6 +73,9 @@ struct PilotView: View {
                         .frame(maxWidth: 440, maxHeight: 160)
                     } else if let text = layer.text {
                         TextInspector(value: text, onApply: model.editText).id(layer.id)
+                    } else if let image = layer.image {
+                        ImageInspector(value: image, onApply: model.editImage)
+                            .id("\(layer.id):\(model.documentRevision)")
                     } else {
                         Text("This layer is preserved. Editing is not available in this build.")
                             .foregroundStyle(.secondary)

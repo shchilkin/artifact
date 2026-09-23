@@ -32,7 +32,11 @@ Current planning status:
   content, size, color, and X/Y edits with shared atomic undo/redo. Text binding
   conformance and the full Web -> Mac -> Web text edit/save/render workflow
   pass, including both clients' undo/redo. System file panels required owner
-  assistance because automation is unreliable.
+  assistance because automation is unreliable. The next two isolated slices
+  implement 1000px working previews with independent 3000px export, then image
+  replacement/transforms. Their automated checks pass; GUI evidence is tracked
+  separately in the pilot document. Basic layer operations and native nodes
+  remain follow-ups, with graph-aware ordering still to be designed.
   See [pilot evidence](./web-macos-viber-pilot.md) and
   [ADR 0014](./adr/0014-web-and-native-macos-with-shared-rust-core.md).
 - v0.48.0 was released on 2026-07-27 as the UI Conformance And Legacy Removal

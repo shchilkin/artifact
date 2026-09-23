@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { openProject, readSummary, type SessionSummary, type WebSession } from '../src/index';
+import { ImageInspector } from './ImageInspector';
 import { TextInspector } from './TextInspector';
 import { PREVIEW_SIZE, useArtwork } from './useArtwork';
 
 export function Pilot() {
+  const [documentRevision, setDocumentRevision] = useState(0);
   const session = useRef<WebSession | null>(null);
   const savedJSON = useRef('');
   const loadRevision = useRef(0);
@@ -55,6 +57,7 @@ export function Pilot() {
       candidate = null;
       savedJSON.current = currentJSON;
       setSummary(next);
+      setDocumentRevision((revision) => revision + 1);
       setSelectedId(first?.id ?? '');
       setAmount(first?.scanlines?.toString() ?? '');
       setName(file.name);
@@ -75,6 +78,7 @@ export function Pilot() {
       artwork.invalidate();
       const next = readSummary(session.current);
       setSummary(next);
+      setDocumentRevision((revision) => revision + 1);
       setAmount(next.layers.find((layer) => layer.id === selectedId)?.scanlines?.toString() ?? '');
       setDirty(session.current.export_json() !== savedJSON.current);
       setError('');
@@ -222,6 +226,17 @@ export function Pilot() {
                   onApply={(patch) =>
                     act((current) => {
                       current.set_text(selected.id, JSON.stringify(patch));
+                    })
+                  }
+                />
+              ) : selected.image ? (
+                <ImageInspector
+                  key={`${selected.id}:${documentRevision}`}
+                  value={selected.image}
+                  disabled={loading}
+                  onApply={(patch) =>
+                    act((current) => {
+                      current.set_image(selected.id, JSON.stringify(patch));
                     })
                   }
                 />

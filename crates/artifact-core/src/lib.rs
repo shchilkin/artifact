@@ -1,6 +1,8 @@
 //! Shared document-command pilot. No renderer or platform resources.
 
+mod image;
 pub mod render;
+pub use image::ImageProperties;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
@@ -27,6 +29,7 @@ pub struct LayerSummary {
     pub kind: String,
     pub scanlines: Option<f64>,
     pub text: Option<TextProperties>,
+    pub image: Option<ImageProperties>,
 }
 
 #[derive(Serialize)]
@@ -56,8 +59,24 @@ struct Edit {
     fields: Vec<FieldEdit>,
 }
 
+impl Edit {
+    fn retained_bytes(&self) -> usize {
+        self.fields
+            .iter()
+            .map(|field| {
+                field
+                    .before
+                    .as_ref()
+                    .and_then(Value::as_str)
+                    .map_or(0, str::len)
+                    + field.after.as_str().map_or(0, str::len)
+            })
+            .sum()
+    }
+}
+
 /// Lossless field-preserving package editor, deliberately limited to schema 3
-/// and bounded Scanlines/text commands. It does not migrate or validate asset payloads.
+/// and bounded layer-property commands. Existing asset payloads are preserved.
 pub struct DocumentSession {
     package: Value,
     past: Vec<Edit>,
@@ -139,6 +158,7 @@ impl DocumentSession {
                     .unwrap_or_else(|| layer["id"].as_str().unwrap())
                     .to_owned(),
                 kind: layer["kind"].as_str().expect("validated kind").to_owned(),
+                image: image::properties(layer),
                 text: (layer["kind"] == "text")
                     .then(|| serde_json::from_value(layer.clone()).ok())
                     .flatten(),
@@ -269,6 +289,16 @@ impl DocumentSession {
         }
         self.past.push(edit);
         self.future.clear();
+        // Image replacements retain payloads for Undo; bound that history too.
+        self.trim_history(MAX_PACKAGE_BYTES);
+    }
+
+    fn trim_history(&mut self, max_bytes: usize) {
+        while self.past.len() > 1
+            && self.past.iter().map(Edit::retained_bytes).sum::<usize>() > max_bytes
+        {
+            self.past.remove(0);
+        }
     }
 
     pub fn undo(&mut self) -> bool {
@@ -298,5 +328,34 @@ impl DocumentSession {
         }
         self.past.push(edit);
         true
+    }
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::*;
+    #[test]
+    fn byte_budget_evicts_oldest_but_keeps_latest_undo() {
+        let mut session = DocumentSession {
+            package: Value::Null,
+            past: Vec::new(),
+            future: Vec::new(),
+        };
+        for index in 0..3 {
+            session.past.push(Edit {
+                layer_index: index,
+                fields: vec![FieldEdit {
+                    key: "src".into(),
+                    before: Some(Value::String("old".repeat(10))),
+                    after: Value::String("new".repeat(10)),
+                }],
+            });
+        }
+        session.trim_history(120);
+        assert_eq!(session.past.len(), 2);
+        assert_eq!(session.past[0].layer_index, 1);
+        session.trim_history(1);
+        assert_eq!(session.past.len(), 1);
+        assert_eq!(session.past[0].layer_index, 2);
     }
 }

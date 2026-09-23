@@ -25,8 +25,13 @@ unreliable; manual Open/Save works. Its root cause has not been established.
 ## Next increment
 
 The owner authorized starting this sequence after the checkpoint. Item 1 is
-implemented locally; GUI acceptance is tracked in the pilot document. Items
-2–3 remain proposed follow-ups rather than part of this change.
+saved as `eb0a51b` with tag `checkpoint/web-macos-fast-preview-2026-09-23`.
+Its complete-history source bundle was verified under the task visualization
+folder (`web-macos-fast-preview-checkpoint/source.bundle`, SHA-256
+`067ddad07260143140e2e70b106cbe60889b29594b1f50ae78971745e757a1d7`).
+The owner tentatively accepted the result; detailed GUI proof remains separate.
+Item 2 is now authorized and implemented locally with adapter/native-render
+checks. GUI acceptance is tracked in the pilot document. Item 3 is proposed.
 
 Product promise: create a second cover from the existing project in both
 clients, with responsive editing and a reliable save/reopen/export flow.

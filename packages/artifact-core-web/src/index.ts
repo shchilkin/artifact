@@ -8,12 +8,21 @@ export interface TextProperties {
   y: number;
 }
 
+export interface ImageProperties {
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+}
+
 export interface LayerSummary {
   id: string;
   name: string;
   kind: string;
   scanlines: number | null;
   text: TextProperties | null;
+  image: ImageProperties | null;
 }
 
 export interface SessionSummary {

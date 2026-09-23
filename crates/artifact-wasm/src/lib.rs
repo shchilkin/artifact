@@ -33,6 +33,10 @@ impl WebSession {
         Ok(self.inner.set_text(layer_id, patch_json)?)
     }
 
+    pub fn set_image(&mut self, layer_id: &str, patch_json: &str) -> Result<bool, JsError> {
+        Ok(self.inner.set_image(layer_id, patch_json)?)
+    }
+
     pub fn undo(&mut self) -> bool {
         self.inner.undo()
     }

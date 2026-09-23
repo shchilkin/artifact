@@ -285,11 +285,14 @@ packages/
 ## Experimental Web + native macOS pilot
 
 The monorepo now includes an opt-in Rust document core, WASM adapter, and native
-SwiftUI macOS shell. The pilot opens a project, edits Scanlines and text, supports
+SwiftUI macOS shell. The pilot opens a project, edits Scanlines, text and images, supports
 undo/redo, saves a copy, and renders the Viber composition with PNG export.
 Native preview/export are verified; minor noise/effect differences are accepted
 for this pilot. The Viber Web -> Mac -> Web open/edit/save/PNG workflow is verified locally. It is separate from
 the production web editor. Text editing covers content, size, color, and X/Y
 position through the same Rust command in both clients. Its Web -> Mac -> Web
 edit/save/render workflow is verified, with manual file-panel assistance.
+Image editing supports PNG/JPEG replacement, X/Y, independent X/Y scale, and
+rotation in both clients. Adapter round-trip and native import/render tests pass;
+GUI acceptance for this slice is tracked separately in the pilot document.
 See [setup, checks, and limitations](docs/web-macos-viber-pilot.md).

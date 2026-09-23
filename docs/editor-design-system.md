@@ -487,3 +487,12 @@ Intentionally excluded from style-guide specimens:
 - Did focused browser coverage run for the affected style-guide/editor states?
 - For node canvas changes, did the change preserve category-colored selection,
   output-path contrast, grid readability, and React Flow stability?
+
+
+## Isolated Web/macOS pilot inspector inventory
+
+The opt-in `packages/artifact-core-web/demo/ImageInspector.tsx` and native
+`apps/macos/Sources/ImageInspector.swift` expose replacement drafts, reading,
+error, cancel and apply states plus numeric transform fields. They are pilot
+surfaces, not production inspector migration. Production adoption must map
+these controls to the existing inspector system and add its live specimens.

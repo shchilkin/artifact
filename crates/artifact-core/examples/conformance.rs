@@ -4,12 +4,14 @@ use std::{env, fs};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
-    if !(4..=5).contains(&args.len()) {
-        return Err("usage: conformance INPUT LAYER_ID OUTPUT [TEXT_PATCH_FILE]".into());
+    if !(4..=6).contains(&args.len()) {
+        return Err("usage: conformance INPUT LAYER_ID OUTPUT [PATCH_FILE] [image]".into());
     }
     let mut session = DocumentSession::open(&fs::read_to_string(&args[1])?)?;
     let opened = session.export_json();
-    if args.len() == 5 {
+    if args.len() == 6 && args[5] == "image" {
+        session.set_image(&args[2], &fs::read_to_string(&args[4])?)?;
+    } else if args.len() == 5 {
         session.set_text(&args[2], &fs::read_to_string(&args[4])?)?;
     } else {
         session.set_scanlines(&args[2], 50.0)?;

@@ -10,12 +10,21 @@ struct TextProperties: Decodable, Equatable {
     let y: Double
 }
 
+struct ImageProperties: Decodable, Equatable {
+    let x: Double
+    let y: Double
+    let scaleX: Double
+    let scaleY: Double
+    let rotation: Double
+}
+
 struct LayerSummary: Decodable, Identifiable {
     let id: String
     let name: String
     let kind: String
     let scanlines: Double?
     let text: TextProperties?
+    let image: ImageProperties?
 }
 
 struct SessionSummary: Decodable {
@@ -26,6 +35,7 @@ struct SessionSummary: Decodable {
 
 @MainActor
 final class ProjectModel: ObservableObject {
+    @Published private(set) var documentRevision = 0
     @Published var summary: SessionSummary?
     @Published var selectedID: String?
     @Published var fileName = "No project open"
@@ -61,6 +71,7 @@ final class ProjectModel: ObservableObject {
     private var renderTask: Task<Void, Never>?
 
     private func refreshPreview() {
+        documentRevision += 1
         renderRevision += 1
         let revision = renderRevision
         renderTask?.cancel()
@@ -184,6 +195,14 @@ final class ProjectModel: ObservableObject {
         perform {
             let json = try JSONSerialization.data(withJSONObject: patch, options: [.sortedKeys])
             _ = try session.setText(layerId: selectedID, patchJson: String(decoding: json, as: UTF8.self))
+        }
+    }
+
+    func editImage(_ patch: [String: Any]) {
+        guard let session, let selectedID else { return }
+        perform {
+            let json = try JSONSerialization.data(withJSONObject: patch, options: [.sortedKeys, .withoutEscapingSlashes])
+            _ = try session.setImage(layerId: selectedID, patchJson: String(decoding: json, as: UTF8.self))
         }
     }
 

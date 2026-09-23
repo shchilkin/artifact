@@ -545,3 +545,51 @@ Validation so far:
 Production renderer/state ownership, adaptive Retina sizing, keeping an old
 frame visible during work, full-resolution idle refinement, and persistent
 render caches are outside this increment. There is no new release or deployment.
+
+
+## Image replacement and transforms (2026-09-23)
+
+Authorized after the working-preview checkpoint. Existing image layers now
+expose X/Y position (%), separate X/Y scale (%) and rotation (degrees) in both
+clients. PNG/JPEG replacement is a local draft until Apply image. Replacement
+and all changed transform fields form one atomic Rust `set_image` command,
+shared through WASM and UniFFI. Apply, Undo and Redo use the existing render
+invalidation path; selection or a new document revision discards pending UI
+imports so late decode work cannot replace another layer or project.
+
+Both platform importers decode locally and normalize input to embedded PNG,
+baking JPEG orientation into pixels. Limits: source file 8 MiB, dimensions up
+to 4096 x 4096, normalized PNG 16 MiB, resulting package 64 MiB. Rust validates
+the embedded-PNG/base64 envelope and dimensions; complete pixel decoding is
+owned by the platform importer, not the shared command. Existing package
+payloads are preserved and are not revalidated or normalized on open.
+
+Positions accept -200% through 300%, scales 1% through 1000%, angles -360
+through 360 degrees. Fit mode, graph connections/order, layer identity,
+visibility, opacity, manifest import provenance, fonts and unknown fields stay
+unchanged. Image payloads are excluded from summaries. Replacement history is
+bounded by entry count and retained string bytes (see state-model.md), with the
+most recent undo entry always retained. No-op/rejected commands preserve redo.
+
+Validation:
+
+- 22 Rust tests pass, including atomic image replacement/transform undo,
+  invalid patches/import envelopes, missing-field restoration, no-op and mixed
+  history, render-plan fields and history byte-budget eviction.
+- 17 Web tests pass, including importer format/size rejection and URL cleanup.
+  These importer tests use decoder stubs, not real browser image decoding.
+- `npm run test:core-image` passes complete-package equality across Rust,
+  WASM and Swift/UniFFI, then sequential WASM -> Swift -> WASM replacement.
+  Native 3000px renders change after editing and restore byte-for-byte after
+  Undo. Real native importer checks preserve PNG alpha and bake JPEG EXIF
+  orientation. Evidence: `test-results/core-pilot/image/report.json`.
+- Preview/export model regression checks, TypeScript, scoped lint/format,
+  Clippy, native/WASM and Vite builds pass.
+- GUI forms and manual file-panel completion remain pending owner-assisted
+  loading. No new GUI round-trip or real-browser import proof is claimed yet.
+
+This is an inspector workflow for existing images. Canvas drag/resize handles,
+fit-mode controls, layer creation/deletion/reordering, native nodes and
+production integration remain separate increments. The original Viber package
+is not modified. PNG normalization may discard source metadata; this is an
+editable-artwork import, not archival preservation of an original JPEG file.

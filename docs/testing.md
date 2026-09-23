@@ -15,6 +15,12 @@ out-of-order completions, edit/open cancellation, export failure/retry and a
 real 1000px preview/3000px export. Build native bindings first. Web render-job
 ownership tests are included in `test:core-web` alongside the worker tests.
 
+`npm run test:core-image` checks image replacement and transforms across the
+three adapters, a sequential WASM -> Swift -> WASM handoff, full-package
+preservation and exact native PNG restoration after Undo. It also runs native
+PNG alpha, JPEG EXIF-orientation and invalid-file import checks. Build all
+bindings first; the Viber fixture is private. Web importer rejection/cleanup
+tests run with `test:core-web`; they do not establish real browser decoding.
 
 ## Running tests
 

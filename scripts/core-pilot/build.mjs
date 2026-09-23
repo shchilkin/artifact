@@ -83,6 +83,15 @@ if (mode !== 'wasm') {
     '-o',
     path.join(build, 'model-check'),
   ]);
+  run('xcrun', [
+    'swiftc',
+    ...common,
+    'apps/macos/Sources/PilotRenderer.swift',
+    'apps/macos/Sources/ImageImport.swift',
+    'apps/macos/ImageCheck.swift',
+    '-o',
+    path.join(build, 'image-check'),
+  ]);
   const app = path.join(build, 'Artifact Core Pilot.app/Contents');
   mkdirSync(path.join(app, 'MacOS'), { recursive: true });
   const sources = readdirSync(path.join(root, 'apps/macos/Sources'))
