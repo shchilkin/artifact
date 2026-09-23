@@ -47,6 +47,5 @@ apps/web/public/favicon.png
 # Rust/native pilot build products and generated bindings.
 /target/
 /tools.local/
-/packages/artifact-core-web/generated/
 /apps/macos/Generated/
 /apps/macos/.build/

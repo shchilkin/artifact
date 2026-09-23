@@ -28,16 +28,17 @@ Current planning status:
   selection remains open. The local document-command pilot passes Rust, WASM,
   and Swift conformance on Viber. The local Web -> Mac -> Web open/edit/save/PNG
   workflow passes, with minor rendering differences accepted. Broader editor
-  coverage and performance budgets remain open. The next text slice implements
-  content, size, color, and X/Y edits with shared atomic undo/redo. Text binding
-  conformance and the full Web -> Mac -> Web text edit/save/render workflow
-  pass, including both clients' undo/redo. System file panels required owner
-  assistance because automation is unreliable. The next two isolated slices
-  implement 1000px working previews with independent 3000px export, then image
-  replacement/transforms. Their automated checks pass; GUI evidence is tracked
-  separately in the pilot document. Basic layer operations and native nodes
-  remain follow-ups, with graph-aware ordering still to be designed.
-  See [pilot evidence](./web-macos-viber-pilot.md) and
+  coverage and performance budgets remain open. The native workspace now has
+  layer operations, source/effect inspectors, direct canvas transforms, basic
+  nodes, and file/history workflows. Its automated Rust/Swift/WASM conformance
+  and native model/render checks pass; GUI evidence and file-panel automation
+  limitations are tracked in [the workspace scope](./web-macos-editor-workspace.md).
+  The actual `apps/web` editor consumes supported Rust property commands through
+  WASM while retaining its document/history owner, full renderer, and advanced
+  graph behavior. See [main Web integration](./web-macos-main-web-integration.md).
+  The separate Web pilot is a compatibility test harness. Next parity work is
+  advanced graph nodes/sources/effects and remaining native document workflows;
+  other platforms remain outside scope. See [pilot evidence](./web-macos-viber-pilot.md) and
   [ADR 0014](./adr/0014-web-and-native-macos-with-shared-rust-core.md).
 - v0.48.0 was released on 2026-07-27 as the UI Conformance And Legacy Removal
   release. The finite legacy registry has zero unresolved entries, both Product

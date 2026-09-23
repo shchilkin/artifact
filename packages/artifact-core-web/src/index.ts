@@ -1,4 +1,4 @@
-import init, { WebSession } from '../generated/artifact_wasm';
+import init, { new_project, WebSession } from '../generated/artifact_wasm';
 
 export interface TextProperties {
   content: string;
@@ -25,7 +25,20 @@ export interface LayerSummary {
   image: ImageProperties | null;
 }
 
+export interface EditorState {
+  layers: Array<{ id: string; name: string; kind: string; visible?: boolean; locked?: boolean }>;
+  order: string[];
+  graph: { edges: Array<{ id: string; fromId: string; toId: string }> };
+  canReorder: boolean;
+  graphEditable: boolean;
+}
+export async function blankProject() {
+  await init();
+  return new_project();
+}
+
 export interface SessionSummary {
+  editor: EditorState;
   layers: LayerSummary[];
   canUndo: boolean;
   canRedo: boolean;
@@ -38,7 +51,7 @@ export async function openProject(source: string) {
 }
 
 export function readSummary(session: WebSession): SessionSummary {
-  return JSON.parse(session.summary_json());
+  return { ...JSON.parse(session.summary_json()), editor: JSON.parse(session.editor_state_json()) };
 }
 
 export type { WebSession };

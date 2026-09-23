@@ -173,7 +173,7 @@ npm run dev:core-pilot
 
 The build accepts `-- wasm` or `-- macos` for one target. Generated bindings,
 Rust outputs, the `.app`, and local tools are ignored. The app bundle is
-`apps/macos/.build/Artifact Core Pilot.app`. The web demo listens on localhost
+`apps/macos/.build/Artifact.app`. The web demo listens on localhost
 port 4186. The conformance command requires both builds; WASM is executed in
 Node, Swift through the compiled UniFFI conformance executable.
 
@@ -593,3 +593,10 @@ fit-mode controls, layer creation/deletion/reordering, native nodes and
 production integration remain separate increments. The original Viber package
 is not modified. PNG normalization may discard source metadata; this is an
 editable-artwork import, not archival preservation of an original JPEG file.
+
+## Editor workspace and main Web integration
+
+The pilot has served its compatibility purpose. Product work now targets the
+native [editor workspace](./web-macos-editor-workspace.md) and
+[the main Web editor](./web-macos-main-web-integration.md). Port 4186 remains a
+test harness; it is not the user's second Web product.

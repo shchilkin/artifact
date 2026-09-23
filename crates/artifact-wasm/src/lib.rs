@@ -37,6 +37,13 @@ impl WebSession {
         Ok(self.inner.set_image(layer_id, patch_json)?)
     }
 
+    pub fn execute(&mut self, command_json: &str) -> Result<bool, JsError> {
+        Ok(self.inner.execute(command_json)?)
+    }
+    pub fn editor_state_json(&self) -> String {
+        self.inner.editor_state_json()
+    }
+
     pub fn undo(&mut self) -> bool {
         self.inner.undo()
     }
@@ -56,4 +63,14 @@ pub fn render_effect(
     Ok(artifact_core::render::effect_rgba(
         pixels, width, height, layer_json, seed,
     )?)
+}
+
+#[wasm_bindgen]
+pub fn new_project() -> String {
+    DocumentSession::blank_json()
+}
+
+#[wasm_bindgen]
+pub fn patch_layer(layer_json: &str, patch_json: &str) -> Result<String, JsError> {
+    Ok(DocumentSession::patch_layer_json(layer_json, patch_json)?)
 }

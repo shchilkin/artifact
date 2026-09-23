@@ -77,7 +77,7 @@ export async function renderPlan(plan: Plan, signal?: AbortSignal): Promise<HTML
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillStyle = 'white';
-              ctx.globalAlpha = n(item, 'opacity');
+              ctx.globalAlpha = (n(item, 'opacity') * n(layer, 'opacity', 100)) / 100;
               ctx.fillText(s(item, 'emoji'), 0, 0);
               ctx.restore();
             }
@@ -101,7 +101,8 @@ export async function renderPlan(plan: Plan, signal?: AbortSignal): Promise<HTML
             break;
           }
           case 'text': {
-            const family = fonts.get(s(layer, 'font'));
+            const family = s(layer, 'font') === 'MONO' ? 'Courier New' : fonts.get(s(layer, 'font'));
+
             if (!family) throw new Error('Embedded text font is missing');
             const size = (n(layer, 'size') * plan.width) / 540;
             const maxWidth = plan.width * 0.92;

@@ -97,11 +97,13 @@ final class PilotRenderer {
         context.restoreGState()
     }
     private func textLayer(_ layer: [String: Any]) throws {
-        guard let fontID = layer["font"] as? String, let cgFont = fonts[fontID] else {
-            throw RenderFailure(message: "Embedded text font is missing; no font substitution was made")
-        }
+        let fontID = layer["font"] as? String ?? ""
+        let font: CTFont
+        let size = n(layer,"size") * Double(width) / 540
+        if fontID == "MONO" { font = CTFontCreateWithName("Courier New" as CFString, size, nil) }
+        else if let cgFont = fonts[fontID] { font = CTFontCreateWithGraphicsFont(cgFont, size, nil, nil) }
+        else { throw RenderFailure(message: "Embedded text font is missing; no font substitution was made") }
         let text = layer["content"] as? String ?? ""
-        let font = CTFontCreateWithGraphicsFont(cgFont, n(layer,"size") * Double(width) / 540, nil, nil)
         // Layout consumes whitespace; newline/tab are not drawable font glyphs.
         var chars = Array(text.filter { !$0.isWhitespace }.utf16)
         if chars.isEmpty { return }
@@ -174,7 +176,7 @@ final class PilotRenderer {
                 for item in layer["renderItems"] as? [[String: Any]] ?? [] {
                     context.saveGState()
                     context.translateBy(x: n(item,"x"), y: n(item,"y")); context.rotate(by: n(item,"rotation"))
-                    context.setAlpha(n(item,"opacity",1))
+                    context.setAlpha(n(item,"opacity",1) * n(layer,"opacity",100) / 100)
                     let font = CTFontCreateWithName("Apple Color Emoji" as CFString, n(item,"size"), nil)
                     drawText(item["emoji"] as? String ?? "", font: font, color: CGColor(gray: 1, alpha: 1), align: "center", maxWidth: .infinity)
                     context.restoreGState()

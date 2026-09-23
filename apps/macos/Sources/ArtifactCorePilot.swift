@@ -4,110 +4,168 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     weak var model: ProjectModel?
-
+    private var closing = false
+    var pendingURL: URL?
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        model?.confirmDiscard() == false ? .terminateCancel : .terminateNow
+        guard !closing, let model, model.isModified else { return .terminateNow }
+        model.confirmDiscard { [weak self] in self?.closing = true; sender.terminate(nil) }
+        return .terminateCancel
     }
-
-    func windowShouldClose(_ sender: NSWindow) -> Bool { model?.confirmDiscard() ?? true }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !closing, let model, model.isModified else { return true }
+        model.confirmDiscard { [weak self] in self?.closing = true; sender.close(); self?.closing = false }
+        return false
+    }
+    func application(_ sender: NSApplication, openFiles filenames: [String]) {
+        if let file=filenames.first {
+            let url=URL(fileURLWithPath:file)
+            if let model {model.openURL(url)} else {pendingURL=url}
+        }
+        sender.reply(toOpenOrPrint:.success)
+    }
 }
-
-@main
-struct ArtifactCorePilot: App {
+@main struct ArtifactCorePilot: App {
     @StateObject private var model = ProjectModel()
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-
     var body: some Scene {
-        Window("Artifact Core Pilot", id: "main") {
-            PilotView(model: model)
-                .frame(minWidth: 900, minHeight: 760)
+        Window("Artifact", id:"main") {
+            EditorWorkspace(model:model).frame(minWidth:1100,minHeight:720)
                 .onAppear {
-                    delegate.model = model
-                    NSApplication.shared.windows.first?.delegate = delegate
-                }
-        }
-        .commands {
-            CommandGroup(replacing: .newItem) {
-                Button("Open Project…", action: model.open).keyboardShortcut("o")
-                Button("Save Copy…", action: model.saveCopy).keyboardShortcut("s")
-                    .disabled(model.summary == nil)
+                    delegate.model=model
+                    NSApplication.shared.windows.first?.delegate=delegate
+                    if let url=delegate.pendingURL {delegate.pendingURL=nil;model.openURL(url)}
+                }.onOpenURL {model.openURL($0)}
+        }.commands {
+            CommandGroup(replacing:.newItem) {
+                Button("New Project",action:model.newDocument).keyboardShortcut("n")
+                Button("Open Project…",action:model.open).keyboardShortcut("o")
+                Menu("Open Recent") {ForEach(model.recentFiles,id:\.path){url in Button(url.lastPathComponent){model.openURL(url)}}}
+                Divider()
+                Button("Save"){model.save()}.keyboardShortcut("s").disabled(model.summary==nil)
+                Button("Save Copy…"){model.saveCopy()}.keyboardShortcut("s",modifiers:[.command,.shift]).disabled(model.summary==nil)
+                Button("Export PNG…",action:model.exportPNG).keyboardShortcut("e",modifiers:[.command,.shift]).disabled(model.summary==nil||model.isExporting)
             }
-            CommandGroup(replacing: .undoRedo) {
-                Button("Undo", action: model.undo).keyboardShortcut("z")
-                    .disabled(model.summary?.canUndo != true)
-                Button("Redo", action: model.redo).keyboardShortcut("z", modifiers: [.command, .shift])
-                    .disabled(model.summary?.canRedo != true)
+            CommandGroup(replacing:.undoRedo) {
+                Button("Undo",action:model.undo).keyboardShortcut("z").disabled(model.summary?.canUndo != true)
+                Button("Redo",action:model.redo).keyboardShortcut("z",modifiers:[.command,.shift]).disabled(model.summary?.canRedo != true)
+            }
+            CommandMenu("Layer") {
+                Button("Add Text"){model.addLayer("text")}.keyboardShortcut("t",modifiers:[.command,.shift]).disabled(model.summary==nil)
+                Button("Import Image…",action:model.importLayer).keyboardShortcut("i",modifiers:[.command,.shift]).disabled(model.summary==nil)
+                Divider()
+                Button("Duplicate",action:model.duplicate).keyboardShortcut("d").disabled(model.selectedID==nil)
+                Button("Delete Layer",action:model.deleteSelected).keyboardShortcut(.delete,modifiers:.command).disabled(model.selectedID==nil||model.selectedLayer?.locked==true)
             }
         }
     }
 }
-
-struct PilotView: View {
-    @ObservedObject var model: ProjectModel
-    @State private var draftAmount = 0.0
-
+struct EditorWorkspace: View {
+    @ObservedObject var model:ProjectModel
+    @State private var mode="Canvas"
     var body: some View {
-        NavigationSplitView {
-            List(model.summary?.layers ?? [], selection: $model.selectedID) { layer in
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(layer.name)
-                    Text(layer.kind).font(.caption).foregroundStyle(.secondary)
-                }.tag(layer.id)
-            }
-            .navigationTitle("Layers")
-            .navigationSplitViewColumnWidth(min: 210, ideal: 250)
-        } detail: {
-            VStack(alignment: .leading, spacing: 20) {
-                Text(model.fileName).font(.headline).textSelection(.enabled)
-                if model.isModified { Text("Unsaved changes").foregroundStyle(.secondary) }
-                if let layer = model.selected {
-                    Text(layer.name).font(.title2)
-                    if let amount = layer.scanlines {
-                        Form {
-                            LabeledContent("Scanlines", value: amount.formatted())
-                            TextField("New amount (0–100)", value: $draftAmount, format: .number)
-                                .accessibilityIdentifier("scanlines-amount")
-                            Button("Apply") { model.editScanlines(draftAmount) }
-                                .disabled(!draftAmount.isFinite || !(0...100).contains(draftAmount) || draftAmount == amount)
-                        }.formStyle(.grouped)
-                        .frame(maxWidth: 440, maxHeight: 160)
-                    } else if let text = layer.text {
-                        TextInspector(value: text, onApply: model.editText).id(layer.id)
-                    } else if let image = layer.image {
-                        ImageInspector(value: image, onApply: model.editImage)
-                            .id("\(layer.id):\(model.documentRevision)")
-                    } else {
-                        Text("This layer is preserved. Editing is not available in this build.")
-                            .foregroundStyle(.secondary)
-                    }
-                    if model.isRendering { ProgressView("Rendering artwork…") }
-                    if let image = model.preview {
-                        Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .accessibilityLabel("Rendered artwork, 1000 by 1000 pixels")
-                    }
-                    if let error = model.renderMessage { Text(error).foregroundStyle(.red) }
-                } else {
-                    ContentUnavailableView("Open an Artifact project", systemImage: "doc", description: Text("Choose an .artifact file to inspect its layers."))
+        VStack(spacing:0) {
+            if model.summary != nil {
+                HSplitView {
+                    layerPanel.frame(minWidth:210,idealWidth:240,maxWidth:260)
+                    VStack(spacing:0) {
+                        if mode=="Nodes" {NodeWorkspace(model:model)} else {ArtworkCanvas(model:model)}
+                        if let error=model.renderMessage {notice(error)}
+                    }.frame(minWidth:440,maxWidth:.infinity,maxHeight:.infinity)
+                    VStack(spacing:0) {
+                        HStack{Text("Properties").font(.headline);Spacer()}.padding(18)
+                        Divider()
+                        if let layer=model.selectedLayer {
+                            LayerInspector(model:model,layer:layer).id(layer.id)
+                        } else {
+                            Text("Select a layer or node to edit its properties.").foregroundStyle(.secondary).padding(24)
+                            Spacer()
+                        }
+                    }.frame(minWidth:280,idealWidth:300,maxWidth:360)
                 }
-                if model.isExporting { ProgressView("Exporting PNG…") }
-                if let error = model.exportMessage { Text(error).foregroundStyle(.red) }
-                if let message = model.message {
-                    Text(message).foregroundStyle(.red).textSelection(.enabled)
-                        .accessibilityLabel("Error: \(message)")
-                }
-                Spacer()
-            }
-            .padding(28)
-            .onChange(of: model.selectedID) { _, _ in draftAmount = model.selected?.scanlines ?? 0 }
-            .onChange(of: model.selected?.scanlines) { _, value in draftAmount = value ?? 0 }
+            } else {welcome.frame(maxWidth:.infinity,maxHeight:.infinity)}
+            if let message=model.message {notice(message)}
+            if let message=model.exportMessage {notice(message)}
+            if model.isExporting {HStack{ProgressView().controlSize(.small);Text("Exporting PNG…");Spacer()}.padding(10)}
         }
         .toolbar {
-            Button("Open…", action: model.open)
-            Button("Undo", action: model.undo).disabled(model.summary?.canUndo != true)
-            Button("Redo", action: model.redo).disabled(model.summary?.canRedo != true)
-            Button("Save Copy…", action: model.saveCopy).disabled(model.summary == nil)
-            Button("Export PNG…", action: model.exportPNG).disabled(model.summary == nil || model.isExporting)
+            ToolbarItemGroup(placement:.navigation) {
+                Button(action:model.open){Label("Open",systemImage:"folder")}.help("Open project")
+                Menu {ForEach(model.recentFiles,id:\.path){url in Button(url.lastPathComponent){model.openURL(url)}}} label:{Image(systemName:"clock")}.help("Open recent project")
+            }
+            ToolbarItem(placement:.principal) {
+                Picker("Workspace",selection:$mode){Text("Canvas").tag("Canvas");Text("Nodes").tag("Nodes")}.pickerStyle(.segmented).frame(width:190).disabled(model.summary==nil)
+            }
+            ToolbarItemGroup(placement:.primaryAction) {
+                Button(action:model.undo){Image(systemName:"arrow.uturn.backward")}.help("Undo").disabled(model.summary?.canUndo != true)
+                Button(action:model.redo){Image(systemName:"arrow.uturn.forward")}.help("Redo").disabled(model.summary?.canRedo != true)
+                Button("Save"){model.save()}.disabled(model.summary==nil)
+                Button("Export PNG…",action:model.exportPNG).disabled(model.summary==nil||model.isExporting)
+            }
         }
+        .navigationTitle(model.summary==nil ? "Artifact" : model.fileName)
+        .navigationSubtitle(model.isModified ? "Edited" : "")
+    }
+    private var layerPanel:some View {
+        VStack(spacing:0) {
+            HStack {
+                Text("Layers").font(.headline)
+                Text("\(model.editor.layers.count)").foregroundStyle(.secondary).monospacedDigit()
+                Spacer()
+                Menu {
+                    Button("Text"){model.addLayer("text")}
+                    Button("Image…",action:model.importLayer)
+                    Button("Fill"){model.addLayer("fill")}
+                    Button("Emojis"){model.addLayer("emoji")}
+                    Button("Effect"){model.addLayer("effect")}
+                } label:{Image(systemName:"plus")}.menuStyle(.borderlessButton).frame(width:28).help("Add layer").disabled(!model.editor.graphEditable)
+            }.padding(16)
+            Divider()
+            List(selection:$model.selectedID) {
+                ForEach(Array(model.editor.orderedLayers.reversed())) {layer in
+                    HStack(spacing:10) {
+                        Image(systemName:layer.symbol).foregroundStyle(layer.tint).frame(width:20)
+                        Text(layer.name).lineLimit(2).opacity(layer.visible ? 1 : 0.5)
+                        Spacer(minLength:0)
+                        if layer.locked {Image(systemName:"lock.fill").font(.caption).foregroundStyle(.secondary)}
+                        Button {
+                            model.command(["type":"edit_layer","id":layer.id,"patch":["visible": !layer.visible]])
+                        } label:{Image(systemName:layer.visible ? "eye" : "eye.slash").foregroundStyle(.secondary)}
+                            .buttonStyle(.borderless).help(layer.visible ? "Hide \(layer.name)" : "Show \(layer.name)")
+                    }.padding(.vertical,5).tag(layer.id)
+                    .listRowBackground(model.selectedID == layer.id ? Color.accentColor.opacity(0.22) : Color.clear)
+                    .contextMenu {
+                        Button("Duplicate"){model.selectedID=layer.id;model.duplicate()}
+                        Button(layer.locked ? "Unlock" : "Lock"){model.command(["type":"edit_layer","id":layer.id,"patch":["locked": !layer.locked]])}
+                        Divider()
+                        Button("Delete",role:.destructive){model.selectedID=layer.id;model.deleteSelected()}.disabled(layer.locked)
+                    }
+                }
+            }.listStyle(.sidebar)
+            if !model.editor.canReorder {Text("Composition order follows node connections.").font(.caption).foregroundStyle(.secondary).padding(12)}
+            Divider()
+            HStack {
+                Button{model.moveSelected(1)}label:{Image(systemName:"arrow.up")}.help("Move layer up").disabled(!model.editor.canReorder||model.selectedLayer?.locked==true)
+                Button{model.moveSelected(-1)}label:{Image(systemName:"arrow.down")}.help("Move layer down").disabled(!model.editor.canReorder||model.selectedLayer?.locked==true)
+                Spacer()
+                Button(action:model.duplicate){Image(systemName:"plus.square.on.square")}.help("Duplicate layer")
+                Button(action:model.deleteSelected){Image(systemName:"trash")}.help("Delete layer").disabled(model.selectedLayer?.locked==true)
+            }.buttonStyle(.borderless).padding(14).disabled(model.selectedID==nil)
+        }
+    }
+    private var welcome:some View {
+        VStack(alignment:.leading,spacing:20) {
+            Image(systemName:"square.stack.3d.up").font(.system(size:36)).foregroundStyle(.secondary)
+            Text("Create your next cover.").font(.system(size:28,weight:.semibold))
+            HStack{Button("New project",action:model.newDocument).buttonStyle(.borderedProminent);Button("Open project…",action:model.open)}
+            if model.recoveryAvailable {Button("Restore unsaved project",action:model.restoreRecovery)}
+            if !model.recentFiles.isEmpty {
+                Divider();Text("Recent projects").font(.headline)
+                ForEach(model.recentFiles.prefix(5),id:\.path){url in Button(url.lastPathComponent){model.openURL(url)}.buttonStyle(.link)}
+            }
+        }.frame(width:420).padding(40)
+    }
+    private func notice(_ message:String)->some View {
+        HStack(alignment:.top){Image(systemName:"exclamationmark.triangle");Text(message).textSelection(.enabled);Spacer()}
+            .font(.callout).foregroundStyle(.red).padding(12).background(.thinMaterial)
     }
 }

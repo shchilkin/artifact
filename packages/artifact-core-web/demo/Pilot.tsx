@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { openProject, readSummary, type SessionSummary, type WebSession } from '../src/index';
+import { blankProject, openProject, readSummary, type SessionSummary, type WebSession } from '../src/index';
+import { EditorTools } from './EditorTools';
 import { ImageInspector } from './ImageInspector';
 import { TextInspector } from './TextInspector';
 import { PREVIEW_SIZE, useArtwork } from './useArtwork';
@@ -71,7 +72,7 @@ export function Pilot() {
     }
   }
 
-  function act(action: (current: WebSession) => void) {
+  function act(action: (current: WebSession) => void, select?: string) {
     if (!session.current) return;
     try {
       action(session.current);
@@ -79,7 +80,10 @@ export function Pilot() {
       const next = readSummary(session.current);
       setSummary(next);
       setDocumentRevision((revision) => revision + 1);
-      setAmount(next.layers.find((layer) => layer.id === selectedId)?.scanlines?.toString() ?? '');
+      const id =
+        select ?? (next.layers.some((layer) => layer.id === selectedId) ? selectedId : (next.layers.at(-1)?.id ?? ''));
+      setSelectedId(id);
+      setAmount(next.layers.find((layer) => layer.id === id)?.scanlines?.toString() ?? '');
       setDirty(session.current.export_json() !== savedJSON.current);
       setError('');
     } catch (cause) {
@@ -103,6 +107,17 @@ export function Pilot() {
     <main>
       <header>
         <h1>Artifact Core Pilot</h1>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => {
+            void blankProject().then((json) =>
+              load(new File([json], 'Untitled.artifact', { type: 'application/json' })),
+            );
+          }}
+        >
+          New project
+        </button>
         <label className="open">
           Open project
           <input
@@ -157,26 +172,41 @@ export function Pilot() {
       </p>
       {error && <p role="alert">{error}</p>}
       {artwork.exportError && <p role="alert">{artwork.exportError}</p>}
+      {summary && (
+        <EditorTools
+          state={summary.editor}
+          selectedId={selectedId}
+          disabled={loading}
+          command={(command, select) =>
+            act((current) => {
+              current.execute(JSON.stringify(command));
+            }, select)
+          }
+        />
+      )}
       <div className="workspace">
         <nav aria-label="Layers">
           <h2>Layers {summary ? `(${summary.layers.length})` : ''}</h2>
-          {summary?.layers.map((layer) => (
-            <button
-              type="button"
-              key={layer.id}
-              aria-pressed={layer.id === selectedId}
-              onClick={() => {
-                setSelectedId(layer.id);
-                setAmount(layer.scanlines?.toString() ?? '');
-              }}
-            >
-              <span>{layer.name}</span>
-              <small>{layer.kind}</small>
-            </button>
-          ))}
+          {summary?.layers
+            .slice()
+            .sort((a, b) => summary.editor.order.indexOf(b.id) - summary.editor.order.indexOf(a.id))
+            .map((layer) => (
+              <button
+                type="button"
+                key={layer.id}
+                aria-pressed={layer.id === selectedId}
+                onClick={() => {
+                  setSelectedId(layer.id);
+                  setAmount(layer.scanlines?.toString() ?? '');
+                }}
+              >
+                <span>{layer.name}</span>
+                <small>{layer.kind}</small>
+              </button>
+            ))}
         </nav>
         <section aria-label="Layer properties">
-          <h2>{selected?.name ?? 'Open an Artifact project'}</h2>
+          <h2>{selected?.name ?? (summary ? 'Add a layer to begin' : 'Open an Artifact project')}</h2>
           {selected ? (
             <>
               {selected.scanlines !== null ? (
@@ -254,7 +284,11 @@ export function Pilot() {
               )}
             </>
           ) : (
-            <p>Choose an .artifact file to inspect its layers. Files stay on this device.</p>
+            <p>
+              {summary
+                ? 'Add text, a fill, emojis or an effect.'
+                : 'Choose an .artifact file to inspect its layers. Files stay on this device.'}
+            </p>
           )}
         </section>
       </div>

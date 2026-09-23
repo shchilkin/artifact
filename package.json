@@ -79,7 +79,8 @@
     "test:core-web": "npm --workspace @artifact/core-web run test",
     "test:core-text": "node scripts/core-pilot/verify-text.mjs",
     "test:core-image": "node scripts/core-pilot/verify-image.mjs",
-    "test:core-preview": "apps/macos/.build/model-check tests/fixtures/core-parity/viber.local/source.artifact test-results/core-pilot/preview/model"
+    "test:core-preview": "apps/macos/.build/model-check tests/fixtures/core-parity/viber.local/source.artifact test-results/core-pilot/preview/model",
+    "test:core-editor": "node scripts/core-pilot/verify-editor.mjs"
   },
   "dependencies": {
     "@react-router/node": "^7.14.2",

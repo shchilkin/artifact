@@ -507,6 +507,12 @@ function NodeCanvas(props) {
 
 ## QA checklist for node editor changes
 
+The native macOS layer-backed node workspace has a separate, narrower scope:
+see [Web + macOS workspace](./web-macos-editor-workspace.md). It commits graph
+commands through Rust, preserves unsupported graph structures, and shares
+selection with its layers/inspector. It does not replace the Web graph helpers
+or React Flow surface described here.
+
 Before merging node editor changes:
 
 - Select/move/delete each node type.

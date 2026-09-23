@@ -22,6 +22,7 @@ if (mode !== 'macos') {
     '--out-dir',
     'packages/artifact-core-web/generated',
   ]);
+  run(process.execPath, ['scripts/core-pilot/runtime-manifest.mjs', '--write']);
 }
 if (mode !== 'wasm') {
   if (process.platform !== 'darwin' || process.arch !== 'arm64')
@@ -79,6 +80,8 @@ if (mode !== 'wasm') {
     ...common,
     'apps/macos/Sources/PilotRenderer.swift',
     'apps/macos/Sources/ProjectModel.swift',
+    'apps/macos/Sources/EditorState.swift',
+    'apps/macos/Sources/ImageImport.swift',
     'apps/macos/ModelCheck.swift',
     '-o',
     path.join(build, 'model-check'),
@@ -92,7 +95,7 @@ if (mode !== 'wasm') {
     '-o',
     path.join(build, 'image-check'),
   ]);
-  const app = path.join(build, 'Artifact Core Pilot.app/Contents');
+  const app = path.join(build, 'Artifact.app/Contents');
   mkdirSync(path.join(app, 'MacOS'), { recursive: true });
   const sources = readdirSync(path.join(root, 'apps/macos/Sources'))
     .filter((f) => f.endsWith('.swift'))
@@ -104,12 +107,14 @@ if (mode !== 'wasm') {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>ArtifactCorePilot</string>
-<key>CFBundleIdentifier</key><string>dev.shchilkin.artifact.core-pilot</string>
-<key>CFBundleName</key><string>Artifact Core Pilot</string>
+<key>CFBundleIdentifier</key><string>dev.shchilkin.artifact.workspace</string>
+<key>CFBundleName</key><string>Artifact</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>NSHighResolutionCapable</key><true/>
+<key>CFBundleDocumentTypes</key><array><dict><key>CFBundleTypeName</key><string>Artifact Project</string><key>CFBundleTypeRole</key><string>Editor</string><key>LSItemContentTypes</key><array><string>dev.shchilkin.artifact.project</string></array></dict></array>
+<key>UTExportedTypeDeclarations</key><array><dict><key>UTTypeIdentifier</key><string>dev.shchilkin.artifact.project</string><key>UTTypeConformsTo</key><array><string>public.json</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>artifact</string></array></dict></dict></array>
 </dict></plist>\n`,
   );
   run('codesign', ['--force', '--sign', '-', path.dirname(app)]);

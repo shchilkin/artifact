@@ -7,7 +7,15 @@ struct Conformance {
         guard (4...6).contains(args.count) else { fatalError("usage: conformance INPUT LAYER_ID OUTPUT [PATCH_FILE] [image]") }
         let session = try NativeSession.open(source: String(contentsOfFile: args[1], encoding: .utf8))
         let opened = try session.exportJson()
-        if args.count == 6 && args[5] == "image" {
+        var steps = 1
+        if args.count == 6 && args[5] == "editor" {
+            let commands = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: args[4]))) as! [[String: Any]]
+            steps = 0
+            for command in commands {
+                let data = try JSONSerialization.data(withJSONObject: command, options: [.sortedKeys, .withoutEscapingSlashes])
+                if try session.execute(commandJson: String(decoding: data, as: UTF8.self)) { steps += 1 }
+            }
+        } else if args.count == 6 && args[5] == "image" {
             _ = try session.setImage(layerId: args[2], patchJson: String(contentsOfFile: args[4], encoding: .utf8))
         } else if args.count == 5 {
             _ = try session.setText(layerId: args[2], patchJson: String(contentsOfFile: args[4], encoding: .utf8))
@@ -15,11 +23,9 @@ struct Conformance {
             _ = try session.setScanlines(layerId: args[2], amount: 50)
         }
         let changed = try session.exportJson()
-        let didUndo = try session.undo()
-        precondition(didUndo)
+        for _ in 0..<steps { let changed = try session.undo(); precondition(changed) }
         let undone = try session.exportJson()
-        let didRedo = try session.redo()
-        precondition(didRedo)
+        for _ in 0..<steps { let changed = try session.redo(); precondition(changed) }
         let redone = try session.exportJson()
         let reopened = try NativeSession.open(source: redone).exportJson()
         let output = ["opened": opened, "changed": changed, "undone": undone, "redone": redone, "reopened": reopened]

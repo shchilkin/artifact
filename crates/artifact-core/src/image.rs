@@ -29,10 +29,24 @@ pub(crate) fn properties(layer: &Value) -> Option<ImageProperties> {
     })
 }
 
+// Decode only the fixed PNG header for lightweight editor geometry.
+pub(crate) fn dimensions(layer: &Value) -> Option<(u32, u32)> {
+    let encoded = layer["src"]
+        .as_str()?
+        .strip_prefix("data:image/png;base64,")?;
+    let bytes = STANDARD.decode(encoded.get(..32)?).ok()?;
+    if !bytes.starts_with(b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR") {
+        return None;
+    }
+    let width = u32::from_be_bytes(bytes[16..20].try_into().ok()?);
+    let height = u32::from_be_bytes(bytes[20..24].try_into().ok()?);
+    (width > 0 && height > 0).then_some((width, height))
+}
+
 // Platform importers fully decode and normalize PNG/JPEG (including orientation)
 // before calling this command. Core checks the portable envelope and bounds;
 // it is not a PNG pixel decoder. Existing package payloads are not rewritten.
-fn validate_source(value: &Value) -> Result<(), CoreError> {
+pub(crate) fn validate_source(value: &Value) -> Result<(), CoreError> {
     let encoded = value
         .as_str()
         .and_then(|s| s.strip_prefix("data:image/png;base64,"))

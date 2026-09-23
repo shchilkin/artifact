@@ -167,3 +167,23 @@ textarea {
 .text-inspector label {
   max-width: none;
 }
+
+.editor-tools {
+  padding-block: 16px;
+  border-top: 1px solid var(--border);
+}
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.editor-tools select {
+  color: var(--text);
+  background: var(--surface);
+  padding: 8px;
+  margin: 8px;
+}
+.editor-tools details button {
+  margin: 4px;
+}

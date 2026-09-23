@@ -1,0 +1,19 @@
+{
+  "source": {
+    "Cargo.lock": "730ab039c28d64203aac9322c11260b0fc8f5ce677a5334462dfe57af78496f7",
+    "Cargo.toml": "d9786a5cf7ffa340158f73c46bd865227ad887c7f8087a119aac8e9bb554c729",
+    "crates/artifact-core/Cargo.toml": "0e83c574b9a4ad4e1ed2ce69aa52183f9d9d6af40ad04cf7ea9e9e0528471d82",
+    "crates/artifact-core/src/editor.rs": "2e9edaa5ba70171046ff1cb84a4c8f5805b83a694301f873ba2650ca8a033631",
+    "crates/artifact-core/src/image.rs": "f7fa35b718b1f3f60226fa95a873e1000910b23ad95fb90ff99ceca67b84a03c",
+    "crates/artifact-core/src/lib.rs": "d71bc3803fad846024469739766ef490feb782b71c112a90d9a891983d09b418",
+    "crates/artifact-core/src/render.rs": "63277c71f76dd5ef5c9193436fe0d809ca6105c2ba3b87596016fbcf1512e3b9",
+    "crates/artifact-wasm/Cargo.toml": "92f7df3d342b154809f0dc97a32ab2f1f82758ffaff9cbabb66601a3e5360ab6",
+    "crates/artifact-wasm/src/lib.rs": "a0c39e31ae1a7cd3183fed70df722f0383e3d400fd50e60718f74a25d9293902"
+  },
+  "runtime": {
+    "artifact_wasm.d.ts": "af28ba07134636698b003a44899f9e242790d14da86250801e9d11ec3e8c02ec",
+    "artifact_wasm.js": "4b06a83e4bdb3da6d5bdf675411037819794cd561553b71f316cac9f0028de03",
+    "artifact_wasm_bg.wasm": "e9d0b44c9f868be60cbacea098347bfa73141842ec86e77ede92c0db79dc6a72",
+    "artifact_wasm_bg.wasm.d.ts": "cf3ccfbf5af9bbb736030dbc74a50315a9d0898f035268c24ea70ffc5cc48efb"
+  }
+}

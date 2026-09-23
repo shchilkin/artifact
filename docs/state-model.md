@@ -1,7 +1,10 @@
 # State Model
 
-The experimental Rust document-command pilot is isolated from production state
-ownership. See [Web + native macOS pilot](./web-macos-viber-pilot.md) for its
+The main Web editor now routes supported layer-property patches through the
+shared Rust/WASM core, while keeping its existing document and history ownership.
+See [main Web integration](./web-macos-main-web-integration.md) for the boundary,
+fallbacks and runtime build checks. Native/package sessions retain their own
+bounded Rust history. See [Web + native macOS pilot](./web-macos-viber-pilot.md) for its
 binding conformance checks and remaining UI/render acceptance. In that pilot,
 Scanlines and text edits use the same bounded patch history. A text Apply is
 one atomic command covering only changed content, size, color, or X/Y fields.

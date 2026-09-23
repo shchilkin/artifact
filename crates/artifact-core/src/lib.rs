@@ -1,5 +1,6 @@
 //! Shared document-command pilot. No renderer or platform resources.
 
+mod editor;
 mod image;
 pub mod render;
 pub use image::ImageProperties;
@@ -57,10 +58,14 @@ struct FieldEdit {
 struct Edit {
     layer_index: usize,
     fields: Vec<FieldEdit>,
+    structure: Option<editor::StructureEdit>,
 }
 
 impl Edit {
     fn retained_bytes(&self) -> usize {
+        if let Some(change) = &self.structure {
+            return change.bytes();
+        }
         self.fields
             .iter()
             .map(|field| {
@@ -283,6 +288,7 @@ impl DocumentSession {
         let edit = Edit {
             layer_index: index,
             fields,
+            structure: None,
         };
         if self.past.len() == HISTORY_LIMIT {
             self.past.remove(0);
@@ -305,6 +311,11 @@ impl DocumentSession {
         let Some(edit) = self.past.pop() else {
             return false;
         };
+        if let Some(change) = &edit.structure {
+            change.apply(&mut self.package["document"], false);
+            self.future.push(edit);
+            return true;
+        }
         let layer = self.package["document"]["layers"][edit.layer_index]
             .as_object_mut()
             .expect("layer");
@@ -323,6 +334,11 @@ impl DocumentSession {
         let Some(edit) = self.future.pop() else {
             return false;
         };
+        if let Some(change) = &edit.structure {
+            change.apply(&mut self.package["document"], true);
+            self.past.push(edit);
+            return true;
+        }
         for field in &edit.fields {
             self.package["document"]["layers"][edit.layer_index][&field.key] = field.after.clone();
         }
@@ -344,6 +360,7 @@ mod history_tests {
         for index in 0..3 {
             session.past.push(Edit {
                 layer_index: index,
+                structure: None,
                 fields: vec![FieldEdit {
                     key: "src".into(),
                     before: Some(Value::String("old".repeat(10))),

@@ -63,6 +63,21 @@ impl NativeSession {
         Ok(self.lock()?.set_image(&layer_id, &patch_json)?)
     }
 
+    pub fn execute(&self, command_json: String) -> Result<bool, SessionError> {
+        Ok(self.lock()?.execute(&command_json)?)
+    }
+    pub fn editor_state_json(&self) -> Result<String, SessionError> {
+        Ok(self.lock()?.editor_state_json())
+    }
+
+    pub fn draft_plan_json(
+        &self,
+        layer_id: String,
+        patch_json: String,
+        size: u32,
+    ) -> Result<String, SessionError> {
+        Ok(self.lock()?.draft_plan_json(&layer_id, &patch_json, size)?)
+    }
     pub fn undo(&self) -> Result<bool, SessionError> {
         Ok(self.lock()?.undo())
     }
@@ -86,4 +101,9 @@ pub fn render_effect(
         &layer_json,
         seed,
     )?)
+}
+
+#[uniffi::export]
+pub fn new_project() -> String {
+    DocumentSession::blank_json()
 }

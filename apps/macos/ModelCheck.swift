@@ -80,7 +80,7 @@ import Foundation
         try await wait { !model.isRendering }
         try check(try Data(contentsOf: final) == Data("current PNG".utf8))
         // Exercise the real renderer and export path, not just scheduling stubs.
-        let real = ProjectModel()
+        let real = ProjectModel(persist: false)
         real.load(source)
         try await wait { !real.isRendering }
         try check(real.preview?.size.width == 1000 && real.renderMessage == nil)
@@ -91,6 +91,56 @@ import Foundation
         let data = try Data(contentsOf: png)
         try check(data.prefix(8) == Data([137,80,78,71,13,10,26,10]))
         try check(data[16..<20] == Data([0,0,11,184])) // 3000
+        // Coherent editing and file lifecycle on a new native document.
+        let workspace = ProjectModel(persist: false)
+        workspace.newDocument()
+        workspace.addLayer("fill")
+        workspace.editProperties(["color":"#14232e"])
+        workspace.addLayer("text")
+        workspace.editProperties(["content":"NATIVE STUDIO","color":"#ff6b35","size":48])
+        let title = workspace.selectedID!
+        workspace.duplicate()
+        workspace.editProperties(["content":"SIDE B","y":0.8,"size":24])
+        let copy = workspace.selectedID!
+        workspace.deleteSelected()
+        try check(workspace.editor.layers.count == 2)
+        workspace.undo()
+        try check(workspace.editor.layers.count == 3)
+        workspace.selectedID = copy
+        workspace.moveSelected(-1)
+        try check(workspace.message == nil)
+        workspace.command(["type":"move_node","id":title,"x":420,"y":140])
+        workspace.command(["type":"connect","from":title,"to":"__export__"])
+        try await wait { !workspace.isRendering }
+        try check(workspace.renderMessage == nil && workspace.preview != nil)
+        let saved = directory.appendingPathComponent("native-workspace.artifact")
+        workspace.stageInspector(title, values: ["content":"PENDING TITLE"], patch: ["content":"PENDING TITLE"], valid: true)
+        workspace.selectedID = copy
+        workspace.editProperties(["visible": false])
+        try check(workspace.inspectorDrafts[title]?.values["content"] == "PENDING TITLE")
+        try check(workspace.save(to:saved))
+        try check(!workspace.isModified && workspace.inspectorDrafts.isEmpty)
+        try check(workspace.editor.layers.first { $0.id == title }?.string("content") == "PENDING TITLE")
+        let savedBytes = try Data(contentsOf:saved)
+        workspace.stageInspector(title, values: ["size":"invalid"], patch: [:], valid: false)
+        try check(!workspace.save(to:saved), "Invalid inspector draft was silently saved")
+        let unchangedBytes = try Data(contentsOf:saved)
+        try check(unchangedBytes == savedBytes && workspace.inspectorDrafts[title] != nil)
+        workspace.discardInspector(title)
+        try check(!workspace.isModified)
+        workspace.selectedID = title
+        workspace.editProperties(["content":"Changed"])
+        try check(workspace.isModified)
+        workspace.undo()
+        try check(!workspace.isModified, "Undo to saved document remained dirty")
+        let reopened = ProjectModel(persist:false)
+        reopened.load(saved)
+        try check(reopened.editor.layers.count == 3 && reopened.message == nil)
+        try await wait { !reopened.isRendering }
+        reopened.exportPNG(to:directory.appendingPathComponent("native-workspace.png"))
+        try await wait { !reopened.isExporting }
+        try check(reopened.exportMessage == nil)
+        print("PASS: native new/add/edit/duplicate/delete/reorder/graph/save/reopen/export and saved-state history")
         print("PASS: native 1000px preview, 3000px independent export, stale preview/export rejection, edit/open cancellation, failure and retry")
     }
 }

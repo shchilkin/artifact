@@ -1,7 +1,9 @@
 # Testing
 
-The experimental Rust document-command pilot is isolated from production state
-ownership. See [Web + native macOS pilot](./web-macos-viber-pilot.md) for its
+The main Web editor's shared-core integration is covered by
+`app/utils/sharedCoreCommands.test.ts`, using actual compiled WASM bytes through
+production document commands. See [the integration boundary](./web-macos-main-web-integration.md).
+The native/package conformance harness also remains available. See [Web + native macOS pilot](./web-macos-viber-pilot.md) for its
 binding conformance, verified Viber GUI round trip and remaining coverage.
 `npm run test:core-web` covers the pilot effect-worker lifecycle, cancellation
 and failure paths; real-browser PNG comparisons are recorded in the pilot evidence.
@@ -421,3 +423,8 @@ npm run test:browser
 - [`docs/state-model.md`](state-model.md) — what state affects render output
 - [`docs/performance.md`](performance.md) — node-editor benchmark workflow
 - [`docs/improvement-plan.md`](improvement-plan.md) — phased quality checklist
+
+`npm run test:core-editor` verifies a 14-command layer/graph sequence across Rust,
+WASM and Swift, exact Undo/Redo states and a Web -> Mac -> Web package handoff.
+`test:core-preview` also verifies native new/add/edit/duplicate/delete/reorder,
+graph changes, save/reopen, saved-state history and PNG export.

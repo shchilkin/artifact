@@ -36,6 +36,46 @@ struct SessionSummary: Decodable {
 @MainActor
 final class ProjectModel: ObservableObject {
     @Published private(set) var documentRevision = 0
+    @Published var editor = EditorState()
+    struct InspectorDraft {
+        let values: [String: String]
+        let patch: [String: Any]
+        let valid: Bool
+    }
+    @Published private(set) var inspectorDrafts: [String: InspectorDraft] = [:]
+    func stageInspector(_ id: String, values: [String: String], patch: [String: Any], valid: Bool) {
+        if patch.isEmpty && valid { inspectorDrafts.removeValue(forKey: id) }
+        else { inspectorDrafts[id] = InspectorDraft(values: values, patch: patch, valid: valid) }
+        updateModified()
+    }
+    func discardInspector(_ id: String) {
+        inspectorDrafts.removeValue(forKey: id)
+        updateModified()
+    }
+    private func updateModified() {
+        isModified = !inspectorDrafts.isEmpty || ((try? session?.exportJson()) != savedJSON)
+    }
+    @discardableResult func applyInspector(_ id: String) -> Bool {
+        guard let draft = inspectorDrafts[id] else { return true }
+        guard draft.valid else { message = "Check the values in the layer inspector before saving."; return false }
+        guard command(["type": "edit_layer", "id": id, "patch": draft.patch]) else { return false }
+        inspectorDrafts.removeValue(forKey: id)
+        updateModified()
+        return true
+    }
+    private func applyInspectors() -> Bool {
+        for id in inspectorDrafts.keys.sorted() { if !applyInspector(id) { selectedID = id; return false } }
+        return true
+    }
+    @Published var recentFiles: [URL] = []
+    @Published var recoveryAvailable = false
+    @Published var isImporting = false
+    private var currentURL: URL?
+    private let persistenceEnabled: Bool
+    private static var recoveryURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Artifact Workspace/recovery.artifact")
+    }
     @Published var summary: SessionSummary?
     @Published var selectedID: String?
     @Published var fileName = "No project open"
@@ -52,19 +92,25 @@ final class ProjectModel: ObservableObject {
     private let renderImage: (String) async throws -> CGImage
     private let renderPNGData: (String) async throws -> Data
 
-    convenience init() {
+    convenience init(persist: Bool = true) {
         self.init(
             renderImage: { try await RenderWorker.shared.render(plan: $0) },
-            renderPNGData: { try await RenderWorker.shared.png(plan: $0) }
+            renderPNGData: { try await RenderWorker.shared.png(plan: $0) }, persist: persist
         )
     }
 
     init(
         renderImage: @escaping (String) async throws -> CGImage,
-        renderPNGData: @escaping (String) async throws -> Data
+        renderPNGData: @escaping (String) async throws -> Data,
+        persist: Bool = false
     ) {
         self.renderImage = renderImage
         self.renderPNGData = renderPNGData
+        self.persistenceEnabled = persist
+        if persist {
+            recentFiles = (UserDefaults.standard.stringArray(forKey: "artifactRecentFiles") ?? []).map { URL(fileURLWithPath: $0) }
+            recoveryAvailable = FileManager.default.fileExists(atPath: Self.recoveryURL.path)
+        }
     }
 
     private var renderRevision = 0
@@ -78,7 +124,6 @@ final class ProjectModel: ObservableObject {
         exportTask?.cancel()
         isExporting = false
         exportMessage = nil
-        preview = nil
         guard let session else { return }
         do {
             let plan = try session.renderPlanJson(width: Self.previewSize, height: Self.previewSize)
@@ -102,19 +147,27 @@ final class ProjectModel: ObservableObject {
         }
     }
 
+    // Sheets keep the app event loop available to keyboard and accessibility.
+    func presentFilePanel(_ panel: NSSavePanel, completion: @escaping (URL?) -> Void) {
+        let finish: (NSApplication.ModalResponse) -> Void = { response in
+            completion(response == .OK ? panel.url : nil)
+        }
+        if let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
+            panel.beginSheetModal(for: window, completionHandler: finish)
+        } else { panel.begin(completionHandler: finish) }
+    }
     func exportPNG() {
-        guard session != nil, !isExporting else { return }
+        guard session != nil, !isExporting, applyInspectors() else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         panel.nameFieldStringValue = "\(URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent).png"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        exportPNG(to: url)
+        presentFilePanel(panel) { [weak self] url in if let url { self?.exportPNG(to: url) } }
     }
 
     // Export always renders a fresh full-size plan. An edit/open invalidates it
     // before it can write, even if a renderer ignores cooperative cancellation.
     func exportPNG(to url: URL) {
-        guard let session, !isExporting else { return }
+        guard let session, !isExporting, applyInspectors() else { return }
         let revision = renderRevision
         do {
             let plan = try session.renderPlanJson(width: Self.exportSize, height: Self.exportSize)
@@ -145,23 +198,36 @@ final class ProjectModel: ObservableObject {
         return error.localizedDescription
     }
 
-    func confirmDiscard() -> Bool {
-        guard isModified else { return true }
+    func confirmDiscard(_ proceed: @escaping () -> Void) {
+        guard isModified else { proceed(); return }
         let alert = NSAlert()
-        alert.messageText = "Discard unsaved changes?"
-        alert.informativeText = "Save a copy first if you want to keep your changes."
+        alert.messageText = "Save changes before closing this project?"
+        alert.informativeText = fileName
+        alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
         alert.addButton(withTitle: "Discard Changes")
-        return alert.runModal() == .alertSecondButtonReturn
+        let finish: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            switch response {
+            case .alertFirstButtonReturn: self?.save { if $0 { proceed() } }
+            case .alertThirdButtonReturn: proceed()
+            default: break
+            }
+        }
+        if let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
+            alert.beginSheetModal(for: window, completionHandler: finish)
+        } else { finish(alert.runModal()) }
     }
 
     func open() {
-        guard confirmDiscard() else { return }
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [UTType(filenameExtension: "artifact") ?? .json, .json]
-        panel.allowsMultipleSelection = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        load(url)
+        confirmDiscard { [weak self] in
+            guard let self else { return }
+            let panel = NSOpenPanel()
+            // Imported .artifact files may have an older or unregistered UTI.
+            // Validate the package after selection instead of excluding valid files.
+            panel.allowedContentTypes = [.data]
+            panel.allowsMultipleSelection = false
+            presentFilePanel(panel) { [weak self] url in if let url { self?.load(url) } }
+        }
     }
 
     func load(_ url: URL) {
@@ -174,13 +240,18 @@ final class ProjectModel: ObservableObject {
             let nextSummary = try JSONDecoder().decode(SessionSummary.self, from: Data(candidate.summaryJson().utf8))
             let nextJSON = try candidate.exportJson()
             session = candidate
+            inspectorDrafts.removeAll()
             summary = nextSummary
+            editor = try EditorState(json: candidate.editorStateJson())
+            currentURL = url
+            remember(url)
             savedJSON = nextJSON
             selectedID = nextSummary.layers.first(where: { ($0.scanlines ?? 0) > 0 })?.id
                 ?? nextSummary.layers.first?.id
             fileName = url.lastPathComponent
             isModified = false
             message = nil
+            preview = nil
             refreshPreview()
         } catch { message = displayMessage(error) }
     }
@@ -206,34 +277,151 @@ final class ProjectModel: ObservableObject {
         }
     }
 
-    func undo() { guard let session else { return }; perform { _ = try session.undo() } }
+    func undo() {
+        if !inspectorDrafts.isEmpty { inspectorDrafts.removeAll(); updateModified(); documentRevision += 1; return }
+        guard let session else { return }; perform { _ = try session.undo() }
+    }
     func redo() { guard let session else { return }; perform { _ = try session.redo() } }
 
-    private func perform(_ action: () throws -> Void) {
+    @discardableResult private func perform(_ action: () throws -> Void) -> Bool {
         do {
+            message = nil
             try action()
             if let session {
                 summary = try JSONDecoder().decode(SessionSummary.self, from: Data(session.summaryJson().utf8))
-                isModified = try session.exportJson() != savedJSON
+                editor = try EditorState(json: session.editorStateJson())
+                if !editor.layers.contains(where: { $0.id == selectedID }) { selectedID = editor.orderedLayers.last?.id }
+                inspectorDrafts = inspectorDrafts.filter { id, _ in editor.layers.contains { $0.id == id } }
+                updateModified()
+                persistRecovery()
                 refreshPreview()
             }
-            message = nil
-        } catch { message = displayMessage(error) }
+            return true
+        } catch { message = displayMessage(error); return false }
     }
 
-    func saveCopy() {
-        guard let session else { return }
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [UTType(filenameExtension: "artifact") ?? .json]
-        panel.nameFieldStringValue = "\(URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent)-copy.artifact"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+    var selectedLayer: EditorLayer? { editor.layers.first { $0.id == selectedID } }
+
+    @discardableResult func command(_ command: [String: Any], select: String? = nil) -> Bool {
+        guard let session else { return false }
+        return perform {
+            let bytes = try JSONSerialization.data(withJSONObject: command, options: [.sortedKeys, .withoutEscapingSlashes])
+            _ = try session.execute(commandJson: String(decoding: bytes, as: UTF8.self))
+            if let select { selectedID = select }
+        }
+    }
+    func previewTransform(_ patch: [String: Double]) {
+        guard let session, let selectedID else { return }
+        renderTask?.cancel()
+        let revision = renderRevision
+        renderTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(70))
+                let json = try JSONSerialization.data(withJSONObject: patch)
+                let plan = try session.draftPlanJson(layerId: selectedID, patchJson: String(decoding: json, as: UTF8.self), size: 500)
+                let image = try await RenderWorker.shared.render(plan: plan)
+                guard let self, !Task.isCancelled, renderRevision == revision, self.selectedID == selectedID else { return }
+                isRendering = false
+                preview = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+            } catch { /* A superseded pointer draft has no durable state. */ }
+        }
+    }
+    func cancelTransformPreview() { refreshPreview() }
+    func editProperties(_ patch: [String: Any]) {
+        guard let selectedID else { return }
+        command(["type": "edit_layer", "id": selectedID, "patch": patch])
+    }
+    func addLayer(_ kind: String, src: String? = nil) {
+        let id = "layer-" + UUID().uuidString.lowercased()
+        var c: [String: Any] = ["type": "add_layer", "kind": kind, "newId": id]
+        if let selectedID { c["afterId"] = selectedID }
+        if let src { c["src"] = src }
+        command(c, select: id)
+    }
+    func duplicate() {
+        guard let selectedID else { return }
+        let id = "layer-" + UUID().uuidString.lowercased()
+        command(["type": "duplicate_layer", "id": selectedID, "newId": id], select: id)
+    }
+    func deleteSelected() { guard let selectedID else { return }; command(["type": "delete_layer", "id": selectedID]) }
+    func moveSelected(_ delta: Int) { guard let selectedID else { return }; command(["type": "move_layer", "id": selectedID, "delta": delta]) }
+    func importLayer() {
+        let panel = NSOpenPanel(); panel.allowedContentTypes = [.png, .jpeg]; panel.allowsMultipleSelection = false
+        presentFilePanel(panel) { [weak self] url in
+            guard let self, let url else { return }
+            let revision = documentRevision
+            isImporting = true
+            Task {
+                defer { self.isImporting = false }
+                do {
+                    let src = try await ImageImport.shared.read(url)
+                    guard self.documentRevision == revision else { return }
+                    self.addLayer("image", src: src)
+                } catch { self.message = self.displayMessage(error) }
+            }
+        }
+    }
+    func newDocument() {
+        confirmDiscard { [weak self] in
+            guard let self else { return }
+            do {
+                session = try NativeSession.open(source: newProject())
+                inspectorDrafts.removeAll()
+                summary = try JSONDecoder().decode(SessionSummary.self, from: Data(session!.summaryJson().utf8))
+                editor = try EditorState(json: session!.editorStateJson())
+                currentURL = nil; savedJSON = ""; fileName = "Untitled.artifact"; selectedID = nil
+                isModified = true; message = nil; preview = nil; persistRecovery(); refreshPreview()
+            } catch { message = displayMessage(error) }
+        }
+    }
+    func openURL(_ url: URL) { confirmDiscard { [weak self] in self?.load(url) } }
+    private func remember(_ url: URL) {
+        guard persistenceEnabled, url != Self.recoveryURL else { return }
+        recentFiles.removeAll { $0 == url }; recentFiles.insert(url, at: 0)
+        recentFiles = Array(recentFiles.prefix(10))
+        UserDefaults.standard.set(recentFiles.map(\.path), forKey: "artifactRecentFiles")
+        NSDocumentController.shared.noteNewRecentDocumentURL(url)
+    }
+    private func persistRecovery() {
+        guard persistenceEnabled, let session, isModified else { return }
+        do {
+            let url = Self.recoveryURL
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data(session.exportJson().utf8).write(to: url, options: .atomic)
+            recoveryAvailable = true
+        } catch { message = "Could not save recovery draft: " + error.localizedDescription }
+    }
+    func restoreRecovery() {
+        confirmDiscard { [weak self] in
+            guard let self else { return }
+            load(Self.recoveryURL)
+            if currentURL == Self.recoveryURL { currentURL = nil; fileName = "Recovered.artifact"; savedJSON = ""; isModified = true }
+        }
+    }
+    func save(completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let url = currentURL else { saveCopy(completion: completion); return }
+        completion(save(to: url))
+    }
+    @discardableResult func save(to url: URL) -> Bool {
+        guard let session, applyInspectors() else { return false }
         do {
             let source = try session.exportJson()
             try Data(source.utf8).write(to: url, options: .atomic)
-            savedJSON = source
-            fileName = url.lastPathComponent
-            isModified = false
-            message = nil
-        } catch { message = displayMessage(error) }
+            currentURL = url; savedJSON = source; fileName = url.lastPathComponent
+            isModified = false; message = nil; remember(url)
+            if persistenceEnabled { try? FileManager.default.removeItem(at: Self.recoveryURL); recoveryAvailable = false }
+            return true
+        } catch { message = displayMessage(error); return false }
+    }
+    func saveCopy(completion: @escaping (Bool) -> Void = { _ in }) {
+        guard session != nil else { completion(false); return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "artifact") ?? .json]
+        panel.allowsOtherFileTypes = true
+        panel.nameFieldStringValue = "\(URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent)-copy.artifact"
+        presentFilePanel(panel) { [weak self] url in
+            guard let self, let url else { completion(false); return }
+            completion(save(to: url))
+        }
     }
 }

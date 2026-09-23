@@ -282,17 +282,17 @@ packages/
 ```
 
 
-## Experimental Web + native macOS pilot
+## Web + native macOS
 
-The monorepo now includes an opt-in Rust document core, WASM adapter, and native
-SwiftUI macOS shell. The pilot opens a project, edits Scanlines, text and images, supports
-undo/redo, saves a copy, and renders the Viber composition with PNG export.
-Native preview/export are verified; minor noise/effect differences are accepted
-for this pilot. The Viber Web -> Mac -> Web open/edit/save/PNG workflow is verified locally. It is separate from
-the production web editor. Text editing covers content, size, color, and X/Y
-position through the same Rust command in both clients. Its Web -> Mac -> Web
-edit/save/render workflow is verified, with manual file-panel assistance.
-Image editing supports PNG/JPEG replacement, X/Y, independent X/Y scale, and
-rotation in both clients. Adapter round-trip and native import/render tests pass;
-GUI acceptance for this slice is tracked separately in the pilot document.
-See [setup, checks, and limitations](docs/web-macos-viber-pilot.md).
+The monorepo includes a Rust command core, WASM adapter and SwiftUI Mac editor.
+The main Web editor uses shared Rust commands for supported layer-property
+patches while retaining its existing history, assets, renderer and advanced
+features. See [the integration boundary](docs/web-macos-main-web-integration.md).
+
+The Mac workspace has Layers, Canvas, basic Nodes, a shared inspector, project
+files and PNG export. Its rendering coverage remains limited to square projects,
+text/images/fill/emoji and the seven Viber effects; full Web parity is unfinished.
+See [workspace scope](docs/web-macos-editor-workspace.md).
+
+The separate Web pilot is an adapter/renderer test harness. Historical Viber
+setup and evidence remain in [the pilot record](docs/web-macos-viber-pilot.md).
