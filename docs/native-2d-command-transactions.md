@@ -3,7 +3,9 @@
 Issue [#263](https://github.com/shchilkin/artifact/issues/263) adds a version 1
 command envelope to `DocumentSession`. This work began from the coordinator
 approved stacked P01/foundation base
-`78d47bd27d70c1e30ab9cef45fc195bd578698e5`. It is a core and binding
+`78d47bd27d70c1e30ab9cef45fc195bd578698e5` and is now stacked on the
+reviewed P02 tooling commit `856c7e38d790c49f2bfe205e359b6f6b67b9a240`.
+It is a core and binding
 contract; the main `/app` editor still owns its TypeScript history until #265
 adopts this session as its document owner. Native SwiftUI controls are also not
 rewired by P03. The API is available to both adapters now.
@@ -114,12 +116,13 @@ Undo/Redo, save, and reopen at the JSON value level.
 
 ## Verification and evidence limits
 
-Run `cargo test -p artifact-core` and, after `npm run build:core-pilot -- wasm`
-and `npm run build:core-pilot -- macos`, run
-`node tests/core-commands/verify.mjs`. The dedicated harness compares exact
-serialized command replies and document states across Rust, WASM, and Swift
-for all eight synthetic P01 fixture documents plus a 2 MiB unknown field and
-an `artifact-asset://` image reference. It checks draft, commit, Undo, Redo,
+Run `cargo test -p artifact-core` and `npm run check:core-native` after
+`npm run build:core-wasm-canonical` and `npm run build:core-pilot -- macos`.
+The native check runs `node tests/core-commands/verify.mjs` in CI. The dedicated
+harness compares serialized command replies and JSON document states across
+Rust, WASM, and Swift for all eight synthetic P01 fixture documents, a 2 MiB
+unknown field with an `artifact-asset://` image reference, and a cold structural
+edit retaining a 2 MiB embedded image. It checks draft, commit, Undo, Redo,
 reopen, and stale-ID results. Existing `npm run test:core-pilot` remains a
 separate backward-compatibility gate. These are model/binding checks. They do
 not establish main Web adoption, Mac GUI gesture behavior, native rendering,

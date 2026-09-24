@@ -76,7 +76,7 @@
     "build:core-wasm-canonical": "node scripts/core-pilot/build-wasm-canonical.mjs",
     "check:core": "npm run check:core-web && npm run check:core-native",
     "check:core-web": "node scripts/core-pilot/runtime-manifest.mjs && cargo test --locked --workspace && cargo clippy --locked --workspace --all-targets -- -D warnings && npm run test:core-web",
-    "check:core-native": "node scripts/core-pilot/public-fixture.mjs && node scripts/core-pilot/verify.mjs --fixture test-results/core-pilot/public-p01.artifact --layer p02-scanlines && node scripts/core-pilot/verify-public-native.mjs",
+    "check:core-native": "node scripts/core-pilot/public-fixture.mjs && node scripts/core-pilot/verify.mjs --fixture test-results/core-pilot/public-p01.artifact --layer p02-scanlines && node scripts/core-pilot/verify-public-native.mjs && node tests/core-commands/verify.mjs",
     "test:core-tooling": "node --test scripts/core-pilot/tooling.test.mjs",
     "test:core-pilot": "node scripts/core-pilot/verify.mjs",
     "dev:core-pilot": "npm --workspace @artifact/core-web run demo",
