@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { inspect } from './doctor.mjs';
+import { inspect, supportsNodeVersion } from './doctor.mjs';
 import { makeManifest, verifyManifest } from './runtime-manifest.mjs';
 
 const ok = (stdout) => ({ status: 0, stdout, stderr: '' });
@@ -20,12 +20,25 @@ const versions = {
   codesign: '1.0\n',
 };
 
-test('doctor identifies missing prerequisites and wrong versions', () => {
+test('Node boundaries match the locked Web build range', () => {
+  for (const version of ['v20.19.0', 'v20.20.1', 'v22.12.0', 'v23.0.0', 'v26.8.1'])
+    assert.equal(supportsNodeVersion(version), true, version);
+  for (const version of ['v18.20.0', 'v20.18.9', 'v21.9.0', 'v22.11.9', 'v22.12.0-beta'])
+    assert.equal(supportsNodeVersion(version), false, version);
+});
+
+test('Web doctor needs only Node/npm while WASM and native modes check their own prerequisites', () => {
   const run = (name) =>
     name === 'cargo' ? { status: 127, error: new Error('ENOENT') } : ok(versions[path.basename(name)]);
-  const result = inspect({ mode: 'web', run, hasFile: (name) => name.endsWith('node_modules') });
-  assert.ok(result.problems.some((line) => line.includes('Cargo is missing')));
-  assert.ok(!result.problems.some((line) => line.includes('Xcode')));
+  const web = inspect({ mode: 'web', run, hasFile: (name) => name.endsWith('node_modules') });
+  assert.deepEqual(web.problems, []);
+  assert.deepEqual(
+    web.results.map((line) => line.split(':')[0]),
+    ['Node.js', 'npm'],
+  );
+  const wasm = inspect({ mode: 'wasm', run, hasFile: (name) => name.endsWith('node_modules') });
+  assert.ok(wasm.problems.some((line) => line.includes('Cargo is missing')));
+  assert.ok(!wasm.results.some((line) => line.startsWith('Xcode')));
   const wrong = inspect({
     mode: 'macos',
     run: (name) => ok(name === 'rustc' ? 'rustc 1.94.0\n' : versions[name]),
@@ -35,6 +48,13 @@ test('doctor identifies missing prerequisites and wrong versions', () => {
   });
   assert.ok(wrong.problems.some((line) => line.includes('Rust has an unexpected version')));
   assert.ok(wrong.problems.some((line) => line.includes('Apple Silicon macOS')));
+  assert.ok(!wrong.results.some((line) => line.startsWith('wasm-bindgen')));
+  const unsupported = inspect({
+    mode: 'web',
+    run: (name) => ok(name === 'node' ? 'v21.9.0\n' : versions[name]),
+    hasFile: () => true,
+  });
+  assert.ok(unsupported.problems.some((line) => line.includes('^20.19.0 or >=22.12.0')));
 });
 
 test('runtime manifest rejects a changed nested Rust module and toolchain', () => {

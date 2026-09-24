@@ -12,6 +12,14 @@ const requiredBindgen = lock.match(/name = "wasm-bindgen"\nversion = "([^"]+)"/)
 const requiredNpm = packageManager?.match(/^npm@(\d+)\./)?.[1];
 if (!requiredRust || !requiredBindgen || !requiredNpm) throw new Error('Pinned build tool version is missing');
 
+export function supportsNodeVersion(version) {
+  const match = version.match(/^v(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  return (major === 20 && minor >= 19) || major > 22 || (major === 22 && minor >= 12);
+}
+
 export function inspect({
   mode = 'all',
   run = spawnSync,
@@ -19,7 +27,7 @@ export function inspect({
   arch = process.arch,
   hasFile = existsSync,
 } = {}) {
-  if (!['all', 'web', 'macos'].includes(mode)) throw new Error('Expected all, web, or macos');
+  if (!['all', 'web', 'wasm', 'macos'].includes(mode)) throw new Error('Expected all, web, wasm, or macos');
   const problems = [];
   const results = [];
   const command = (name, args, label, expected) => {
@@ -34,22 +42,20 @@ export function inspect({
       problems.push(`${label} has an unexpected version: ${output.split('\n')[0]}`);
     return output;
   };
-  const nodeVersion = command('node', ['--version'], 'Node.js', /^v\d+\.\d+\.\d+/);
-  const match = nodeVersion.match(/^v(\d+)\.(\d+)\./);
-  if (
-    match &&
-    (Number(match[1]) < 20 ||
-      (Number(match[1]) === 20 && Number(match[2]) < 19) ||
-      (Number(match[1]) === 22 && Number(match[2]) < 12))
-  )
-    problems.push('Node.js 20.19+ or 22.12+ is required by the current Web toolchain.');
+  const nodeVersion = command('node', ['--version'], 'Node.js');
+  if (nodeVersion && !supportsNodeVersion(nodeVersion))
+    problems.push('Node.js ^20.19.0 or >=22.12.0 is required by the current Web toolchain.');
   command('npm', ['--version'], 'npm', new RegExp(`^${requiredNpm}\\.`));
-  command('cargo', ['--version'], 'Cargo', new RegExp(`^cargo ${requiredRust.replaceAll('.', '\\.')}`));
-  command('rustc', ['--version'], 'Rust', new RegExp(`^rustc ${requiredRust.replaceAll('.', '\\.')}`));
-  const installed = command('rustup', ['target', 'list', '--installed'], 'Rust targets');
-  if (!installed.split('\n').includes('wasm32-unknown-unknown'))
-    problems.push('Rust target wasm32-unknown-unknown is missing. Run rustup target add wasm32-unknown-unknown.');
-  if (mode !== 'macos') {
+  if (mode !== 'web') {
+    command('cargo', ['--version'], 'Cargo', new RegExp(`^cargo ${requiredRust.replaceAll('.', '\\.')}`));
+    command('rustc', ['--version'], 'Rust', new RegExp(`^rustc ${requiredRust.replaceAll('.', '\\.')}`));
+    const installed = command('rustup', ['target', 'list', '--installed'], 'Rust targets');
+    if ((mode === 'wasm' || mode === 'all') && !installed.split('\n').includes('wasm32-unknown-unknown'))
+      problems.push('Rust target wasm32-unknown-unknown is missing. Run rustup target add wasm32-unknown-unknown.');
+    if ((mode === 'macos' || mode === 'all') && !installed.split('\n').includes('aarch64-apple-darwin'))
+      problems.push('Rust target aarch64-apple-darwin is missing. Run rustup target add aarch64-apple-darwin.');
+  }
+  if (mode === 'wasm' || mode === 'all') {
     const local = path.join(root, 'tools.local/bin/wasm-bindgen');
     command(
       hasFile(local) ? local : 'wasm-bindgen',
@@ -58,7 +64,7 @@ export function inspect({
       new RegExp(`^wasm-bindgen ${requiredBindgen.replaceAll('.', '\\.')}`),
     );
   }
-  if (mode !== 'web') {
+  if (mode === 'macos' || mode === 'all') {
     if (platform !== 'darwin' || arch !== 'arm64') problems.push('Native builds require Apple Silicon macOS (arm64).');
     command('xcodebuild', ['-version'], 'Xcode', /^Xcode /);
     command('xcrun', ['--find', 'swiftc'], 'Swift compiler');

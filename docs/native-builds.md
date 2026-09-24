@@ -14,16 +14,21 @@ Rust 1.95.0, `wasm32-unknown-unknown` and Apple Silicon
 `aarch64-apple-darwin`. Cargo uses the checked-in `Cargo.lock` with `--locked`.
 The `wasm-bindgen-cli` version must equal the `wasm-bindgen` package in that
 lockfile (currently 0.2.128). The CLI and the pinned Rust toolchain must be
-installed before regenerating WASM. Node.js 20.19+ or 22.12+ and npm 11 are
+installed before regenerating WASM. Node.js `^20.19.0 || >=22.12.0` and npm 11 are
 required; run `npm ci` in **each worktree** so workspace links point at the
 correct checkout. Never share another worktree's `node_modules` symlink.
 
 The native target is Apple Silicon, macOS 14 or later. It requires a full
 Xcode installation with Swift 6, `xcrun swiftc`, and `codesign`. The local
 build was verified with Xcode 26.6 / Swift 6.3.3 on macOS 26; CI uses the
-versioned [`macos-15` Apple Silicon runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). The minimum compatible Xcode
-release is not yet established by a separate oldest-toolchain test. The
-`doctor` recipe checks the available compiler and host before building.
+versioned [`macos-15` Apple Silicon runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+The minimum compatible Xcode release is not yet established by a separate
+oldest-toolchain test. `just doctor` checks the complete toolchain on an Apple
+Silicon host. The `web`
+doctor mode needs only Node/npm and local npm dependencies; `wasm` adds Rust,
+the WASM target and `wasm-bindgen`; `macos` checks Rust and the native Apple
+tools. The main Web editor can start with the checked-in WASM runtime without
+a local Rust installation.
 The first native bundle is locally ad hoc signed only.
 
 Install [just](https://github.com/casey/just) and use:
@@ -40,6 +45,14 @@ On Linux, run the platform-specific commands directly:
 
 ```sh
 node scripts/core-pilot/doctor.mjs web
+node scripts/core-pilot/runtime-manifest.mjs
+npm run dev:web
+```
+
+For a Linux WASM rebuild and Web validation, use:
+
+```sh
+node scripts/core-pilot/doctor.mjs wasm
 npm run build:core-pilot -- wasm
 npm run check:core-web
 npm run build:ci

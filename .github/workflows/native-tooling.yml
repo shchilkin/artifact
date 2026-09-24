@@ -27,7 +27,7 @@ jobs:
         run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
       - name: Check build prerequisites and tooling regressions
         run: |
-          node scripts/core-pilot/doctor.mjs web
+          node scripts/core-pilot/doctor.mjs wasm
           npm run test:core-tooling
       - name: Rebuild checked-in WASM from pinned inputs
         run: |

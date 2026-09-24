@@ -5,6 +5,7 @@ doctor:
 
 dev-web:
     node scripts/core-pilot/doctor.mjs web
+    node scripts/core-pilot/runtime-manifest.mjs
     npm run dev:web
 
 dev-macos:
