@@ -40,6 +40,7 @@
     "prepare": "husky",
     "preview": "npm --workspace @artifact/web run preview",
     "quality:ui-legacy-registry": "node scripts/quality/ui-legacy-registry.mjs",
+    "quality:native-2d-contract": "node scripts/quality/native-2d-contract.mjs",
     "release:verify": "node scripts/verify-release.mjs",
     "turbo:build": "turbo run build --filter=@artifact/shared --filter=@artifact/api --filter=@artifact/web",
     "turbo:check": "turbo run build typecheck test --filter=@artifact/shared --filter=@artifact/api --filter=@artifact/web",

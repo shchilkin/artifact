@@ -40,6 +40,12 @@ Current planning status:
   advanced graph nodes/sources/effects and remaining native document workflows;
   other platforms remain outside scope. See [pilot evidence](./web-macos-viber-pilot.md) and
   [ADR 0014](./adr/0014-web-and-native-macos-with-shared-rust-core.md).
+- **Native 2D parity backlog (#260):** P01 records the source-inspected scope,
+  owner matrix, portable fixtures and proposed acceptance gates in the
+  [native 2D parity contract](./native-2d-parity-contract.md). Downstream
+  implementation remains dependent on an agreed integrated or stacked
+  foundation base. This backlog does not rename or renumber the active
+  v0.49/v0.50 milestones; any remapping is a separate tracker decision.
 - v0.48.0 was released on 2026-07-27 as the UI Conformance And Legacy Removal
   release. The finite legacy registry has zero unresolved entries, both Product
   Themes share one executable Foundation conformance contract, and the seven

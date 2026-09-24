@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 3,
+  "global": {
+    "bg": "transparent",
+    "seed": 202,
+    "aspect": "4:5"
+  },
+  "layers": [
+    {
+      "id": "alpha-image",
+      "name": "alpha-image",
+      "visible": true,
+      "locked": false,
+      "kind": "image",
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABACAYAAADlNHIOAAAAtElEQVR4nO3RwQnCAAAEwVTi20pSseWkCEuwAh8B4cCdxz4PDuZ4P89Du+YH6s0P1JsfqDc/UG9+oN78QL35gXrzA/VuDx6v69L3AABoBwBAOwAA2gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A4AgHYAALQD8O8A+m3zA/XmB+rND9SbH6g3P1BvfqDe/EC9+YF6H1W+/AKp38+wAAAAAElFTkSuQmCC",
+      "fit": "contain",
+      "x": 0.44,
+      "y": 0.52,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "opacity": 100,
+      "blendMode": "normal"
+    }
+  ],
+  "export": {
+    "format": "jpeg",
+    "scale": 2,
+    "target": "cover"
+  }
+}

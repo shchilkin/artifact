@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 3,
+  "global": {
+    "bg": "transparent",
+    "seed": 707,
+    "aspect": "1:1"
+  },
+  "layers": [
+    {
+      "id": "blend-base",
+      "name": "blend-base",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#285c91",
+      "opacity": 100,
+      "blendMode": "normal"
+    },
+    {
+      "id": "blend-multiply",
+      "name": "blend-multiply",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#ffb347",
+      "opacity": 55,
+      "blendMode": "multiply"
+    },
+    {
+      "id": "blend-screen",
+      "name": "blend-screen",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#4984e8",
+      "opacity": 45,
+      "blendMode": "screen"
+    },
+    {
+      "id": "blend-overlay",
+      "name": "blend-overlay",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#e8508d",
+      "opacity": 35,
+      "blendMode": "overlay"
+    },
+    {
+      "id": "blend-luminosity",
+      "name": "blend-luminosity",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#b9d63e",
+      "opacity": 30,
+      "blendMode": "luminosity"
+    }
+  ],
+  "export": {
+    "format": "png",
+    "scale": 1,
+    "target": "cover"
+  }
+}

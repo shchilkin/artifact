@@ -3,6 +3,12 @@
 The main Web editor's shared-core integration is covered by
 `app/utils/sharedCoreCommands.test.ts`, using actual compiled WASM bytes through
 production document commands. See [the integration boundary](./web-macos-main-web-integration.md).
+The [native 2D parity contract](./native-2d-parity-contract.md) adds a source-linked
+capability inventory and eight redistributable editor documents. Run
+`npm run quality:native-2d-contract` for effect ownership and fixture integrity,
+and `npm run test:browser -- --project=chromium native-2d-contract.spec.ts`
+for main Web file import, embedded font and graph-response evidence. These
+P01 checks do not establish native GUI or pixel parity.
 The native/package conformance harness also remains available. See [Web + native macOS pilot](./web-macos-viber-pilot.md) for its
 binding conformance, verified Viber GUI round trip and remaining coverage.
 `npm run test:core-web` covers the pilot effect-worker lifecycle, cancellation

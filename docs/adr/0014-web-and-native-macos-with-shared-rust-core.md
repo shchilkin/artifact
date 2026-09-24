@@ -30,6 +30,12 @@ v0.49/v0.50 release scope. Implementation slices need their own acceptance
 criteria and validation under [Version Planning](../version-planning.md).
 No release number or delivery date is assigned here.
 
+Epic #260 scopes local 2D parity; its [P01 contract](../native-2d-parity-contract.md)
+and [capability inventory](../native-2d-capabilities.json) pin the main Web
+reference, ownership, synthetic fixtures, tolerances and target budgets.
+Later implementation issues require a recorded integrated foundation SHA or
+an explicitly approved stacked base. This does not change existing milestones.
+
 ## Ownership boundaries
 
 The target Rust core owns document validation and migrations, durable editing
