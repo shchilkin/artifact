@@ -37,7 +37,9 @@ stable error code and leaves the previous draft intact. The current codes are
 binding failures remain host errors.
 
 `revision` advances on a durable commit or successful Undo/Redo. Accepted
-updates advance `draftRevision` only. No-op updates do not advance either.
+updates advance `draftRevision` only. A batch whose commands return all fields
+to their starting values reports `changed: false`, empty `changes`, and does
+not advance either revision.
 Commit of a net-zero gesture and cancel restore the initial document and leave
 Redo intact. Cancel reports restored IDs and fields in `changes`; a no-op
 cancel reports `changed: false`. A real commit creates one Undo entry and
@@ -48,10 +50,14 @@ current draft for preview. `export_durable_json` rejects while a draft is
 active, so save/export callers cannot mistake a transient frame for a
 committed document. The session does not serialize image/font bytes or clone
 the entire document on property ticks; structural commands use a cold candidate
-path. Adjacent gesture ticks against the same target coalesce into one inverse
-step. Active transaction history is bounded to 64 MiB and rejects an update
-atomically with `HISTORY_LIMIT` if its inverse data exceeds the bound. Durable
-history stores touched values and at most 50 entries under the same bound.
+path. Same-target property ticks across a property-only span, and adjacent
+graph bridge ticks, coalesce into one inverse step. The transaction retains no
+full-document baseline; commit and cancel reconstruct its initial state from
+the inverse journal once. Active transaction history is bounded to 64 MiB and rejects an update
+atomically with `HISTORY_LIMIT` if its inverse data exceeds the bound. P03
+transaction groups therefore stay within that inverse budget. Durable history
+stores at most 50 entries; legacy setters retain the newest Undo entry even
+when it alone exceeds the 64 MiB eviction target.
 
 ## Command coverage and boundaries
 
@@ -69,7 +75,10 @@ also accepts `web:layer-property` for a named non-shared layer field and
 the graph field is absent, while `present: true, value: null` retains explicit
 null. It can add or delete current Web layer kinds (`text`, `image`, `emoji`,
 `effect`, `fill`, `primitive`, `noise`, `array`, `lineField`, `model`) and reorder
-surviving layers, while retaining unknown existing kinds and fields. It rejects
+surviving layers, while retaining unknown existing kinds and fields. Retained
+graph utility nodes must keep their complete values; use `web:graph` for a
+deliberate graph-node property edit. Unknown graph fields, including future
+node-map objects, survive an unrelated structural edit. It rejects
 changes to surviving layer properties, duplicate/invalid IDs, invalid graph
 endpoints, locked deletion/reorder, and package growth beyond 64 MiB. The
 ordinary 1 MiB command envelope limit rises to the package limit only for one
@@ -80,9 +89,10 @@ step journals into the same history. A future Web
 operation should enter through the bridge until its typed shared command is
 registered; it must not keep a second Undo owner beside this session.
 
-`bridge_structure` expects a candidate already accepted by the existing Web
-graph helpers for ports, cycles, and Web-specific graph rules. The core checks
-shape, IDs, and endpoints at this boundary; full graph validation and graph
+`bridge_structure` expects a complete candidate document already accepted by
+the existing Web schema and graph helpers, including layer-kind payloads,
+ports, cycles, and Web-specific graph rules. The core checks structural shape,
+known node collections, IDs, and endpoints at this boundary; full graph validation and graph
 operations belong to #264. Web add/delete may shift a locked layer's absolute
 index; the bridge guards its relative order among surviving existing layers.
 `move_layer` changes `document.layers` order only, including on nonlinear

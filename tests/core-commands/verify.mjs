@@ -127,6 +127,16 @@ try {
     const webSession = new WebSession(packageText);
     const opened = webSession.export_json();
     const begin = webSession.begin_transaction_json(JSON.stringify({ version: 1, expectedRevision: 0 }));
+    const noopUpdate = webSession.update_transaction_json(
+      JSON.stringify({
+        version: 1,
+        transactionId: 1,
+        commands: [
+          { type: 'patch_global', patch: { aspect: document.global.aspect === '1:1' ? '4:5' : '1:1' } },
+          { type: 'patch_global', patch: { aspect: document.global.aspect } },
+        ],
+      }),
+    );
     const update = webSession.update_transaction_json(JSON.stringify({ version: 1, transactionId: 1, commands }));
     const draft = webSession.export_json();
     const commit = webSession.commit_transaction_json(JSON.stringify({ version: 1, transactionId: 1 }));
@@ -230,6 +240,7 @@ try {
     const wasm = {
       opened,
       begin,
+      noopUpdate,
       update,
       draft,
       commit,
@@ -280,6 +291,8 @@ try {
     assert.equal(redone, committed, `${name}: Redo`);
     assert.equal(reopened, committed, `${name}: reopen`);
     assert.equal(JSON.parse(update).ok, true, `${name}: update accepted`);
+    assert.equal(JSON.parse(noopUpdate).changed, false, `${name}: net-zero update is unchanged`);
+    assert.equal(JSON.parse(noopUpdate).draftRevision, 0, `${name}: net-zero update does not advance draft`);
     assert.equal(JSON.parse(commit).changed, true, `${name}: commit changed`);
     assert.equal(failedDraft, cancelDraft, `${name}: failed batch restored previous draft`);
     assert.equal(cancelled, redone, `${name}: cancel restored durable state`);

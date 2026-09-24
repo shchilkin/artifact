@@ -16,6 +16,7 @@ pub(crate) const GRAPH_LISTS: &[&str] = &[
     "shaderNodes",
 ];
 
+#[derive(Clone)]
 pub(crate) struct StructureEdit {
     before_order: Vec<String>,
     after_order: Vec<String>,
@@ -49,15 +50,6 @@ impl StructureEdit {
             before_graph: before_graph.cloned(),
             after_graph: after_graph.cloned(),
         }
-    }
-    pub(crate) fn order_changed(&self) -> bool {
-        self.before_order != self.after_order
-    }
-    pub(crate) fn graph_changed(&self) -> bool {
-        self.before_graph != self.after_graph
-    }
-    pub(crate) fn changed_ids(&self) -> impl Iterator<Item = String> + '_ {
-        self.changes.iter().map(|(id, _, _)| id.clone())
     }
     pub(crate) fn bytes(&self) -> usize {
         self.changes

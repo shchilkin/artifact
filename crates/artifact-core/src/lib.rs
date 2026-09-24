@@ -53,11 +53,13 @@ pub struct TextProperties {
     pub y: f64,
 }
 
+#[derive(Clone)]
 struct FieldEdit {
     key: String,
     before: Option<Value>,
     after: Option<Value>,
 }
+#[derive(Clone)]
 enum ExtendedEdit {
     Group(Vec<Edit>),
     Section {
@@ -74,6 +76,7 @@ enum ExtendedEdit {
         after: Vec<String>,
     },
 }
+#[derive(Clone)]
 struct Edit {
     layer_index: usize,
     layer_id: Option<String>,

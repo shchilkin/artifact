@@ -12,6 +12,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opened = session.export_json();
     let begin =
         session.begin_transaction_json(&json!({"version":1,"expectedRevision":0}).to_string());
+    let original_aspect = serde_json::from_str::<Value>(&source)?["document"]["global"]["aspect"]
+        .as_str()
+        .ok_or("fixture needs aspect")?
+        .to_owned();
+    let alternate_aspect = if original_aspect == "1:1" {
+        "4:5"
+    } else {
+        "1:1"
+    };
+    let noop_update = session.update_transaction_json(
+        &json!({"version":1,"transactionId":1,"commands":[
+            {"type":"patch_global","patch":{"aspect":alternate_aspect}},
+            {"type":"patch_global","patch":{"aspect":original_aspect}}
+        ]})
+        .to_string(),
+    );
     let update = session.update_transaction_json(
         &json!({"version":1,"transactionId":1,"commands":commands}).to_string(),
     );
@@ -98,7 +114,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(session.redo());
         structure_redo = session.export_json();
     }
-    let output = json!({"opened":opened,"begin":begin,"update":update,"draft":draft,"commit":commit,
+    let output = json!({"opened":opened,"begin":begin,"noopUpdate":noop_update,"update":update,"draft":draft,"commit":commit,
         "committed":committed,"undone":undone,"redone":redone,"reopened":reopened,"stale":stale,
         "cancelBegin":cancel_begin,"cancelUpdate":cancel_update,"cancelDraft":cancel_draft,"failed":failed,"failedDraft":failed_draft,
         "cancel":cancel,"cancelled":cancelled,"legacy":legacy,"mixedBegin":mixed_begin,"mixedUpdate":mixed_update,

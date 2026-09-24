@@ -145,24 +145,16 @@ fn validate_web_graph_shape(before: Option<&Value>, candidate: &Value) -> Result
                     "Structure candidate must preserve unknown graph fields",
                 ));
             }
-            if key.ends_with("Nodes") {
+            if crate::editor::GRAPH_LISTS.contains(&key.as_str()) {
                 if let (Some(old_nodes), Some(new_nodes)) =
                     (value.as_array(), graph.get(key).and_then(Value::as_array))
                 {
                     for old in old_nodes {
                         if let Some(new) = new_nodes.iter().find(|new| new["id"] == old["id"]) {
-                            let (Some(old_fields), Some(new_fields)) =
-                                (old.as_object(), new.as_object())
-                            else {
-                                return Err(invalid("Graph node must be an object"));
-                            };
-                            if old_fields
-                                .keys()
-                                .any(|field| !new_fields.contains_key(field))
-                            {
+                            if old != new {
                                 return Err(CommandError::new(
                                     "UNSUPPORTED_CAPABILITY",
-                                    "Structure candidate must preserve retained graph node fields",
+                                    "Structure candidate must preserve retained graph node values",
                                 ));
                             }
                         }

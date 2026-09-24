@@ -387,6 +387,98 @@ fn history_is_bounded_and_fixture_documents_keep_unknown_values() {
 }
 
 #[test]
+fn net_zero_batch_does_not_advance_draft_or_report_changes() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    s.execute(r#"{"type":"edit_layer","id":"a","patch":{"content":"redo"}}"#)
+        .unwrap();
+    assert!(s.undo());
+    let before = s.export_json();
+    let revision = s.revision();
+    let id = begin(&mut s);
+    let reply = update(
+        &mut s,
+        id,
+        json!([
+            {"type":"patch_layer","id":"a","patch":{"x":0.6}},
+            {"type":"patch_layer","id":"a","patch":{"x":0.5}}
+        ]),
+    );
+    assert_eq!(reply["ok"], true, "{reply}");
+    assert_eq!(reply["changed"], false);
+    assert_eq!(reply["draftRevision"], 0);
+    assert_eq!(reply["changes"]["layers"], json!({}));
+    assert_eq!(s.export_json(), before);
+    assert_eq!(s.revision(), revision);
+    assert_eq!(end(&mut s, "commit", id)["changed"], false);
+    assert!(s.can_redo());
+}
+
+#[test]
+fn structure_bridge_preserves_retained_node_values_and_unknown_node_maps() {
+    let mut package: Value = serde_json::from_str(&source()).unwrap();
+    package["document"]["graph"] = json!({"edges":[{"id":"edge","fromId":"a","toId":"merge"}],
+        "positions":{},"mergeNodes":[{"id":"merge","unknown":{"value":1}}],"colorNodes":[],
+        "layoutNodes":{"future":"metadata"}});
+    let mut s = DocumentSession::open(&package.to_string()).unwrap();
+    let id = begin(&mut s);
+    let before = s.export_json();
+    let layers = doc(&s)["layers"].clone();
+    let mut graph = doc(&s)["graph"].clone();
+    graph["mergeNodes"][0]["unknown"]["value"] = json!(2);
+    let rejected = update(
+        &mut s,
+        id,
+        json!([{"type":"bridge_structure","capability":"web:structure",
+        "layers":layers,"graph":{"present":true,"value":graph}}]),
+    );
+    assert_eq!(rejected["error"]["code"], "UNSUPPORTED_CAPABILITY");
+    assert_eq!(s.export_json(), before);
+    let mut graph = doc(&s)["graph"].clone();
+    graph["edges"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":"edge2","fromId":"merge","toId":"__export__"}));
+    let retained_layers = doc(&s)["layers"].clone();
+    let accepted = update(
+        &mut s,
+        id,
+        json!([{"type":"bridge_structure","capability":"web:structure",
+        "layers":retained_layers,"graph":{"present":true,"value":graph}}]),
+    );
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    assert_eq!(
+        doc(&s)["graph"]["layoutNodes"],
+        json!({"future":"metadata"})
+    );
+    end(&mut s, "commit", id);
+    assert!(s.undo());
+    assert_eq!(s.export_json(), before);
+}
+
+#[test]
+fn large_deleted_asset_uses_bounded_inverse_without_a_retained_baseline() {
+    let mut package: Value = serde_json::from_str(&source()).unwrap();
+    package["document"]["layers"][1]["src"] = json!(format!(
+        "data:image/png;base64,{}",
+        "A".repeat(34 * 1024 * 1024)
+    ));
+    let mut s = DocumentSession::open(&package.to_string()).unwrap();
+    let before = s.export_json();
+    let id = begin(&mut s);
+    let remaining = json!([doc(&s)["layers"][0]]);
+    let update_reply = update(
+        &mut s,
+        id,
+        json!([{"type":"bridge_structure","capability":"web:structure","layers":remaining,
+        "graph":{"present":true,"value":null}}]),
+    );
+    assert_eq!(update_reply["ok"], true, "{update_reply}");
+    assert_eq!(end(&mut s, "commit", id)["changed"], true);
+    assert!(s.undo());
+    assert_eq!(s.export_json(), before);
+}
+
+#[test]
 fn web_structure_bridge_preserves_unknowns_and_guards_locked_survivors() {
     let mut package: Value = serde_json::from_str(&source()).unwrap();
     package["document"]["layers"][0]["locked"] = json!(true);

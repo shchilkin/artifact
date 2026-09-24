@@ -15,6 +15,14 @@ struct CommandConformance {
         let session = try NativeSession.open(source: source)
         let opened = try session.exportJson()
         let begin = try session.beginTransactionJson(request: encoded(["version": 1, "expectedRevision": 0]))
+        let sourcePackage = try JSONSerialization.jsonObject(with: Data(source.utf8)) as! [String: Any]
+        let sourceDocument = sourcePackage["document"] as! [String: Any]
+        let sourceGlobal = sourceDocument["global"] as! [String: Any]
+        let originalAspect = sourceGlobal["aspect"] as! String
+        let alternateAspect = originalAspect == "1:1" ? "4:5" : "1:1"
+        let noopUpdate = try session.updateTransactionJson(request: encoded(["version": 1, "transactionId": 1,
+            "commands": [["type": "patch_global", "patch": ["aspect": alternateAspect]],
+                         ["type": "patch_global", "patch": ["aspect": originalAspect]]]]))
         let update = try session.updateTransactionJson(request: encoded(["version": 1, "transactionId": 1, "commands": commands]))
         let draft = try session.exportJson()
         let commit = try session.commitTransactionJson(request: encoded(["version": 1, "transactionId": 1]))
@@ -91,7 +99,7 @@ struct CommandConformance {
             precondition(structureDidRedo)
             structureRedo = try session.exportJson()
         }
-        let output: [String: String] = ["opened": opened, "begin": begin, "update": update, "draft": draft,
+        let output: [String: String] = ["opened": opened, "begin": begin, "noopUpdate": noopUpdate, "update": update, "draft": draft,
                                          "commit": commit, "committed": committed, "undone": undone,
                                          "redone": redone, "reopened": reopened, "stale": stale,
                                          "cancelBegin": cancelBegin, "cancelUpdate": cancelUpdate, "cancelDraft": cancelDraft,

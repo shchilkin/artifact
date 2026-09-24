@@ -68,7 +68,6 @@ pub(crate) struct Transaction {
     pub id: u64,
     pub draft_revision: u64,
     pub steps: Vec<Edit>,
-    pub baseline: Option<Value>, // allocated only for structural/Web-only operations
 }
 
 #[derive(Deserialize)]
@@ -319,62 +318,17 @@ pub(crate) fn apply_edit_to(doc: &mut Value, edit: &Edit, forward: bool) {
         );
     }
 }
-fn collect_changes(edit: &Edit, changes: &mut Changes) {
-    if let Some(extended) = &edit.extended {
-        match extended {
-            ExtendedEdit::Group(steps) => {
-                for step in steps {
-                    collect_changes(step, changes);
-                }
-            }
-            ExtendedEdit::Section { name, fields } => {
-                let target = if *name == "global" {
-                    &mut changes.global
-                } else {
-                    &mut changes.export
-                };
-                target.extend(fields.iter().map(|field| field.key.clone()));
-            }
-            ExtendedEdit::Bridge { target, .. } => match target {
-                BridgeTarget::Graph => changes.graph = true,
-                BridgeTarget::LayerField { id, field } => {
-                    changes
-                        .layers
-                        .entry(id.clone())
-                        .or_default()
-                        .insert(field.clone());
-                }
-                BridgeTarget::ExportField { field } => {
-                    changes.export.insert(field.clone());
-                }
-            },
-            ExtendedEdit::Reorder { .. } => changes.order = true,
-        }
-    } else if let Some(structure) = &edit.structure {
-        changes.order |= structure.order_changed();
-        changes.graph |= structure.graph_changed();
-        for id in structure.changed_ids() {
-            changes.layers.entry(id).or_default().insert("*".to_owned());
-        }
-    } else if let Some(id) = &edit.layer_id {
-        changes
-            .layers
-            .entry(id.clone())
-            .or_default()
-            .extend(edit.fields.iter().map(|field| field.key.clone()));
+fn net_changes(doc: &Value, steps: &[Edit]) -> Changes {
+    if steps.is_empty() {
+        return Changes::default();
     }
+    let mut before = doc.clone();
+    for step in steps.iter().rev() {
+        apply_edit_to(&mut before, step, false);
+    }
+    diff_documents(&before, doc)
 }
-fn net_changes(doc: &Value, tx: &Transaction) -> Changes {
-    let mut reconstructed;
-    let before = if let Some(baseline) = &tx.baseline {
-        baseline
-    } else {
-        reconstructed = doc.clone();
-        for step in tx.steps.iter().rev() {
-            apply_edit_to(&mut reconstructed, step, false);
-        }
-        &reconstructed
-    };
+fn diff_documents(before: &Value, doc: &Value) -> Changes {
     let mut changes = Changes::default();
     let old_layers = before["layers"].as_array().unwrap();
     let new_layers = doc["layers"].as_array().unwrap();
@@ -496,23 +450,40 @@ fn coalesce_steps(steps: &mut Vec<Edit>) {
             if merged {
                 continue;
             }
-        } else if let (
-            Some(Edit {
-                extended: Some(ExtendedEdit::Reorder { after, .. }),
-                ..
-            }),
-            Some(ExtendedEdit::Reorder { after: next, .. }),
-        ) = (compact.last_mut(), &mut step.extended)
-        {
-            *after = std::mem::take(next);
-            continue;
+        } else if let Some(previous) = compact.last_mut() {
+            match (&mut previous.extended, &mut step.extended) {
+                (
+                    Some(ExtendedEdit::Reorder { after, .. }),
+                    Some(ExtendedEdit::Reorder { after: next, .. }),
+                ) => {
+                    *after = std::mem::take(next);
+                    continue;
+                }
+                (
+                    Some(ExtendedEdit::Bridge {
+                        target: BridgeTarget::Graph,
+                        after,
+                        ..
+                    }),
+                    Some(ExtendedEdit::Bridge {
+                        target: BridgeTarget::Graph,
+                        after: next,
+                        ..
+                    }),
+                ) => {
+                    *after = next.take();
+                    continue;
+                }
+                _ => {}
+            }
         }
         compact.push(step);
     }
     *steps = compact;
 }
-fn field_only_net_zero(doc: &Value, steps: &[Edit]) -> bool {
+fn net_changes_without_structure(doc: &Value, steps: &[Edit]) -> Option<Changes> {
     let mut first: BTreeMap<(String, String), Option<Value>> = BTreeMap::new();
+    let mut first_order: Option<&[String]> = None;
     for step in steps {
         if let Some(ExtendedEdit::Section { name, fields }) = &step.extended {
             for field in fields {
@@ -529,6 +500,8 @@ fn field_only_net_zero(doc: &Value, steps: &[Edit]) -> bool {
             first
                 .entry((scope, bridge_key(target).to_owned()))
                 .or_insert_with(|| before.clone());
+        } else if let Some(ExtendedEdit::Reorder { before, .. }) = &step.extended {
+            first_order.get_or_insert(before);
         } else if let Some(id) = &step.layer_id {
             for field in &step.fields {
                 first
@@ -536,10 +509,11 @@ fn field_only_net_zero(doc: &Value, steps: &[Edit]) -> bool {
                     .or_insert_with(|| field.before.clone());
             }
         } else {
-            return false;
+            return None;
         }
     }
-    first.into_iter().all(|((scope, key), before)| {
+    let mut changes = Changes::default();
+    for ((scope, key), before) in first {
         let after = if let Some(id) = scope.strip_prefix("layer:") {
             doc["layers"]
                 .as_array()
@@ -550,8 +524,28 @@ fn field_only_net_zero(doc: &Value, steps: &[Edit]) -> bool {
         } else {
             doc[&scope].get(&key)
         };
-        after == before.as_ref()
-    })
+        if after != before.as_ref() {
+            if let Some(id) = scope.strip_prefix("layer:") {
+                changes.layers.entry(id.to_owned()).or_default().insert(key);
+            } else if scope == "global" {
+                changes.global.insert(key);
+            } else if scope == "export" {
+                changes.export.insert(key);
+            } else {
+                changes.graph = true;
+            }
+        }
+    }
+    if let Some(before) = first_order {
+        changes.order = before.iter().map(String::as_str).collect::<Vec<_>>()
+            != doc["layers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|layer| layer["id"].as_str())
+                .collect::<Vec<_>>();
+    }
+    Some(changes)
 }
 impl DocumentSession {
     /// Graph-rule modules validate a candidate first, then journal it here.
@@ -625,7 +619,6 @@ impl DocumentSession {
                 id,
                 draft_revision: 0,
                 steps: Vec::new(),
-                baseline: None,
             });
             Ok(())
         })();
@@ -653,70 +646,58 @@ impl DocumentSession {
             }
             let start = self.transaction.as_ref().unwrap().steps.len();
             let prior_len = self.serialized_len;
-            let prior_baseline = self.transaction.as_ref().unwrap().baseline.is_some();
             for command in request.commands {
-                if self.transaction.as_ref().unwrap().baseline.is_none()
-                    && matches!(
-                        command,
-                        Command::AddLayer { .. }
-                            | Command::DuplicateLayer { .. }
-                            | Command::RemoveLayer { .. }
-                            | Command::MoveLayer { .. }
-                            | Command::BridgeStructure { .. }
-                    )
-                {
-                    let mut baseline = self.package["document"].clone();
-                    for step in self.transaction.as_ref().unwrap().steps.iter().rev() {
-                        apply_edit_to(&mut baseline, step, false);
-                    }
-                    self.transaction.as_mut().unwrap().baseline = Some(baseline);
-                }
                 if let Err(error) = self.apply_command(command) {
                     let steps = self.transaction.as_mut().unwrap().steps.split_off(start);
                     for step in steps.iter().rev() {
                         self.apply_edit(step, false);
                     }
                     self.serialized_len = prior_len;
-                    if !prior_baseline {
-                        self.transaction.as_mut().unwrap().baseline = None;
-                    }
                     return Err(error);
                 }
             }
             let steps = &self.transaction.as_ref().unwrap().steps[start..];
-            if self
+            let changes = net_changes_without_structure(&self.package["document"], steps)
+                .unwrap_or_else(|| net_changes(&self.package["document"], steps));
+            if changes.is_empty() {
+                let steps = self.transaction.as_mut().unwrap().steps.split_off(start);
+                for step in steps.iter().rev() {
+                    self.apply_edit(step, false);
+                }
+                self.serialized_len = prior_len;
+                return Ok((false, Changes::default()));
+            }
+            let retained = self
                 .transaction
                 .as_ref()
                 .unwrap()
                 .steps
                 .iter()
                 .map(Edit::retained_bytes)
-                .sum::<usize>()
-                > MAX_PACKAGE_BYTES
-            {
+                .sum::<usize>();
+            if retained > MAX_PACKAGE_BYTES {
+                // Near the budget, test compaction on a journal copy before
+                // mutating the rollback source. Normal gesture ticks never clone.
+                let mut candidate = self.transaction.as_ref().unwrap().steps.clone();
+                coalesce_steps(&mut candidate);
+                if candidate.iter().map(Edit::retained_bytes).sum::<usize>() <= MAX_PACKAGE_BYTES {
+                    self.transaction.as_mut().unwrap().steps = candidate;
+                    self.transaction.as_mut().unwrap().draft_revision += 1;
+                    return Ok((true, changes));
+                }
                 let steps = self.transaction.as_mut().unwrap().steps.split_off(start);
                 for step in steps.iter().rev() {
                     self.apply_edit(step, false);
                 }
                 self.serialized_len = prior_len;
-                if !prior_baseline {
-                    self.transaction.as_mut().unwrap().baseline = None;
-                }
                 return Err(CommandError::new(
                     "HISTORY_LIMIT",
                     "Transaction history exceeds 64 MiB",
                 ));
             }
-            let mut changes = Changes::default();
-            for step in steps {
-                collect_changes(step, &mut changes);
-            }
-            let changed = !steps.is_empty();
-            if changed {
-                self.transaction.as_mut().unwrap().draft_revision += 1;
-                coalesce_steps(&mut self.transaction.as_mut().unwrap().steps);
-            }
-            Ok((changed, changes))
+            self.transaction.as_mut().unwrap().draft_revision += 1;
+            coalesce_steps(&mut self.transaction.as_mut().unwrap().steps);
+            Ok((true, changes))
         })();
         match result {
             Ok((changed, changes)) => reply(self, changed, changes, None),
@@ -729,21 +710,14 @@ impl DocumentSession {
             version(request.version)?;
             self.transaction_id(request.transaction_id)?;
             let tx = self.transaction.take().unwrap();
-            let net_zero = tx.steps.is_empty()
-                || tx
-                    .baseline
-                    .as_ref()
-                    .is_some_and(|baseline| baseline == &self.package["document"])
-                || (tx.baseline.is_none()
-                    && field_only_net_zero(&self.package["document"], &tx.steps));
-            if net_zero {
+            let changes = net_changes(&self.package["document"], &tx.steps);
+            if changes.is_empty() {
                 for step in tx.steps.iter().rev() {
                     self.apply_edit(step, false);
                 }
                 self.serialized_len = self.package.to_string().len();
                 return Ok((false, Changes::default()));
             }
-            let changes = net_changes(&self.package["document"], &tx);
             self.record_edit(Edit {
                 layer_index: 0,
                 layer_id: None,
@@ -764,7 +738,7 @@ impl DocumentSession {
             version(request.version)?;
             self.transaction_id(request.transaction_id)?;
             let tx = self.transaction.take().unwrap();
-            let changes = net_changes(&self.package["document"], &tx);
+            let changes = net_changes(&self.package["document"], &tx.steps);
             let changed = !changes.is_empty();
             for step in tx.steps.iter().rev() {
                 self.apply_edit(step, false);
@@ -1076,8 +1050,8 @@ pub(crate) fn validate_graph(layers: &[Value], graph: &Value) -> Result<(), Comm
         .iter()
         .filter_map(|layer| layer["id"].as_str())
         .collect();
-    for (list, value) in graph.as_object().unwrap() {
-        if list.ends_with("Nodes") {
+    for list in crate::editor::GRAPH_LISTS {
+        if let Some(value) = graph.get(*list) {
             let nodes = value.as_array().ok_or_else(|| {
                 CommandError::new("INVALID_VALUE", "Graph node list must be an array")
             })?;
@@ -1167,6 +1141,38 @@ mod tests {
         let tx = session.transaction.as_ref().unwrap();
         assert_eq!(tx.steps.len(), 2);
         assert!(tx.steps.iter().map(Edit::retained_bytes).sum::<usize>() < 1024);
+        assert_eq!(
+            serde_json::from_str::<Value>(
+                &session.commit_transaction_json(r#"{"version":1,"transactionId":1}"#)
+            )
+            .unwrap()["changed"],
+            true
+        );
+        assert!(session.undo());
+        assert_eq!(session.export_json(), source);
+    }
+
+    #[test]
+    fn adjacent_graph_bridge_ticks_coalesce() {
+        let source = json!({"artifactPackage":"project","manifest":{"kind":"artifact-project-package","version":1,"documentSchemaVersion":3},
+            "document":{"schemaVersion":3,"global":{},"layers":[{"id":"a","kind":"text"}],"export":{}}}).to_string();
+        let mut session = DocumentSession::open(&source).unwrap();
+        session.begin_transaction_json(r#"{"version":1,"expectedRevision":0}"#);
+        for n in 0..50 {
+            let result = session.update_transaction_json(
+                &json!({"version":1,"transactionId":1,"commands":[{
+                    "type":"bridge","capability":"web:graph","target":{"scope":"graph"},
+                    "value":{"edges":[],"positions":{},"mergeNodes":[],"colorNodes":[],"unknown":n}
+                }]})
+                .to_string(),
+            );
+            assert_eq!(
+                serde_json::from_str::<Value>(&result).unwrap()["ok"],
+                true,
+                "{result}"
+            );
+        }
+        assert_eq!(session.transaction.as_ref().unwrap().steps.len(), 1);
         assert_eq!(
             serde_json::from_str::<Value>(
                 &session.commit_transaction_json(r#"{"version":1,"transactionId":1}"#)
