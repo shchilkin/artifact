@@ -4,17 +4,23 @@
 export class WebSession {
     free(): void;
     [Symbol.dispose](): void;
+    begin_transaction_json(request: string): string;
+    cancel_transaction_json(request: string): string;
+    commit_transaction_json(request: string): string;
     editor_state_json(): string;
     execute(command_json: string): boolean;
+    export_durable_json(): string;
     export_json(): string;
     constructor(source: string);
     redo(): boolean;
     render_plan_json(width: number, height: number): string;
+    revision(): bigint;
     set_image(layer_id: string, patch_json: string): boolean;
     set_scanlines(layer_id: string, amount: number): boolean;
     set_text(layer_id: string, patch_json: string): boolean;
     summary_json(): string;
     undo(): boolean;
+    update_transaction_json(request: string): string;
 }
 
 export function new_project(): string;
@@ -31,17 +37,23 @@ export interface InitOutput {
     readonly new_project: () => [number, number];
     readonly patch_layer: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly render_effect: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
+    readonly websession_begin_transaction_json: (a: number, b: number, c: number) => [number, number];
+    readonly websession_cancel_transaction_json: (a: number, b: number, c: number) => [number, number];
+    readonly websession_commit_transaction_json: (a: number, b: number, c: number) => [number, number];
     readonly websession_editor_state_json: (a: number) => [number, number];
     readonly websession_execute: (a: number, b: number, c: number) => [number, number, number];
+    readonly websession_export_durable_json: (a: number) => [number, number, number, number];
     readonly websession_export_json: (a: number) => [number, number];
     readonly websession_new: (a: number, b: number) => [number, number, number];
     readonly websession_redo: (a: number) => number;
     readonly websession_render_plan_json: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly websession_revision: (a: number) => bigint;
     readonly websession_set_image: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly websession_set_scanlines: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly websession_set_text: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly websession_summary_json: (a: number) => [number, number];
     readonly websession_undo: (a: number) => number;
+    readonly websession_update_transaction_json: (a: number, b: number, c: number) => [number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;

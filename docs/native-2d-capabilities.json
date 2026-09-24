@@ -709,6 +709,7 @@
       "web": "implemented",
       "native": "partial",
       "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "contractEvidence": "tests/core-commands/verify.mjs; shared model and bindings only, real client gestures pending",
       "acceptance": "planned"
     },
     {
@@ -717,6 +718,7 @@
       "web": "implemented",
       "native": "partial",
       "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/commands.rs; real client history adoption pending",
       "acceptance": "planned"
     },
     {

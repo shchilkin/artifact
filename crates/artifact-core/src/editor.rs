@@ -1,5 +1,5 @@
 //! Shared layer/graph mutations. Platform UIs submit commands, never rebuild edges.
-use crate::{CoreError, DocumentSession, Edit, FieldEdit, HISTORY_LIMIT, MAX_PACKAGE_BYTES};
+use crate::{CoreError, DocumentSession, Edit, FieldEdit, MAX_PACKAGE_BYTES};
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 
@@ -15,16 +15,8 @@ pub(crate) const GRAPH_LISTS: &[&str] = &[
     "environmentNodes",
     "shaderNodes",
 ];
-const EFFECTS: &[&str] = &[
-    "glitch",
-    "grain",
-    "noiseWarp",
-    "vortex",
-    "tearAmt",
-    "scanlines",
-    "ca",
-];
 
+#[derive(Clone)]
 pub(crate) struct StructureEdit {
     before_order: Vec<String>,
     after_order: Vec<String>,
@@ -34,6 +26,31 @@ pub(crate) struct StructureEdit {
     after_graph: Option<Value>,
 }
 impl StructureEdit {
+    pub(crate) fn between(
+        before_layers: &[Value],
+        after_layers: &[Value],
+        before_graph: Option<&Value>,
+        after_graph: Option<&Value>,
+    ) -> Self {
+        let before_order = ids(before_layers);
+        let after_order = ids(after_layers);
+        let all: HashSet<String> = before_order.iter().chain(&after_order).cloned().collect();
+        let changes = all
+            .into_iter()
+            .filter_map(|id| {
+                let before = before_layers.iter().find(|layer| layer["id"] == id);
+                let after = after_layers.iter().find(|layer| layer["id"] == id);
+                (before != after).then(|| (id, before.cloned(), after.cloned()))
+            })
+            .collect();
+        Self {
+            before_order,
+            after_order,
+            changes,
+            before_graph: before_graph.cloned(),
+            after_graph: after_graph.cloned(),
+        }
+    }
     pub(crate) fn bytes(&self) -> usize {
         self.changes
             .iter()
@@ -214,17 +231,9 @@ fn ensure_graph(doc: &mut Value) {
         doc["graph"] = json!({"edges":chain_edges(layers,&ids(layers)),"positions":{},"mergeNodes":[],"colorNodes":[]});
     }
 }
-fn bool_value(v: &Value) -> bool {
-    v.is_boolean()
-}
 fn number(v: &Value, low: f64, high: f64) -> bool {
     v.as_f64()
         .is_some_and(|n| n.is_finite() && (low..=high).contains(&n))
-}
-fn color(v: &Value) -> bool {
-    v.as_str().is_some_and(|s| {
-        s.len() == 7 && s.starts_with('#') && s[1..].bytes().all(|b| b.is_ascii_hexdigit())
-    })
 }
 
 impl DocumentSession {
@@ -309,6 +318,10 @@ impl DocumentSession {
         json!({"layers":properties,"graph":graph["graph"],"order":output_order(doc),"canReorder":linear_order(doc).is_ok(),"graphEditable":basic_graph(doc).is_ok(),"fonts":fonts}).to_string()
     }
     pub fn execute(&mut self, command_json: &str) -> Result<bool, CoreError> {
+        self.require_no_transaction()?;
+        self.execute_impl(command_json)
+    }
+    pub(crate) fn execute_impl(&mut self, command_json: &str) -> Result<bool, CoreError> {
         if command_json.len() > 24 * 1024 * 1024 {
             return Err(CoreError("Command is too large"));
         }
@@ -536,7 +549,7 @@ impl DocumentSession {
         if &doc == before {
             return Ok(false);
         }
-        if self.export_json().len() - before.to_string().len() + doc.to_string().len()
+        if self.serialized_len - before.to_string().len() + doc.to_string().len()
             > MAX_PACKAGE_BYTES
         {
             return Err(CoreError("Project would exceed 64 MiB"));
@@ -560,19 +573,17 @@ impl DocumentSession {
             after_graph: doc.get("graph").cloned(),
         };
         self.package["document"] = doc;
-        if self.past.len() == HISTORY_LIMIT {
-            self.past.remove(0);
-        }
-        self.past.push(Edit {
+        self.serialized_len = self.package.to_string().len();
+        self.record_edit(Edit {
             layer_index: 0,
+            layer_id: None,
             fields: Vec::new(),
             structure: Some(change),
+            extended: None,
         });
-        self.future.clear();
-        self.trim_history(MAX_PACKAGE_BYTES);
         Ok(true)
     }
-    fn edit_layer(&mut self, target: &str, patch: &Value) -> Result<bool, CoreError> {
+    pub(crate) fn edit_layer(&mut self, target: &str, patch: &Value) -> Result<bool, CoreError> {
         let patch = patch
             .as_object()
             .ok_or(CoreError("Layer patch must be an object"))?;
@@ -585,56 +596,7 @@ impl DocumentSession {
         let kind = layer["kind"].as_str().unwrap();
         let mut fields = Vec::new();
         for (key, value) in patch {
-            let valid = match key.as_str() {
-                "name" => value
-                    .as_str()
-                    .is_some_and(|s| !s.trim().is_empty() && s.len() <= 200 && !s.contains('\0')),
-                "visible" | "locked" => bool_value(value),
-                "opacity" if kind != "effect" => number(value, 0.0, 100.0),
-                "x" | "y" if kind == "text" || kind == "image" => number(value, -2.0, 3.0),
-                "scaleX" | "scaleY" if kind == "text" || kind == "image" => {
-                    number(value, 0.01, 10.0)
-                }
-                "rotation" if kind == "text" || kind == "image" => number(value, -360.0, 360.0),
-                "content" if kind == "text" => value
-                    .as_str()
-                    .is_some_and(|s| s.len() <= 16384 && !s.contains('\0')),
-                "size" if kind == "text" => number(value, 1.0, 540.0),
-                "color" if kind == "text" || kind == "fill" => color(value),
-                "align" if kind == "text" => value
-                    .as_str()
-                    .is_some_and(|s| ["left", "center", "right"].contains(&s)),
-                "font" if kind == "text" => {
-                    value == "MONO"
-                        || self.package["document"]["fontAssets"]
-                            .as_array()
-                            .into_iter()
-                            .flatten()
-                            .any(|f| {
-                                value.as_str()
-                                    == f["id"]
-                                        .as_str()
-                                        .map(|s| format!("artifact-font://{s}"))
-                                        .as_deref()
-                            })
-                }
-                "src" if kind == "image" => crate::image::validate_source(value).is_ok(),
-                "fit" if kind == "image" => value
-                    .as_str()
-                    .is_some_and(|s| ["free", "cover", "contain"].contains(&s)),
-                "emojis" if kind == "emoji" => value.as_array().is_some_and(|a| {
-                    !a.is_empty()
-                        && a.len() <= 100
-                        && a.iter()
-                            .all(|v| v.as_str().is_some_and(|s| !s.is_empty() && s.len() <= 64))
-                }),
-                "density" if kind == "emoji" => number(value, 0.0, 1000.0),
-                "minSz" | "maxSz" if kind == "emoji" => number(value, 1.0, 540.0),
-                "seedOffset" if kind == "emoji" => number(value, 0.0, 4294967295.0),
-                "tearSize" | "scanlineWidth" if kind == "effect" => number(value, 0.01, 100.0),
-                key if kind == "effect" && EFFECTS.contains(&key) => number(value, 0.0, 100.0),
-                _ => false,
-            };
+            let valid = crate::properties::validate(&self.package["document"], kind, key, value);
             if !valid {
                 return Err(CoreError(
                     "Unsupported property or value outside its allowed range",
@@ -649,7 +611,7 @@ impl DocumentSession {
             fields.push(FieldEdit {
                 key: key.clone(),
                 before,
-                after: value.clone(),
+                after: Some(value.clone()),
             });
         }
         if kind == "emoji" {
@@ -673,7 +635,7 @@ impl DocumentSession {
         let growth: i64 = fields
             .iter()
             .map(|f| {
-                f.after.to_string().len() as i64
+                f.after.as_ref().map_or(0, |v| v.to_string().len()) as i64
                     - f.before.as_ref().map_or(0, |v| v.to_string().len()) as i64
                     + if f.before.is_none() {
                         f.key.len() as i64 + 4
@@ -682,7 +644,7 @@ impl DocumentSession {
                     }
             })
             .sum();
-        if self.export_json().len() as i64 + growth > MAX_PACKAGE_BYTES as i64 {
+        if self.serialized_len as i64 + growth > MAX_PACKAGE_BYTES as i64 {
             return Err(CoreError("Project would exceed 64 MiB"));
         }
         self.commit(index, fields);
@@ -698,6 +660,10 @@ impl DocumentSession {
             package: self.package.clone(),
             past: Vec::new(),
             future: Vec::new(),
+            revision: 0,
+            next_transaction_id: 1,
+            transaction: None,
+            serialized_len: self.serialized_len,
         };
         let patch: Value =
             serde_json::from_str(patch_json).map_err(|_| CoreError("Invalid transform draft"))?;

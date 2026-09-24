@@ -2,6 +2,10 @@
 
 The main Web editor now routes supported layer-property patches through the
 shared Rust/WASM core, while keeping its existing document and history ownership.
+The isolated shared-core session also exposes the P03
+[versioned transaction contract](./native-2d-command-transactions.md) for
+future main Web adoption: begin/update/commit/cancel, one durable Undo per
+gesture, and explicit Web-only bridge steps in that same timeline.
 See [main Web integration](./web-macos-main-web-integration.md) for the boundary,
 fallbacks and runtime build checks. Native/package sessions retain their own
 bounded Rust history. See [Web + native macOS pilot](./web-macos-viber-pilot.md) for its
