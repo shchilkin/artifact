@@ -33,6 +33,7 @@ struct CommandConformance {
         let didRedo = try session.redo()
         precondition(didRedo)
         let redone = try session.exportJson()
+        let graphPlan = try session.graphPlanJson(targetId: "__export__")
         let reopened = try NativeSession.open(source: session.exportDurableJson()).exportJson()
         let stale = try session.cancelTransactionJson(request: encoded(["version": 1, "transactionId": 1]))
         let commandList = commands as! [[String: Any]]
@@ -109,7 +110,8 @@ struct CommandConformance {
                                          "mixedUndoTransaction": mixedUndoTransaction, "mixedUndoLegacy": mixedUndoLegacy,
                                          "mixedRedoLegacy": mixedRedoLegacy, "mixedRedoTransaction": mixedRedoTransaction,
                                          "structureUpdate": structureUpdate, "structureCommit": structureCommit,
-                                         "structureUndo": structureUndo, "structureRedo": structureRedo]
+                                         "structureUndo": structureUndo, "structureRedo": structureRedo,
+                                         "graphPlan": graphPlan]
         try JSONSerialization.data(withJSONObject: output, options: [.sortedKeys, .withoutEscapingSlashes])
             .write(to: URL(fileURLWithPath: args[3]), options: .atomic)
     }

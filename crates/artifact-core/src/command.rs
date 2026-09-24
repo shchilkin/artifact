@@ -40,6 +40,9 @@ pub enum Command {
         id: String,
         delta: i64,
     },
+    Graph {
+        action: crate::graph::GraphAction,
+    },
     Bridge {
         capability: String,
         target: BridgeTarget,
@@ -793,6 +796,7 @@ impl DocumentSession {
                     .map_err(core_error)?;
             }
             Command::MoveLayer { id, delta } => self.move_layer(&id, delta)?,
+            Command::Graph { action } => self.graph_command(action)?,
             Command::Bridge {
                 capability,
                 target,
@@ -891,7 +895,8 @@ impl DocumentSession {
                 "Move delta must be -1 or 1",
             ));
         }
-        let layers = self.package["document"]["layers"].as_array_mut().unwrap();
+        let document = &self.package["document"];
+        let layers = document["layers"].as_array().unwrap();
         let index = layers
             .iter()
             .position(|layer| layer["id"] == id)
@@ -907,6 +912,17 @@ impl DocumentSession {
                 "Unlock layers before reordering them",
             ));
         }
+        if !document["graph"].is_null()
+            && [id, layers[next]["id"].as_str().unwrap()]
+                .iter()
+                .any(|id| crate::graph::node_type(document, id).is_none())
+        {
+            return Err(CommandError::new(
+                "UNSUPPORTED_CAPABILITY",
+                "Unsupported graph layer is not editable",
+            ));
+        }
+        let layers = self.package["document"]["layers"].as_array_mut().unwrap();
         let before: Vec<String> = layers
             .iter()
             .map(|layer| layer["id"].as_str().unwrap().to_owned())
@@ -1050,22 +1066,22 @@ pub(crate) fn validate_graph(layers: &[Value], graph: &Value) -> Result<(), Comm
         .iter()
         .filter_map(|layer| layer["id"].as_str())
         .collect();
-    for list in crate::editor::GRAPH_LISTS {
-        if let Some(value) = graph.get(*list) {
-            let nodes = value.as_array().ok_or_else(|| {
-                CommandError::new("INVALID_VALUE", "Graph node list must be an array")
-            })?;
-            for node in nodes {
-                let id = node["id"]
-                    .as_str()
-                    .filter(|id| !id.is_empty() && id.len() <= 200 && *id != "__export__")
-                    .ok_or_else(|| CommandError::new("INVALID_VALUE", "Graph node needs an id"))?;
-                if !ids.insert(id) {
-                    return Err(CommandError::new(
-                        "INVALID_VALUE",
-                        "Duplicate graph node id",
-                    ));
-                }
+    // Future graph node collections use the same `*Nodes` naming convention.
+    // Validate their topology IDs without interpreting or rewriting their data.
+    for (_, value) in graph_node_collections(graph) {
+        let nodes = value.as_array().ok_or_else(|| {
+            CommandError::new("INVALID_VALUE", "Graph node list must be an array")
+        })?;
+        for node in nodes {
+            let id = node["id"]
+                .as_str()
+                .filter(|id| !id.is_empty() && id.len() <= 200 && *id != "__export__")
+                .ok_or_else(|| CommandError::new("INVALID_VALUE", "Graph node needs an id"))?;
+            if !ids.insert(id) {
+                return Err(CommandError::new(
+                    "INVALID_VALUE",
+                    "Duplicate graph node id",
+                ));
             }
         }
     }
@@ -1089,6 +1105,30 @@ pub(crate) fn validate_graph(layers: &[Value], graph: &Value) -> Result<(), Comm
         }
     }
     Ok(())
+}
+
+pub(crate) fn graph_node_ids(graph: &Value) -> Vec<&str> {
+    graph_node_collections(graph)
+        .filter_map(|(_, value)| value.as_array())
+        .flat_map(|nodes| nodes.iter())
+        .filter_map(|node| node["id"].as_str())
+        .collect()
+}
+
+fn graph_node_collections(graph: &Value) -> impl Iterator<Item = (&str, &Value)> {
+    let known = crate::editor::GRAPH_LISTS
+        .iter()
+        .filter_map(|name| graph.get(*name).map(|value| (*name, value)));
+    let opaque = graph
+        .as_object()
+        .into_iter()
+        .flat_map(|o| o.iter())
+        .filter(|(name, _)| {
+            name.ends_with("Nodes") && !crate::editor::GRAPH_LISTS.contains(&name.as_str())
+        })
+        .filter(|(_, value)| value.is_array())
+        .map(|(name, value)| (name.as_str(), value));
+    known.chain(opaque)
 }
 
 #[cfg(test)]

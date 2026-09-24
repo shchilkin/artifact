@@ -39,6 +39,9 @@ impl WebSession {
     pub fn render_plan_json(&self, width: u32, height: u32) -> Result<String, JsError> {
         Ok(self.inner.render_plan_json(width, height)?)
     }
+    pub fn graph_plan_json(&self, target_id: &str) -> Result<String, JsError> {
+        Ok(self.inner.graph_plan_json(target_id)?)
+    }
     pub fn summary_json(&self) -> String {
         self.inner.summary_json()
     }

@@ -39,6 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let undone = session.export_json();
     assert!(session.redo());
     let redone = session.export_json();
+    let graph_plan = session.graph_plan_json("__export__")?;
     let reopened = DocumentSession::open(&session.export_durable_json()?)?.export_json();
     let stale =
         session.cancel_transaction_json(&json!({"version":1,"transactionId":1}).to_string());
@@ -120,7 +121,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "cancel":cancel,"cancelled":cancelled,"legacy":legacy,"mixedBegin":mixed_begin,"mixedUpdate":mixed_update,
         "mixedCommit":mixed_commit,"mixedAfter":mixed_after,"mixedUndoTransaction":mixed_undo_transaction,
         "mixedUndoLegacy":mixed_undo_legacy,"mixedRedoLegacy":mixed_redo_legacy,"mixedRedoTransaction":mixed_redo_transaction,
-        "structureUpdate":structure_update,"structureCommit":structure_commit,"structureUndo":structure_undo,"structureRedo":structure_redo});
+        "structureUpdate":structure_update,"structureCommit":structure_commit,"structureUndo":structure_undo,"structureRedo":structure_redo,
+        "graphPlan":graph_plan});
     std::fs::write(&args[3], output.to_string())?;
     Ok(())
 }

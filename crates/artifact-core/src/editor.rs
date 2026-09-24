@@ -332,7 +332,20 @@ impl DocumentSession {
             return self.edit_layer(id(&c, "id")?, &c["patch"]);
         }
         let before = &self.package["document"];
-        basic_graph(before)?;
+        // The legacy editor command still owns linear stack rewiring. Shared
+        // structural commands can also operate on explicit branching graphs,
+        // where layer insertion is disconnected and existing edges stay put.
+        let shared_branch = matches!(
+            op,
+            "add_layer" | "duplicate_layer" | "delete_layer" | "move_layer"
+        ) && !before["graph"].is_null()
+            && linear_order(before).is_err();
+        if shared_branch {
+            crate::graph::plan(before, crate::graph::OUTPUT_ID)
+                .map_err(|_| CoreError("Invalid graph topology"))?;
+        } else {
+            basic_graph(before)?;
+        }
         let mut doc = before.clone();
         match op {
             "add_layer" | "duplicate_layer" => {
@@ -343,6 +356,8 @@ impl DocumentSession {
                         .unwrap()
                         .iter()
                         .any(|l| l["id"] == new_id)
+                    || (!doc["graph"].is_null()
+                        && crate::command::graph_node_ids(&doc["graph"]).contains(&new_id))
                 {
                     return Err(CoreError("Layer id already exists"));
                 }
@@ -351,6 +366,9 @@ impl DocumentSession {
                 }
                 let after = c["afterId"].as_str();
                 let mut layer = if op == "duplicate_layer" {
+                    if shared_branch && crate::graph::node_type(&doc, id(&c, "id")?).is_none() {
+                        return Err(CoreError("Unsupported graph layer is not editable"));
+                    }
                     let existing = doc["layers"]
                         .as_array()
                         .unwrap()
@@ -362,7 +380,9 @@ impl DocumentSession {
                         "{} copy",
                         existing["name"].as_str().unwrap_or("Layer")
                     ));
-                    copy["locked"] = json!(false);
+                    if !shared_branch {
+                        copy["locked"] = json!(false);
+                    }
                     copy
                 } else {
                     let kind = id(&c, "kind")?;
@@ -384,7 +404,11 @@ impl DocumentSession {
                     l
                 };
                 layer["id"] = json!(new_id);
-                let chain = linear_order(&doc).ok();
+                let chain = if shared_branch {
+                    None
+                } else {
+                    linear_order(&doc).ok()
+                };
                 let previous = if op == "duplicate_layer" {
                     Some(id(&c, "id")?)
                 } else {
@@ -398,6 +422,12 @@ impl DocumentSession {
                         .any(|l| l["id"] == previous)
                 {
                     return Err(CoreError("Insertion layer not found"));
+                }
+                if shared_branch
+                    && previous
+                        .is_some_and(|previous| crate::graph::node_type(&doc, previous).is_none())
+                {
+                    return Err(CoreError("Unsupported insertion layer"));
                 }
                 let index = previous
                     .and_then(|p| {
@@ -439,12 +469,28 @@ impl DocumentSession {
                 if found["locked"] == true {
                     return Err(CoreError("Unlock the layer before deleting it"));
                 }
+                if shared_branch && crate::graph::node_type(&doc, target).is_none() {
+                    return Err(CoreError("Unsupported graph layer is not editable"));
+                }
                 if !doc["graph"].is_null() {
                     let edges = doc["graph"]["edges"].as_array().unwrap();
-                    let parent = edges
-                        .iter()
-                        .find(|e| e["toId"] == target)
-                        .and_then(|e| e["fromId"].as_str());
+                    if shared_branch {
+                        for incident in edges
+                            .iter()
+                            .filter(|e| e["toId"] == target || e["fromId"] == target)
+                        {
+                            crate::graph::validate_old_edge_editable(&doc, incident)
+                                .map_err(|_| CoreError("Unsupported incident graph edge"))?;
+                        }
+                    }
+                    let parent = if shared_branch {
+                        None
+                    } else {
+                        edges
+                            .iter()
+                            .find(|e| e["toId"] == target)
+                            .and_then(|e| e["fromId"].as_str())
+                    };
                     let mut next: Vec<Value> = edges
                         .iter()
                         .filter(|e| e["toId"] != target && e["fromId"] != target)
@@ -474,7 +520,11 @@ impl DocumentSession {
             }
             "move_layer" => {
                 let target = id(&c, "id")?;
-                let mut order = linear_order(&doc)?;
+                let mut order = if shared_branch {
+                    ids(doc["layers"].as_array().unwrap())
+                } else {
+                    linear_order(&doc)?
+                };
                 let index = order
                     .iter()
                     .position(|s| s == target)
@@ -493,12 +543,19 @@ impl DocumentSession {
                 }) {
                     return Err(CoreError("Unlock layers before reordering them"));
                 }
+                if shared_branch
+                    && [target, order[next as usize].as_str()]
+                        .iter()
+                        .any(|id| crate::graph::node_type(&doc, id).is_none())
+                {
+                    return Err(CoreError("Unsupported graph layer is not editable"));
+                }
                 order.swap(index, next as usize);
                 let reordered: Vec<Value> = order
                     .iter()
                     .map(|id| layers.iter().find(|l| l["id"] == *id).unwrap().clone())
                     .collect();
-                if !doc["graph"].is_null() {
+                if !doc["graph"].is_null() && !shared_branch {
                     doc["graph"]["edges"] = json!(chain_edges(&reordered, &order));
                 }
                 doc["layers"] = json!(reordered);
@@ -545,7 +602,12 @@ impl DocumentSession {
             }
             _ => return Err(CoreError("Unknown editor command")),
         }
-        basic_graph(&doc)?;
+        if shared_branch {
+            crate::graph::plan(&doc, crate::graph::OUTPUT_ID)
+                .map_err(|_| CoreError("Invalid graph topology"))?;
+        } else {
+            basic_graph(&doc)?;
+        }
         if &doc == before {
             return Ok(false);
         }

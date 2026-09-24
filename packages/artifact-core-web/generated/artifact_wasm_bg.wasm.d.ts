@@ -12,6 +12,7 @@ export const websession_editor_state_json: (a: number) => [number, number];
 export const websession_execute: (a: number, b: number, c: number) => [number, number, number];
 export const websession_export_durable_json: (a: number) => [number, number, number, number];
 export const websession_export_json: (a: number) => [number, number];
+export const websession_graph_plan_json: (a: number, b: number, c: number) => [number, number, number, number];
 export const websession_new: (a: number, b: number) => [number, number, number];
 export const websession_redo: (a: number) => number;
 export const websession_render_plan_json: (a: number, b: number, c: number) => [number, number, number, number];

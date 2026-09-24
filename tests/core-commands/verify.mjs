@@ -114,6 +114,39 @@ try {
       { type: 'patch_global', patch: { aspect: document.global.aspect === '4:5' ? '1:1' : '4:5' } },
       { type: 'patch_export', patch: { format: document.export.format === 'jpeg' ? 'png' : 'jpeg' } },
     ];
+    if (name === 'branch-merge-mask-repeat') {
+      commands.push(
+        {
+          type: 'graph',
+          action: {
+            kind: 'patch_node',
+            id: document.graph.repeatNodes[0].id,
+            patch: { count: document.graph.repeatNodes[0].count + 1 },
+          },
+        },
+        {
+          type: 'graph',
+          action: {
+            kind: 'patch_node',
+            id: document.graph.maskNodes[0].id,
+            patch: { invert: !document.graph.maskNodes[0].invert },
+          },
+        },
+      );
+    }
+    if (name === 'graph-utilities') {
+      for (const [list, field] of [
+        ['colorNodes', 'saturation'],
+        ['transformNodes', 'rotation'],
+        ['grimeShadowNodes', 'spread'],
+      ]) {
+        const node = document.graph[list][0];
+        commands.push({
+          type: 'graph',
+          action: { kind: 'patch_node', id: node.id, patch: { [field]: node[field] + 1 } },
+        });
+      }
+    }
     const input = path.join(scratch, `${name}.artifact`);
     const commandFile = path.join(scratch, `${name}.commands.json`);
     const rustFile = path.join(scratch, `${name}.rust.json`);
@@ -145,6 +178,7 @@ try {
     const undone = webSession.export_json();
     assert.equal(webSession.redo(), true);
     const redone = webSession.export_json();
+    const graphPlan = webSession.graph_plan_json('__export__');
     const reopenedSession = new WebSession(webSession.export_durable_json());
     const reopened = reopenedSession.export_json();
     reopenedSession.free();
@@ -269,6 +303,7 @@ try {
       structureCommit,
       structureUndo,
       structureRedo,
+      graphPlan,
     };
     for (const [stage, value] of Object.entries(wasm)) {
       const comparable = stage === 'structureRedo' && value ? canonical(JSON.parse(value)) : value;

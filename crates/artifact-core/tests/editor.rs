@@ -64,14 +64,18 @@ fn connections_cycle_guard_disconnected_nodes_and_metadata_history() {
     );
     assert_eq!(s.export_json(), initial);
     run(&mut s, json!({"type":"disconnect","to":"b"}));
-    assert!(
-        s.execute(r#"{"type":"move_layer","id":"a","delta":1}"#)
-            .is_err()
+    let disconnected_edges: Value = serde_json::from_str(&s.export_json()).unwrap();
+    run(&mut s, json!({"type":"move_layer","id":"b","delta":1}));
+    let reordered: Value = serde_json::from_str(&s.export_json()).unwrap();
+    assert_eq!(
+        reordered["document"]["graph"]["edges"],
+        disconnected_edges["document"]["graph"]["edges"]
     );
     run(&mut s, json!({"type":"connect","from":"a","to":"b"}));
     let plan = s.render_plan_json(100, 100).unwrap();
     run(&mut s, json!({"type":"move_node","id":"a","x":400,"y":220}));
     assert_eq!(plan, s.render_plan_json(100, 100).unwrap());
+    s.undo();
     s.undo();
     s.undo();
     s.undo();
@@ -139,7 +143,11 @@ fn blank_create_and_supported_properties_render() {
 #[test]
 fn unsupported_graph_structures_are_preserved() {
     let mut p: Value = serde_json::from_str(&source()).unwrap();
-    p["document"]["graph"]["mergeNodes"] = json!([{"id":"m"}]);
+    p["document"]["graph"]["scene3dNodes"] = json!([{"id":"m"}]);
+    p["document"]["graph"]["edges"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":"unsupported","fromId":"a","fromPort":"out","toId":"m","toPort":"in"}));
     let original = p.to_string();
     let mut s = DocumentSession::open(&original).unwrap();
     assert!(s.execute(r#"{"type":"delete_layer","id":"a"}"#).is_err());
