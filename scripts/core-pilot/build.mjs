@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildIdentity } from './build-identity.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const mode = process.argv[2] ?? 'all';
@@ -96,11 +97,15 @@ if (mode !== 'wasm') {
     path.join(build, 'image-check'),
   ]);
   const app = path.join(build, 'Artifact.app/Contents');
+  rmSync(path.dirname(app), { recursive: true, force: true });
   mkdirSync(path.join(app, 'MacOS'), { recursive: true });
+  mkdirSync(path.join(app, 'Resources'), { recursive: true });
   const sources = readdirSync(path.join(root, 'apps/macos/Sources'))
     .filter((f) => f.endsWith('.swift'))
     .map((f) => `apps/macos/Sources/${f}`);
   run('xcrun', ['swiftc', ...common, ...sources, '-o', path.join(app, 'MacOS/ArtifactCorePilot')]);
+  const identity = buildIdentity();
+  writeFileSync(path.join(app, 'Resources/build-identity.json'), `${JSON.stringify(identity, null, 2)}\n`);
   writeFileSync(
     path.join(app, 'Info.plist'),
     `<?xml version="1.0" encoding="UTF-8"?>
@@ -110,7 +115,10 @@ if (mode !== 'wasm') {
 <key>CFBundleIdentifier</key><string>dev.shchilkin.artifact.workspace</string>
 <key>CFBundleName</key><string>Artifact</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.1.0</string>
+<key>CFBundleShortVersionString</key><string>${identity.version}</string>
+<key>CFBundleVersion</key><string>${identity.version}</string>
+<key>ArtifactBuildSHA</key><string>${identity.sha}</string>
+<key>ArtifactBuildDirty</key><${identity.dirty ? 'true' : 'false'}/>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>CFBundleDocumentTypes</key><array><dict><key>CFBundleTypeName</key><string>Artifact Project</string><key>CFBundleTypeRole</key><string>Editor</string><key>LSItemContentTypes</key><array><string>dev.shchilkin.artifact.project</string></array></dict></array>
@@ -118,5 +126,7 @@ if (mode !== 'wasm') {
 </dict></plist>\n`,
   );
   run('codesign', ['--force', '--sign', '-', path.dirname(app)]);
-  console.log(`Built ${path.dirname(app)}`);
+  console.log(
+    `Built ${path.dirname(app)} version ${identity.version} sha ${identity.sha}${identity.dirty ? ' (dirty)' : ''}`,
+  );
 }
