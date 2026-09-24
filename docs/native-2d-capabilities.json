@@ -765,7 +765,7 @@
       "id": "canvas.aspect.4:5",
       "owner": 266,
       "web": "implemented",
-      "native": "missing",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
       "acceptance": "planned"
     },
@@ -773,7 +773,7 @@
       "id": "canvas.aspect.9:16",
       "owner": 266,
       "web": "implemented",
-      "native": "missing",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/hundred-node.artifact.json",
       "acceptance": "planned"
     },
@@ -781,7 +781,7 @@
       "id": "canvas.aspect.16:9",
       "owner": 266,
       "web": "implemented",
-      "native": "missing",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
       "acceptance": "planned"
     },
@@ -789,7 +789,7 @@
       "id": "canvas.transparency",
       "owner": 266,
       "web": "implemented",
-      "native": "partial",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
       "acceptance": "planned"
     },
@@ -797,7 +797,7 @@
       "id": "canvas.blend.normal",
       "owner": 266,
       "web": "implemented",
-      "native": "partial",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
       "acceptance": "planned"
     },
@@ -805,7 +805,7 @@
       "id": "canvas.blend.multiply",
       "owner": 266,
       "web": "implemented",
-      "native": "missing",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
       "acceptance": "planned"
     },
@@ -813,7 +813,7 @@
       "id": "canvas.blend.screen",
       "owner": 266,
       "web": "implemented",
-      "native": "missing",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
       "acceptance": "planned"
     },
@@ -821,7 +821,7 @@
       "id": "canvas.blend.overlay",
       "owner": 266,
       "web": "implemented",
-      "native": "missing",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
       "acceptance": "planned"
     },
@@ -829,7 +829,7 @@
       "id": "canvas.blend.luminosity",
       "owner": 266,
       "web": "implemented",
-      "native": "missing",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
       "acceptance": "planned"
     },

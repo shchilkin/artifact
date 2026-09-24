@@ -107,13 +107,32 @@ fn dimensions(width: u32, height: u32) -> Result<(usize, usize), CoreError> {
     }
     Ok((width as usize, height as usize))
 }
+fn aspect_dimensions(aspect: &str, width: u32, height: u32) -> Result<(), CoreError> {
+    let (base_width, base_height): (u32, u32) = match aspect {
+        "1:1" => (1000, 1000),
+        "4:5" => (1080, 1350),
+        "9:16" => (1080, 1920),
+        "16:9" => (1920, 1080),
+        _ => return Err(CoreError("Unsupported document aspect")),
+    };
+    // Draft dimensions may round one axis by a pixel. The full export caller
+    // passes the exact base dimensions; this only validates plan geometry.
+    if (i64::from(width) * i64::from(base_height) - i64::from(height) * i64::from(base_width)).abs()
+        > i64::from(base_width.max(base_height))
+    {
+        return Err(CoreError("Render dimensions do not match document aspect"));
+    }
+    Ok(())
+}
 impl DocumentSession {
     pub fn render_plan_json(&self, width: u32, height: u32) -> Result<String, CoreError> {
         dimensions(width, height)?;
         let doc = &self.package["document"];
-        if doc["global"]["aspect"] != "1:1" || width != height {
-            return Err(CoreError("The render pilot supports square documents"));
-        }
+        aspect_dimensions(
+            doc["global"]["aspect"].as_str().unwrap_or("1:1"),
+            width,
+            height,
+        )?;
         let layers = doc["layers"].as_array().unwrap();
         if layers.len() > 256 {
             return Err(CoreError("Render pilot supports up to 256 layers"));
@@ -184,15 +203,36 @@ impl DocumentSession {
             if layer["visible"] == false {
                 continue;
             }
-            if !layer["blendMode"].is_null() && layer["blendMode"] != "normal" {
-                return Err(CoreError("Only normal layer blending is supported"));
+            if let Some(mode) = layer["blendMode"].as_str()
+                && ![
+                    "normal",
+                    "multiply",
+                    "screen",
+                    "overlay",
+                    "darken",
+                    "lighten",
+                    "color-dodge",
+                    "color-burn",
+                    "hard-light",
+                    "soft-light",
+                    "difference",
+                    "exclusion",
+                    "hue",
+                    "saturation",
+                    "color",
+                    "luminosity",
+                ]
+                .contains(&mode)
+            {
+                return Err(CoreError("Unsupported 2D blend mode"));
             }
             match layer["kind"].as_str().unwrap_or("") {
                 "fill" | "text" => {}
                 "image" => {
-                    if !["cover", "contain", "free"].contains(&layer["fit"].as_str().unwrap_or(""))
+                    if !["cover", "contain", "free", "tile"]
+                        .contains(&layer["fit"].as_str().unwrap_or(""))
                     {
-                        return Err(CoreError("Image tiling is not supported"));
+                        return Err(CoreError("Unsupported image fit"));
                     }
                 }
                 "effect" => {

@@ -12,6 +12,7 @@ struct RenderFailure: LocalizedError {
 // Rendering objects live here, outside the serialized document and SwiftUI state.
 actor RenderWorker {
     static let shared = RenderWorker()
+    private let resources = NativeRenderResources()
     func png(plan: String) throws -> Data {
         let image = try render(plan: plan)
         try Task.checkCancellation()
@@ -21,7 +22,7 @@ actor RenderWorker {
     }
     func render(plan: String) throws -> CGImage {
         try Task.checkCancellation()
-        return try PilotRenderer(planJSON: plan).render()
+        return try PilotRenderer(plan: NativeRenderPlan(json: plan), resources: resources).render()
     }
 }
 
@@ -31,38 +32,33 @@ final class PilotRenderer {
     private let context: CGContext
     private let seed: UInt32
     private let layers: [[String: Any]]
+    private let resources: NativeRenderResources
+    private let registry: NativeRenderRegistry
     private var fonts: [String: CGFont] = [:]
 
-    init(planJSON: String) throws {
-        guard let plan = try JSONSerialization.jsonObject(with: Data(planJSON.utf8)) as? [String: Any],
-              let width = plan["width"] as? Int, let height = plan["height"] as? Int,
-              let layers = plan["layers"] as? [[String: Any]],
-              (1...3000).contains(width), (1...3000).contains(height),
-              let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
-              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
-                  bytesPerRow: width * 4, space: colorSpace,
-                  bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue)
-        else { throw RenderFailure(message: "Invalid render plan") }
-        self.width = width; self.height = height; self.context = context
-        self.layers = layers; self.seed = (plan["seed"] as? NSNumber)?.uint32Value ?? 0
-        context.translateBy(x: 0, y: CGFloat(height)); context.scaleBy(x: 1, y: -1)
-        context.interpolationQuality = .high
-        for asset in plan["fontAssets"] as? [[String: Any]] ?? [] {
-            guard let id = asset["id"] as? String, let url = asset["dataUrl"] as? String,
-                  let provider = CGDataProvider(data: try Self.decode(url) as CFData),
-                  let font = CGFont(provider) else { throw RenderFailure(message: "Invalid embedded font") }
-            fonts["artifact-font://" + id] = font
-        }
-        if let background = plan["background"] as? String, background != "transparent" {
-            context.setFillColor(try color(background)); context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-        }
+    convenience init(planJSON: String) throws {
+        try self.init(plan: NativeRenderPlan(json: planJSON), resources: NativeRenderResources())
     }
 
-    static func decode(_ url: String) throws -> Data {
-        guard url.hasPrefix("data:"), let comma = url.firstIndex(of: ","), url[..<comma].hasSuffix(";base64"),
-              let data = Data(base64Encoded: String(url[url.index(after: comma)...]))
-        else { throw RenderFailure(message: "Rendering requires valid embedded assets") }
-        return data
+    init(plan: NativeRenderPlan, resources: NativeRenderResources, registry: NativeRenderRegistry = .pilot()) throws {
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: plan.width, height: plan.height, bitsPerComponent: 8,
+                  bytesPerRow: plan.width * 4, space: colorSpace,
+                  bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { throw RenderFailure(message: "Invalid render plan") }
+        self.width = plan.width; self.height = plan.height; self.context = context
+        self.layers = plan.layers; self.seed = plan.seed
+        self.resources = resources; self.registry = registry
+        context.translateBy(x: 0, y: CGFloat(plan.height)); context.scaleBy(x: 1, y: -1)
+        context.interpolationQuality = .high
+        for asset in plan.fontAssets {
+            guard let id = asset["id"] as? String, let url = asset["dataUrl"] as? String,
+                  !id.isEmpty else { throw RenderFailure(message: "Invalid embedded font") }
+            fonts["artifact-font://" + id] = try resources.font(url)
+        }
+        if plan.background != "transparent" {
+            context.setFillColor(try color(plan.background)); context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        }
     }
     private func n(_ obj: [String: Any], _ key: String, _ fallback: Double = 0) -> Double {
         (obj[key] as? NSNumber)?.doubleValue ?? fallback
@@ -81,22 +77,22 @@ final class PilotRenderer {
         ]))
     }
     private func middleBaseline(_ font: CTFont) -> Double {
-        // Canvas middle anchors the em square, rather than CoreText's typographic
-        // ascent/descent box (the embedded pixel font's box is shorter than em).
-        CTFontGetSize(font) / 2
+        // CoreText ascent includes headroom outside the visible Latin letter box.
+        // Center the cap-height/descent box for Canvas textBaseline=middle.
+        (CTFontGetCapHeight(font) - CTFontGetDescent(font)) / 2
     }
-    private func drawText(_ text: String, font: CTFont, color: CGColor, align: String, maxWidth: Double) {
+    private func drawText(_ text: String, font: CTFont, color: CGColor, align: String, maxWidth: Double, latinBaseline: Bool = true) {
         let l = line(text, font: font, color: color)
         let advance = CTLineGetTypographicBounds(l, nil, nil, nil)
         let x = align == "center" ? -advance / 2 : (align == "right" ? -advance : 0)
         context.saveGState()
         context.scaleBy(x: advance > maxWidth ? maxWidth / advance : 1, y: -1)
         context.textMatrix = .identity
-        context.textPosition = CGPoint(x: x, y: -middleBaseline(font))
+        context.textPosition = CGPoint(x: x, y: -(latinBaseline ? middleBaseline(font) : CTFontGetSize(font) / 2))
         CTLineDraw(l, context)
         context.restoreGState()
     }
-    private func textLayer(_ layer: [String: Any]) throws {
+    func paintText(_ layer: [String: Any]) throws {
         let fontID = layer["font"] as? String ?? ""
         let font: CTFont
         let size = n(layer,"size") * Double(width) / 540
@@ -134,11 +130,25 @@ final class PilotRenderer {
             context.restoreGState()
         }
     }
-    private func imageLayer(_ layer: [String: Any]) throws {
-        let data = try Self.decode(layer["src"] as? String ?? "")
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw RenderFailure(message: "Cannot decode embedded image") }
+    func paintImage(_ layer: [String: Any]) throws {
+        let image = try resources.image(layer["src"] as? String ?? "")
         let fit = layer["fit"] as? String ?? "free"
+        if fit == "tile" {
+            let tileWidth = Double(image.width) * Double(width) / 540 * n(layer,"scaleX",1)
+            let tileHeight = Double(image.height) * Double(height) / 540 * n(layer,"scaleY",1)
+            guard tileWidth.isFinite, tileHeight.isFinite, tileWidth > 0, tileHeight > 0 else {
+                throw RenderFailure(message: "Invalid image tile size")
+            }
+            context.clip(to: CGRect(x: 0, y: 0, width: width, height: height))
+            // CoreGraphics tiles over the clipped bitmap in one call; a nested
+            // draw loop can queue millions of tiny image operations.
+            context.saveGState()
+            context.translateBy(x: 0, y: tileHeight)
+            context.scaleBy(x: 1, y: -1)
+            context.draw(image, in: CGRect(x: 0, y: 0, width: tileWidth, height: tileHeight), byTiling: true)
+            context.restoreGState()
+            return
+        }
         let a = Double(width) / Double(image.width), b = Double(height) / Double(image.height)
         let scale = fit == "cover" ? max(a,b) : (fit == "contain" ? min(a,b) : Double(width) / 540)
         let w = Double(image.width) * scale * n(layer,"scaleX",1), h = Double(image.height) * scale * n(layer,"scaleY",1)
@@ -146,43 +156,49 @@ final class PilotRenderer {
         context.rotate(by: n(layer,"rotation") * .pi / 180); context.scaleBy(x: 1, y: -1)
         context.draw(image, in: CGRect(x: -w/2, y: -h/2, width: w, height: h))
     }
-    private func applyEffect(_ layer: [String: Any]) throws {
-        guard let data = context.data else { throw RenderFailure(message: "Missing pixel buffer") }
-        let size = width * height * 4
-        let bytes = data.bindMemory(to: UInt8.self, capacity: size)
-        var straight = [UInt8](repeating: 0, count: size)
-        for i in stride(from: 0, to: size, by: 4) {
-            let a = Double(bytes[i+3]); straight[i+3] = bytes[i+3]
-            for c in 0..<3 { straight[i+c] = a > 0 ? UInt8(min(255,(Double(bytes[i+c]) * 255 / a).rounded(.toNearestOrEven))) : 0 }
-        }
-        let json = String(data: try JSONSerialization.data(withJSONObject: layer), encoding: .utf8)!
-        let result = try renderEffect(pixels: Data(straight), width: UInt32(width), height: UInt32(height), layerJson: json, seed: seed)
-        for i in stride(from: 0, to: size, by: 4) {
-            bytes[i+3] = result[i+3]
-            for c in 0..<3 { bytes[i+c] = UInt8((Double(result[i+c]) * Double(result[i+3]) / 255).rounded(.toNearestOrEven)) }
+    func paintEmoji(_ layer: [String: Any]) throws {
+        for item in layer["renderItems"] as? [[String: Any]] ?? [] {
+            context.saveGState()
+            context.translateBy(x: n(item,"x"), y: n(item,"y")); context.rotate(by: n(item,"rotation"))
+            context.setAlpha(n(item,"opacity",1) * n(layer,"opacity",100) / 100)
+            let font = CTFontCreateWithName("Apple Color Emoji" as CFString, n(item,"size"), nil)
+            drawText(item["emoji"] as? String ?? "", font: font, color: CGColor(gray: 1, alpha: 1), align: "center", maxWidth: .infinity, latinBaseline: false)
+            context.restoreGState()
         }
     }
+
+    private func blendMode(_ name: String) throws -> CGBlendMode {
+        switch name {
+        case "normal": return .normal
+        case "multiply": return .multiply
+        case "screen": return .screen
+        case "overlay": return .overlay
+        case "darken": return .darken
+        case "lighten": return .lighten
+        case "color-dodge": return .colorDodge
+        case "color-burn": return .colorBurn
+        case "hard-light": return .hardLight
+        case "soft-light": return .softLight
+        case "difference": return .difference
+        case "exclusion": return .exclusion
+        case "hue": return .hue
+        case "saturation": return .saturation
+        case "color": return .color
+        case "luminosity": return .luminosity
+        default: throw RenderFailure(message: "Unsupported 2D blend mode")
+        }
+    }
+
     func render(diagnostics: URL? = nil) throws -> CGImage {
+        let target = NativeRasterTarget(width: width, height: height, seed: seed, context: context, resources: resources,
+                                        paintText: { try self.paintText($0) }, paintImage: { try self.paintImage($0) },
+                                        paintEmoji: { try self.paintEmoji($0) })
         for (index, layer) in layers.enumerated() where layer["visible"] as? Bool != false {
             try Task.checkCancellation()
             context.saveGState(); defer { context.restoreGState() }
             context.setAlpha(n(layer,"opacity",100) / 100)
-            switch layer["kind"] as? String {
-            case "fill": context.setFillColor(try color(layer["color"] as? String ?? "#000000")); context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-            case "text": try textLayer(layer)
-            case "image": try imageLayer(layer)
-            case "effect": try applyEffect(layer)
-            case "emoji":
-                for item in layer["renderItems"] as? [[String: Any]] ?? [] {
-                    context.saveGState()
-                    context.translateBy(x: n(item,"x"), y: n(item,"y")); context.rotate(by: n(item,"rotation"))
-                    context.setAlpha(n(item,"opacity",1) * n(layer,"opacity",100) / 100)
-                    let font = CTFontCreateWithName("Apple Color Emoji" as CFString, n(item,"size"), nil)
-                    drawText(item["emoji"] as? String ?? "", font: font, color: CGColor(gray: 1, alpha: 1), align: "center", maxWidth: .infinity)
-                    context.restoreGState()
-                }
-            default: throw RenderFailure(message: "Unsupported render layer")
-            }
+            context.setBlendMode(try blendMode(layer["blendMode"] as? String ?? "normal"))
+            try registry.paint(layer, on: target)
             if let directory = diagnostics, let image = context.makeImage() {
                 try Self.writePNG(image, to: directory.appendingPathComponent(String(format: "%02d.png",index)))
             }

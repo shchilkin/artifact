@@ -656,6 +656,9 @@ impl DocumentSession {
         patch_json: &str,
         size: u32,
     ) -> Result<String, CoreError> {
+        if !(1..=3000).contains(&size) {
+            return Err(CoreError("Render dimensions must be 1–3000 pixels"));
+        }
         let mut draft = Self {
             package: self.package.clone(),
             past: Vec::new(),
@@ -674,6 +677,15 @@ impl DocumentSession {
             return Err(CoreError("Invalid transform draft"));
         }
         draft.edit_layer(layer_id, &patch)?;
-        draft.render_plan_json(size, size)
+        let aspect = draft.package["document"]["global"]["aspect"]
+            .as_str()
+            .unwrap_or("1:1");
+        let (width, height) = match aspect {
+            "4:5" => ((size * 4 + 2) / 5, size),
+            "9:16" => ((size * 9 + 8) / 16, size),
+            "16:9" => (size, (size * 9 + 8) / 16),
+            _ => (size, size),
+        };
+        draft.render_plan_json(width, height)
     }
 }

@@ -82,6 +82,7 @@ final class ProjectModel: ObservableObject {
     @Published var message: String?
     @Published var isModified = false
     @Published var preview: NSImage?
+    @Published private(set) var canvasAspect = "1:1"
     @Published var isRendering = false
     @Published var renderMessage: String?
     static let previewSize: UInt32 = 1000
@@ -116,6 +117,24 @@ final class ProjectModel: ObservableObject {
     private var renderRevision = 0
     private var renderTask: Task<Void, Never>?
 
+    var previewDimensions: NativeCanvasDimensions { NativeCanvasDimensions.base(canvasAspect).fit(maxSide: Self.previewSize) }
+    var exportDimensions: NativeCanvasDimensions {
+        canvasAspect == "1:1" ? NativeCanvasDimensions(width: Self.exportSize, height: Self.exportSize)
+            : NativeCanvasDimensions.base(canvasAspect)
+    }
+
+    private func aspect(in source: String) -> String? {
+        guard let package = try? JSONSerialization.jsonObject(with: Data(source.utf8)) as? [String: Any],
+              let document = package["document"] as? [String: Any],
+              let global = document["global"] as? [String: Any],
+              let aspect = global["aspect"] as? String else { return nil }
+        return aspect
+    }
+    private func syncAspect() {
+        guard let session, let source = try? session.exportJson(), let aspect = aspect(in: source) else { return }
+        canvasAspect = aspect
+    }
+
     private func refreshPreview() {
         documentRevision += 1
         renderRevision += 1
@@ -126,7 +145,8 @@ final class ProjectModel: ObservableObject {
         exportMessage = nil
         guard let session else { return }
         do {
-            let plan = try session.renderPlanJson(width: Self.previewSize, height: Self.previewSize)
+            let dimensions = previewDimensions
+            let plan = try session.renderPlanJson(width: dimensions.width, height: dimensions.height)
             isRendering = true
             renderMessage = nil
             let render = renderImage
@@ -170,7 +190,8 @@ final class ProjectModel: ObservableObject {
         guard let session, !isExporting, applyInspectors() else { return }
         let revision = renderRevision
         do {
-            let plan = try session.renderPlanJson(width: Self.exportSize, height: Self.exportSize)
+            let dimensions = exportDimensions
+            let plan = try session.renderPlanJson(width: dimensions.width, height: dimensions.height)
             let render = renderPNGData
             isExporting = true
             exportMessage = nil
@@ -222,9 +243,8 @@ final class ProjectModel: ObservableObject {
         confirmDiscard { [weak self] in
             guard let self else { return }
             let panel = NSOpenPanel()
-            // Imported .artifact files may have an older or unregistered UTI.
-            // Validate the package after selection instead of excluding valid files.
-            panel.allowedContentTypes = [.data]
+            // Accept both portable .artifact packages and Web .artifact.json files.
+            panel.allowedContentTypes = [UTType(filenameExtension: "artifact") ?? .json, .json]
             panel.allowsMultipleSelection = false
             presentFilePanel(panel) { [weak self] url in if let url { self?.load(url) } }
         }
@@ -246,6 +266,7 @@ final class ProjectModel: ObservableObject {
             currentURL = url
             remember(url)
             savedJSON = nextJSON
+            canvasAspect = aspect(in: nextJSON) ?? "1:1"
             selectedID = nextSummary.layers.first(where: { ($0.scanlines ?? 0) > 0 })?.id
                 ?? nextSummary.layers.first?.id
             fileName = url.lastPathComponent
@@ -279,17 +300,20 @@ final class ProjectModel: ObservableObject {
 
     func undo() {
         if !inspectorDrafts.isEmpty { inspectorDrafts.removeAll(); updateModified(); documentRevision += 1; return }
-        guard let session else { return }; perform { _ = try session.undo() }
+        guard let session else { return }; perform(mayChangeAspect: true) { _ = try session.undo() }
     }
-    func redo() { guard let session else { return }; perform { _ = try session.redo() } }
+    func redo() { guard let session else { return }; perform(mayChangeAspect: true) { _ = try session.redo() } }
 
-    @discardableResult private func perform(_ action: () throws -> Void) -> Bool {
+    @discardableResult private func perform(mayChangeAspect: Bool = false, _ action: () throws -> Void) -> Bool {
         do {
             message = nil
+            let beforeRevision = try session?.revision()
             try action()
             if let session {
+                if try session.revision() == beforeRevision { return true }
                 summary = try JSONDecoder().decode(SessionSummary.self, from: Data(session.summaryJson().utf8))
                 editor = try EditorState(json: session.editorStateJson())
+                if mayChangeAspect { syncAspect() }
                 if !editor.layers.contains(where: { $0.id == selectedID }) { selectedID = editor.orderedLayers.last?.id }
                 inspectorDrafts = inspectorDrafts.filter { id, _ in editor.layers.contains { $0.id == id } }
                 updateModified()
@@ -304,7 +328,7 @@ final class ProjectModel: ObservableObject {
 
     @discardableResult func command(_ command: [String: Any], select: String? = nil) -> Bool {
         guard let session else { return false }
-        return perform {
+        return perform(mayChangeAspect: command["type"] as? String == "patch_global") {
             let bytes = try JSONSerialization.data(withJSONObject: command, options: [.sortedKeys, .withoutEscapingSlashes])
             _ = try session.execute(commandJson: String(decoding: bytes, as: UTF8.self))
             if let select { selectedID = select }
@@ -316,7 +340,7 @@ final class ProjectModel: ObservableObject {
         let revision = renderRevision
         renderTask = Task { [weak self] in
             do {
-                try await Task.sleep(for: .milliseconds(70))
+                try await Task.sleep(for: .milliseconds(16))
                 let json = try JSONSerialization.data(withJSONObject: patch)
                 let plan = try session.draftPlanJson(layerId: selectedID, patchJson: String(decoding: json, as: UTF8.self), size: 500)
                 let image = try await RenderWorker.shared.render(plan: plan)
@@ -369,7 +393,7 @@ final class ProjectModel: ObservableObject {
                 inspectorDrafts.removeAll()
                 summary = try JSONDecoder().decode(SessionSummary.self, from: Data(session!.summaryJson().utf8))
                 editor = try EditorState(json: session!.editorStateJson())
-                currentURL = nil; savedJSON = ""; fileName = "Untitled.artifact"; selectedID = nil
+                currentURL = nil; savedJSON = ""; fileName = "Untitled.artifact"; selectedID = nil; canvasAspect = "1:1"
                 isModified = true; message = nil; preview = nil; persistRecovery(); refreshPreview()
             } catch { message = displayMessage(error) }
         }

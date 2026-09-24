@@ -12,15 +12,19 @@ import Foundation
             try JSONEncoder().encode(results).write(to: URL(fileURLWithPath: args[2]), options: .atomic)
             return
         }
-        guard args.count >= 4, let size = UInt32(args[3]) else { fatalError("render-check INPUT OUTPUT SIZE [DIAGNOSTICS]") }
+        guard args.count >= 4 else { fatalError("render-check INPUT OUTPUT WIDTH[xHEIGHT] [DIAGNOSTICS]") }
+        let parts = args[3].split(separator: "x")
+        guard let width = UInt32(parts.first ?? ""),
+              let height = parts.count == 2 ? UInt32(parts[1]) : width
+        else { fatalError("render-check INPUT OUTPUT WIDTH[xHEIGHT] [DIAGNOSTICS]") }
         let source = try String(contentsOfFile: args[1], encoding: .utf8)
         let session = try NativeSession.open(source: source)
-        let plan = try session.renderPlanJson(width: size, height: size)
+        let plan = try session.renderPlanJson(width: width, height: height)
         let start = Date()
         let diagnostics = args.count > 4 ? URL(fileURLWithPath: args[4]) : nil
         if let diagnostics { try FileManager.default.createDirectory(at: diagnostics, withIntermediateDirectories: true) }
         let image = try PilotRenderer(planJSON: plan).render(diagnostics: diagnostics)
         try PilotRenderer.writePNG(image, to: URL(fileURLWithPath: args[2]))
-        print("Rendered \(size)×\(size) in \(Date().timeIntervalSince(start)) seconds")
+        print("Rendered \(width)×\(height) in \(Date().timeIntervalSince(start)) seconds")
     }
 }
