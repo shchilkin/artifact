@@ -1,0 +1,387 @@
+use artifact_core::DocumentSession;
+use serde_json::{Value, json};
+
+fn source() -> String {
+    json!({"artifactPackage":"project","manifest":{"kind":"artifact-project-package","version":1,"documentSchemaVersion":3},
+        "unknownPackage":{"null":null,"keep":true},"document":{"schemaVersion":3,
+        "global":{"aspect":"1:1","bg":"transparent","seed":1,"extra":null},
+        "layers":[{"id":"a","kind":"text","content":"A","x":0.5,"locked":false,"visible":true,"opaque":{"nested":null}},
+                  {"id":"b","kind":"image","src":"artifact-asset://large-image","x":0.5,"locked":false,"visible":true}],
+        "export":{"format":"png","scale":1,"target":"cover","unknown":null},"graph":null,"custom":[]}}).to_string()
+}
+fn call(s: &mut DocumentSession, method: &str, request: Value) -> Value {
+    let input = request.to_string();
+    let output = match method {
+        "begin" => s.begin_transaction_json(&input),
+        "update" => s.update_transaction_json(&input),
+        "commit" => s.commit_transaction_json(&input),
+        "cancel" => s.cancel_transaction_json(&input),
+        _ => unreachable!(),
+    };
+    serde_json::from_str(&output).unwrap()
+}
+fn begin(s: &mut DocumentSession) -> u64 {
+    let result = call(
+        s,
+        "begin",
+        json!({"version":1,"expectedRevision":s.revision()}),
+    );
+    assert_eq!(result["ok"], true, "{result}");
+    result["transactionId"].as_u64().unwrap()
+}
+fn update(s: &mut DocumentSession, id: u64, commands: Value) -> Value {
+    call(
+        s,
+        "update",
+        json!({"version":1,"transactionId":id,"commands":commands}),
+    )
+}
+fn end(s: &mut DocumentSession, method: &str, id: u64) -> Value {
+    call(s, method, json!({"version":1,"transactionId":id}))
+}
+fn doc(s: &DocumentSession) -> Value {
+    serde_json::from_str::<Value>(&s.export_json()).unwrap()["document"].clone()
+}
+
+#[test]
+fn gesture_is_one_undo_and_updates_only_touched_fields() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    let initial = s.export_json();
+    let id = begin(&mut s);
+    assert!(s.export_durable_json().is_err());
+    for (draft, x) in [(1, 0.6), (2, 0.8), (3, 1.1)] {
+        let result = update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"a","patch":{"x":x}}]),
+        );
+        assert_eq!(result["ok"], true, "{result}");
+        assert_eq!(result["revision"], 0);
+        assert_eq!(result["draftRevision"], draft);
+        assert_eq!(result["changes"]["layers"]["a"], json!(["x"]));
+        assert!(result.to_string().len() < 400);
+    }
+    let committed = end(&mut s, "commit", id);
+    assert_eq!(committed["changed"], true);
+    assert_eq!(committed["revision"], 1);
+    assert_eq!(doc(&s)["layers"][0]["x"], 1.1);
+    assert!(s.undo());
+    assert_eq!(s.export_json(), initial);
+    assert!(!s.can_undo());
+    assert!(s.redo());
+    assert_eq!(doc(&s)["layers"][0]["x"], 1.1);
+}
+
+#[test]
+fn failed_batch_restores_prior_draft_and_redo_with_absent_vs_null() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    assert!(
+        s.execute(r#"{"type":"edit_layer","id":"a","patch":{"content":"Changed"}}"#)
+            .unwrap()
+    );
+    assert!(s.undo());
+    let before = s.export_json();
+    let revision = s.revision();
+    let id = begin(&mut s);
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"a","patch":{"x":0.7}}])
+        )["ok"],
+        true
+    );
+    let prior_draft = s.export_json();
+    let failed = update(
+        &mut s,
+        id,
+        json!([
+            {"type":"bridge","capability":"web:layer-property","target":{"scope":"layer_field","id":"a","field":"newNull"},"value":null},
+            {"type":"patch_layer","id":"b","patch":{"x":999}}
+        ]),
+    );
+    assert_eq!(failed["ok"], false);
+    assert_eq!(failed["error"]["code"], "COMMAND_REJECTED");
+    assert_eq!(failed["draftRevision"], 1);
+    assert_eq!(s.export_json(), prior_draft);
+    assert!(doc(&s)["layers"][0].get("newNull").is_none());
+    assert_eq!(end(&mut s, "cancel", id)["ok"], true);
+    assert_eq!(s.export_json(), before);
+    assert_eq!(s.revision(), revision);
+    assert!(s.can_redo());
+}
+
+#[test]
+fn net_zero_and_rejected_commands_keep_revision_and_redo() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    s.execute(r#"{"type":"edit_layer","id":"a","patch":{"content":"B"}}"#)
+        .unwrap();
+    s.undo();
+    let before = s.export_json();
+    let revision = s.revision();
+    assert_eq!(
+        call(
+            &mut s,
+            "begin",
+            json!({"version":1,"expectedRevision":revision-1})
+        )["error"]["code"],
+        "REVISION_CONFLICT"
+    );
+    let id = begin(&mut s);
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"a","patch":{"x":0.8}}])
+        )["ok"],
+        true
+    );
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"a","patch":{"x":0.5}}])
+        )["ok"],
+        true
+    );
+    assert_eq!(end(&mut s, "commit", id)["changed"], false);
+    assert_eq!(s.export_json(), before);
+    assert_eq!(s.revision(), revision);
+    assert!(s.can_redo());
+    assert_eq!(
+        end(&mut s, "commit", id)["error"]["code"],
+        "STALE_TRANSACTION"
+    );
+    let id = begin(&mut s);
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"a","patch":{"content":"Fresh"}}])
+        )["ok"],
+        true
+    );
+    end(&mut s, "commit", id);
+    assert!(!s.can_redo());
+}
+
+#[test]
+fn layer_order_is_independent_of_graph_and_locks_are_guarded() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    let graph = doc(&s)["graph"].clone();
+    let id = begin(&mut s);
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"move_layer","id":"b","delta":-1}])
+        )["ok"],
+        true
+    );
+    end(&mut s, "commit", id);
+    assert_eq!(doc(&s)["layers"][0]["id"], "b");
+    assert_eq!(doc(&s)["graph"], graph);
+    assert!(s.undo());
+    assert_eq!(doc(&s)["layers"][0]["id"], "a");
+    let id = begin(&mut s);
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"a","patch":{"locked":true}}])
+        )["ok"],
+        true
+    );
+    end(&mut s, "commit", id);
+    let id = begin(&mut s);
+    for command in [
+        json!({"type":"move_layer","id":"b","delta":-1}),
+        json!({"type":"remove_layer","id":"a"}),
+    ] {
+        let result = update(&mut s, id, json!([command]));
+        assert_eq!(result["ok"], false, "{result}");
+    }
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"a","patch":{"content":"Still editable"}}])
+        )["ok"],
+        true
+    );
+    end(&mut s, "commit", id);
+}
+
+#[test]
+fn mixed_legacy_transaction_and_structure_history_uses_stable_ids() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    assert!(s.set_text("a", r#"{"content":"Legacy"}"#).unwrap());
+    let id = begin(&mut s);
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([
+                {"type":"patch_layer","id":"b","patch":{"x":0.8}},
+                {"type":"move_layer","id":"b","delta":-1},
+                {"type":"patch_global","patch":{"aspect":"4:5","bg":"#112233","seed":42}},
+                {"type":"patch_export","patch":{"format":"jpeg","scale":2}}
+            ])
+        )["ok"],
+        true
+    );
+    assert_eq!(end(&mut s, "commit", id)["revision"], 2);
+    assert_eq!(doc(&s)["layers"][0]["id"], "b");
+    assert!(s.undo());
+    assert_eq!(doc(&s)["layers"][1]["id"], "b");
+    assert_eq!(doc(&s)["layers"][1]["x"], 0.5);
+    assert_eq!(doc(&s)["layers"][0]["content"], "Legacy");
+    assert!(s.undo());
+    assert_eq!(doc(&s)["layers"][0]["content"], "A");
+    assert!(s.redo());
+    assert!(s.redo());
+    assert_eq!(doc(&s)["layers"][0]["x"], 0.8);
+}
+
+#[test]
+fn structural_net_zero_preserves_redo_and_unknown_data() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    s.execute(r#"{"type":"edit_layer","id":"a","patch":{"content":"B"}}"#)
+        .unwrap();
+    s.undo();
+    let before = s.export_json();
+    let id = begin(&mut s);
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"move_layer","id":"b","delta":-1}])
+        )["ok"],
+        true
+    );
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"move_layer","id":"b","delta":1}])
+        )["ok"],
+        true
+    );
+    assert_eq!(end(&mut s, "commit", id)["changed"], false);
+    assert_eq!(s.export_json(), before);
+    assert!(s.can_redo());
+}
+
+#[test]
+fn multi_item_and_reference_edits_validate_atomically() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    let id = begin(&mut s);
+    let before = s.export_json();
+    let failed = update(
+        &mut s,
+        id,
+        json!([{"type":"patch_layers","ids":["a","missing"],"patch":{"visible":false}}]),
+    );
+    assert_eq!(failed["ok"], false);
+    assert_eq!(s.export_json(), before);
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([
+                {"type":"patch_layers","ids":["a","b"],"patch":{"visible":false}},
+                {"type":"patch_layer","id":"b","patch":{"src":"artifact-asset://replacement-2"}}
+            ])
+        )["ok"],
+        true
+    );
+    end(&mut s, "commit", id);
+    assert_eq!(
+        doc(&s)["layers"][1]["src"],
+        "artifact-asset://replacement-2"
+    );
+    assert_eq!(doc(&s)["layers"][0]["visible"], false);
+    assert!(s.undo());
+    assert_eq!(s.export_json(), before);
+}
+
+#[test]
+fn transaction_reorder_does_not_rebuild_mismatched_or_nonlinear_graph() {
+    let mut package: Value = serde_json::from_str(&source()).unwrap();
+    package["document"]["graph"] = json!({"edges":[
+        {"id":"b-out","fromId":"b","fromPort":"out","toId":"__export__","toPort":"in"},
+        {"id":"a-other","fromId":"a","fromPort":"out","toId":"utility","toPort":"a"}
+    ],"positions":{},"mergeNodes":[{"id":"utility","unknown":null}],"unknown":{"keep":true}});
+    let mut s = DocumentSession::open(&package.to_string()).unwrap();
+    let graph = doc(&s)["graph"].clone();
+    let id = begin(&mut s);
+    let moved = update(
+        &mut s,
+        id,
+        json!([{"type":"move_layer","id":"b","delta":-1}]),
+    );
+    assert_eq!(moved["ok"], true, "{moved}");
+    end(&mut s, "commit", id);
+    assert_eq!(doc(&s)["graph"], graph);
+    assert_eq!(doc(&s)["layers"][0]["id"], "b");
+    assert!(s.undo());
+    assert_eq!(doc(&s)["graph"], graph);
+    assert_eq!(doc(&s)["layers"][0]["id"], "a");
+}
+
+#[test]
+fn explicit_bridge_preserves_unknown_and_validates_graph_scope() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    let id = begin(&mut s);
+    let invalid = update(
+        &mut s,
+        id,
+        json!([{"type":"bridge","capability":"web:graph","target":{"scope":"graph"},"value":{"edges":[{"id":"e","fromId":"missing","toId":"__export__"}]}}]),
+    );
+    assert_eq!(invalid["error"]["code"], "INVALID_VALUE");
+    assert_eq!(doc(&s)["graph"], Value::Null);
+    let valid = update(
+        &mut s,
+        id,
+        json!([
+            {"type":"bridge","capability":"web:layer-property","target":{"scope":"layer_field","id":"a","field":"webOnly"},"value":null},
+            {"type":"bridge","capability":"web:export-envmap","target":{"scope":"export_field","field":"target"},"value":"envmap"}
+        ]),
+    );
+    assert_eq!(valid["ok"], true, "{valid}");
+    end(&mut s, "commit", id);
+    assert!(doc(&s)["layers"][0].get("webOnly").unwrap().is_null());
+    assert_eq!(doc(&s)["export"]["target"], "envmap");
+    assert!(s.undo());
+    assert!(doc(&s)["layers"][0].get("webOnly").is_none());
+    assert_eq!(doc(&s)["export"]["target"], "cover");
+}
+
+#[test]
+fn history_is_bounded_and_fixture_documents_keep_unknown_values() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/native-2d/text-font.artifact.json"
+    );
+    let fixture: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let original_font = fixture["fontAssets"].clone();
+    let package = json!({"artifactPackage":"project","manifest":{"kind":"artifact-project-package","version":1,"documentSchemaVersion":3},"document":fixture}).to_string();
+    let mut s = DocumentSession::open(&package).unwrap();
+    for n in 0..55 {
+        let id = begin(&mut s);
+        let result = update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"font-title","patch":{"x":0.5 + n as f64 / 100.0}}]),
+        );
+        assert_eq!(result["ok"], true, "{result}");
+        end(&mut s, "commit", id);
+    }
+    assert_eq!(doc(&s)["fontAssets"], original_font);
+    let mut count = 0;
+    while s.undo() {
+        count += 1;
+    }
+    assert!(count <= 50);
+    assert!(count >= 1);
+}

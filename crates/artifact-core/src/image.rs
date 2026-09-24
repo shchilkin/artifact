@@ -47,6 +47,20 @@ pub(crate) fn dimensions(layer: &Value) -> Option<(u32, u32)> {
 // before calling this command. Core checks the portable envelope and bounds;
 // it is not a PNG pixel decoder. Existing package payloads are not rewritten.
 pub(crate) fn validate_source(value: &Value) -> Result<(), CoreError> {
+    if let Some(reference) = value
+        .as_str()
+        .and_then(|s| s.strip_prefix("artifact-asset://"))
+    {
+        if !reference.is_empty()
+            && reference.len() <= 200
+            && reference
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
+        {
+            return Ok(());
+        }
+        return Err(CoreError("Invalid asset reference"));
+    }
     let encoded = value
         .as_str()
         .and_then(|s| s.strip_prefix("data:image/png;base64,"))
@@ -74,6 +88,7 @@ pub(crate) fn validate_source(value: &Value) -> Result<(), CoreError> {
 impl DocumentSession {
     /// One atomic replacement/transform command. Payloads never enter summaries.
     pub fn set_image(&mut self, layer_id: &str, patch_json: &str) -> Result<bool, CoreError> {
+        self.require_no_transaction()?;
         if patch_json.len() > MAX_IMAGE_PATCH {
             return Err(CoreError("Image edit is too large"));
         }
@@ -119,7 +134,7 @@ impl DocumentSession {
                 fields.push(FieldEdit {
                     key: key.clone(),
                     before,
-                    after: value.clone(),
+                    after: Some(value.clone()),
                 });
             }
         }
@@ -131,7 +146,7 @@ impl DocumentSession {
         let growth: i64 = fields
             .iter()
             .map(|f| {
-                f.after.to_string().len() as i64
+                f.after.as_ref().map_or(0, |v| v.to_string().len()) as i64
                     - f.before.as_ref().map_or(0, |v| v.to_string().len()) as i64
                     + if f.before.is_none() {
                         f.key.len() as i64 + 4
@@ -140,7 +155,7 @@ impl DocumentSession {
                     }
             })
             .sum();
-        if self.export_json().len() as i64 + growth > MAX_PACKAGE_BYTES as i64 {
+        if self.serialized_len as i64 + growth > MAX_PACKAGE_BYTES as i64 {
             return Err(CoreError(
                 "Replacement would exceed the 64 MiB package limit",
             ));

@@ -43,6 +43,30 @@ impl NativeSession {
         Ok(self.lock()?.export_json())
     }
 
+    pub fn export_durable_json(&self) -> Result<String, SessionError> {
+        Ok(self.lock()?.export_durable_json()?)
+    }
+
+    pub fn revision(&self) -> Result<u64, SessionError> {
+        Ok(self.lock()?.revision())
+    }
+
+    pub fn begin_transaction_json(&self, request: String) -> Result<String, SessionError> {
+        Ok(self.lock()?.begin_transaction_json(&request))
+    }
+
+    pub fn update_transaction_json(&self, request: String) -> Result<String, SessionError> {
+        Ok(self.lock()?.update_transaction_json(&request))
+    }
+
+    pub fn commit_transaction_json(&self, request: String) -> Result<String, SessionError> {
+        Ok(self.lock()?.commit_transaction_json(&request))
+    }
+
+    pub fn cancel_transaction_json(&self, request: String) -> Result<String, SessionError> {
+        Ok(self.lock()?.cancel_transaction_json(&request))
+    }
+
     pub fn render_plan_json(&self, width: u32, height: u32) -> Result<String, SessionError> {
         Ok(self.lock()?.render_plan_json(width, height)?)
     }

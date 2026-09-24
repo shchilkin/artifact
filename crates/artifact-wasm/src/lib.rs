@@ -18,6 +18,24 @@ impl WebSession {
     pub fn export_json(&self) -> String {
         self.inner.export_json()
     }
+    pub fn export_durable_json(&self) -> Result<String, JsError> {
+        Ok(self.inner.export_durable_json()?)
+    }
+    pub fn revision(&self) -> u64 {
+        self.inner.revision()
+    }
+    pub fn begin_transaction_json(&mut self, request: &str) -> String {
+        self.inner.begin_transaction_json(request)
+    }
+    pub fn update_transaction_json(&mut self, request: &str) -> String {
+        self.inner.update_transaction_json(request)
+    }
+    pub fn commit_transaction_json(&mut self, request: &str) -> String {
+        self.inner.commit_transaction_json(request)
+    }
+    pub fn cancel_transaction_json(&mut self, request: &str) -> String {
+        self.inner.cancel_transaction_json(request)
+    }
     pub fn render_plan_json(&self, width: u32, height: u32) -> Result<String, JsError> {
         Ok(self.inner.render_plan_json(width, height)?)
     }

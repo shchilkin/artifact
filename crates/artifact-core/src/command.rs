@@ -1,0 +1,894 @@
+//! Versioned document commands. The session owns the draft and the only history timeline.
+use crate::{CoreError, DocumentSession, Edit, ExtendedEdit, FieldEdit, MAX_PACKAGE_BYTES};
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value, json};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
+
+pub const COMMAND_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Command {
+    PatchLayer {
+        id: String,
+        patch: Map<String, Value>,
+    },
+    PatchLayers {
+        ids: Vec<String>,
+        patch: Map<String, Value>,
+    },
+    PatchGlobal {
+        patch: Map<String, Value>,
+    },
+    PatchExport {
+        patch: Map<String, Value>,
+    },
+    AddLayer {
+        kind: String,
+        new_id: String,
+        after_id: Option<String>,
+        src: Option<Value>,
+    },
+    DuplicateLayer {
+        id: String,
+        new_id: String,
+    },
+    RemoveLayer {
+        id: String,
+    },
+    MoveLayer {
+        id: String,
+        delta: i64,
+    },
+    Bridge {
+        capability: String,
+        target: BridgeTarget,
+        #[serde(default)]
+        value: Value,
+        #[serde(default)]
+        remove: bool,
+    },
+}
+
+/// A Web-only operation must name the exact graph or unknown layer field it owns.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "scope", rename_all = "snake_case")]
+pub enum BridgeTarget {
+    Graph,
+    LayerField { id: String, field: String },
+    ExportField { field: String },
+}
+
+pub(crate) struct Transaction {
+    pub id: u64,
+    pub draft_revision: u64,
+    pub steps: Vec<Edit>,
+    pub baseline: Option<Value>, // allocated only for structural/Web-only operations
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BeginRequest {
+    version: u32,
+    expected_revision: u64,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct UpdateRequest {
+    version: u32,
+    transaction_id: u64,
+    commands: Vec<Command>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EndRequest {
+    version: u32,
+    transaction_id: u64,
+}
+
+#[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct Changes {
+    layers: BTreeMap<String, BTreeSet<String>>,
+    global: BTreeSet<String>,
+    export: BTreeSet<String>,
+    graph: bool,
+    order: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Reply {
+    version: u32,
+    ok: bool,
+    revision: u64,
+    draft_revision: u64,
+    transaction_id: Option<u64>,
+    changed: bool,
+    changes: Changes,
+    error: Option<CommandError>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CommandError {
+    pub code: &'static str,
+    pub message: String,
+}
+impl CommandError {
+    fn new(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
+    }
+}
+fn reply(
+    session: &DocumentSession,
+    changed: bool,
+    changes: Changes,
+    error: Option<CommandError>,
+) -> String {
+    serde_json::to_string(&Reply {
+        version: COMMAND_VERSION,
+        ok: error.is_none(),
+        revision: session.revision,
+        draft_revision: session
+            .transaction
+            .as_ref()
+            .map_or(0, |tx| tx.draft_revision),
+        transaction_id: session.transaction.as_ref().map(|tx| tx.id),
+        changed,
+        changes,
+        error,
+    })
+    .unwrap()
+}
+fn parse<T: for<'de> Deserialize<'de>>(request: &str) -> Result<T, CommandError> {
+    if request.len() > 1024 * 1024 {
+        return Err(CommandError::new(
+            "INVALID_ENVELOPE",
+            "Command envelope is too large",
+        ));
+    }
+    serde_json::from_str(request)
+        .map_err(|_| CommandError::new("INVALID_ENVELOPE", "Invalid command envelope"))
+}
+fn version(version: u32) -> Result<(), CommandError> {
+    if version == COMMAND_VERSION {
+        Ok(())
+    } else {
+        Err(CommandError::new(
+            "UNSUPPORTED_VERSION",
+            "Unsupported command version",
+        ))
+    }
+}
+fn core_error(error: CoreError) -> CommandError {
+    let code = match error.0 {
+        "This graph contains nodes that are not editable on Mac yet" => "UNSUPPORTED_CAPABILITY",
+        "Unlock the layer before deleting it" | "Unlock layers before reordering them" => {
+            "LOCKED_LAYER"
+        }
+        "Project would exceed 64 MiB" => "PACKAGE_LIMIT",
+        _ => "COMMAND_REJECTED",
+    };
+    CommandError::new(code, error.to_string())
+}
+fn apply_fields(object: &mut Map<String, Value>, fields: &[FieldEdit], forward: bool) {
+    for field in fields {
+        match if forward { &field.after } else { &field.before } {
+            Some(value) => {
+                object.insert(field.key.clone(), value.clone());
+            }
+            None => {
+                object.remove(&field.key);
+            }
+        }
+    }
+}
+fn value_growth(key: &str, before: &Option<Value>, after: &Option<Value>) -> i64 {
+    let old = before.as_ref().map_or(0, |v| v.to_string().len()) as i64;
+    let new = after.as_ref().map_or(0, |v| v.to_string().len()) as i64;
+    let field = serde_json::to_string(key).unwrap().len() as i64 + 2;
+    new - old
+        + if before.is_none() && after.is_some() {
+            field
+        } else if before.is_some() && after.is_none() {
+            -field
+        } else {
+            0
+        }
+}
+fn bridge_slot<'a>(
+    doc: &'a mut Value,
+    target: &BridgeTarget,
+) -> Option<&'a mut Map<String, Value>> {
+    match target {
+        BridgeTarget::Graph => doc.as_object_mut(),
+        BridgeTarget::LayerField { id, .. } => doc["layers"]
+            .as_array_mut()?
+            .iter_mut()
+            .find(|layer| layer["id"] == *id)?
+            .as_object_mut(),
+        BridgeTarget::ExportField { .. } => doc["export"].as_object_mut(),
+    }
+}
+fn bridge_key(target: &BridgeTarget) -> &str {
+    match target {
+        BridgeTarget::Graph => "graph",
+        BridgeTarget::LayerField { field, .. } | BridgeTarget::ExportField { field } => field,
+    }
+}
+pub(crate) fn apply_edit_to(doc: &mut Value, edit: &Edit, forward: bool) {
+    if let Some(extended) = &edit.extended {
+        match extended {
+            ExtendedEdit::Group(steps) => {
+                if forward {
+                    for step in steps {
+                        apply_edit_to(doc, step, true);
+                    }
+                } else {
+                    for step in steps.iter().rev() {
+                        apply_edit_to(doc, step, false);
+                    }
+                }
+            }
+            ExtendedEdit::Section { name, fields } => {
+                apply_fields(
+                    doc[*name].as_object_mut().expect("section"),
+                    fields,
+                    forward,
+                );
+            }
+            ExtendedEdit::Bridge {
+                target,
+                before,
+                after,
+            } => {
+                let value = if forward { after } else { before };
+                let slot = bridge_slot(doc, target).expect("bridge target");
+                match value {
+                    Some(value) => {
+                        slot.insert(bridge_key(target).to_owned(), value.clone());
+                    }
+                    None => {
+                        slot.remove(bridge_key(target));
+                    }
+                }
+            }
+            ExtendedEdit::Reorder { before, after } => {
+                let order = if forward { after } else { before };
+                let layers = doc["layers"].as_array_mut().expect("layers");
+                let mut by_id: BTreeMap<String, Value> = std::mem::take(layers)
+                    .into_iter()
+                    .map(|layer| (layer["id"].as_str().expect("id").to_owned(), layer))
+                    .collect();
+                *layers = order
+                    .iter()
+                    .map(|id| by_id.remove(id).expect("reorder layer"))
+                    .collect();
+            }
+        }
+    } else if let Some(structure) = &edit.structure {
+        structure.apply(doc, forward);
+    } else {
+        let layers = doc["layers"].as_array_mut().expect("layers");
+        let index = edit
+            .layer_id
+            .as_ref()
+            .and_then(|id| layers.iter().position(|layer| layer["id"] == *id))
+            .unwrap_or(edit.layer_index);
+        apply_fields(
+            layers[index].as_object_mut().expect("layer"),
+            &edit.fields,
+            forward,
+        );
+    }
+}
+fn collect_changes(edit: &Edit, changes: &mut Changes) {
+    if let Some(extended) = &edit.extended {
+        match extended {
+            ExtendedEdit::Group(steps) => {
+                for step in steps {
+                    collect_changes(step, changes);
+                }
+            }
+            ExtendedEdit::Section { name, fields } => {
+                let target = if *name == "global" {
+                    &mut changes.global
+                } else {
+                    &mut changes.export
+                };
+                target.extend(fields.iter().map(|field| field.key.clone()));
+            }
+            ExtendedEdit::Bridge { target, .. } => match target {
+                BridgeTarget::Graph => changes.graph = true,
+                BridgeTarget::LayerField { id, field } => {
+                    changes
+                        .layers
+                        .entry(id.clone())
+                        .or_default()
+                        .insert(field.clone());
+                }
+                BridgeTarget::ExportField { field } => {
+                    changes.export.insert(field.clone());
+                }
+            },
+            ExtendedEdit::Reorder { .. } => changes.order = true,
+        }
+    } else if let Some(structure) = &edit.structure {
+        changes.order |= structure.order_changed();
+        changes.graph |= structure.graph_changed();
+        for id in structure.changed_ids() {
+            changes.layers.entry(id).or_default().insert("*".to_owned());
+        }
+    } else if let Some(id) = &edit.layer_id {
+        changes
+            .layers
+            .entry(id.clone())
+            .or_default()
+            .extend(edit.fields.iter().map(|field| field.key.clone()));
+    }
+}
+fn field_only_net_zero(doc: &Value, steps: &[Edit]) -> bool {
+    let mut first: BTreeMap<(String, String), Option<Value>> = BTreeMap::new();
+    for step in steps {
+        if let Some(ExtendedEdit::Section { name, fields }) = &step.extended {
+            for field in fields {
+                first
+                    .entry(((*name).to_owned(), field.key.clone()))
+                    .or_insert_with(|| field.before.clone());
+            }
+        } else if let Some(ExtendedEdit::Bridge { target, before, .. }) = &step.extended {
+            let scope = match target {
+                BridgeTarget::Graph => "document".to_owned(),
+                BridgeTarget::LayerField { id, .. } => format!("layer:{id}"),
+                BridgeTarget::ExportField { .. } => "export".to_owned(),
+            };
+            first
+                .entry((scope, bridge_key(target).to_owned()))
+                .or_insert_with(|| before.clone());
+        } else if let Some(id) = &step.layer_id {
+            for field in &step.fields {
+                first
+                    .entry((format!("layer:{id}"), field.key.clone()))
+                    .or_insert_with(|| field.before.clone());
+            }
+        } else {
+            return false;
+        }
+    }
+    first.into_iter().all(|((scope, key), before)| {
+        let after = if let Some(id) = scope.strip_prefix("layer:") {
+            doc["layers"]
+                .as_array()
+                .and_then(|layers| layers.iter().find(|layer| layer["id"] == id))
+                .and_then(|layer| layer.get(&key))
+        } else if scope == "document" {
+            doc.get(&key)
+        } else {
+            doc[&scope].get(&key)
+        };
+        after == before.as_ref()
+    })
+}
+impl DocumentSession {
+    /// Graph-rule modules validate a candidate first, then journal it here.
+    /// This keeps graph edits in the same transaction and undo owner.
+    #[allow(dead_code)]
+    pub(crate) fn record_graph_change(&mut self, after: Option<Value>) -> Result<(), CommandError> {
+        let before = self.package["document"].get("graph").cloned();
+        if before == after {
+            return Ok(());
+        }
+        let next_size = self.serialized_len as i64 + value_growth("graph", &before, &after);
+        if next_size > MAX_PACKAGE_BYTES as i64 {
+            return Err(CommandError::new(
+                "PACKAGE_LIMIT",
+                "Project would exceed 64 MiB",
+            ));
+        }
+        match &after {
+            Some(graph) => {
+                self.package["document"]["graph"] = graph.clone();
+            }
+            None => {
+                self.package["document"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("graph");
+            }
+        }
+        self.serialized_len = next_size as usize;
+        self.record_edit(Edit {
+            layer_index: 0,
+            layer_id: None,
+            fields: Vec::new(),
+            structure: None,
+            extended: Some(ExtendedEdit::Bridge {
+                target: BridgeTarget::Graph,
+                before,
+                after,
+            }),
+        });
+        Ok(())
+    }
+    /// Saving is explicit: export_json exposes the draft during an active transaction.
+    /// Clients should save only after commit/cancel, or use this durable guard.
+    pub fn export_durable_json(&self) -> Result<String, CoreError> {
+        self.require_no_transaction()?;
+        Ok(self.export_json())
+    }
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+    pub fn begin_transaction_json(&mut self, request: &str) -> String {
+        let result = (|| {
+            let request: BeginRequest = parse(request)?;
+            version(request.version)?;
+            if self.transaction.is_some() {
+                return Err(CommandError::new(
+                    "ACTIVE_TRANSACTION",
+                    "Finish the active transaction first",
+                ));
+            }
+            if request.expected_revision != self.revision {
+                return Err(CommandError::new(
+                    "REVISION_CONFLICT",
+                    "Document revision has changed",
+                ));
+            }
+            let id = self.next_transaction_id;
+            self.next_transaction_id += 1;
+            self.transaction = Some(Transaction {
+                id,
+                draft_revision: 0,
+                steps: Vec::new(),
+                baseline: None,
+            });
+            Ok(())
+        })();
+        reply(self, false, Changes::default(), result.err())
+    }
+    fn transaction_id(&self, id: u64) -> Result<(), CommandError> {
+        match &self.transaction {
+            Some(tx) if tx.id == id => Ok(()),
+            _ => Err(CommandError::new(
+                "STALE_TRANSACTION",
+                "Transaction ID is no longer active",
+            )),
+        }
+    }
+    pub fn update_transaction_json(&mut self, request: &str) -> String {
+        let result = (|| {
+            let request: UpdateRequest = parse(request)?;
+            version(request.version)?;
+            self.transaction_id(request.transaction_id)?;
+            if request.commands.len() > 128 {
+                return Err(CommandError::new(
+                    "INVALID_ENVELOPE",
+                    "Too many commands in one update",
+                ));
+            }
+            let start = self.transaction.as_ref().unwrap().steps.len();
+            let prior_len = self.serialized_len;
+            let prior_baseline = self.transaction.as_ref().unwrap().baseline.is_some();
+            for command in request.commands {
+                if self.transaction.as_ref().unwrap().baseline.is_none()
+                    && matches!(
+                        command,
+                        Command::AddLayer { .. }
+                            | Command::DuplicateLayer { .. }
+                            | Command::RemoveLayer { .. }
+                            | Command::MoveLayer { .. }
+                    )
+                {
+                    let mut baseline = self.package["document"].clone();
+                    for step in self.transaction.as_ref().unwrap().steps.iter().rev() {
+                        apply_edit_to(&mut baseline, step, false);
+                    }
+                    self.transaction.as_mut().unwrap().baseline = Some(baseline);
+                }
+                if let Err(error) = self.apply_command(command) {
+                    let steps = self.transaction.as_mut().unwrap().steps.split_off(start);
+                    for step in steps.iter().rev() {
+                        self.apply_edit(step, false);
+                    }
+                    self.serialized_len = prior_len;
+                    if !prior_baseline {
+                        self.transaction.as_mut().unwrap().baseline = None;
+                    }
+                    return Err(error);
+                }
+            }
+            let steps = &self.transaction.as_ref().unwrap().steps[start..];
+            let mut changes = Changes::default();
+            for step in steps {
+                collect_changes(step, &mut changes);
+            }
+            let changed = !steps.is_empty();
+            if changed {
+                self.transaction.as_mut().unwrap().draft_revision += 1;
+            }
+            Ok((changed, changes))
+        })();
+        match result {
+            Ok((changed, changes)) => reply(self, changed, changes, None),
+            Err(error) => reply(self, false, Changes::default(), Some(error)),
+        }
+    }
+    pub fn commit_transaction_json(&mut self, request: &str) -> String {
+        let result = (|| {
+            let request: EndRequest = parse(request)?;
+            version(request.version)?;
+            self.transaction_id(request.transaction_id)?;
+            let tx = self.transaction.take().unwrap();
+            let net_zero = tx.steps.is_empty()
+                || tx
+                    .baseline
+                    .as_ref()
+                    .is_some_and(|baseline| baseline == &self.package["document"])
+                || (tx.baseline.is_none()
+                    && field_only_net_zero(&self.package["document"], &tx.steps));
+            if net_zero {
+                for step in tx.steps.iter().rev() {
+                    self.apply_edit(step, false);
+                }
+                self.serialized_len = self.package.to_string().len();
+                return Ok((false, Changes::default()));
+            }
+            let mut changes = Changes::default();
+            for step in &tx.steps {
+                collect_changes(step, &mut changes);
+            }
+            self.record_edit(Edit {
+                layer_index: 0,
+                layer_id: None,
+                fields: Vec::new(),
+                structure: None,
+                extended: Some(ExtendedEdit::Group(tx.steps)),
+            });
+            Ok((true, changes))
+        })();
+        match result {
+            Ok((changed, changes)) => reply(self, changed, changes, None),
+            Err(error) => reply(self, false, Changes::default(), Some(error)),
+        }
+    }
+    pub fn cancel_transaction_json(&mut self, request: &str) -> String {
+        let result = (|| {
+            let request: EndRequest = parse(request)?;
+            version(request.version)?;
+            self.transaction_id(request.transaction_id)?;
+            let tx = self.transaction.take().unwrap();
+            for step in tx.steps.iter().rev() {
+                self.apply_edit(step, false);
+            }
+            self.serialized_len = self.package.to_string().len();
+            Ok(())
+        })();
+        reply(self, false, Changes::default(), result.err())
+    }
+    fn apply_command(&mut self, command: Command) -> Result<(), CommandError> {
+        match command {
+            Command::PatchLayer { id, patch } => {
+                self.edit_layer(&id, &Value::Object(patch))
+                    .map_err(core_error)?;
+            }
+            Command::PatchLayers { ids, patch } => {
+                if ids.is_empty()
+                    || ids.len() > 256
+                    || ids.iter().collect::<HashSet<_>>().len() != ids.len()
+                {
+                    return Err(CommandError::new(
+                        "INVALID_TARGET",
+                        "Layer IDs must be unique and nonempty",
+                    ));
+                }
+                for id in ids {
+                    self.edit_layer(&id, &Value::Object(patch.clone()))
+                        .map_err(core_error)?;
+                }
+            }
+            Command::PatchGlobal { patch } => self.patch_section("global", patch)?,
+            Command::PatchExport { patch } => self.patch_section("export", patch)?,
+            Command::AddLayer {
+                kind,
+                new_id,
+                after_id,
+                src,
+            } => {
+                self.execute_impl(&json!({"type":"add_layer","kind":kind,"newId":new_id,"afterId":after_id,"src":src}).to_string()).map_err(core_error)?;
+            }
+            Command::DuplicateLayer { id, new_id } => {
+                self.execute_impl(
+                    &json!({"type":"duplicate_layer","id":id,"newId":new_id}).to_string(),
+                )
+                .map_err(core_error)?;
+            }
+            Command::RemoveLayer { id } => {
+                self.execute_impl(&json!({"type":"delete_layer","id":id}).to_string())
+                    .map_err(core_error)?;
+            }
+            Command::MoveLayer { id, delta } => self.move_layer(&id, delta)?,
+            Command::Bridge {
+                capability,
+                target,
+                value,
+                remove,
+            } => self.bridge(capability, target, value, remove)?,
+        }
+        Ok(())
+    }
+    fn patch_section(
+        &mut self,
+        name: &'static str,
+        patch: Map<String, Value>,
+    ) -> Result<(), CommandError> {
+        let section = self.package["document"][name].as_object().unwrap();
+        let mut fields = Vec::new();
+        for (key, value) in patch {
+            let valid = match (name, key.as_str()) {
+                ("global", "aspect") => ["1:1", "4:5", "9:16", "16:9"].iter().any(|s| value == *s),
+                ("global", "bg") => {
+                    value == "transparent"
+                        || value.as_str().is_some_and(|s| {
+                            s.len() == 7
+                                && s.starts_with('#')
+                                && s[1..].bytes().all(|b| b.is_ascii_hexdigit())
+                        })
+                }
+                ("global", "seed") => value.as_u64().is_some_and(|n| n <= u32::MAX as u64),
+                ("export", "format") => value == "png" || value == "jpeg",
+                ("export", "scale") => value.as_u64().is_some_and(|n| (1..=3).contains(&n)),
+                ("export", "target") => value == "cover", // envmap is outside local 2D parity
+                _ => false,
+            };
+            if !valid {
+                return Err(CommandError::new(
+                    "UNSUPPORTED_CAPABILITY",
+                    format!("Unsupported {name}.{key} value"),
+                ));
+            }
+            let before = section.get(&key).cloned();
+            if before.as_ref() != Some(&value) {
+                fields.push(FieldEdit {
+                    key,
+                    before,
+                    after: Some(value),
+                });
+            }
+        }
+        if fields.is_empty() {
+            return Ok(());
+        }
+        let growth: i64 = fields
+            .iter()
+            .map(|field| {
+                field.after.as_ref().unwrap().to_string().len() as i64
+                    - field.before.as_ref().map_or(0, |v| v.to_string().len()) as i64
+                    + if field.before.is_none() {
+                        serde_json::to_string(&field.key).unwrap().len() as i64 + 2
+                    } else {
+                        0
+                    }
+            })
+            .sum();
+        if self.serialized_len as i64 + growth > MAX_PACKAGE_BYTES as i64 {
+            return Err(CommandError::new(
+                "PACKAGE_LIMIT",
+                "Project would exceed 64 MiB",
+            ));
+        }
+        apply_fields(
+            self.package["document"][name].as_object_mut().unwrap(),
+            &fields,
+            true,
+        );
+        self.serialized_len = (self.serialized_len as i64 + growth) as usize;
+        self.record_edit(Edit {
+            layer_index: 0,
+            layer_id: None,
+            fields: Vec::new(),
+            structure: None,
+            extended: Some(ExtendedEdit::Section { name, fields }),
+        });
+        Ok(())
+    }
+    fn move_layer(&mut self, id: &str, delta: i64) -> Result<(), CommandError> {
+        if delta != -1 && delta != 1 {
+            return Err(CommandError::new(
+                "INVALID_VALUE",
+                "Move delta must be -1 or 1",
+            ));
+        }
+        let layers = self.package["document"]["layers"].as_array_mut().unwrap();
+        let index = layers
+            .iter()
+            .position(|layer| layer["id"] == id)
+            .ok_or_else(|| CommandError::new("INVALID_TARGET", "Layer not found"))?;
+        let next = index as i64 + delta;
+        if next < 0 || next >= layers.len() as i64 {
+            return Ok(());
+        }
+        let next = next as usize;
+        if layers[index]["locked"] == true || layers[next]["locked"] == true {
+            return Err(CommandError::new(
+                "LOCKED_LAYER",
+                "Unlock layers before reordering them",
+            ));
+        }
+        let before: Vec<String> = layers
+            .iter()
+            .map(|layer| layer["id"].as_str().unwrap().to_owned())
+            .collect();
+        layers.swap(index, next);
+        let after: Vec<String> = layers
+            .iter()
+            .map(|layer| layer["id"].as_str().unwrap().to_owned())
+            .collect();
+        self.record_edit(Edit {
+            layer_index: 0,
+            layer_id: None,
+            fields: Vec::new(),
+            structure: None,
+            extended: Some(ExtendedEdit::Reorder { before, after }),
+        });
+        Ok(())
+    }
+    fn bridge(
+        &mut self,
+        capability: String,
+        target: BridgeTarget,
+        value: Value,
+        remove: bool,
+    ) -> Result<(), CommandError> {
+        match &target {
+            BridgeTarget::Graph => {
+                if capability != "web:graph" {
+                    return Err(CommandError::new(
+                        "UNSUPPORTED_CAPABILITY",
+                        "Graph bridge requires web:graph",
+                    ));
+                }
+                if !remove && !value.is_object() {
+                    return Err(CommandError::new(
+                        "INVALID_VALUE",
+                        "Graph must be an object",
+                    ));
+                }
+                if !remove {
+                    validate_graph(&self.package["document"], &value)?;
+                }
+            }
+            BridgeTarget::LayerField { id, field } => {
+                if capability != "web:layer-property" {
+                    return Err(CommandError::new(
+                        "UNSUPPORTED_CAPABILITY",
+                        "Layer bridge requires web:layer-property",
+                    ));
+                }
+                if id.is_empty()
+                    || field.is_empty()
+                    || field == "id"
+                    || field == "kind"
+                    || field.len() > 200
+                    || field.contains('/')
+                {
+                    return Err(CommandError::new(
+                        "INVALID_TARGET",
+                        "Invalid layer field target",
+                    ));
+                }
+                let layer = self.package["document"]["layers"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|layer| layer["id"] == *id)
+                    .ok_or_else(|| CommandError::new("INVALID_TARGET", "Layer not found"))?;
+                if crate::properties::is_shared_key(layer["kind"].as_str().unwrap(), field) {
+                    return Err(CommandError::new(
+                        "UNSUPPORTED_CAPABILITY",
+                        "Use a typed patch for shared properties",
+                    ));
+                }
+            }
+            BridgeTarget::ExportField { field } => {
+                if capability != "web:export-envmap" {
+                    return Err(CommandError::new(
+                        "UNSUPPORTED_CAPABILITY",
+                        "Export bridge requires web:export-envmap",
+                    ));
+                }
+                if field != "target" || remove || value != "envmap" {
+                    return Err(CommandError::new(
+                        "UNSUPPORTED_CAPABILITY",
+                        "Only Web envmap export target is bridged",
+                    ));
+                }
+            }
+        }
+        let key = bridge_key(&target).to_owned();
+        let slot = bridge_slot(&mut self.package["document"], &target).unwrap();
+        let before = slot.get(&key).cloned();
+        let after = if remove { None } else { Some(value) };
+        if before == after {
+            return Ok(());
+        }
+        let next_size = self.serialized_len as i64 + value_growth(&key, &before, &after);
+        if next_size > MAX_PACKAGE_BYTES as i64 {
+            return Err(CommandError::new(
+                "PACKAGE_LIMIT",
+                "Project would exceed 64 MiB",
+            ));
+        }
+        match &after {
+            Some(v) => {
+                slot.insert(key, v.clone());
+            }
+            None => {
+                slot.remove(&key);
+            }
+        }
+        self.serialized_len = next_size as usize;
+        self.record_edit(Edit {
+            layer_index: 0,
+            layer_id: None,
+            fields: Vec::new(),
+            structure: None,
+            extended: Some(ExtendedEdit::Bridge {
+                target,
+                before,
+                after,
+            }),
+        });
+        Ok(())
+    }
+}
+
+fn validate_graph(doc: &Value, graph: &Value) -> Result<(), CommandError> {
+    let edges = graph["edges"]
+        .as_array()
+        .ok_or_else(|| CommandError::new("INVALID_VALUE", "Graph edges must be an array"))?;
+    let mut ids: HashSet<&str> = doc["layers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|layer| layer["id"].as_str())
+        .collect();
+    for list in crate::editor::GRAPH_LISTS {
+        if let Some(nodes) = graph[*list].as_array() {
+            for node in nodes {
+                let id = node["id"]
+                    .as_str()
+                    .ok_or_else(|| CommandError::new("INVALID_VALUE", "Graph node needs an id"))?;
+                if !ids.insert(id) {
+                    return Err(CommandError::new(
+                        "INVALID_VALUE",
+                        "Duplicate graph node id",
+                    ));
+                }
+            }
+        }
+    }
+    let mut edge_ids = HashSet::new();
+    for edge in edges {
+        let id = edge["id"]
+            .as_str()
+            .ok_or_else(|| CommandError::new("INVALID_VALUE", "Edge needs an id"))?;
+        let from = edge["fromId"]
+            .as_str()
+            .ok_or_else(|| CommandError::new("INVALID_VALUE", "Edge needs a source"))?;
+        let to = edge["toId"]
+            .as_str()
+            .ok_or_else(|| CommandError::new("INVALID_VALUE", "Edge needs a target"))?;
+        if !edge_ids.insert(id) || !ids.contains(from) || !(ids.contains(to) || to == "__export__")
+        {
+            return Err(CommandError::new(
+                "INVALID_VALUE",
+                "Invalid graph edge endpoint or duplicate id",
+            ));
+        }
+    }
+    Ok(())
+}

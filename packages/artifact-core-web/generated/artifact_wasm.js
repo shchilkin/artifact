@@ -12,6 +12,60 @@ export class WebSession {
         wasm.__wbg_websession_free(ptr, 0);
     }
     /**
+     * @param {string} request
+     * @returns {string}
+     */
+    begin_transaction_json(request) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ptr0 = passStringToWasm0(request, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.websession_begin_transaction_json(this.__wbg_ptr, ptr0, len0);
+            deferred2_0 = ret[0];
+            deferred2_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * @param {string} request
+     * @returns {string}
+     */
+    cancel_transaction_json(request) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ptr0 = passStringToWasm0(request, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.websession_cancel_transaction_json(this.__wbg_ptr, ptr0, len0);
+            deferred2_0 = ret[0];
+            deferred2_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * @param {string} request
+     * @returns {string}
+     */
+    commit_transaction_json(request) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ptr0 = passStringToWasm0(request, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.websession_commit_transaction_json(this.__wbg_ptr, ptr0, len0);
+            deferred2_0 = ret[0];
+            deferred2_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
      * @returns {string}
      */
     editor_state_json() {
@@ -38,6 +92,27 @@ export class WebSession {
             throw takeFromExternrefTable0(ret[1]);
         }
         return ret[0] !== 0;
+    }
+    /**
+     * @returns {string}
+     */
+    export_durable_json() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.websession_export_durable_json(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
     }
     /**
      * @returns {string}
@@ -97,6 +172,13 @@ export class WebSession {
         } finally {
             wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
+    }
+    /**
+     * @returns {bigint}
+     */
+    revision() {
+        const ret = wasm.websession_revision(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
     }
     /**
      * @param {string} layer_id
@@ -165,6 +247,24 @@ export class WebSession {
     undo() {
         const ret = wasm.websession_undo(this.__wbg_ptr);
         return ret !== 0;
+    }
+    /**
+     * @param {string} request
+     * @returns {string}
+     */
+    update_transaction_json(request) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ptr0 = passStringToWasm0(request, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.websession_update_transaction_json(this.__wbg_ptr, ptr0, len0);
+            deferred2_0 = ret[0];
+            deferred2_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
     }
 }
 if (Symbol.dispose) WebSession.prototype[Symbol.dispose] = WebSession.prototype.free;

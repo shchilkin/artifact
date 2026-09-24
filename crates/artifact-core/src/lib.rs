@@ -1,7 +1,9 @@
 //! Shared document-command pilot. No renderer or platform resources.
 
+mod command;
 mod editor;
 mod image;
+mod properties;
 pub mod render;
 pub use image::ImageProperties;
 
@@ -53,30 +55,59 @@ pub struct TextProperties {
 struct FieldEdit {
     key: String,
     before: Option<Value>,
-    after: Value,
+    after: Option<Value>,
+}
+enum ExtendedEdit {
+    Group(Vec<Edit>),
+    Section {
+        name: &'static str,
+        fields: Vec<FieldEdit>,
+    },
+    Bridge {
+        target: command::BridgeTarget,
+        before: Option<Value>,
+        after: Option<Value>,
+    },
+    Reorder {
+        before: Vec<String>,
+        after: Vec<String>,
+    },
 }
 struct Edit {
     layer_index: usize,
+    layer_id: Option<String>,
     fields: Vec<FieldEdit>,
     structure: Option<editor::StructureEdit>,
+    extended: Option<ExtendedEdit>,
 }
 
 impl Edit {
     fn retained_bytes(&self) -> usize {
+        if let Some(extended) = &self.extended {
+            return match extended {
+                ExtendedEdit::Group(steps) => steps.iter().map(Edit::retained_bytes).sum(),
+                ExtendedEdit::Section { fields, .. } => {
+                    fields.iter().map(FieldEdit::retained_bytes).sum()
+                }
+                ExtendedEdit::Bridge { before, after, .. } => {
+                    before.as_ref().map_or(0, |v| v.to_string().len())
+                        + after.as_ref().map_or(0, |v| v.to_string().len())
+                }
+                ExtendedEdit::Reorder { before, after } => {
+                    before.iter().chain(after).map(String::len).sum()
+                }
+            };
+        }
         if let Some(change) = &self.structure {
             return change.bytes();
         }
-        self.fields
-            .iter()
-            .map(|field| {
-                field
-                    .before
-                    .as_ref()
-                    .and_then(Value::as_str)
-                    .map_or(0, str::len)
-                    + field.after.as_str().map_or(0, str::len)
-            })
-            .sum()
+        self.fields.iter().map(FieldEdit::retained_bytes).sum()
+    }
+}
+impl FieldEdit {
+    fn retained_bytes(&self) -> usize {
+        self.before.as_ref().map_or(0, |v| v.to_string().len())
+            + self.after.as_ref().map_or(0, |v| v.to_string().len())
     }
 }
 
@@ -86,9 +117,24 @@ pub struct DocumentSession {
     package: Value,
     past: Vec<Edit>,
     future: Vec<Edit>,
+    revision: u64,
+    next_transaction_id: u64,
+    transaction: Option<command::Transaction>,
+    serialized_len: usize,
 }
 
 impl DocumentSession {
+    fn require_no_transaction(&self) -> Result<(), CoreError> {
+        if self.transaction.is_some() {
+            Err(CoreError("ACTIVE_TRANSACTION"))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn apply_edit(&mut self, edit: &Edit, forward: bool) {
+        command::apply_edit_to(&mut self.package["document"], edit, forward);
+    }
     pub fn open(source: &str) -> Result<Self, CoreError> {
         if source.len() > MAX_PACKAGE_BYTES {
             return Err(CoreError("Package exceeds the 64 MiB pilot limit"));
@@ -132,10 +178,15 @@ impl DocumentSession {
                 return Err(CoreError("Every layer must have a kind"));
             }
         }
+        let serialized_len = package.to_string().len();
         Ok(Self {
             package,
             past: Vec::new(),
             future: Vec::new(),
+            revision: 0,
+            next_transaction_id: 1,
+            transaction: None,
+            serialized_len,
         })
     }
 
@@ -145,10 +196,10 @@ impl DocumentSession {
     }
 
     pub fn can_undo(&self) -> bool {
-        !self.past.is_empty()
+        self.transaction.is_none() && !self.past.is_empty()
     }
     pub fn can_redo(&self) -> bool {
-        !self.future.is_empty()
+        self.transaction.is_none() && !self.future.is_empty()
     }
 
     pub fn summary(&self) -> SessionSummary {
@@ -184,6 +235,7 @@ impl DocumentSession {
     }
 
     pub fn set_scanlines(&mut self, layer_id: &str, amount: f64) -> Result<bool, CoreError> {
+        self.require_no_transaction()?;
         if !amount.is_finite() || !(0.0..=100.0).contains(&amount) {
             return Err(CoreError("Scanlines must be a finite number from 0 to 100"));
         }
@@ -212,7 +264,9 @@ impl DocumentSession {
             vec![FieldEdit {
                 key: "scanlines".into(),
                 before: Some(layer["scanlines"].clone()),
-                after: Value::Number(Number::from_f64(amount).expect("finite amount")),
+                after: Some(Value::Number(
+                    Number::from_f64(amount).expect("finite amount"),
+                )),
             }],
         );
         Ok(true)
@@ -220,6 +274,7 @@ impl DocumentSession {
 
     /// A partial, atomic patch: one Apply action is one undo step.
     pub fn set_text(&mut self, layer_id: &str, patch_json: &str) -> Result<bool, CoreError> {
+        self.require_no_transaction()?;
         if patch_json.len() > 100_000 {
             return Err(CoreError("Text edit is too large"));
         }
@@ -270,7 +325,7 @@ impl DocumentSession {
                 fields.push(FieldEdit {
                     key: key.clone(),
                     before,
-                    after: value.clone(),
+                    after: Some(value.clone()),
                 });
             }
         }
@@ -282,20 +337,49 @@ impl DocumentSession {
     }
 
     fn commit(&mut self, index: usize, fields: Vec<FieldEdit>) {
+        let layer_id = self.package["document"]["layers"][index]["id"]
+            .as_str()
+            .map(str::to_owned);
+        let growth: i64 = fields
+            .iter()
+            .map(|field| {
+                let after = field.after.as_ref().map_or(0, |v| v.to_string().len()) as i64;
+                let before = field.before.as_ref().map_or(0, |v| v.to_string().len()) as i64;
+                after - before
+                    + if field.before.is_none() {
+                        serde_json::to_string(&field.key).unwrap().len() as i64 + 2
+                    } else {
+                        0
+                    }
+            })
+            .sum();
         for field in &fields {
-            self.package["document"]["layers"][index][&field.key] = field.after.clone();
+            if let Some(after) = &field.after {
+                self.package["document"]["layers"][index][&field.key] = after.clone();
+            }
         }
         let edit = Edit {
             layer_index: index,
+            layer_id,
             fields,
             structure: None,
+            extended: None,
         };
+        self.serialized_len = (self.serialized_len as i64 + growth) as usize;
+        self.record_edit(edit);
+    }
+
+    fn record_edit(&mut self, edit: Edit) {
+        if let Some(tx) = &mut self.transaction {
+            tx.steps.push(edit);
+            return;
+        }
         if self.past.len() == HISTORY_LIMIT {
             self.past.remove(0);
         }
         self.past.push(edit);
         self.future.clear();
-        // Image replacements retain payloads for Undo; bound that history too.
+        self.revision += 1;
         self.trim_history(MAX_PACKAGE_BYTES);
     }
 
@@ -308,41 +392,30 @@ impl DocumentSession {
     }
 
     pub fn undo(&mut self) -> bool {
+        if self.transaction.is_some() {
+            return false;
+        }
         let Some(edit) = self.past.pop() else {
             return false;
         };
-        if let Some(change) = &edit.structure {
-            change.apply(&mut self.package["document"], false);
-            self.future.push(edit);
-            return true;
-        }
-        let layer = self.package["document"]["layers"][edit.layer_index]
-            .as_object_mut()
-            .expect("layer");
-        for field in &edit.fields {
-            if let Some(before) = &field.before {
-                layer.insert(field.key.clone(), before.clone());
-            } else {
-                layer.remove(&field.key);
-            }
-        }
+        self.apply_edit(&edit, false);
         self.future.push(edit);
+        self.revision += 1;
+        self.serialized_len = self.package.to_string().len();
         true
     }
 
     pub fn redo(&mut self) -> bool {
+        if self.transaction.is_some() {
+            return false;
+        }
         let Some(edit) = self.future.pop() else {
             return false;
         };
-        if let Some(change) = &edit.structure {
-            change.apply(&mut self.package["document"], true);
-            self.past.push(edit);
-            return true;
-        }
-        for field in &edit.fields {
-            self.package["document"]["layers"][edit.layer_index][&field.key] = field.after.clone();
-        }
+        self.apply_edit(&edit, true);
         self.past.push(edit);
+        self.revision += 1;
+        self.serialized_len = self.package.to_string().len();
         true
     }
 }
@@ -356,19 +429,25 @@ mod history_tests {
             package: Value::Null,
             past: Vec::new(),
             future: Vec::new(),
+            revision: 0,
+            next_transaction_id: 1,
+            transaction: None,
+            serialized_len: 0,
         };
         for index in 0..3 {
             session.past.push(Edit {
                 layer_index: index,
+                layer_id: None,
                 structure: None,
+                extended: None,
                 fields: vec![FieldEdit {
                     key: "src".into(),
                     before: Some(Value::String("old".repeat(10))),
-                    after: Value::String("new".repeat(10)),
+                    after: Some(Value::String("new".repeat(10))),
                 }],
             });
         }
-        session.trim_history(120);
+        session.trim_history(128);
         assert_eq!(session.past.len(), 2);
         assert_eq!(session.past[0].layer_index, 1);
         session.trim_history(1);

@@ -10,6 +10,9 @@ checkpoint is at `http://127.0.0.1:4187/app`.
 `documentCommands.updateLayerInDocument` routes supported property patches to
 `@artifact/core-web/commands`. That adapter calls Rust `patch_layer`, which uses
 the same property command implementation as native `NativeSession.execute`.
+The session-level P03 [transaction API](./native-2d-command-transactions.md)
+is separately exported from `@artifact/core-web/transactions`; the main Web
+editor has not adopted its document/history ownership yet.
 This covers names, visibility/lock, opacity, text content/size/color/alignment,
 image/text placement and supported fill/emoji/effect controls.
 
