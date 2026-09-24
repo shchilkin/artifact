@@ -42,6 +42,16 @@ fn begin(s: &mut DocumentSession) -> u64 {
 fn edit(s: &mut DocumentSession, tx: u64, action: Value) -> Value {
     call(s, "update", tx, json!([{"type":"graph","action":action}]))
 }
+fn command(s: &mut DocumentSession, value: Value) -> Value {
+    let tx = begin(s);
+    let result = call(s, "update", tx, json!([value]));
+    if result["ok"] == true {
+        assert_eq!(call(s, "commit", tx, json!([]))["ok"], true);
+    } else {
+        assert_eq!(call(s, "cancel", tx, json!([]))["ok"], true);
+    }
+    result
+}
 fn plan(s: &DocumentSession, id: &str) -> Value {
     serde_json::from_str(&s.graph_plan_json(id).unwrap()).unwrap()
 }
@@ -148,6 +158,74 @@ fn graph_commands_commit_once_and_undo_restore_unknown_data() {
 }
 
 #[test]
+fn opaque_future_nodes_survive_unrelated_edits_and_mark_selected_paths_unsupported() {
+    let mut d = fixture("utilities");
+    d["graph"]["futureNodes"] = json!([{"id":"future-node","futureSetting":{"keep":null}}]);
+    let output = d["graph"]["edges"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|edge| edge["toId"] == "__export__")
+        .unwrap();
+    output["fromId"] = json!("future-node");
+    let mut s = session(d);
+    let initial = s.export_json();
+    let output_plan = plan(&s, "__export__");
+    assert_eq!(output_plan["dependencyNodeIds"], json!(["future-node"]));
+    assert_eq!(output_plan["unsupportedNodeIds"], json!(["future-node"]));
+    assert_eq!(output_plan["renderable2d"], false);
+    assert_eq!(plan(&s, "future-node")["renderable2d"], false);
+    let tx = begin(&mut s);
+    assert_eq!(
+        edit(
+            &mut s,
+            tx,
+            json!({"kind":"patch_node","id":"utility-color","patch":{"saturation":130}})
+        )["ok"],
+        true
+    );
+    assert_eq!(call(&mut s, "commit", tx, json!([]))["ok"], true);
+    assert_eq!(
+        doc(&s)["graph"]["futureNodes"][0]["futureSetting"]["keep"],
+        Value::Null
+    );
+    assert!(s.undo());
+    assert_eq!(s.export_json(), initial);
+    assert!(s.redo());
+    assert_eq!(doc(&s)["graph"]["colorNodes"][0]["saturation"], 130);
+    assert_eq!(
+        plan(&s, "__export__")["unsupportedNodeIds"],
+        json!(["future-node"])
+    );
+}
+
+#[test]
+fn malformed_or_colliding_opaque_node_ids_reject_topology_without_mutation() {
+    for nodes in [
+        json!([{"id":"utility-color"}]),
+        json!([{"id":"future"},{"id":"future"}]),
+        json!([{"notAnId":true}]),
+    ] {
+        let mut d = fixture("utilities");
+        d["graph"]["futureNodes"] = nodes;
+        let mut s = session(d);
+        let initial = s.export_json();
+        assert!(s.graph_plan_json("__export__").is_err());
+        let tx = begin(&mut s);
+        assert_eq!(
+            edit(
+                &mut s,
+                tx,
+                json!({"kind":"patch_node","id":"utility-color","patch":{"saturation":130}})
+            )["ok"],
+            false
+        );
+        assert_eq!(s.export_json(), initial);
+        assert_eq!(call(&mut s, "cancel", tx, json!([]))["ok"], true);
+    }
+}
+
+#[test]
 fn edge_ports_reconnect_split_cycle_and_failed_batch_are_atomic() {
     let mut s = session(fixture("branch"));
     let initial = s.export_json();
@@ -185,6 +263,158 @@ fn edge_ports_reconnect_split_cycle_and_failed_batch_are_atomic() {
     assert_eq!(doc(&s)["graph"]["edges"].as_array().unwrap().len(), 6);
     assert_eq!(call(&mut s, "cancel", tx, json!([]))["changed"], true);
     assert_eq!(s.export_json(), initial);
+}
+
+#[test]
+fn reconnecting_the_same_endpoints_is_a_true_no_op() {
+    let mut s = session(fixture("branch"));
+    let initial = s.export_json();
+    let initial_plan = plan(&s, "__export__");
+    let tx = begin(&mut s);
+    let result = edit(
+        &mut s,
+        tx,
+        json!({"kind":"reconnect_edge","id":"edge-branch-ground-branch-merge-a","from_id":"branch-ground","to_id":"branch-merge","to_port":"a"}),
+    );
+    assert_eq!(result["ok"], true);
+    assert_eq!(result["changed"], false);
+    assert_eq!(call(&mut s, "commit", tx, json!([]))["changed"], false);
+    assert_eq!(s.revision(), 0);
+    assert!(!s.can_undo());
+    assert_eq!(s.export_json(), initial);
+    assert_eq!(plan(&s, "__export__"), initial_plan);
+}
+
+#[test]
+fn existing_layer_commands_preserve_branch_topology_and_opaque_data() {
+    let mut d = fixture("branch");
+    d["graph"]["futureNodes"] = json!([{"id":"opaque-node","payload":{"keep":null}}]);
+    d["graph"]["futureMetadata"] = json!({"key":123456789});
+    let mut s = session(d);
+    let initial_edges = doc(&s)["graph"]["edges"].clone();
+    let mut states = vec![s.export_json()];
+    assert_eq!(
+        command(
+            &mut s,
+            json!({"type":"add_layer","kind":"text","new_id":"new-text","after_id":"branch-ground"})
+        )["ok"],
+        true
+    );
+    assert_eq!(doc(&s)["graph"]["edges"], initial_edges);
+    assert!(
+        plan(&s, "__export__")["disconnectedNodeIds"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("new-text"))
+    );
+    states.push(s.export_json());
+    assert_eq!(
+        command(
+            &mut s,
+            json!({"type":"duplicate_layer","id":"branch-art","new_id":"art-copy"})
+        )["ok"],
+        true
+    );
+    assert_eq!(doc(&s)["graph"]["edges"], initial_edges);
+    states.push(s.export_json());
+    assert_eq!(
+        command(
+            &mut s,
+            json!({"type":"move_layer","id":"new-text","delta":1})
+        )["ok"],
+        true
+    );
+    assert_eq!(doc(&s)["graph"]["edges"], initial_edges);
+    states.push(s.export_json());
+    assert_eq!(
+        command(&mut s, json!({"type":"remove_layer","id":"branch-matte"}))["ok"],
+        true
+    );
+    let expected_edges: Vec<Value> = initial_edges
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|edge| edge["fromId"] != "branch-matte" && edge["toId"] != "branch-matte")
+        .cloned()
+        .collect();
+    assert_eq!(doc(&s)["graph"]["edges"], json!(expected_edges));
+    assert_eq!(
+        doc(&s)["graph"]["futureNodes"][0]["payload"]["keep"],
+        Value::Null
+    );
+    assert_eq!(doc(&s)["graph"]["futureMetadata"]["key"], 123456789);
+    states.push(s.export_json());
+    for expected in states[..states.len() - 1].iter().rev() {
+        assert!(s.undo());
+        assert_eq!(&s.export_json(), expected);
+    }
+    for expected in &states[1..] {
+        assert!(s.redo());
+        assert_eq!(&s.export_json(), expected);
+    }
+}
+
+#[test]
+fn layer_only_fanout_never_falls_into_linear_bypass_or_reorder() {
+    let mut d = fixture("branch");
+    d["layers"] = json!([
+        {"id":"a","kind":"fill","locked":false,"color":"#111111"},
+        {"id":"b","kind":"fill","locked":false,"color":"#222222"},
+        {"id":"c","kind":"fill","locked":false,"color":"#333333"}
+    ]);
+    d["graph"] = json!({
+        "edges":[
+            {"id":"ab","fromId":"a","fromPort":"out","toId":"b","toPort":"bg"},
+            {"id":"bo","fromId":"b","fromPort":"out","toId":"__export__","toPort":"in"},
+            {"id":"ac","fromId":"a","fromPort":"out","toId":"c","toPort":"bg"}
+        ],
+        "positions":{"a":{"x":0,"y":0},"b":{"x":300,"y":0},"c":{"x":300,"y":200}},
+        "mergeNodes":[],"colorNodes":[],"opaque":{"keep":true}
+    });
+    let mut s = session(d);
+    let initial_edges = doc(&s)["graph"]["edges"].clone();
+    assert_eq!(
+        command(
+            &mut s,
+            json!({"type":"add_layer","kind":"text","new_id":"new","after_id":"a"})
+        )["ok"],
+        true
+    );
+    assert_eq!(doc(&s)["graph"]["edges"], initial_edges);
+    assert_eq!(
+        command(&mut s, json!({"type":"move_layer","id":"c","delta":-1}))["ok"],
+        true
+    );
+    assert_eq!(doc(&s)["graph"]["edges"], initial_edges);
+    assert_eq!(
+        command(&mut s, json!({"type":"remove_layer","id":"b"}))["ok"],
+        true
+    );
+    assert_eq!(doc(&s)["graph"]["edges"], json!([initial_edges[2]]));
+    assert_eq!(doc(&s)["graph"]["opaque"], json!({"keep":true}));
+    assert!(s.undo());
+    assert_eq!(doc(&s)["graph"]["edges"], initial_edges);
+}
+
+#[test]
+fn branch_layer_commands_reject_unsupported_and_locked_affected_nodes() {
+    let mut d = fixture("branch");
+    d["layers"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":"model","kind":"primitive","locked":false}));
+    d["layers"][0]["locked"] = json!(true);
+    let mut s = session(d);
+    let initial = s.export_json();
+    for value in [
+        json!({"type":"duplicate_layer","id":"model","new_id":"model-copy"}),
+        json!({"type":"remove_layer","id":"model"}),
+        json!({"type":"move_layer","id":"model","delta":-1}),
+        json!({"type":"remove_layer","id":"branch-ground"}),
+    ] {
+        assert_eq!(command(&mut s, value)["ok"], false);
+        assert_eq!(s.export_json(), initial);
+    }
 }
 
 #[test]

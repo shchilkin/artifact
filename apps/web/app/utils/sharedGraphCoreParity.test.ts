@@ -123,10 +123,14 @@ describe('shared graph and authoritative Web helpers', () => {
         kind: 'reconnect_edge',
         id: first.id,
         from_id: first.fromId,
-        to_id: first.toId,
-        to_port: first.toPort,
+        to_id: 'utility-shadow',
+        to_port: 'in',
       });
-      const webReconnected = addGraphEdge(removeGraphEdge(webPatched, first.id), first);
+      const webReconnected = addGraphEdge(removeGraphEdge(webPatched, first.id), {
+        ...first,
+        toId: 'utility-shadow',
+        toPort: 'in',
+      });
       expect(JSON.parse(session.export_json()).document.graph.edges).toEqual(webReconnected.edges);
       const duplicateId = 'parity-copy';
       const sourceId = document.layers[0].id;
@@ -208,6 +212,62 @@ describe('shared graph and authoritative Web helpers', () => {
       ).toBe('INVALID_VALUE');
       expect(session.export_json()).toBe(before);
       expect(graphPlan(session).renderLayerIds).toEqual(['branch-ground', 'branch-art', 'branch-matte']);
+    } finally {
+      session.free();
+    }
+  });
+
+  it('keeps a same-endpoint reconnect byte-stable with no revision or history', () => {
+    const session = open(read());
+    try {
+      const before = session.export_json();
+      const beforePlan = graphPlan(session);
+      const tx = beginTransaction(session, 0);
+      expect(tx.ok).toBe(true);
+      const result = updateTransaction(session, tx.transactionId!, [
+        {
+          type: 'graph',
+          action: {
+            kind: 'reconnect_edge',
+            id: 'edge-branch-ground-branch-merge-a',
+            from_id: 'branch-ground',
+            to_id: 'branch-merge',
+            to_port: 'a',
+          },
+        },
+      ]);
+      expect(result.ok).toBe(true);
+      expect(result.changed).toBe(false);
+      expect(commitTransaction(session, tx.transactionId!).changed).toBe(false);
+      expect(session.revision()).toBe(0n);
+      expect(session.undo()).toBe(false);
+      expect(session.export_json()).toBe(before);
+      expect(graphPlan(session)).toEqual(beforePlan);
+    } finally {
+      session.free();
+    }
+  });
+
+  it('keeps an imported future node collection opaque through an unrelated 2D edit', () => {
+    const document = readUtilities();
+    const graph = document.graph! as typeof document.graph & {
+      futureNodes: Array<{ id: string; payload: { keep: null } }>;
+    };
+    graph.futureNodes = [{ id: 'future-node', payload: { keep: null } }];
+    graph.edges.find((edge) => edge.toId === '__export__')!.fromId = 'future-node';
+    const session = open(document);
+    try {
+      const before = session.export_json();
+      expect(graphPlan(session).unsupportedNodeIds).toEqual(['future-node']);
+      expect(graphPlan(session).renderable2d).toBe(false);
+      mutate(session, { kind: 'patch_node', id: 'utility-color', patch: { saturation: 130 } });
+      const after = JSON.parse(session.export_json()).document;
+      expect(after.graph.futureNodes).toEqual(graph.futureNodes);
+      expect(after.graph.edges).toEqual(graph.edges);
+      expect(session.undo()).toBe(true);
+      expect(session.export_json()).toBe(before);
+      expect(session.redo()).toBe(true);
+      expect(graphPlan(session).unsupportedNodeIds).toEqual(['future-node']);
     } finally {
       session.free();
     }

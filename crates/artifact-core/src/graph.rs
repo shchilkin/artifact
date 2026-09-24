@@ -140,21 +140,9 @@ fn node_exists(doc: &Value, id: &str) -> bool {
         || doc["layers"]
             .as_array()
             .is_some_and(|a| a.iter().any(|n| n["id"] == id))
-        || utility_location(&doc["graph"], id).is_some()
-        || [
-            "scene3dNodes",
-            "environmentNodes",
-            "materialNodes",
-            "shaderNodes",
-        ]
-        .iter()
-        .any(|list| {
-            doc["graph"][list]
-                .as_array()
-                .is_some_and(|a| a.iter().any(|n| n["id"] == id))
-        })
+        || crate::command::graph_node_ids(&doc["graph"]).contains(&id)
 }
-fn node_type(doc: &Value, id: &str) -> Option<String> {
+pub(crate) fn node_type(doc: &Value, id: &str) -> Option<String> {
     if id == OUTPUT_ID {
         return Some("output".into());
     }
@@ -221,7 +209,7 @@ fn validate_new_edge(doc: &Value, edge: &Value) -> Result<(), CommandError> {
     }
     Ok(())
 }
-fn validate_old_edge_editable(doc: &Value, edge: &Value) -> Result<(), CommandError> {
+pub(crate) fn validate_old_edge_editable(doc: &Value, edge: &Value) -> Result<(), CommandError> {
     let (_, from, _, to, _) = edge_fields(edge)?;
     if node_type(doc, from).is_none() || node_type(doc, to).is_none() {
         return Err(err(
@@ -622,6 +610,9 @@ fn apply(doc: &mut Value, action: GraphAction) -> Result<(), CommandError> {
                 .find(|e| e["id"] == id)
                 .ok_or_else(|| target("Graph edge not found"))?;
             validate_old_edge_editable(doc, old)?;
+            if old["fromId"] == from_id && old["toId"] == to_id && old["toPort"] == to_port {
+                return Ok(());
+            }
             let edges = doc["graph"]["edges"].as_array_mut().unwrap();
             let index = edges
                 .iter()
@@ -857,29 +848,11 @@ pub fn plan(doc: &Value, target_id: &str) -> Result<Value, CommandError> {
         .iter()
         .filter_map(|v| v["id"].as_str().map(str::to_owned))
         .collect();
-    for (_, list) in KINDS {
-        if let Some(nodes) = graph[list].as_array() {
-            all.extend(
-                nodes
-                    .iter()
-                    .filter_map(|v| v["id"].as_str().map(str::to_owned)),
-            );
-        }
-    }
-    for list in [
-        "scene3dNodes",
-        "environmentNodes",
-        "materialNodes",
-        "shaderNodes",
-    ] {
-        if let Some(nodes) = graph[list].as_array() {
-            all.extend(
-                nodes
-                    .iter()
-                    .filter_map(|v| v["id"].as_str().map(str::to_owned)),
-            );
-        }
-    }
+    all.extend(
+        crate::command::graph_node_ids(graph)
+            .into_iter()
+            .map(str::to_owned),
+    );
     all.push(OUTPUT_ID.into());
     if !all.iter().any(|id| id == target_id) {
         return Err(target("Graph target not found"));
