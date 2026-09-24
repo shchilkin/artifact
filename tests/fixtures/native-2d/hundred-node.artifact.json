@@ -1,0 +1,2132 @@
+{
+  "schemaVersion": 3,
+  "global": {
+    "bg": "transparent",
+    "seed": 404,
+    "aspect": "9:16"
+  },
+  "layers": [
+    {
+      "id": "stress-001",
+      "name": "stress-001",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#303355",
+      "opacity": 100,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-002",
+      "name": "stress-002",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#5f3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-003",
+      "name": "stress-003",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#8e3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-004",
+      "name": "stress-004",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#bd3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-005",
+      "name": "stress-005",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#4c3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-006",
+      "name": "stress-006",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#7b3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-007",
+      "name": "stress-007",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#aa3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-008",
+      "name": "stress-008",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#393355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-009",
+      "name": "stress-009",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#683355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-010",
+      "name": "stress-010",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#973355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-011",
+      "name": "stress-011",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#c63355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-012",
+      "name": "stress-012",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#553355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-013",
+      "name": "stress-013",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#843355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-014",
+      "name": "stress-014",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#b33355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-015",
+      "name": "stress-015",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#423355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-016",
+      "name": "stress-016",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#713355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-017",
+      "name": "stress-017",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#a03355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-018",
+      "name": "stress-018",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#cf3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-019",
+      "name": "stress-019",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#5e3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-020",
+      "name": "stress-020",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#8d3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-021",
+      "name": "stress-021",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#bc3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-022",
+      "name": "stress-022",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#4b3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-023",
+      "name": "stress-023",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#7a3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-024",
+      "name": "stress-024",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#a93355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-025",
+      "name": "stress-025",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#383355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-026",
+      "name": "stress-026",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#673355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-027",
+      "name": "stress-027",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#963355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-028",
+      "name": "stress-028",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#c53355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-029",
+      "name": "stress-029",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#543355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-030",
+      "name": "stress-030",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#833355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-031",
+      "name": "stress-031",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#b23355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-032",
+      "name": "stress-032",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#413355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-033",
+      "name": "stress-033",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#703355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-034",
+      "name": "stress-034",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#9f3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-035",
+      "name": "stress-035",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#ce3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-036",
+      "name": "stress-036",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#5d3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-037",
+      "name": "stress-037",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#8c3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-038",
+      "name": "stress-038",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#bb3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-039",
+      "name": "stress-039",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#4a3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-040",
+      "name": "stress-040",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#793355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-041",
+      "name": "stress-041",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#a83355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-042",
+      "name": "stress-042",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#373355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-043",
+      "name": "stress-043",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#663355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-044",
+      "name": "stress-044",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#953355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-045",
+      "name": "stress-045",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#c43355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-046",
+      "name": "stress-046",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#533355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-047",
+      "name": "stress-047",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#823355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-048",
+      "name": "stress-048",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#b13355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-049",
+      "name": "stress-049",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#403355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-050",
+      "name": "stress-050",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#6f3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-051",
+      "name": "stress-051",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#9e3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-052",
+      "name": "stress-052",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#cd3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-053",
+      "name": "stress-053",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#5c3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-054",
+      "name": "stress-054",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#8b3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-055",
+      "name": "stress-055",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#ba3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-056",
+      "name": "stress-056",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#493355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-057",
+      "name": "stress-057",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#783355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-058",
+      "name": "stress-058",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#a73355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-059",
+      "name": "stress-059",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#363355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-060",
+      "name": "stress-060",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#653355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-061",
+      "name": "stress-061",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#943355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-062",
+      "name": "stress-062",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#c33355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-063",
+      "name": "stress-063",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#523355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-064",
+      "name": "stress-064",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#813355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-065",
+      "name": "stress-065",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#b03355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-066",
+      "name": "stress-066",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#3f3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-067",
+      "name": "stress-067",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#6e3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-068",
+      "name": "stress-068",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#9d3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-069",
+      "name": "stress-069",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#cc3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-070",
+      "name": "stress-070",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#5b3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-071",
+      "name": "stress-071",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#8a3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-072",
+      "name": "stress-072",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#b93355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-073",
+      "name": "stress-073",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#483355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-074",
+      "name": "stress-074",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#773355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-075",
+      "name": "stress-075",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#a63355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-076",
+      "name": "stress-076",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#353355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-077",
+      "name": "stress-077",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#643355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-078",
+      "name": "stress-078",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#933355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-079",
+      "name": "stress-079",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#c23355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-080",
+      "name": "stress-080",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#513355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-081",
+      "name": "stress-081",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#803355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-082",
+      "name": "stress-082",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#af3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-083",
+      "name": "stress-083",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#3e3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-084",
+      "name": "stress-084",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#6d3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-085",
+      "name": "stress-085",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#9c3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-086",
+      "name": "stress-086",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#cb3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-087",
+      "name": "stress-087",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#5a3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-088",
+      "name": "stress-088",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#893355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-089",
+      "name": "stress-089",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#b83355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-090",
+      "name": "stress-090",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#473355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-091",
+      "name": "stress-091",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#763355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-092",
+      "name": "stress-092",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#a53355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-093",
+      "name": "stress-093",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#343355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-094",
+      "name": "stress-094",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#633355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-095",
+      "name": "stress-095",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#923355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-096",
+      "name": "stress-096",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#c13355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-097",
+      "name": "stress-097",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#503355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-098",
+      "name": "stress-098",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#7f3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-099",
+      "name": "stress-099",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#ae3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    },
+    {
+      "id": "stress-100",
+      "name": "stress-100",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#3d3355",
+      "opacity": 6,
+      "blendMode": "normal"
+    }
+  ],
+  "export": {
+    "format": "png",
+    "scale": 1,
+    "target": "cover"
+  },
+  "graph": {
+    "edges": [
+      {
+        "id": "edge-stress-001-stress-002-bg",
+        "fromId": "stress-001",
+        "fromPort": "out",
+        "toId": "stress-002",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-002-stress-003-bg",
+        "fromId": "stress-002",
+        "fromPort": "out",
+        "toId": "stress-003",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-003-stress-004-bg",
+        "fromId": "stress-003",
+        "fromPort": "out",
+        "toId": "stress-004",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-004-stress-005-bg",
+        "fromId": "stress-004",
+        "fromPort": "out",
+        "toId": "stress-005",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-005-stress-006-bg",
+        "fromId": "stress-005",
+        "fromPort": "out",
+        "toId": "stress-006",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-006-stress-007-bg",
+        "fromId": "stress-006",
+        "fromPort": "out",
+        "toId": "stress-007",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-007-stress-008-bg",
+        "fromId": "stress-007",
+        "fromPort": "out",
+        "toId": "stress-008",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-008-stress-009-bg",
+        "fromId": "stress-008",
+        "fromPort": "out",
+        "toId": "stress-009",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-009-stress-010-bg",
+        "fromId": "stress-009",
+        "fromPort": "out",
+        "toId": "stress-010",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-010-stress-011-bg",
+        "fromId": "stress-010",
+        "fromPort": "out",
+        "toId": "stress-011",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-011-stress-012-bg",
+        "fromId": "stress-011",
+        "fromPort": "out",
+        "toId": "stress-012",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-012-stress-013-bg",
+        "fromId": "stress-012",
+        "fromPort": "out",
+        "toId": "stress-013",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-013-stress-014-bg",
+        "fromId": "stress-013",
+        "fromPort": "out",
+        "toId": "stress-014",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-014-stress-015-bg",
+        "fromId": "stress-014",
+        "fromPort": "out",
+        "toId": "stress-015",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-015-stress-016-bg",
+        "fromId": "stress-015",
+        "fromPort": "out",
+        "toId": "stress-016",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-016-stress-017-bg",
+        "fromId": "stress-016",
+        "fromPort": "out",
+        "toId": "stress-017",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-017-stress-018-bg",
+        "fromId": "stress-017",
+        "fromPort": "out",
+        "toId": "stress-018",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-018-stress-019-bg",
+        "fromId": "stress-018",
+        "fromPort": "out",
+        "toId": "stress-019",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-019-stress-020-bg",
+        "fromId": "stress-019",
+        "fromPort": "out",
+        "toId": "stress-020",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-020-stress-021-bg",
+        "fromId": "stress-020",
+        "fromPort": "out",
+        "toId": "stress-021",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-021-stress-022-bg",
+        "fromId": "stress-021",
+        "fromPort": "out",
+        "toId": "stress-022",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-022-stress-023-bg",
+        "fromId": "stress-022",
+        "fromPort": "out",
+        "toId": "stress-023",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-023-stress-024-bg",
+        "fromId": "stress-023",
+        "fromPort": "out",
+        "toId": "stress-024",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-024-stress-025-bg",
+        "fromId": "stress-024",
+        "fromPort": "out",
+        "toId": "stress-025",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-025-stress-026-bg",
+        "fromId": "stress-025",
+        "fromPort": "out",
+        "toId": "stress-026",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-026-stress-027-bg",
+        "fromId": "stress-026",
+        "fromPort": "out",
+        "toId": "stress-027",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-027-stress-028-bg",
+        "fromId": "stress-027",
+        "fromPort": "out",
+        "toId": "stress-028",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-028-stress-029-bg",
+        "fromId": "stress-028",
+        "fromPort": "out",
+        "toId": "stress-029",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-029-stress-030-bg",
+        "fromId": "stress-029",
+        "fromPort": "out",
+        "toId": "stress-030",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-030-stress-031-bg",
+        "fromId": "stress-030",
+        "fromPort": "out",
+        "toId": "stress-031",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-031-stress-032-bg",
+        "fromId": "stress-031",
+        "fromPort": "out",
+        "toId": "stress-032",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-032-stress-033-bg",
+        "fromId": "stress-032",
+        "fromPort": "out",
+        "toId": "stress-033",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-033-stress-034-bg",
+        "fromId": "stress-033",
+        "fromPort": "out",
+        "toId": "stress-034",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-034-stress-035-bg",
+        "fromId": "stress-034",
+        "fromPort": "out",
+        "toId": "stress-035",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-035-stress-036-bg",
+        "fromId": "stress-035",
+        "fromPort": "out",
+        "toId": "stress-036",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-036-stress-037-bg",
+        "fromId": "stress-036",
+        "fromPort": "out",
+        "toId": "stress-037",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-037-stress-038-bg",
+        "fromId": "stress-037",
+        "fromPort": "out",
+        "toId": "stress-038",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-038-stress-039-bg",
+        "fromId": "stress-038",
+        "fromPort": "out",
+        "toId": "stress-039",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-039-stress-040-bg",
+        "fromId": "stress-039",
+        "fromPort": "out",
+        "toId": "stress-040",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-040-stress-041-bg",
+        "fromId": "stress-040",
+        "fromPort": "out",
+        "toId": "stress-041",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-041-stress-042-bg",
+        "fromId": "stress-041",
+        "fromPort": "out",
+        "toId": "stress-042",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-042-stress-043-bg",
+        "fromId": "stress-042",
+        "fromPort": "out",
+        "toId": "stress-043",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-043-stress-044-bg",
+        "fromId": "stress-043",
+        "fromPort": "out",
+        "toId": "stress-044",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-044-stress-045-bg",
+        "fromId": "stress-044",
+        "fromPort": "out",
+        "toId": "stress-045",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-045-stress-046-bg",
+        "fromId": "stress-045",
+        "fromPort": "out",
+        "toId": "stress-046",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-046-stress-047-bg",
+        "fromId": "stress-046",
+        "fromPort": "out",
+        "toId": "stress-047",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-047-stress-048-bg",
+        "fromId": "stress-047",
+        "fromPort": "out",
+        "toId": "stress-048",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-048-stress-049-bg",
+        "fromId": "stress-048",
+        "fromPort": "out",
+        "toId": "stress-049",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-049-stress-050-bg",
+        "fromId": "stress-049",
+        "fromPort": "out",
+        "toId": "stress-050",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-050-stress-051-bg",
+        "fromId": "stress-050",
+        "fromPort": "out",
+        "toId": "stress-051",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-051-stress-052-bg",
+        "fromId": "stress-051",
+        "fromPort": "out",
+        "toId": "stress-052",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-052-stress-053-bg",
+        "fromId": "stress-052",
+        "fromPort": "out",
+        "toId": "stress-053",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-053-stress-054-bg",
+        "fromId": "stress-053",
+        "fromPort": "out",
+        "toId": "stress-054",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-054-stress-055-bg",
+        "fromId": "stress-054",
+        "fromPort": "out",
+        "toId": "stress-055",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-055-stress-056-bg",
+        "fromId": "stress-055",
+        "fromPort": "out",
+        "toId": "stress-056",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-056-stress-057-bg",
+        "fromId": "stress-056",
+        "fromPort": "out",
+        "toId": "stress-057",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-057-stress-058-bg",
+        "fromId": "stress-057",
+        "fromPort": "out",
+        "toId": "stress-058",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-058-stress-059-bg",
+        "fromId": "stress-058",
+        "fromPort": "out",
+        "toId": "stress-059",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-059-stress-060-bg",
+        "fromId": "stress-059",
+        "fromPort": "out",
+        "toId": "stress-060",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-060-stress-061-bg",
+        "fromId": "stress-060",
+        "fromPort": "out",
+        "toId": "stress-061",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-061-stress-062-bg",
+        "fromId": "stress-061",
+        "fromPort": "out",
+        "toId": "stress-062",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-062-stress-063-bg",
+        "fromId": "stress-062",
+        "fromPort": "out",
+        "toId": "stress-063",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-063-stress-064-bg",
+        "fromId": "stress-063",
+        "fromPort": "out",
+        "toId": "stress-064",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-064-stress-065-bg",
+        "fromId": "stress-064",
+        "fromPort": "out",
+        "toId": "stress-065",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-065-stress-066-bg",
+        "fromId": "stress-065",
+        "fromPort": "out",
+        "toId": "stress-066",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-066-stress-067-bg",
+        "fromId": "stress-066",
+        "fromPort": "out",
+        "toId": "stress-067",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-067-stress-068-bg",
+        "fromId": "stress-067",
+        "fromPort": "out",
+        "toId": "stress-068",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-068-stress-069-bg",
+        "fromId": "stress-068",
+        "fromPort": "out",
+        "toId": "stress-069",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-069-stress-070-bg",
+        "fromId": "stress-069",
+        "fromPort": "out",
+        "toId": "stress-070",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-070-stress-071-bg",
+        "fromId": "stress-070",
+        "fromPort": "out",
+        "toId": "stress-071",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-071-stress-072-bg",
+        "fromId": "stress-071",
+        "fromPort": "out",
+        "toId": "stress-072",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-072-stress-073-bg",
+        "fromId": "stress-072",
+        "fromPort": "out",
+        "toId": "stress-073",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-073-stress-074-bg",
+        "fromId": "stress-073",
+        "fromPort": "out",
+        "toId": "stress-074",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-074-stress-075-bg",
+        "fromId": "stress-074",
+        "fromPort": "out",
+        "toId": "stress-075",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-075-stress-076-bg",
+        "fromId": "stress-075",
+        "fromPort": "out",
+        "toId": "stress-076",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-076-stress-077-bg",
+        "fromId": "stress-076",
+        "fromPort": "out",
+        "toId": "stress-077",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-077-stress-078-bg",
+        "fromId": "stress-077",
+        "fromPort": "out",
+        "toId": "stress-078",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-078-stress-079-bg",
+        "fromId": "stress-078",
+        "fromPort": "out",
+        "toId": "stress-079",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-079-stress-080-bg",
+        "fromId": "stress-079",
+        "fromPort": "out",
+        "toId": "stress-080",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-080-stress-081-bg",
+        "fromId": "stress-080",
+        "fromPort": "out",
+        "toId": "stress-081",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-081-stress-082-bg",
+        "fromId": "stress-081",
+        "fromPort": "out",
+        "toId": "stress-082",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-082-stress-083-bg",
+        "fromId": "stress-082",
+        "fromPort": "out",
+        "toId": "stress-083",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-083-stress-084-bg",
+        "fromId": "stress-083",
+        "fromPort": "out",
+        "toId": "stress-084",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-084-stress-085-bg",
+        "fromId": "stress-084",
+        "fromPort": "out",
+        "toId": "stress-085",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-085-stress-086-bg",
+        "fromId": "stress-085",
+        "fromPort": "out",
+        "toId": "stress-086",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-086-stress-087-bg",
+        "fromId": "stress-086",
+        "fromPort": "out",
+        "toId": "stress-087",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-087-stress-088-bg",
+        "fromId": "stress-087",
+        "fromPort": "out",
+        "toId": "stress-088",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-088-stress-089-bg",
+        "fromId": "stress-088",
+        "fromPort": "out",
+        "toId": "stress-089",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-089-stress-090-bg",
+        "fromId": "stress-089",
+        "fromPort": "out",
+        "toId": "stress-090",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-090-stress-091-bg",
+        "fromId": "stress-090",
+        "fromPort": "out",
+        "toId": "stress-091",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-091-stress-092-bg",
+        "fromId": "stress-091",
+        "fromPort": "out",
+        "toId": "stress-092",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-092-stress-093-bg",
+        "fromId": "stress-092",
+        "fromPort": "out",
+        "toId": "stress-093",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-093-stress-094-bg",
+        "fromId": "stress-093",
+        "fromPort": "out",
+        "toId": "stress-094",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-094-stress-095-bg",
+        "fromId": "stress-094",
+        "fromPort": "out",
+        "toId": "stress-095",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-095-stress-096-bg",
+        "fromId": "stress-095",
+        "fromPort": "out",
+        "toId": "stress-096",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-096-stress-097-bg",
+        "fromId": "stress-096",
+        "fromPort": "out",
+        "toId": "stress-097",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-097-stress-098-bg",
+        "fromId": "stress-097",
+        "fromPort": "out",
+        "toId": "stress-098",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-098-stress-099-bg",
+        "fromId": "stress-098",
+        "fromPort": "out",
+        "toId": "stress-099",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-099-stress-100-bg",
+        "fromId": "stress-099",
+        "fromPort": "out",
+        "toId": "stress-100",
+        "toPort": "bg"
+      },
+      {
+        "id": "edge-stress-100-__export__-in",
+        "fromId": "stress-100",
+        "fromPort": "out",
+        "toId": "__export__",
+        "toPort": "in"
+      }
+    ],
+    "positions": {
+      "stress-001": {
+        "x": 0,
+        "y": 0
+      },
+      "stress-002": {
+        "x": 440,
+        "y": 0
+      },
+      "stress-003": {
+        "x": 880,
+        "y": 0
+      },
+      "stress-004": {
+        "x": 1320,
+        "y": 0
+      },
+      "stress-005": {
+        "x": 1760,
+        "y": 0
+      },
+      "stress-006": {
+        "x": 2200,
+        "y": 0
+      },
+      "stress-007": {
+        "x": 2640,
+        "y": 0
+      },
+      "stress-008": {
+        "x": 3080,
+        "y": 0
+      },
+      "stress-009": {
+        "x": 3520,
+        "y": 0
+      },
+      "stress-010": {
+        "x": 3960,
+        "y": 0
+      },
+      "stress-011": {
+        "x": 0,
+        "y": 430
+      },
+      "stress-012": {
+        "x": 440,
+        "y": 430
+      },
+      "stress-013": {
+        "x": 880,
+        "y": 430
+      },
+      "stress-014": {
+        "x": 1320,
+        "y": 430
+      },
+      "stress-015": {
+        "x": 1760,
+        "y": 430
+      },
+      "stress-016": {
+        "x": 2200,
+        "y": 430
+      },
+      "stress-017": {
+        "x": 2640,
+        "y": 430
+      },
+      "stress-018": {
+        "x": 3080,
+        "y": 430
+      },
+      "stress-019": {
+        "x": 3520,
+        "y": 430
+      },
+      "stress-020": {
+        "x": 3960,
+        "y": 430
+      },
+      "stress-021": {
+        "x": 0,
+        "y": 860
+      },
+      "stress-022": {
+        "x": 440,
+        "y": 860
+      },
+      "stress-023": {
+        "x": 880,
+        "y": 860
+      },
+      "stress-024": {
+        "x": 1320,
+        "y": 860
+      },
+      "stress-025": {
+        "x": 1760,
+        "y": 860
+      },
+      "stress-026": {
+        "x": 2200,
+        "y": 860
+      },
+      "stress-027": {
+        "x": 2640,
+        "y": 860
+      },
+      "stress-028": {
+        "x": 3080,
+        "y": 860
+      },
+      "stress-029": {
+        "x": 3520,
+        "y": 860
+      },
+      "stress-030": {
+        "x": 3960,
+        "y": 860
+      },
+      "stress-031": {
+        "x": 0,
+        "y": 1290
+      },
+      "stress-032": {
+        "x": 440,
+        "y": 1290
+      },
+      "stress-033": {
+        "x": 880,
+        "y": 1290
+      },
+      "stress-034": {
+        "x": 1320,
+        "y": 1290
+      },
+      "stress-035": {
+        "x": 1760,
+        "y": 1290
+      },
+      "stress-036": {
+        "x": 2200,
+        "y": 1290
+      },
+      "stress-037": {
+        "x": 2640,
+        "y": 1290
+      },
+      "stress-038": {
+        "x": 3080,
+        "y": 1290
+      },
+      "stress-039": {
+        "x": 3520,
+        "y": 1290
+      },
+      "stress-040": {
+        "x": 3960,
+        "y": 1290
+      },
+      "stress-041": {
+        "x": 0,
+        "y": 1720
+      },
+      "stress-042": {
+        "x": 440,
+        "y": 1720
+      },
+      "stress-043": {
+        "x": 880,
+        "y": 1720
+      },
+      "stress-044": {
+        "x": 1320,
+        "y": 1720
+      },
+      "stress-045": {
+        "x": 1760,
+        "y": 1720
+      },
+      "stress-046": {
+        "x": 2200,
+        "y": 1720
+      },
+      "stress-047": {
+        "x": 2640,
+        "y": 1720
+      },
+      "stress-048": {
+        "x": 3080,
+        "y": 1720
+      },
+      "stress-049": {
+        "x": 3520,
+        "y": 1720
+      },
+      "stress-050": {
+        "x": 3960,
+        "y": 1720
+      },
+      "stress-051": {
+        "x": 0,
+        "y": 2150
+      },
+      "stress-052": {
+        "x": 440,
+        "y": 2150
+      },
+      "stress-053": {
+        "x": 880,
+        "y": 2150
+      },
+      "stress-054": {
+        "x": 1320,
+        "y": 2150
+      },
+      "stress-055": {
+        "x": 1760,
+        "y": 2150
+      },
+      "stress-056": {
+        "x": 2200,
+        "y": 2150
+      },
+      "stress-057": {
+        "x": 2640,
+        "y": 2150
+      },
+      "stress-058": {
+        "x": 3080,
+        "y": 2150
+      },
+      "stress-059": {
+        "x": 3520,
+        "y": 2150
+      },
+      "stress-060": {
+        "x": 3960,
+        "y": 2150
+      },
+      "stress-061": {
+        "x": 0,
+        "y": 2580
+      },
+      "stress-062": {
+        "x": 440,
+        "y": 2580
+      },
+      "stress-063": {
+        "x": 880,
+        "y": 2580
+      },
+      "stress-064": {
+        "x": 1320,
+        "y": 2580
+      },
+      "stress-065": {
+        "x": 1760,
+        "y": 2580
+      },
+      "stress-066": {
+        "x": 2200,
+        "y": 2580
+      },
+      "stress-067": {
+        "x": 2640,
+        "y": 2580
+      },
+      "stress-068": {
+        "x": 3080,
+        "y": 2580
+      },
+      "stress-069": {
+        "x": 3520,
+        "y": 2580
+      },
+      "stress-070": {
+        "x": 3960,
+        "y": 2580
+      },
+      "stress-071": {
+        "x": 0,
+        "y": 3010
+      },
+      "stress-072": {
+        "x": 440,
+        "y": 3010
+      },
+      "stress-073": {
+        "x": 880,
+        "y": 3010
+      },
+      "stress-074": {
+        "x": 1320,
+        "y": 3010
+      },
+      "stress-075": {
+        "x": 1760,
+        "y": 3010
+      },
+      "stress-076": {
+        "x": 2200,
+        "y": 3010
+      },
+      "stress-077": {
+        "x": 2640,
+        "y": 3010
+      },
+      "stress-078": {
+        "x": 3080,
+        "y": 3010
+      },
+      "stress-079": {
+        "x": 3520,
+        "y": 3010
+      },
+      "stress-080": {
+        "x": 3960,
+        "y": 3010
+      },
+      "stress-081": {
+        "x": 0,
+        "y": 3440
+      },
+      "stress-082": {
+        "x": 440,
+        "y": 3440
+      },
+      "stress-083": {
+        "x": 880,
+        "y": 3440
+      },
+      "stress-084": {
+        "x": 1320,
+        "y": 3440
+      },
+      "stress-085": {
+        "x": 1760,
+        "y": 3440
+      },
+      "stress-086": {
+        "x": 2200,
+        "y": 3440
+      },
+      "stress-087": {
+        "x": 2640,
+        "y": 3440
+      },
+      "stress-088": {
+        "x": 3080,
+        "y": 3440
+      },
+      "stress-089": {
+        "x": 3520,
+        "y": 3440
+      },
+      "stress-090": {
+        "x": 3960,
+        "y": 3440
+      },
+      "stress-091": {
+        "x": 0,
+        "y": 3870
+      },
+      "stress-092": {
+        "x": 440,
+        "y": 3870
+      },
+      "stress-093": {
+        "x": 880,
+        "y": 3870
+      },
+      "stress-094": {
+        "x": 1320,
+        "y": 3870
+      },
+      "stress-095": {
+        "x": 1760,
+        "y": 3870
+      },
+      "stress-096": {
+        "x": 2200,
+        "y": 3870
+      },
+      "stress-097": {
+        "x": 2640,
+        "y": 3870
+      },
+      "stress-098": {
+        "x": 3080,
+        "y": 3870
+      },
+      "stress-099": {
+        "x": 3520,
+        "y": 3870
+      },
+      "stress-100": {
+        "x": 3960,
+        "y": 3870
+      },
+      "__export__": {
+        "x": 4400,
+        "y": 0
+      }
+    },
+    "mergeNodes": [],
+    "colorNodes": [],
+    "repeatNodes": [],
+    "maskNodes": [],
+    "transformNodes": [],
+    "grimeShadowNodes": [],
+    "areas": []
+  }
+}

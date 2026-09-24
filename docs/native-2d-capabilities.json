@@ -1,0 +1,907 @@
+{
+  "version": 1,
+  "base": "ca2a1e2b408998436414b2efde69777b65e249f5",
+  "epic": 260,
+  "reference": "apps/web/app/types/config.ts",
+  "nativeStatus": "Source-inspected at base; partial means a subset of the capability works, not accepted parity.",
+  "effects": [
+    {
+      "id": "effect.tint",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#tint",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.hueShift",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#hueShift",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.posterize",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#posterize",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.indexedPalette",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#indexedPalette",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.gradientMap",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#gradientMap",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.channelMixer",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#channelMixer",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.duotone",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#duotone",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.threshold",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#threshold",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.edgeCrush",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#edgeCrush",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.silhouetteCrush",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#silhouetteCrush",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.gradientOverlay",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#gradientOverlay",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.sepia",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#sepia",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.infrared",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#infrared",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.matte",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#matte",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.solarize",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#solarize",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.bleachBypass",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#bleachBypass",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.cyanotype",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#cyanotype",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.splitTone",
+      "owner": 272,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#splitTone",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.rgbSplit",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#rgbSplit",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.interlace",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#interlace",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.dataMosh",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#dataMosh",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.badStream",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#badStream",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.macroblocks",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#macroblocks",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.detailBlocks",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#detailBlocks",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.blockSmear",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#blockSmear",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.chromaBlocks",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#chromaBlocks",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.blockDropout",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#blockDropout",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.pixelStretch",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#pixelStretch",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.morph",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#morph",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.barrel",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#barrel",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.mirror",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#mirror",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.retroResolution",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#retroResolution",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.pixelate",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#pixelate",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.vhsTracking",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#vhsTracking",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.wave",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#wave",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.ripple",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#ripple",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.patternRefraction",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#patternRefraction",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.kaleidoscope",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#kaleidoscope",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.squeeze",
+      "owner": 273,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#squeeze",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.dotGrain",
+      "owner": 274,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#dotGrain",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.halftone",
+      "owner": 274,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#halftone",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.risoShift",
+      "owner": 274,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#risoShift",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.edgeDetect",
+      "owner": 274,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#edgeDetect",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.hatching",
+      "owner": 274,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#hatching",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.dither",
+      "owner": 274,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#dither",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.overprint",
+      "owner": 274,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#overprint",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.emboss",
+      "owner": 274,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#emboss",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.linocut",
+      "owner": 274,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#linocut",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.speedLines",
+      "owner": 274,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#speedLines",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.rays",
+      "owner": 275,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#rays",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.bloom",
+      "owner": 275,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#bloom",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.filmBurn",
+      "owner": 275,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#filmBurn",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.vignette",
+      "owner": 275,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#vignette",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.blur",
+      "owner": 275,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#blur",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.bokehBlur",
+      "owner": 275,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#bokehBlur",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.gooeyMerge",
+      "owner": 275,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#gooeyMerge",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.neonGlow",
+      "owner": 275,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#neonGlow",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.zoomBlur",
+      "owner": 275,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#zoomBlur",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.fog",
+      "owner": 275,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#fog",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.glitch",
+      "owner": 276,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#glitch",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.grain",
+      "owner": 276,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#grain",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.noiseWarp",
+      "owner": 276,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#noiseWarp",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.vortex",
+      "owner": 276,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#vortex",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.tear",
+      "owner": 276,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#tear",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.scanlines",
+      "owner": 276,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#scanlines",
+      "acceptance": "planned"
+    },
+    {
+      "id": "effect.ca",
+      "owner": 276,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/effect-cases.json#ca",
+      "acceptance": "planned"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "source.text",
+      "owner": 268,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "source.image",
+      "owner": 268,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "source.fill",
+      "owner": 268,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "source.emoji",
+      "owner": 268,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/source-families.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "source.noise",
+      "owner": 271,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/source-families.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "source.array",
+      "owner": 271,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/source-families.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "source.lineField",
+      "owner": 271,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/source-families.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "graph.merge",
+      "owner": 269,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "graph.mask",
+      "owner": 269,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "graph.repeat",
+      "owner": 269,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "graph.color",
+      "owner": 269,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/graph-utilities.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "graph.transform",
+      "owner": 269,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/graph-utilities.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "graph.grimeShadow",
+      "owner": 269,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/graph-utilities.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.layers.select",
+      "owner": 268,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.layers.inspector",
+      "owner": 268,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.layers.reorder",
+      "owner": 268,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.layers.directCanvas",
+      "owner": 268,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.nodes.connect",
+      "owner": 270,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.nodes.areas",
+      "owner": 270,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.nodes.preview",
+      "owner": 270,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.nodes.output",
+      "owner": 270,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.commands.transaction",
+      "owner": 263,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.commands.undoRedo",
+      "owner": 263,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "interaction.graph.validation",
+      "owner": 264,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "assets.embeddedFont",
+      "owner": 267,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "assets.importedImage",
+      "owner": 267,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "assets.portableProject",
+      "owner": 267,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.aspect.1:1",
+      "owner": 266,
+      "web": "implemented",
+      "native": "implemented",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.aspect.4:5",
+      "owner": 266,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.aspect.9:16",
+      "owner": 266,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/hundred-node.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.aspect.16:9",
+      "owner": 266,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.transparency",
+      "owner": 266,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.blend.normal",
+      "owner": 266,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.blend.multiply",
+      "owner": 266,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.blend.screen",
+      "owner": 266,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.blend.overlay",
+      "owner": 266,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.blend.luminosity",
+      "owner": 266,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "export.png",
+      "owner": 267,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "export.jpeg",
+      "owner": 267,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/alpha-jpeg.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "export.scale.1",
+      "owner": 267,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "export.scale.2",
+      "owner": 267,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/alpha-jpeg.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "export.scale.3",
+      "owner": 267,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "library.2dPresets",
+      "owner": 276,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/source-families.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "performance.100Nodes",
+      "owner": 277,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/hundred-node.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "integration.webMacRoundtrip",
+      "owner": 278,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
+      "id": "canvas.blend.source-over",
+      "owner": 269,
+      "web": "implemented",
+      "native": "missing",
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "acceptance": "planned"
+    }
+  ]
+}

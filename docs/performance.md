@@ -263,3 +263,11 @@ latency guarantees. The 3000px PNG matched the pre-change output byte for byte.
 Raw samples: `test-results/core-pilot/preview/performance.json` and
 `native-{size}-{run}.txt`. Chrome exposes completed-job timings as
 `artifact-pilot:preview` and `artifact-pilot:export` performance measures.
+
+## Native 2D parity measurement boundary
+
+Epic #260 uses the [P01 parity contract](./native-2d-parity-contract.md) for a
+named target Mac, synthetic text/alpha/branching/100-node scenes, and separate
+interaction, preview, export and memory budgets. Those numbers are proposed
+targets and must be measured by #266 and #277 on actual identified hardware.
+The Viber process observations above cannot be treated as those measurements.
