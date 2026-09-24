@@ -203,8 +203,11 @@ impl DocumentSession {
             if layer["visible"] == false {
                 continue;
             }
-            if let Some(mode) = layer["blendMode"].as_str()
-                && ![
+            if !layer["blendMode"].is_null() {
+                let mode = layer["blendMode"]
+                    .as_str()
+                    .ok_or(CoreError("Unsupported 2D blend mode"))?;
+                if ![
                     "normal",
                     "multiply",
                     "screen",
@@ -223,8 +226,9 @@ impl DocumentSession {
                     "luminosity",
                 ]
                 .contains(&mode)
-            {
-                return Err(CoreError("Unsupported 2D blend mode"));
+                {
+                    return Err(CoreError("Unsupported 2D blend mode"));
+                }
             }
             match layer["kind"].as_str().unwrap_or("") {
                 "fill" | "text" => {}

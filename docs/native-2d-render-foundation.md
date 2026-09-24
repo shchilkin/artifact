@@ -108,14 +108,17 @@ parity. The P01 pure alpha fixture matched Web transparent corners and center
 ink bounds after baseline correction were native x62/y336/874×171 versus Web
 x63/y338/874×172. No fallback font was used by native.
 
-The real native SwiftUI app loaded the combined project and displayed its
-800 × 1000 4:5 preview and four layers. In a GUI observation before the final
-code review fixes, editing the title to `NATIVE EDIT` updated the preview;
-dragging changed X/Y from 50/23 to 58.603/29.636; Undo restored the position,
-and a second Undo restored `NATIVE COLOR`. No test project was saved. The
-native Save panel opened, but UI automation could not reliably activate its
-Save control, so no GUI-export file is claimed. The independent PNG comparison
-above uses the native render harness. Final-commit GUI signoff remains open.
+The real native SwiftUI app built from `36e51a95efc2951e48946fd49e9fd5fda36802a1`
+loaded the combined project and displayed its 800 × 1000 4:5 preview and
+four layers. Editing the title to `NATIVE VERIFIED` updated the preview;
+dragging changed X/Y from 50/23 to 59.1885728433/31.4561951251. Two Undo
+actions restored both the position and `NATIVE COLOR` title, leaving the
+document clean. The native GUI Export PNG path produced a 1080 × 1350 file
+(SHA-256 `30fd4f0e1f2b62e5510c7e6ac7c7248e52584437f6ad8f1a34c1f91d0fac319d`).
+Its bytes matched the same fixture rendered through the native harness.
+The later blend-mode validation fix rejects malformed input and leaves valid
+scene raster behavior unchanged. The decoded pixel comparison above therefore
+also applies to this GUI export.
 
 Run `npm run build:core-pilot -- macos` then `npm run check:core-native` for
 the native harness. It covers four aspect outputs, transparent and

@@ -33,6 +33,44 @@ fn native_plan_accepts_four_aspects_blends_and_tiled_image_without_mutating_docu
     }
 }
 #[test]
+fn native_plan_rejects_non_string_blend_modes() {
+    let mut p = package();
+    for invalid in [json!(42), json!({"mode":"overlay"}), json!(true), json!([])] {
+        p["document"]["layers"][0]["blendMode"] = invalid;
+        let session = DocumentSession::open(&p.to_string()).unwrap();
+        assert!(session.render_plan_json(540, 540).is_err());
+    }
+    for valid in [
+        Value::Null,
+        json!("normal"),
+        json!("multiply"),
+        json!("screen"),
+        json!("overlay"),
+        json!("darken"),
+        json!("lighten"),
+        json!("color-dodge"),
+        json!("color-burn"),
+        json!("hard-light"),
+        json!("soft-light"),
+        json!("difference"),
+        json!("exclusion"),
+        json!("hue"),
+        json!("saturation"),
+        json!("color"),
+        json!("luminosity"),
+    ] {
+        p["document"]["layers"][0]["blendMode"] = valid;
+        let session = DocumentSession::open(&p.to_string()).unwrap();
+        assert!(session.render_plan_json(540, 540).is_ok());
+    }
+    p["document"]["layers"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("blendMode");
+    let session = DocumentSession::open(&p.to_string()).unwrap();
+    assert!(session.render_plan_json(540, 540).is_ok());
+}
+#[test]
 fn draft_plan_bounds_size_before_non_square_dimension_math() {
     let source: Value = serde_json::from_str(include_str!(
         "../../../tests/fixtures/native-2d/alpha-nonsquare.artifact.json"

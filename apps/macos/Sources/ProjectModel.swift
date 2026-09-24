@@ -243,8 +243,9 @@ final class ProjectModel: ObservableObject {
         confirmDiscard { [weak self] in
             guard let self else { return }
             let panel = NSOpenPanel()
-            // Accept both portable .artifact packages and Web .artifact.json files.
-            panel.allowedContentTypes = [UTType(filenameExtension: "artifact") ?? .json, .json]
+            // Imported .artifact files may have an older or unregistered UTI.
+            // Validate the package after selection instead of excluding valid files.
+            panel.allowedContentTypes = [.data]
             panel.allowsMultipleSelection = false
             presentFilePanel(panel) { [weak self] url in if let url { self?.load(url) } }
         }
