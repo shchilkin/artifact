@@ -4,17 +4,23 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildIdentity } from './build-identity.mjs';
+import { buildStages } from './build-plan.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const mode = process.argv[2] ?? 'all';
+const stages = buildStages(mode);
 const env = { ...process.env, MACOSX_DEPLOYMENT_TARGET: '14.0' };
 function run(command, args, runEnv = env) {
-  const result = spawnSync(command, args, { cwd: root, env: runEnv, stdio: 'inherit' });
+  const result = spawnSync(command, args, {
+    cwd: root,
+    env: runEnv,
+    stdio: 'inherit',
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
-if (!['all', 'wasm', 'macos'].includes(mode)) throw new Error('Expected all, wasm, or macos');
-if (mode !== 'macos') {
+if (!stages.wasm) run(process.execPath, ['scripts/core-pilot/runtime-manifest.mjs']);
+if (stages.wasm) {
   const cargoHome = path.resolve(process.env.CARGO_HOME ?? path.join(os.homedir(), '.cargo'));
   const wasmEnv = {
     ...env,
@@ -44,9 +50,7 @@ if (mode !== 'macos') {
   }
   run(process.execPath, ['scripts/core-pilot/runtime-manifest.mjs', '--write']);
 }
-if (mode !== 'wasm') {
-  if (process.platform !== 'darwin' || process.arch !== 'arm64')
-    throw new Error('Native pilot requires an Apple Silicon Mac');
+if (stages.macos) {
   run('cargo', ['build', '--release', '--locked', '-p', 'artifact-ffi', '--features', 'bindgen']);
   run('cargo', [
     'run',

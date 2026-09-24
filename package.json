@@ -73,6 +73,7 @@
     "test:browser:install": "playwright install --with-deps chromium firefox webkit",
     "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs",
     "build:core-pilot": "node scripts/core-pilot/build.mjs",
+    "build:core-wasm-canonical": "node scripts/core-pilot/build-wasm-canonical.mjs",
     "check:core": "npm run check:core-web && npm run check:core-native",
     "check:core-web": "node scripts/core-pilot/runtime-manifest.mjs && cargo test --locked --workspace && cargo clippy --locked --workspace --all-targets -- -D warnings && npm run test:core-web",
     "check:core-native": "node scripts/core-pilot/public-fixture.mjs && node scripts/core-pilot/verify.mjs --fixture test-results/core-pilot/public-p01.artifact --layer p02-scanlines && node scripts/core-pilot/verify-public-native.mjs",

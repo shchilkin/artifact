@@ -56,6 +56,8 @@ export function inspect({
       problems.push('Rust target aarch64-apple-darwin is missing. Run rustup target add aarch64-apple-darwin.');
   }
   if (mode === 'wasm' || mode === 'all') {
+    if (mode === 'wasm' && (platform !== 'linux' || arch !== 'x64'))
+      problems.push('Canonical WASM generation requires Linux x86-64. Run npm run build:core-wasm-canonical.');
     const local = path.join(root, 'tools.local/bin/wasm-bindgen');
     command(
       hasFile(local) ? local : 'wasm-bindgen',

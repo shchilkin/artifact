@@ -1,7 +1,7 @@
 set shell := ["sh", "-eu", "-c"]
 
 doctor:
-    node scripts/core-pilot/doctor.mjs all
+    node scripts/core-pilot/doctor.mjs macos
 
 dev-web:
     node scripts/core-pilot/doctor.mjs web
@@ -14,11 +14,11 @@ dev-macos:
     open apps/macos/.build/Artifact.app
 
 build:
-    node scripts/core-pilot/doctor.mjs all
+    node scripts/core-pilot/doctor.mjs macos
     npm run build:core-pilot
     npm run build:ci
 
 check:
-    node scripts/core-pilot/doctor.mjs all
+    node scripts/core-pilot/doctor.mjs macos
     npm run check
     npm run check:core

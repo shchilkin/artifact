@@ -21,6 +21,8 @@ export function makeManifest(directory = root) {
     'crates/artifact-core/Cargo.toml',
     'crates/artifact-wasm/Cargo.toml',
     'scripts/core-pilot/build.mjs',
+    'scripts/core-pilot/build-plan.mjs',
+    'scripts/core-pilot/build-wasm-canonical.mjs',
     ...rustSources(path.join(directory, 'crates/artifact-core/src')).map((file) => `crates/artifact-core/src/${file}`),
     ...rustSources(path.join(directory, 'crates/artifact-wasm/src')).map((file) => `crates/artifact-wasm/src/${file}`),
   ].sort();
@@ -40,7 +42,7 @@ export function verifyManifest(directory = root) {
   assert.deepEqual(
     JSON.parse(readFileSync(path.join(directory, runtime, 'manifest.json'), 'utf8')),
     makeManifest(directory),
-    'Shared WASM runtime is stale. Run npm run build:core-pilot -- wasm and commit generated output.',
+    'Shared WASM runtime is stale. Run npm run build:core-wasm-canonical and commit generated output.',
   );
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

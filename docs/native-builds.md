@@ -13,22 +13,24 @@ The source of the Rust version and targets is [`rust-toolchain.toml`](../rust-to
 Rust 1.95.0, `wasm32-unknown-unknown` and Apple Silicon
 `aarch64-apple-darwin`. Cargo uses the checked-in `Cargo.lock` with `--locked`.
 The `wasm-bindgen-cli` version must equal the `wasm-bindgen` package in that
-lockfile (currently 0.2.128). The CLI and the pinned Rust toolchain must be
-installed before regenerating WASM. Node.js `^20.19.0 || >=22.12.0` and npm 11 are
-required; run `npm ci` in **each worktree** so workspace links point at the
+lockfile (currently 0.2.128). Canonical regeneration uses the pinned CLI and
+Rust toolchain on Linux x86-64; the local Docker command below provides them
+for Mac authors. Node.js `^20.19.0 || >=22.12.0` and npm 11 are required; run
+`npm ci` in **each worktree** so workspace links point at the
 correct checkout. Never share another worktree's `node_modules` symlink.
 
 The native target is Apple Silicon, macOS 14 or later. It requires a full
 Xcode installation with Swift 6, `xcrun swiftc`, and `codesign`. The local
-build was verified with Xcode 26.6 / Swift 6.3.3 on macOS 26; CI uses the
+build was verified with Xcode 26.6 / Swift 6.3.3 on macOS 26; CI passed native
+model, renderer and archive checks with Xcode 16.4 / Swift 6.1.2 on the
 versioned [`macos-15` Apple Silicon runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 The minimum compatible Xcode release is not yet established by a separate
-oldest-toolchain test. `just doctor` checks the complete toolchain on an Apple
-Silicon host. The `web`
-doctor mode needs only Node/npm and local npm dependencies; `wasm` adds Rust,
-the WASM target and `wasm-bindgen`; `macos` checks Rust and the native Apple
-tools. The main Web editor can start with the checked-in WASM runtime without
-a local Rust installation.
+oldest-toolchain test. `just doctor` checks the native toolchain on an Apple
+Silicon host. The `web` doctor mode needs only Node/npm and local npm
+dependencies; `wasm` checks the canonical Linux toolchain, WASM target and
+`wasm-bindgen`; `macos` checks Rust and the native Apple tools. The main Web
+editor can start with the checked-in WASM runtime without a local Rust
+installation. Native Mac builds do not need Docker or a local wasm-bindgen CLI.
 The first native bundle is locally ad hoc signed only.
 
 Install [just](https://github.com/casey/just) and use:
@@ -37,7 +39,7 @@ Install [just](https://github.com/casey/just) and use:
 just doctor          # prerequisites on this host
 just dev-web         # main React Web editor
 just dev-macos       # build and open the native SwiftUI app (macOS only)
-just build           # generated WASM, native app, normal Web CI build
+just build           # verify checked-in WASM, build native app and Web
 just check           # existing Web gate plus Rust/WASM/native checks
 ```
 
@@ -49,7 +51,7 @@ node scripts/core-pilot/runtime-manifest.mjs
 npm run dev:web
 ```
 
-For a Linux WASM rebuild and Web validation, use:
+On Linux x86-64, regenerate the reviewed WASM and validate Web with:
 
 ```sh
 node scripts/core-pilot/doctor.mjs wasm
@@ -57,6 +59,19 @@ npm run build:core-pilot -- wasm
 npm run check:core-web
 npm run build:ci
 ```
+
+On Apple Silicon macOS or another development host, one local command runs the
+same Linux x86-64 Rust toolchain in a pinned Docker image:
+
+```sh
+npm run build:core-wasm-canonical
+```
+
+It mounts the worktree read-only and writes Cargo, toolchain and bindgen caches
+under ignored `tools.local/wasm-linux-x64/`; only the four generated runtime
+files and manifest are copied back after a successful build. Docker is needed
+only when changing the shared Rust/WASM source or generator. This path does
+not upload source or artifacts to a service.
 
 On Apple Silicon macOS, `node scripts/core-pilot/doctor.mjs macos`,
 `npm run build:core-pilot -- macos`, and `npm run check:core-native` build and
@@ -66,19 +81,25 @@ commands do not replace the existing Web deployment build or release gates.
 
 ## Generated runtime and app identity
 
-`npm run build:core-pilot -- wasm` compiles the WASM crate and regenerates
-`packages/artifact-core-web/generated/` with pinned `wasm-bindgen-cli`. It
-writes `manifest.json` last. The WASM build owns Rust flags: it replaces any
+`npm run build:core-pilot -- wasm` on Linux x86-64 compiles the WASM crate and
+regenerates `packages/artifact-core-web/generated/` with pinned
+`wasm-bindgen-cli`. The Docker command provides the same canonical host for
+other platforms. Both write `manifest.json` last. The WASM build owns Rust
+flags: it replaces any
 inherited `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS`, remapping the workspace
 root to `/workspace` and Cargo home to `/cargo`. This removes host-specific
 source paths from panic locations; generation fails if the output still embeds
 either original host path. A local rebuild with an alternate Cargo-home path
-produced the same WASM SHA-256 after remapping. The manifest hashes
+on the same host produced the same WASM SHA-256 after remapping. The Rust
+compiler still produces different crate metadata across host architectures,
+so checked-in WASM has one canonical Linux x86-64 producer. `just build` on Mac
+verifies the reviewed runtime before building the app; it does not regenerate
+different Mac-produced WASM bytes. The manifest hashes
 `Cargo.lock`, the Rust toolchain pin, the generator script, Cargo manifests
 and **all nested** Rust
 sources in the core and WASM adapter, plus the generated JS/TS/WASM bytes.
 The regular Web `build` and `typecheck` paths reject a stale manifest.
-The WASM CI job rebuilds the runtime from source and fails if any generated
+The WASM CI job on Linux x86-64 rebuilds the runtime from source and fails if any generated
 file differs from the reviewed checkout. Regenerate and commit the output
 whenever any of these inputs change; editing only the manifest cannot pass
 that clean rebuild check.

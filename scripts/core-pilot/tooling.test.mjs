@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { buildStages } from './build-plan.mjs';
 import { inspect, supportsNodeVersion } from './doctor.mjs';
 import { makeManifest, verifyManifest } from './runtime-manifest.mjs';
 
@@ -30,15 +31,28 @@ test('Node boundaries match the locked Web build range', () => {
 test('Web doctor needs only Node/npm while WASM and native modes check their own prerequisites', () => {
   const run = (name) =>
     name === 'cargo' ? { status: 127, error: new Error('ENOENT') } : ok(versions[path.basename(name)]);
-  const web = inspect({ mode: 'web', run, hasFile: (name) => name.endsWith('node_modules') });
+  const web = inspect({
+    mode: 'web',
+    run,
+    hasFile: (name) => name.endsWith('node_modules'),
+  });
   assert.deepEqual(web.problems, []);
   assert.deepEqual(
     web.results.map((line) => line.split(':')[0]),
     ['Node.js', 'npm'],
   );
-  const wasm = inspect({ mode: 'wasm', run, hasFile: (name) => name.endsWith('node_modules') });
+  const wasm = inspect({
+    mode: 'wasm',
+    run,
+    platform: 'darwin',
+    arch: 'arm64',
+    hasFile: (name) => name.endsWith('node_modules'),
+  });
   assert.ok(wasm.problems.some((line) => line.includes('Cargo is missing')));
+  assert.ok(wasm.problems.some((line) => line.includes('build:core-wasm-canonical')));
   assert.ok(!wasm.results.some((line) => line.startsWith('Xcode')));
+  const canonical = inspect({ mode: 'wasm', run, platform: 'linux', arch: 'x64', hasFile: () => true });
+  assert.ok(!canonical.problems.some((line) => line.includes('build:core-wasm-canonical')));
   const wrong = inspect({
     mode: 'macos',
     run: (name) => ok(name === 'rustc' ? 'rustc 1.94.0\n' : versions[name]),
@@ -57,6 +71,24 @@ test('Web doctor needs only Node/npm while WASM and native modes check their own
   assert.ok(unsupported.problems.some((line) => line.includes('^20.19.0 or >=22.12.0')));
 });
 
+test('canonical WASM generation is Linux x86-64 and Mac builds consume the reviewed runtime', () => {
+  assert.deepEqual(buildStages('all', 'linux', 'x64'), {
+    wasm: true,
+    macos: false,
+  });
+  assert.deepEqual(buildStages('all', 'darwin', 'arm64'), {
+    wasm: false,
+    macos: true,
+  });
+  assert.deepEqual(buildStages('macos', 'darwin', 'arm64'), {
+    wasm: false,
+    macos: true,
+  });
+  assert.throws(() => buildStages('wasm', 'darwin', 'arm64'), /build:core-wasm-canonical/);
+  assert.throws(() => buildStages('wasm', 'linux', 'arm64'), /build:core-wasm-canonical/);
+  assert.throws(() => buildStages('all', 'linux', 'arm64'), /Linux x86-64 or Apple Silicon macOS/);
+});
+
 test('runtime manifest rejects a changed nested Rust module and toolchain', () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'artifact-tooling-'));
   try {
@@ -67,6 +99,8 @@ test('runtime manifest rejects a changed nested Rust module and toolchain', () =
       'crates/artifact-core/Cargo.toml',
       'crates/artifact-wasm/Cargo.toml',
       'scripts/core-pilot/build.mjs',
+      'scripts/core-pilot/build-plan.mjs',
+      'scripts/core-pilot/build-wasm-canonical.mjs',
       'crates/artifact-core/src/nested/commands.rs',
       'crates/artifact-wasm/src/lib.rs',
       'packages/artifact-core-web/generated/artifact_wasm.js',
