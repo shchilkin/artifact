@@ -4,6 +4,103 @@ fn package() -> Value {
     json!({"artifactPackage":"project","manifest":{"kind":"artifact-project-package","version":1,"documentSchemaVersion":3},"document":{"schemaVersion":3,"global":{"aspect":"1:1","seed":4242,"bg":"transparent"},"export":{},"layers":[{"id":"title","kind":"text"},{"id":"shadow","kind":"text"}],"graph":{"edges":[{"fromId":"shadow","fromPort":"out","toId":"title","toPort":"bg"},{"fromId":"title","fromPort":"out","toId":"__export__","toPort":"in"}]}}})
 }
 #[test]
+fn native_plan_accepts_four_aspects_blends_and_tiled_image_without_mutating_document() {
+    let source: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/native-2d/alpha-nonsquare.artifact.json"
+    ))
+    .unwrap();
+    let mut p = package();
+    p["document"] = source;
+    p["document"]["layers"][0]["fit"] = json!("tile");
+    p["document"]["layers"][0]["blendMode"] = json!("overlay");
+    for (aspect, width, height) in [
+        ("1:1", 1000, 1000),
+        ("4:5", 1080, 1350),
+        ("9:16", 1080, 1920),
+        ("16:9", 1920, 1080),
+    ] {
+        p["document"]["global"]["aspect"] = json!(aspect);
+        let session = DocumentSession::open(&p.to_string()).unwrap();
+        let before = session.export_json();
+        let plan: Value =
+            serde_json::from_str(&session.render_plan_json(width, height).unwrap()).unwrap();
+        assert_eq!(plan["width"], width);
+        assert_eq!(plan["height"], height);
+        assert_eq!(plan["layers"][0]["fit"], "tile");
+        assert_eq!(plan["layers"][0]["blendMode"], "overlay");
+        assert!(session.render_plan_json(height, width).is_err() || width == height);
+        assert_eq!(session.export_json(), before);
+    }
+}
+#[test]
+fn native_plan_rejects_non_string_blend_modes() {
+    let mut p = package();
+    for invalid in [json!(42), json!({"mode":"overlay"}), json!(true), json!([])] {
+        p["document"]["layers"][0]["blendMode"] = invalid;
+        let session = DocumentSession::open(&p.to_string()).unwrap();
+        assert!(session.render_plan_json(540, 540).is_err());
+    }
+    for valid in [
+        Value::Null,
+        json!("normal"),
+        json!("multiply"),
+        json!("screen"),
+        json!("overlay"),
+        json!("darken"),
+        json!("lighten"),
+        json!("color-dodge"),
+        json!("color-burn"),
+        json!("hard-light"),
+        json!("soft-light"),
+        json!("difference"),
+        json!("exclusion"),
+        json!("hue"),
+        json!("saturation"),
+        json!("color"),
+        json!("luminosity"),
+    ] {
+        p["document"]["layers"][0]["blendMode"] = valid;
+        let session = DocumentSession::open(&p.to_string()).unwrap();
+        assert!(session.render_plan_json(540, 540).is_ok());
+    }
+    p["document"]["layers"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("blendMode");
+    let session = DocumentSession::open(&p.to_string()).unwrap();
+    assert!(session.render_plan_json(540, 540).is_ok());
+}
+#[test]
+fn draft_plan_bounds_size_before_non_square_dimension_math() {
+    let source: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/native-2d/alpha-nonsquare.artifact.json"
+    ))
+    .unwrap();
+    let mut p = package();
+    p["document"] = source;
+    let session = DocumentSession::open(&p.to_string()).unwrap();
+    assert!(
+        session
+            .draft_plan_json("alpha-image", "{\"x\":0.5}", 0)
+            .is_err()
+    );
+    assert!(
+        session
+            .draft_plan_json("alpha-image", "{\"x\":0.5}", u32::MAX)
+            .is_err()
+    );
+    let plan: Value = serde_json::from_str(
+        &session
+            .draft_plan_json("alpha-image", "{\"x\":0.5}", 500)
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        (plan["width"].as_u64(), plan["height"].as_u64()),
+        (Some(400), Some(500))
+    );
+}
+#[test]
 fn graph_order_overrides_array_without_mutating_document() {
     let session = DocumentSession::open(&package().to_string()).unwrap();
     let before = session.export_json();

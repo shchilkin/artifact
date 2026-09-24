@@ -1,5 +1,11 @@
 # Rendering Architecture
 
+The [P06 native 2D render foundation](./native-2d-render-foundation.md) now
+uses an aspect-aware shared-core plan, retained decoded resources and separate
+Swift source/effect modules. It records pixel/alpha conventions, revision-safe
+preview/export presentation and a measured Web comparison. The main Web
+renderer below remains the reference and has not been replaced.
+
 The isolated [Web + native macOS pilot](./web-macos-viber-pilot.md) now renders
 Viber with shared Rust ordering/effect kernels and platform text/image adapters.
 Its native preview/PNG export work. Minor noise/effect differences are accepted
