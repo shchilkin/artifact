@@ -116,6 +116,7 @@ final class ProjectModel: ObservableObject {
 
     private var renderRevision = 0
     private var renderTask: Task<Void, Never>?
+    private var hasTransientPreview = false
 
     var previewDimensions: NativeCanvasDimensions { NativeCanvasDimensions.base(canvasAspect).fit(maxSide: Self.previewSize) }
     var exportDimensions: NativeCanvasDimensions {
@@ -135,14 +136,17 @@ final class ProjectModel: ObservableObject {
         canvasAspect = aspect
     }
 
-    private func refreshPreview() {
-        documentRevision += 1
-        renderRevision += 1
+    private func refreshPreview(documentChanged: Bool = true) {
+        if documentChanged {
+            documentRevision += 1
+            renderRevision += 1
+            exportTask?.cancel()
+            isExporting = false
+            exportMessage = nil
+        }
+        hasTransientPreview = false
         let revision = renderRevision
         renderTask?.cancel()
-        exportTask?.cancel()
-        isExporting = false
-        exportMessage = nil
         guard let session else { return }
         do {
             let dimensions = previewDimensions
@@ -311,7 +315,10 @@ final class ProjectModel: ObservableObject {
             let beforeRevision = try session?.revision()
             try action()
             if let session {
-                if try session.revision() == beforeRevision { return true }
+                if try session.revision() == beforeRevision {
+                    if hasTransientPreview { refreshPreview(documentChanged: false) }
+                    return true
+                }
                 summary = try JSONDecoder().decode(SessionSummary.self, from: Data(session.summaryJson().utf8))
                 editor = try EditorState(json: session.editorStateJson())
                 if mayChangeAspect { syncAspect() }
@@ -322,7 +329,11 @@ final class ProjectModel: ObservableObject {
                 refreshPreview()
             }
             return true
-        } catch { message = displayMessage(error); return false }
+        } catch {
+            if hasTransientPreview { refreshPreview(documentChanged: false) }
+            message = displayMessage(error)
+            return false
+        }
     }
 
     var selectedLayer: EditorLayer? { editor.layers.first { $0.id == selectedID } }
@@ -337,21 +348,25 @@ final class ProjectModel: ObservableObject {
     }
     func previewTransform(_ patch: [String: Double]) {
         guard let session, let selectedID else { return }
+        hasTransientPreview = true
         renderTask?.cancel()
         let revision = renderRevision
+        let render = renderImage
         renderTask = Task { [weak self] in
             do {
                 try await Task.sleep(for: .milliseconds(16))
                 let json = try JSONSerialization.data(withJSONObject: patch)
                 let plan = try session.draftPlanJson(layerId: selectedID, patchJson: String(decoding: json, as: UTF8.self), size: 500)
-                let image = try await RenderWorker.shared.render(plan: plan)
+                let image = try await render(plan)
                 guard let self, !Task.isCancelled, renderRevision == revision, self.selectedID == selectedID else { return }
                 isRendering = false
                 preview = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
             } catch { /* A superseded pointer draft has no durable state. */ }
         }
     }
-    func cancelTransformPreview() { refreshPreview() }
+    func cancelTransformPreview() {
+        if hasTransientPreview { refreshPreview(documentChanged: false) }
+    }
     func editProperties(_ patch: [String: Any]) {
         guard let selectedID else { return }
         command(["type": "edit_layer", "id": selectedID, "patch": patch])

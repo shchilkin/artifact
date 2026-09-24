@@ -15,7 +15,9 @@ final class NativeRenderRegistry {
     private var graph: [String: NativeRenderModule] = [:]
 
     func registerSource(_ kind: String, module: NativeRenderModule) { sources[kind] = module }
-    // Later family modules take precedence over the bounded pilot fallback.
+    // The first accepting module owns the entire effect layer. A family module
+    // must accept only plans whose every active parameter it implements; mixed
+    // families need ordered composition before P12-P15 register together.
     func registerEffect(_ module: NativeRenderModule) { effects.insert(module, at: 0) }
     func registerGraph(_ kind: String, module: NativeRenderModule) { graph[kind] = module }
 

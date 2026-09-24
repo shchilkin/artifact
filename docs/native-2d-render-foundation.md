@@ -28,6 +28,10 @@ effect and graph modules. It does not write document state. Future modules
 register by kind or family and validate their own parameters; the current
 seven-effect Rust kernel is the final fallback. Graph registration is an
 extension point, not an assertion that graph utility rendering is complete.
+Effect dispatch selects the first module accepting a layer, so acceptance is a
+complete-layer contract: a family module must reject a plan with any active
+parameter it cannot render. Ordered composition for mixed effect families is
+required before P12–P15 modules are integrated together.
 
 The bitmap is 8-bit sRGB, premultiplied-last RGBA. Source colors are six-digit
 hex interpreted in sRGB. CoreGraphics source layers composite in that context
@@ -60,6 +64,11 @@ caches; this foundation caches decoded resources only. Image/font readiness,
 dimensions, seed, layer parameters, upstream graph dependencies and view state
 must enter future per-target cache signatures. The revision is a presentation
 guard, not a substitute for that dependency key.
+
+A pointer transform uses a transient 500-pixel draft. Committing the original
+values cancels that draft and schedules the settled preview even though the
+core document revision, undo history and dirty state do not change. A late
+draft completion cannot replace the settled preview.
 
 ## Measurements and comparison, 2026-09-24
 

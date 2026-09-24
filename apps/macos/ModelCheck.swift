@@ -4,19 +4,22 @@ import Foundation
 @MainActor final class Pending<T> {
     var plans: [String] = []
     var requests: [CheckedContinuation<T, Error>] = []
+    var completions = 0
     func run(_ plan: String) async throws -> T {
         plans.append(plan)
-        return try await withCheckedThrowingContinuation { requests.append($0) }
+        let result = try await withCheckedThrowingContinuation { requests.append($0) }
+        completions += 1
+        return result
     }
 }
 
 @main struct ModelCheck {
-    @MainActor static func wait(_ condition: () -> Bool) async throws {
+    @MainActor static func wait(_ condition: () -> Bool, line: UInt = #line) async throws {
         for _ in 0..<500 {
             if condition() { return }
             try await Task.sleep(for: .milliseconds(10))
         }
-        fatalError("Timed out waiting for model state")
+        fatalError("Timed out waiting for model state at line \(line)")
     }
     static func check(_ condition: @autoclosure () throws -> Bool, _ message: String = "Model check failed") throws {
         let result = try condition()
@@ -79,6 +82,38 @@ import Foundation
         previews.requests[3].resume(returning: image(44))
         try await wait { !model.isRendering }
         try check(try Data(contentsOf: final) == Data("current PNG".utf8))
+        // A no-op pointer commit must settle a displayed or pending draft to
+        // full quality without changing the document revision or dirty state.
+        let draftPreviews = Pending<CGImage>()
+        let draftModel = ProjectModel(renderImage: { try await draftPreviews.run($0) }, renderPNGData: { _ in Data() })
+        draftModel.load(source)
+        draftModel.selectedID = draftModel.summary?.layers.first(where: { $0.kind == "text" })?.id
+        try check(draftModel.selectedID != nil)
+        try await wait { draftPreviews.requests.count == 1 }
+        draftPreviews.requests[0].resume(returning: image(1000))
+        try await wait { draftModel.preview?.size.width == 1000 }
+        let unchangedRevision = draftModel.documentRevision
+        draftModel.previewTransform(["x": 0.5])
+        try await wait { draftPreviews.requests.count == 2 }
+        try check(try size(draftPreviews.plans[1]) == 500)
+        draftPreviews.requests[1].resume(returning: image(500))
+        try await wait { draftModel.preview?.size.width == 500 }
+        draftModel.editProperties(["x": 0.5])
+        try await wait { draftPreviews.requests.count == 3 }
+        try check(try size(draftPreviews.plans[2]) == 1000)
+        draftPreviews.requests[2].resume(returning: image(1000))
+        try await wait { draftModel.preview?.size.width == 1000 && !draftModel.isRendering }
+        try check(draftModel.documentRevision == unchangedRevision && !draftModel.isModified)
+        draftModel.previewTransform(["x": 0.5])
+        try await wait { draftPreviews.requests.count == 4 }
+        draftModel.editProperties(["x": 0.5])
+        try await wait { draftPreviews.requests.count == 5 }
+        draftPreviews.requests[4].resume(returning: image(1000))
+        try await wait { draftModel.preview?.size.width == 1000 && !draftModel.isRendering }
+        draftPreviews.requests[3].resume(returning: image(500))
+        try await wait { draftPreviews.completions == 5 }
+        try check(draftModel.preview?.size.width == 1000, "Late no-op draft replaced the full preview")
+        try check(draftModel.documentRevision == unchangedRevision && !draftModel.isModified)
         // Exercise the real renderer and export path, not just scheduling stubs.
         let real = ProjectModel(persist: false)
         real.load(source)
@@ -142,5 +177,6 @@ import Foundation
         try check(reopened.exportMessage == nil)
         print("PASS: native new/add/edit/duplicate/delete/reorder/graph/save/reopen/export and saved-state history")
         print("PASS: native 1000px preview, 3000px independent export, stale preview/export rejection, edit/open cancellation, failure and retry")
+        print("PASS: no-op pointer commit settles displayed and late 500px drafts without dirtying the document")
     }
 }
