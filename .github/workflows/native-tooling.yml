@@ -1,0 +1,77 @@
+name: Shared core and native tooling
+
+on:
+  pull_request:
+  push:
+    branches: [development, main]
+
+permissions:
+  contents: read
+
+jobs:
+  wasm-and-web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Use repository npm version
+        run: npm install -g npm@11.12.1
+      - name: Install JavaScript dependencies
+        run: npm ci
+      - name: Install pinned Rust toolchain and WASM target
+        run: rustup toolchain install 1.95.0 --profile minimal --component clippy --target wasm32-unknown-unknown
+      - name: Install pinned wasm-bindgen CLI
+        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
+      - name: Check build prerequisites and tooling regressions
+        run: |
+          node scripts/core-pilot/doctor.mjs wasm
+          npm run test:core-tooling
+      - name: Rebuild checked-in WASM from pinned inputs
+        run: |
+          npm run build:core-pilot -- wasm
+          git diff --exit-code -- packages/artifact-core-web/generated
+      - name: Rust, WASM and Web checks
+        run: |
+          npm run check:core-web
+          npm run check
+          npm run build:ci
+
+  native-macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Use repository npm version
+        run: npm install -g npm@11.12.1
+      - name: Install JavaScript dependencies
+        run: npm ci
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.95.0 --profile minimal --component clippy --target wasm32-unknown-unknown
+      - name: Check native prerequisites and runtime source identity
+        run: |
+          node scripts/core-pilot/doctor.mjs macos
+          node scripts/core-pilot/runtime-manifest.mjs
+      - name: Build native app and checks
+        run: npm run build:core-pilot -- macos
+      - name: Execute native model and renderer checks on P01 synthetic fixture
+        run: npm run check:core-native
+      - name: Verify app identity and ad hoc signature
+        run: |
+          test "$(plutil -extract ArtifactBuildSHA raw -o - apps/macos/.build/Artifact.app/Contents/Info.plist)" = "$(git rev-parse HEAD)"
+          codesign --verify --deep --strict apps/macos/.build/Artifact.app
+          ditto -c -k --sequesterRsrc --keepParent apps/macos/.build/Artifact.app apps/macos/.build/Artifact-macOS.zip
+          mkdir -p apps/macos/.build/extracted
+          ditto -x -k apps/macos/.build/Artifact-macOS.zip apps/macos/.build/extracted
+          test -x apps/macos/.build/extracted/Artifact.app/Contents/MacOS/ArtifactCorePilot
+          codesign --verify --deep --strict apps/macos/.build/extracted/Artifact.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Artifact-macOS-${{ github.sha }}
+          path: apps/macos/.build/Artifact-macOS.zip
+          if-no-files-found: error

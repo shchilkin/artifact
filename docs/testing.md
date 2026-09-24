@@ -434,3 +434,11 @@ npm run test:browser
 WASM and Swift, exact Undo/Redo states and a Web -> Mac -> Web package handoff.
 `test:core-preview` also verifies native new/add/edit/duplicate/delete/reorder,
 graph changes, save/reopen, saved-state history and PNG export.
+
+Issue #262 adds `npm run test:core-tooling` for doctor and stale-runtime
+failures, `npm run check:core-web` for pinned-source Rust tests/clippy, WASM
+freshness and adapter tests, and `npm run check:core-native` for native model,
+PNG render and Swift/WASM kernel checks derived from P01's public synthetic
+fixture. See [native builds](native-builds.md) for toolchain versions, CI jobs
+and the model/render versus GUI evidence boundary. The older Viber-specific
+pilot scripts remain optional local diagnostics and are not CI inputs.

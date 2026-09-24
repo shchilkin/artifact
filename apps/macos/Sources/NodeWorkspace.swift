@@ -17,12 +17,21 @@ struct NodeWorkspace: View {
         let points=ids.map { model.editor.position($0) }
         let minX=points.map(\.x).min() ?? 0,minY=points.map(\.y).min() ?? 0
         let maxX=(points.map(\.x).max() ?? 0)+nodeSize.width,maxY=(points.map(\.y).max() ?? 0)+nodeSize.height
-        zoom=min(1.2,max(0.85,min((size.width-100)/max(300,maxX-minX),(size.height-100)/max(200,maxY-minY))))
-        if (maxX-minX)*zoom > size.width-100 {
+        let contentWidth = maxX - minX
+        let contentHeight = maxY - minY
+        let widthScale = (size.width - 100) / max(300, contentWidth)
+        let heightScale = (size.height - 100) / max(200, contentHeight)
+        zoom = Double(min(1.2, max(0.85, min(widthScale, heightScale))))
+        let scale = CGFloat(zoom)
+        if contentWidth * scale > size.width - 100 {
             let focus = model.editor.position(model.selectedID ?? ids.first ?? "__export__")
-            offset = CGSize(width: (size.width-nodeSize.width*zoom)/2-focus.x*zoom, height: (size.height-nodeSize.height*zoom)/2-focus.y*zoom)
+            let offsetX = (size.width - nodeSize.width * scale) / 2 - focus.x * scale
+            let offsetY = (size.height - nodeSize.height * scale) / 2 - focus.y * scale
+            offset = CGSize(width: offsetX, height: offsetY)
         } else {
-            offset=CGSize(width:(size.width-(maxX-minX)*zoom)/2-minX*zoom,height:(size.height-(maxY-minY)*zoom)/2-minY*zoom)
+            let offsetX = (size.width - contentWidth * scale) / 2 - minX * scale
+            let offsetY = (size.height - contentHeight * scale) / 2 - minY * scale
+            offset = CGSize(width: offsetX, height: offsetY)
         }
     }
     var body: some View {
