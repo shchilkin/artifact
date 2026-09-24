@@ -11,6 +11,7 @@ export class WebSession {
     execute(command_json: string): boolean;
     export_durable_json(): string;
     export_json(): string;
+    graph_plan_json(target_id: string): string;
     constructor(source: string);
     redo(): boolean;
     render_plan_json(width: number, height: number): string;
@@ -44,6 +45,7 @@ export interface InitOutput {
     readonly websession_execute: (a: number, b: number, c: number) => [number, number, number];
     readonly websession_export_durable_json: (a: number) => [number, number, number, number];
     readonly websession_export_json: (a: number) => [number, number];
+    readonly websession_graph_plan_json: (a: number, b: number, c: number) => [number, number, number, number];
     readonly websession_new: (a: number, b: number) => [number, number, number];
     readonly websession_redo: (a: number) => number;
     readonly websession_render_plan_json: (a: number, b: number, c: number) => [number, number, number, number];

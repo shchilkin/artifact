@@ -2,6 +2,7 @@
 
 mod command;
 mod editor;
+pub mod graph;
 mod image;
 mod properties;
 pub mod render;

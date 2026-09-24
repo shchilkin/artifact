@@ -40,6 +40,9 @@ pub enum Command {
         id: String,
         delta: i64,
     },
+    Graph {
+        action: crate::graph::GraphAction,
+    },
     Bridge {
         capability: String,
         target: BridgeTarget,
@@ -793,6 +796,7 @@ impl DocumentSession {
                     .map_err(core_error)?;
             }
             Command::MoveLayer { id, delta } => self.move_layer(&id, delta)?,
+            Command::Graph { action } => self.graph_command(action)?,
             Command::Bridge {
                 capability,
                 target,

@@ -597,6 +597,7 @@
       "web": "implemented",
       "native": "missing",
       "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
       "acceptance": "planned"
     },
     {
@@ -605,6 +606,7 @@
       "web": "implemented",
       "native": "missing",
       "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
       "acceptance": "planned"
     },
     {
@@ -613,6 +615,7 @@
       "web": "implemented",
       "native": "missing",
       "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
       "acceptance": "planned"
     },
     {
@@ -621,6 +624,7 @@
       "web": "implemented",
       "native": "missing",
       "fixture": "tests/fixtures/native-2d/graph-utilities.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
       "acceptance": "planned"
     },
     {
@@ -629,6 +633,7 @@
       "web": "implemented",
       "native": "missing",
       "fixture": "tests/fixtures/native-2d/graph-utilities.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
       "acceptance": "planned"
     },
     {
@@ -637,6 +642,7 @@
       "web": "implemented",
       "native": "missing",
       "fixture": "tests/fixtures/native-2d/graph-utilities.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
       "acceptance": "planned"
     },
     {
@@ -727,6 +733,7 @@
       "web": "implemented",
       "native": "partial",
       "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/graph.rs and apps/web/app/utils/sharedGraphCoreParity.test.ts; real client gestures pending #265/#270",
       "acceptance": "planned"
     },
     {

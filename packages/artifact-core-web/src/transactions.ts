@@ -3,6 +3,48 @@ import type { WebSession } from '../generated/artifact_wasm';
 /** Version 1. The session owns the only durable history for this document. */
 export const COMMAND_VERSION = 1 as const;
 
+export type SharedGraphAction =
+  | {
+      kind: 'add_node';
+      collection: 'merge' | 'color' | 'repeat' | 'mask' | 'transform' | 'grimeShadow';
+      node: Record<string, unknown>;
+      position: { x: number; y: number };
+    }
+  | { kind: 'patch_node'; id: string; patch: Record<string, unknown> }
+  | { kind: 'remove_nodes'; ids: string[] }
+  | { kind: 'duplicate_nodes'; copies: { id: string; new_id: string }[] }
+  | { kind: 'set_positions'; positions: Record<string, { x: number; y: number }> }
+  | { kind: 'add_edge'; edge: { id: string; fromId: string; fromPort: 'out'; toId: string; toPort: string } }
+  | { kind: 'remove_edges'; ids: string[] }
+  | { kind: 'reconnect_edge'; id: string; from_id: string; to_id: string; to_port: string }
+  | { kind: 'split_edge'; id: string; node_id: string; input_port: string }
+  | { kind: 'add_area'; area: Record<string, unknown> }
+  | { kind: 'patch_area'; id: string; patch: Record<string, unknown> }
+  | { kind: 'remove_area'; id: string }
+  | { kind: 'assign_area'; id: string; node_ids: string[] };
+
+export interface SharedGraphPlan {
+  mode: 'stack' | 'graph';
+  targetId: string;
+  dependencyNodeIds: string[];
+  dependencyEdgeIds: string[];
+  dependencyEdges: Array<{ id: string; fromId: string; fromPort: string; toId: string; toPort: string }>;
+  downstreamNodeIds: string[];
+  renderLayerIds: string[];
+  editorLayerOrderIds: string[];
+  disconnectedNodeIds: string[];
+  unsupportedNodeIds: string[];
+  renderable2d: boolean;
+  connectedPorts: { sources: string[]; targets: string[] };
+  layoutNodeIds: string[];
+  layoutDepths?: Record<string, number>;
+  layoutPositions: Record<string, { x: number; y: number }>;
+}
+
+export function graphPlan(session: WebSession, targetId = '__export__'): SharedGraphPlan {
+  return JSON.parse(session.graph_plan_json(targetId));
+}
+
 export type SharedCommand =
   | { type: 'patch_layer'; id: string; patch: Record<string, unknown> }
   | { type: 'patch_layers'; ids: string[]; patch: Record<string, unknown> }
@@ -18,6 +60,7 @@ export type SharedCommand =
   | { type: 'duplicate_layer'; id: string; new_id: string }
   | { type: 'remove_layer'; id: string }
   | { type: 'move_layer'; id: string; delta: -1 | 1 }
+  | { type: 'graph'; action: SharedGraphAction }
   | {
       type: 'bridge_structure';
       capability: 'web:structure';
