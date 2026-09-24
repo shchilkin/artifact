@@ -106,54 +106,21 @@ fn effect(key: &str, value: &Value) -> Option<bool> {
     }
 }
 
-pub(crate) fn is_shared_key(kind: &str, key: &str) -> bool {
-    if matches!(key, "name" | "visible" | "locked") || (key == "opacity" && kind != "effect") {
-        return true;
-    }
-    match kind {
-        "text" => matches!(
-            key,
-            "x" | "y"
-                | "scaleX"
-                | "scaleY"
-                | "rotation"
-                | "content"
-                | "size"
-                | "color"
-                | "align"
-                | "font"
-        ),
-        "image" => matches!(
-            key,
-            "x" | "y" | "scaleX" | "scaleY" | "rotation" | "src" | "fit"
-        ),
-        "fill" => key == "color",
-        "emoji" => matches!(key, "emojis" | "density" | "minSz" | "maxSz" | "seedOffset"),
-        "effect" => matches!(
-            key,
-            "tearSize"
-                | "scanlineWidth"
-                | "glitch"
-                | "grain"
-                | "noiseWarp"
-                | "vortex"
-                | "tearAmt"
-                | "scanlines"
-                | "ca"
-        ),
-        _ => false,
-    }
+fn classify(doc: &Value, kind: &str, key: &str, value: &Value) -> Option<bool> {
+    shared(kind, key, value).or_else(|| match kind {
+        "text" => text(doc, key, value),
+        "image" => image(key, value),
+        "fill" if key == "color" => Some(color(value)),
+        "emoji" => emoji(key, value),
+        "effect" => effect(key, value),
+        _ => None,
+    })
+}
+
+pub(crate) fn is_shared_key(doc: &Value, kind: &str, key: &str) -> bool {
+    classify(doc, kind, key, &Value::Null).is_some()
 }
 
 pub(crate) fn validate(doc: &Value, kind: &str, key: &str, value: &Value) -> bool {
-    shared(kind, key, value)
-        .or_else(|| match kind {
-            "text" => text(doc, key, value),
-            "image" => image(key, value),
-            "fill" if key == "color" => Some(color(value)),
-            "emoji" => emoji(key, value),
-            "effect" => effect(key, value),
-            _ => None,
-        })
-        .unwrap_or(false)
+    classify(doc, kind, key, value).unwrap_or(false)
 }

@@ -74,12 +74,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mixed_redo_legacy = session.export_json();
     assert!(session.redo());
     let mixed_redo_transaction = session.export_json();
+    let mut structure_update = String::new();
+    let mut structure_commit = String::new();
+    let mut structure_undo = String::new();
+    let mut structure_redo = String::new();
+    if serde_json::from_str::<Value>(&source)?["document"]["coldStructureConformance"] == true {
+        let current: Value = serde_json::from_str(&session.export_json())?;
+        let mut layers = current["document"]["layers"].as_array().unwrap().clone();
+        layers.push(json!({"id":"p03-model","kind":"model","unknown":{"nested":null}}));
+        let bridge = json!({"type":"bridge_structure","capability":"web:structure","layers":layers,
+            "graph":{"present":true,"value":{"edges":[{"id":"p03-edge","fromId":"p03-model","toId":"__export__"}],
+            "positions":{},"mergeNodes":[],"colorNodes":[],"unknown":{"nested":null}}}});
+        session.begin_transaction_json(
+            &json!({"version":1,"expectedRevision":session.revision()}).to_string(),
+        );
+        structure_update = session.update_transaction_json(
+            &json!({"version":1,"transactionId":4,"commands":[bridge]}).to_string(),
+        );
+        structure_commit =
+            session.commit_transaction_json(&json!({"version":1,"transactionId":4}).to_string());
+        assert!(session.undo());
+        structure_undo = session.export_json();
+        assert!(session.redo());
+        structure_redo = session.export_json();
+    }
     let output = json!({"opened":opened,"begin":begin,"update":update,"draft":draft,"commit":commit,
         "committed":committed,"undone":undone,"redone":redone,"reopened":reopened,"stale":stale,
         "cancelBegin":cancel_begin,"cancelUpdate":cancel_update,"cancelDraft":cancel_draft,"failed":failed,"failedDraft":failed_draft,
         "cancel":cancel,"cancelled":cancelled,"legacy":legacy,"mixedBegin":mixed_begin,"mixedUpdate":mixed_update,
         "mixedCommit":mixed_commit,"mixedAfter":mixed_after,"mixedUndoTransaction":mixed_undo_transaction,
-        "mixedUndoLegacy":mixed_undo_legacy,"mixedRedoLegacy":mixed_redo_legacy,"mixedRedoTransaction":mixed_redo_transaction});
+        "mixedUndoLegacy":mixed_undo_legacy,"mixedRedoLegacy":mixed_redo_legacy,"mixedRedoTransaction":mixed_redo_transaction,
+        "structureUpdate":structure_update,"structureCommit":structure_commit,"structureUndo":structure_undo,"structureRedo":structure_redo});
     std::fs::write(&args[3], output.to_string())?;
     Ok(())
 }

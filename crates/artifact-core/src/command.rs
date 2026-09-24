@@ -48,10 +48,15 @@ pub enum Command {
         #[serde(default)]
         remove: bool,
     },
+    BridgeStructure {
+        capability: String,
+        layers: Vec<Value>,
+        graph: crate::structure_bridge::GraphCandidate,
+    },
 }
 
 /// A Web-only operation must name the exact graph or unknown layer field it owns.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(tag = "scope", rename_all = "snake_case")]
 pub enum BridgeTarget {
     Graph,
@@ -95,6 +100,15 @@ struct Changes {
     graph: bool,
     order: bool,
 }
+impl Changes {
+    fn is_empty(&self) -> bool {
+        self.layers.is_empty()
+            && self.global.is_empty()
+            && self.export.is_empty()
+            && !self.graph
+            && !self.order
+    }
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -115,7 +129,7 @@ pub struct CommandError {
     pub message: String,
 }
 impl CommandError {
-    fn new(code: &'static str, message: impl Into<String>) -> Self {
+    pub(crate) fn new(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             code,
             message: message.into(),
@@ -152,6 +166,26 @@ fn parse<T: for<'de> Deserialize<'de>>(request: &str) -> Result<T, CommandError>
     }
     serde_json::from_str(request)
         .map_err(|_| CommandError::new("INVALID_ENVELOPE", "Invalid command envelope"))
+}
+fn parse_update(request: &str) -> Result<UpdateRequest, CommandError> {
+    if request.len() > MAX_PACKAGE_BYTES {
+        return Err(CommandError::new(
+            "INVALID_ENVELOPE",
+            "Command envelope is too large",
+        ));
+    }
+    let parsed: UpdateRequest = serde_json::from_str(request)
+        .map_err(|_| CommandError::new("INVALID_ENVELOPE", "Invalid command envelope"))?;
+    if request.len() > 1024 * 1024
+        && (parsed.commands.len() != 1
+            || !matches!(parsed.commands[0], Command::BridgeStructure { .. }))
+    {
+        return Err(CommandError::new(
+            "INVALID_ENVELOPE",
+            "Large envelope requires one cold structure bridge",
+        ));
+    }
+    Ok(parsed)
 }
 fn version(version: u32) -> Result<(), CommandError> {
     if version == COMMAND_VERSION {
@@ -330,6 +364,153 @@ fn collect_changes(edit: &Edit, changes: &mut Changes) {
             .extend(edit.fields.iter().map(|field| field.key.clone()));
     }
 }
+fn net_changes(doc: &Value, tx: &Transaction) -> Changes {
+    let mut reconstructed;
+    let before = if let Some(baseline) = &tx.baseline {
+        baseline
+    } else {
+        reconstructed = doc.clone();
+        for step in tx.steps.iter().rev() {
+            apply_edit_to(&mut reconstructed, step, false);
+        }
+        &reconstructed
+    };
+    let mut changes = Changes::default();
+    let old_layers = before["layers"].as_array().unwrap();
+    let new_layers = doc["layers"].as_array().unwrap();
+    let old_ids: Vec<&str> = old_layers
+        .iter()
+        .filter_map(|layer| layer["id"].as_str())
+        .collect();
+    let new_ids: Vec<&str> = new_layers
+        .iter()
+        .filter_map(|layer| layer["id"].as_str())
+        .collect();
+    changes.order = old_ids != new_ids;
+    changes.graph = before.get("graph") != doc.get("graph");
+    for id in old_ids
+        .iter()
+        .chain(&new_ids)
+        .copied()
+        .collect::<BTreeSet<_>>()
+    {
+        let old = old_layers.iter().find(|layer| layer["id"] == id);
+        let new = new_layers.iter().find(|layer| layer["id"] == id);
+        if old == new {
+            continue;
+        }
+        let fields = changes.layers.entry(id.to_owned()).or_default();
+        match (
+            old.and_then(Value::as_object),
+            new.and_then(Value::as_object),
+        ) {
+            (Some(a), Some(b)) => {
+                for key in a.keys().chain(b.keys()).collect::<BTreeSet<_>>() {
+                    if a.get(key) != b.get(key) {
+                        fields.insert(key.clone());
+                    }
+                }
+            }
+            _ => {
+                fields.insert("*".to_owned());
+            }
+        }
+    }
+    for (name, fields) in [
+        ("global", &mut changes.global),
+        ("export", &mut changes.export),
+    ] {
+        let old = before[name].as_object().unwrap();
+        let new = doc[name].as_object().unwrap();
+        for key in old.keys().chain(new.keys()).collect::<BTreeSet<_>>() {
+            if old.get(key) != new.get(key) {
+                fields.insert(key.clone());
+            }
+        }
+    }
+    changes
+}
+fn merge_fields(left: &mut Vec<FieldEdit>, right: Vec<FieldEdit>) {
+    for field in right {
+        if let Some(old) = left.iter_mut().find(|old| old.key == field.key) {
+            old.after = field.after;
+        } else {
+            left.push(field);
+        }
+    }
+}
+fn property_step(edit: &Edit) -> bool {
+    edit.structure.is_none()
+        && matches!(
+            edit.extended,
+            None | Some(ExtendedEdit::Section { .. })
+                | Some(ExtendedEdit::Bridge {
+                    target: BridgeTarget::LayerField { .. } | BridgeTarget::ExportField { .. },
+                    ..
+                })
+        )
+}
+fn same_property_target(a: &Edit, b: &Edit) -> bool {
+    match (&a.extended, &b.extended) {
+        (None, None) => a.layer_id.is_some() && a.layer_id == b.layer_id,
+        (
+            Some(ExtendedEdit::Section { name: a, .. }),
+            Some(ExtendedEdit::Section { name: b, .. }),
+        ) => a == b,
+        (
+            Some(ExtendedEdit::Bridge { target: a, .. }),
+            Some(ExtendedEdit::Bridge { target: b, .. }),
+        ) => a == b,
+        _ => false,
+    }
+}
+fn merge_property_target(previous: &mut Edit, next: &mut Edit) {
+    match (&mut previous.extended, &mut next.extended) {
+        (None, None) => merge_fields(&mut previous.fields, std::mem::take(&mut next.fields)),
+        (
+            Some(ExtendedEdit::Section { fields: a, .. }),
+            Some(ExtendedEdit::Section { fields: b, .. }),
+        ) => merge_fields(a, std::mem::take(b)),
+        (
+            Some(ExtendedEdit::Bridge { after: a, .. }),
+            Some(ExtendedEdit::Bridge { after: b, .. }),
+        ) => *a = b.take(),
+        _ => unreachable!(),
+    }
+}
+fn coalesce_steps(steps: &mut Vec<Edit>) {
+    let mut compact: Vec<Edit> = Vec::with_capacity(steps.len());
+    for mut step in std::mem::take(steps) {
+        if property_step(&step) {
+            let mut merged = false;
+            for previous in compact.iter_mut().rev() {
+                if !property_step(previous) {
+                    break;
+                }
+                if same_property_target(previous, &step) {
+                    merge_property_target(previous, &mut step);
+                    merged = true;
+                    break;
+                }
+            }
+            if merged {
+                continue;
+            }
+        } else if let (
+            Some(Edit {
+                extended: Some(ExtendedEdit::Reorder { after, .. }),
+                ..
+            }),
+            Some(ExtendedEdit::Reorder { after: next, .. }),
+        ) = (compact.last_mut(), &mut step.extended)
+        {
+            *after = std::mem::take(next);
+            continue;
+        }
+        compact.push(step);
+    }
+    *steps = compact;
+}
 fn field_only_net_zero(doc: &Value, steps: &[Edit]) -> bool {
     let mut first: BTreeMap<(String, String), Option<Value>> = BTreeMap::new();
     for step in steps {
@@ -461,7 +642,7 @@ impl DocumentSession {
     }
     pub fn update_transaction_json(&mut self, request: &str) -> String {
         let result = (|| {
-            let request: UpdateRequest = parse(request)?;
+            let request: UpdateRequest = parse_update(request)?;
             version(request.version)?;
             self.transaction_id(request.transaction_id)?;
             if request.commands.len() > 128 {
@@ -481,6 +662,7 @@ impl DocumentSession {
                             | Command::DuplicateLayer { .. }
                             | Command::RemoveLayer { .. }
                             | Command::MoveLayer { .. }
+                            | Command::BridgeStructure { .. }
                     )
                 {
                     let mut baseline = self.package["document"].clone();
@@ -502,6 +684,29 @@ impl DocumentSession {
                 }
             }
             let steps = &self.transaction.as_ref().unwrap().steps[start..];
+            if self
+                .transaction
+                .as_ref()
+                .unwrap()
+                .steps
+                .iter()
+                .map(Edit::retained_bytes)
+                .sum::<usize>()
+                > MAX_PACKAGE_BYTES
+            {
+                let steps = self.transaction.as_mut().unwrap().steps.split_off(start);
+                for step in steps.iter().rev() {
+                    self.apply_edit(step, false);
+                }
+                self.serialized_len = prior_len;
+                if !prior_baseline {
+                    self.transaction.as_mut().unwrap().baseline = None;
+                }
+                return Err(CommandError::new(
+                    "HISTORY_LIMIT",
+                    "Transaction history exceeds 64 MiB",
+                ));
+            }
             let mut changes = Changes::default();
             for step in steps {
                 collect_changes(step, &mut changes);
@@ -509,6 +714,7 @@ impl DocumentSession {
             let changed = !steps.is_empty();
             if changed {
                 self.transaction.as_mut().unwrap().draft_revision += 1;
+                coalesce_steps(&mut self.transaction.as_mut().unwrap().steps);
             }
             Ok((changed, changes))
         })();
@@ -537,10 +743,7 @@ impl DocumentSession {
                 self.serialized_len = self.package.to_string().len();
                 return Ok((false, Changes::default()));
             }
-            let mut changes = Changes::default();
-            for step in &tx.steps {
-                collect_changes(step, &mut changes);
-            }
+            let changes = net_changes(&self.package["document"], &tx);
             self.record_edit(Edit {
                 layer_index: 0,
                 layer_id: None,
@@ -561,13 +764,18 @@ impl DocumentSession {
             version(request.version)?;
             self.transaction_id(request.transaction_id)?;
             let tx = self.transaction.take().unwrap();
+            let changes = net_changes(&self.package["document"], &tx);
+            let changed = !changes.is_empty();
             for step in tx.steps.iter().rev() {
                 self.apply_edit(step, false);
             }
             self.serialized_len = self.package.to_string().len();
-            Ok(())
+            Ok((changed, changes))
         })();
-        reply(self, false, Changes::default(), result.err())
+        match result {
+            Ok((changed, changes)) => reply(self, changed, changes, None),
+            Err(error) => reply(self, false, Changes::default(), Some(error)),
+        }
     }
     fn apply_command(&mut self, command: Command) -> Result<(), CommandError> {
         match command {
@@ -617,6 +825,13 @@ impl DocumentSession {
                 value,
                 remove,
             } => self.bridge(capability, target, value, remove)?,
+            Command::BridgeStructure {
+                capability,
+                layers,
+                graph,
+            } => {
+                self.bridge_structure(&capability, layers, graph)?;
+            }
         }
         Ok(())
     }
@@ -758,7 +973,10 @@ impl DocumentSession {
                     ));
                 }
                 if !remove {
-                    validate_graph(&self.package["document"], &value)?;
+                    validate_graph(
+                        self.package["document"]["layers"].as_array().unwrap(),
+                        &value,
+                    )?;
                 }
             }
             BridgeTarget::LayerField { id, field } => {
@@ -786,7 +1004,11 @@ impl DocumentSession {
                     .iter()
                     .find(|layer| layer["id"] == *id)
                     .ok_or_else(|| CommandError::new("INVALID_TARGET", "Layer not found"))?;
-                if crate::properties::is_shared_key(layer["kind"].as_str().unwrap(), field) {
+                if crate::properties::is_shared_key(
+                    &self.package["document"],
+                    layer["kind"].as_str().unwrap(),
+                    field,
+                ) {
                     return Err(CommandError::new(
                         "UNSUPPORTED_CAPABILITY",
                         "Use a typed patch for shared properties",
@@ -846,21 +1068,23 @@ impl DocumentSession {
     }
 }
 
-fn validate_graph(doc: &Value, graph: &Value) -> Result<(), CommandError> {
+pub(crate) fn validate_graph(layers: &[Value], graph: &Value) -> Result<(), CommandError> {
     let edges = graph["edges"]
         .as_array()
         .ok_or_else(|| CommandError::new("INVALID_VALUE", "Graph edges must be an array"))?;
-    let mut ids: HashSet<&str> = doc["layers"]
-        .as_array()
-        .unwrap()
+    let mut ids: HashSet<&str> = layers
         .iter()
         .filter_map(|layer| layer["id"].as_str())
         .collect();
-    for list in crate::editor::GRAPH_LISTS {
-        if let Some(nodes) = graph[*list].as_array() {
+    for (list, value) in graph.as_object().unwrap() {
+        if list.ends_with("Nodes") {
+            let nodes = value.as_array().ok_or_else(|| {
+                CommandError::new("INVALID_VALUE", "Graph node list must be an array")
+            })?;
             for node in nodes {
                 let id = node["id"]
                     .as_str()
+                    .filter(|id| !id.is_empty() && id.len() <= 200 && *id != "__export__")
                     .ok_or_else(|| CommandError::new("INVALID_VALUE", "Graph node needs an id"))?;
                 if !ids.insert(id) {
                     return Err(CommandError::new(
@@ -891,4 +1115,66 @@ fn validate_graph(doc: &Value, graph: &Value) -> Result<(), CommandError> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repeated_pointer_edits_keep_one_small_inverse() {
+        let source = json!({"artifactPackage":"project","manifest":{"kind":"artifact-project-package","version":1,"documentSchemaVersion":3},
+            "document":{"schemaVersion":3,"global":{"aspect":"1:1","bg":"transparent","seed":1},
+                "layers":[{"id":"a","kind":"text","content":"A","x":0.5}],"export":{"format":"png","scale":1,"target":"cover"}}}).to_string();
+        let mut session = DocumentSession::open(&source).unwrap();
+        session.begin_transaction_json(r#"{"version":1,"expectedRevision":0}"#);
+        let payload = "x".repeat(128 * 1024);
+        for n in 0..550 {
+            let result = session.update_transaction_json(&json!({"version":1,"transactionId":1,"commands":[
+                {"type":"bridge","capability":"web:layer-property","target":{"scope":"layer_field","id":"a","field":"webGesture"},
+                "value":format!("{n}{payload}")}] }).to_string());
+            assert_eq!(
+                serde_json::from_str::<Value>(&result).unwrap()["ok"],
+                true,
+                "{result}"
+            );
+        }
+        let tx = session.transaction.as_ref().unwrap();
+        assert_eq!(tx.steps.len(), 1);
+        assert!(tx.steps[0].retained_bytes() < 256 * 1024);
+    }
+
+    #[test]
+    fn alternating_multi_layer_ticks_keep_two_small_inverses() {
+        let source = json!({"artifactPackage":"project","manifest":{"kind":"artifact-project-package","version":1,"documentSchemaVersion":3},
+            "document":{"schemaVersion":3,"global":{"aspect":"1:1","bg":"transparent","seed":1},
+                "layers":[{"id":"a","kind":"text","content":"A","x":0.5},{"id":"b","kind":"text","content":"B","x":0.5}],
+                "export":{"format":"png","scale":1,"target":"cover"}}}).to_string();
+        let mut session = DocumentSession::open(&source).unwrap();
+        session.begin_transaction_json(r#"{"version":1,"expectedRevision":0}"#);
+        for n in 0..5000 {
+            let result = session.update_transaction_json(
+                &json!({"version":1,"transactionId":1,"commands":[
+                {"type":"patch_layers","ids":["a","b"],"patch":{"x":0.5 + n as f64 / 10000.0}}]})
+                .to_string(),
+            );
+            assert_eq!(
+                serde_json::from_str::<Value>(&result).unwrap()["ok"],
+                true,
+                "{result}"
+            );
+        }
+        let tx = session.transaction.as_ref().unwrap();
+        assert_eq!(tx.steps.len(), 2);
+        assert!(tx.steps.iter().map(Edit::retained_bytes).sum::<usize>() < 1024);
+        assert_eq!(
+            serde_json::from_str::<Value>(
+                &session.commit_transaction_json(r#"{"version":1,"transactionId":1}"#)
+            )
+            .unwrap()["changed"],
+            true
+        );
+        assert!(session.undo());
+        assert_eq!(session.export_json(), source);
+    }
 }

@@ -67,6 +67,30 @@ struct CommandConformance {
         let mixedDidRedoTransaction = try session.redo()
         precondition(mixedDidRedoTransaction)
         let mixedRedoTransaction = try session.exportJson()
+        var structureUpdate = ""
+        var structureCommit = ""
+        var structureUndo = ""
+        var structureRedo = ""
+        if document["coldStructureConformance"] as? Bool == true {
+            let currentJson = try session.exportJson()
+            let currentPackage = try JSONSerialization.jsonObject(with: Data(currentJson.utf8)) as! [String: Any]
+            let currentDocument = currentPackage["document"] as! [String: Any]
+            var layers = currentDocument["layers"] as! [[String: Any]]
+            layers.append(["id": "p03-model", "kind": "model", "unknown": ["nested": NSNull()]])
+            let bridge: [String: Any] = ["type": "bridge_structure", "capability": "web:structure", "layers": layers,
+                "graph": ["present": true, "value": ["edges": [["id": "p03-edge", "fromId": "p03-model", "toId": "__export__"]],
+                    "positions": [:] as [String: Any], "mergeNodes": [] as [Any], "colorNodes": [] as [Any],
+                    "unknown": ["nested": NSNull()]]]]
+            _ = try session.beginTransactionJson(request: encoded(["version": 1, "expectedRevision": try session.revision()]))
+            structureUpdate = try session.updateTransactionJson(request: encoded(["version": 1, "transactionId": 4, "commands": [bridge]]))
+            structureCommit = try session.commitTransactionJson(request: encoded(["version": 1, "transactionId": 4]))
+            let structureDidUndo = try session.undo()
+            precondition(structureDidUndo)
+            structureUndo = try session.exportJson()
+            let structureDidRedo = try session.redo()
+            precondition(structureDidRedo)
+            structureRedo = try session.exportJson()
+        }
         let output: [String: String] = ["opened": opened, "begin": begin, "update": update, "draft": draft,
                                          "commit": commit, "committed": committed, "undone": undone,
                                          "redone": redone, "reopened": reopened, "stale": stale,
@@ -75,7 +99,9 @@ struct CommandConformance {
                                          "legacy": legacy, "mixedBegin": mixedBegin, "mixedUpdate": mixedUpdate,
                                          "mixedCommit": mixedCommit, "mixedAfter": mixedAfter,
                                          "mixedUndoTransaction": mixedUndoTransaction, "mixedUndoLegacy": mixedUndoLegacy,
-                                         "mixedRedoLegacy": mixedRedoLegacy, "mixedRedoTransaction": mixedRedoTransaction]
+                                         "mixedRedoLegacy": mixedRedoLegacy, "mixedRedoTransaction": mixedRedoTransaction,
+                                         "structureUpdate": structureUpdate, "structureCommit": structureCommit,
+                                         "structureUndo": structureUndo, "structureRedo": structureRedo]
         try JSONSerialization.data(withJSONObject: output, options: [.sortedKeys, .withoutEscapingSlashes])
             .write(to: URL(fileURLWithPath: args[3]), options: .atomic)
     }

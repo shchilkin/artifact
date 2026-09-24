@@ -25,6 +25,31 @@ pub(crate) struct StructureEdit {
     after_graph: Option<Value>,
 }
 impl StructureEdit {
+    pub(crate) fn between(
+        before_layers: &[Value],
+        after_layers: &[Value],
+        before_graph: Option<&Value>,
+        after_graph: Option<&Value>,
+    ) -> Self {
+        let before_order = ids(before_layers);
+        let after_order = ids(after_layers);
+        let all: HashSet<String> = before_order.iter().chain(&after_order).cloned().collect();
+        let changes = all
+            .into_iter()
+            .filter_map(|id| {
+                let before = before_layers.iter().find(|layer| layer["id"] == id);
+                let after = after_layers.iter().find(|layer| layer["id"] == id);
+                (before != after).then(|| (id, before.cloned(), after.cloned()))
+            })
+            .collect();
+        Self {
+            before_order,
+            after_order,
+            changes,
+            before_graph: before_graph.cloned(),
+            after_graph: after_graph.cloned(),
+        }
+    }
     pub(crate) fn order_changed(&self) -> bool {
         self.before_order != self.after_order
     }

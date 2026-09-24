@@ -5,6 +5,7 @@ mod editor;
 mod image;
 mod properties;
 pub mod render;
+mod structure_bridge;
 pub use image::ImageProperties;
 
 use serde::{Deserialize, Serialize};

@@ -14,6 +14,12 @@ const run = (file, args) => {
   if (result.status !== 0) throw new Error(`${file} failed: ${result.stderr || result.stdout}`);
 };
 const digest = (text) => createHash('sha256').update(text).digest('hex').slice(0, 12);
+const canonical = (value) =>
+  JSON.stringify(value, (_, item) =>
+    item && typeof item === 'object' && !Array.isArray(item)
+      ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
+      : item,
+  );
 
 try {
   run('cargo', ['build', '--locked', '--offline', '-p', 'artifact-core', '--example', 'command_conformance']);
@@ -71,6 +77,25 @@ try {
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
       unknownDocument: 'x'.repeat(2 * 1024 * 1024),
+    },
+  });
+  cases.push({
+    name: 'cold-structure-embedded-asset',
+    document: {
+      schemaVersion: 3,
+      global: { aspect: '1:1', bg: 'transparent', seed: 9 },
+      layers: [
+        {
+          id: 'image',
+          kind: 'image',
+          src: `data:image/png;base64,${'A'.repeat(2 * 1024 * 1024)}`,
+          visible: true,
+          locked: false,
+          unknown: { nested: null },
+        },
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+      coldStructureConformance: true,
     },
   });
   for (const { name, document } of cases) {
@@ -168,6 +193,39 @@ try {
     const mixedRedoLegacy = webSession.export_json();
     assert.equal(webSession.redo(), true);
     const mixedRedoTransaction = webSession.export_json();
+    let structureUpdate = '';
+    let structureCommit = '';
+    let structureUndo = '';
+    let structureRedo = '';
+    if (document.coldStructureConformance) {
+      const current = JSON.parse(webSession.export_json()).document;
+      const bridge = {
+        type: 'bridge_structure',
+        capability: 'web:structure',
+        layers: [...current.layers, { id: 'p03-model', kind: 'model', unknown: { nested: null } }],
+        graph: {
+          present: true,
+          value: {
+            edges: [{ id: 'p03-edge', fromId: 'p03-model', toId: '__export__' }],
+            positions: {},
+            mergeNodes: [],
+            colorNodes: [],
+            unknown: { nested: null },
+          },
+        },
+      };
+      webSession.begin_transaction_json(
+        JSON.stringify({ version: 1, expectedRevision: Number(webSession.revision()) }),
+      );
+      structureUpdate = webSession.update_transaction_json(
+        JSON.stringify({ version: 1, transactionId: 4, commands: [bridge] }),
+      );
+      structureCommit = webSession.commit_transaction_json(JSON.stringify({ version: 1, transactionId: 4 }));
+      assert.equal(webSession.undo(), true);
+      structureUndo = webSession.export_json();
+      assert.equal(webSession.redo(), true);
+      structureRedo = webSession.export_json();
+    }
     webSession.free();
     const wasm = {
       opened,
@@ -196,10 +254,27 @@ try {
       mixedUndoLegacy,
       mixedRedoLegacy,
       mixedRedoTransaction,
+      structureUpdate,
+      structureCommit,
+      structureUndo,
+      structureRedo,
     };
     for (const [stage, value] of Object.entries(wasm)) {
-      assert.equal(value, rust[stage], `${name} ${stage}: Rust/WASM`);
-      assert.equal(value, swift[stage], `${name} ${stage}: Swift/WASM`);
+      const comparable = stage === 'structureRedo' && value ? canonical(JSON.parse(value)) : value;
+      const rustComparable =
+        stage === 'structureRedo' && rust[stage] ? canonical(JSON.parse(rust[stage])) : rust[stage];
+      const swiftComparable =
+        stage === 'structureRedo' && swift[stage] ? canonical(JSON.parse(swift[stage])) : swift[stage];
+      assert.equal(
+        digest(comparable),
+        digest(rustComparable),
+        `${name} ${stage}: Rust/WASM (${digest(comparable)} vs ${digest(rustComparable)})`,
+      );
+      assert.equal(
+        digest(comparable),
+        digest(swiftComparable),
+        `${name} ${stage}: Swift/WASM (${digest(comparable)} vs ${digest(swiftComparable)})`,
+      );
     }
     assert.equal(undone, opened, `${name}: Undo`);
     assert.equal(redone, committed, `${name}: Redo`);
@@ -208,6 +283,14 @@ try {
     assert.equal(JSON.parse(commit).changed, true, `${name}: commit changed`);
     assert.equal(failedDraft, cancelDraft, `${name}: failed batch restored previous draft`);
     assert.equal(cancelled, redone, `${name}: cancel restored durable state`);
+    assert.equal(JSON.parse(cancel).changed, true, `${name}: cancel reports restoration`);
+    assert.deepEqual(JSON.parse(cancel).changes.global, ['seed'], `${name}: cancel changed field`);
+    if (document.coldStructureConformance) {
+      assert.equal(JSON.parse(structureUpdate).ok, true, `${name}: cold structure update`);
+      assert.equal(JSON.parse(structureCommit).changed, true, `${name}: cold structure commit`);
+      assert.equal(structureUndo, mixedRedoTransaction, `${name}: cold structure undo`);
+      assert.equal(JSON.parse(structureRedo).document.layers.at(-1).kind, 'model');
+    }
     assert.equal(mixedUndoTransaction, legacy, `${name}: Undo new transaction`);
     assert.equal(mixedUndoLegacy, redone, `${name}: Undo legacy edit`);
     assert.equal(mixedRedoLegacy, legacy, `${name}: Redo legacy edit`);

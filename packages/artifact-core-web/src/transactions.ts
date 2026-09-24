@@ -19,6 +19,12 @@ export type SharedCommand =
   | { type: 'remove_layer'; id: string }
   | { type: 'move_layer'; id: string; delta: -1 | 1 }
   | {
+      type: 'bridge_structure';
+      capability: 'web:structure';
+      layers: unknown[];
+      graph: { present: false; value?: null } | { present: true; value: unknown };
+    }
+  | {
       type: 'bridge';
       capability: 'web:graph';
       target: { scope: 'graph' };

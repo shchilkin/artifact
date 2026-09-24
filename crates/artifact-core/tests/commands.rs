@@ -385,3 +385,67 @@ fn history_is_bounded_and_fixture_documents_keep_unknown_values() {
     assert!(count <= 50);
     assert!(count >= 1);
 }
+
+#[test]
+fn web_structure_bridge_preserves_unknowns_and_guards_locked_survivors() {
+    let mut package: Value = serde_json::from_str(&source()).unwrap();
+    package["document"]["layers"][0]["locked"] = json!(true);
+    package["document"].as_object_mut().unwrap().remove("graph");
+    package["document"]["layers"][1]["src"] = json!(format!(
+        "data:image/png;base64,{}",
+        "A".repeat(2 * 1024 * 1024)
+    ));
+    let mut s = DocumentSession::open(&package.to_string()).unwrap();
+    let initial = s.export_json();
+    let id = begin(&mut s);
+    let original = doc(&s)["layers"].as_array().unwrap().clone();
+    let noise = json!({"id":"noise","kind":"noise","unknown":{"null":null}});
+    let primitive = json!({"id":"primitive","kind":"primitive","webOnly":true});
+    let model = json!({"id":"model","kind":"model","asset":"artifact-asset://model"});
+    let candidate = json!([noise, original[0], primitive, original[1], model]);
+    let command = json!({"type":"bridge_structure","capability":"web:structure","layers":candidate,
+        "graph":{"present":true,"value":{"edges":[{"id":"e","fromId":"primitive","toId":"__export__"}],
+        "positions":{},"mergeNodes":[],"colorNodes":[],"unknown":{"preserve":null}}}});
+    let accepted = update(&mut s, id, json!([command]));
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    assert_eq!(accepted["changes"]["graph"], true);
+    assert_eq!(accepted["changes"]["layers"]["noise"], json!(["*"]));
+    assert!(doc(&s)["layers"][3]["src"].as_str().unwrap().len() > 2 * 1024 * 1024);
+    let prior = s.export_json();
+    let current = doc(&s)["layers"].as_array().unwrap().clone();
+    let current_graph = doc(&s)["graph"].clone();
+    let illegal = json!([current[0], current[2], current[1], current[3], current[4]]);
+    let denied = update(
+        &mut s,
+        id,
+        json!([{"type":"bridge_structure","capability":"web:structure","layers":illegal,"graph":{"present":true,"value":current_graph}}]),
+    );
+    assert_eq!(denied["error"]["code"], "LOCKED_LAYER");
+    assert_eq!(s.export_json(), prior);
+    let cancelled = end(&mut s, "cancel", id);
+    assert_eq!(cancelled["changed"], true);
+    assert_eq!(cancelled["changes"]["graph"], true);
+    assert_eq!(s.export_json(), initial);
+    assert_eq!(s.revision(), 0);
+}
+
+#[test]
+fn long_gesture_coalesces_and_cancel_reports_net_restoration() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    let initial = s.export_json();
+    let id = begin(&mut s);
+    for n in 0..5000 {
+        let result = update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"a","patch":{"x":0.5 + (n + 1) as f64 / 10000.0}}]),
+        );
+        assert_eq!(result["ok"], true, "tick {n}: {result}");
+    }
+    let cancelled = end(&mut s, "cancel", id);
+    assert_eq!(cancelled["changed"], true);
+    assert_eq!(cancelled["changes"]["layers"]["a"], json!(["x"]));
+    assert_eq!(s.export_json(), initial);
+    assert_eq!(s.revision(), 0);
+    assert!(!s.can_undo());
+}
