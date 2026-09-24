@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -89,4 +89,12 @@ test('runtime manifest rejects a changed nested Rust module and toolchain', () =
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test('checked WASM runtime does not embed common host source roots', () => {
+  const wasm = readFileSync(
+    new URL('../../packages/artifact-core-web/generated/artifact_wasm_bg.wasm', import.meta.url),
+  );
+  for (const hostRoot of ['/Users/', '/home/', '/private/tmp/'])
+    assert.ok(!wasm.includes(Buffer.from(hostRoot)), `WASM runtime embeds ${hostRoot}`);
 });

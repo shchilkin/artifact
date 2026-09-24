@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildIdentity } from './build-identity.mjs';
@@ -7,14 +8,27 @@ import { buildIdentity } from './build-identity.mjs';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const mode = process.argv[2] ?? 'all';
 const env = { ...process.env, MACOSX_DEPLOYMENT_TARGET: '14.0' };
-function run(command, args) {
-  const result = spawnSync(command, args, { cwd: root, env, stdio: 'inherit' });
+function run(command, args, runEnv = env) {
+  const result = spawnSync(command, args, { cwd: root, env: runEnv, stdio: 'inherit' });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 if (!['all', 'wasm', 'macos'].includes(mode)) throw new Error('Expected all, wasm, or macos');
 if (mode !== 'macos') {
-  run('cargo', ['build', '--locked', '-p', 'artifact-wasm', '--target', 'wasm32-unknown-unknown', '--release']);
+  const cargoHome = path.resolve(process.env.CARGO_HOME ?? path.join(os.homedir(), '.cargo'));
+  const wasmEnv = {
+    ...env,
+    // Panic locations otherwise contain host-specific Cargo registry paths.
+    CARGO_ENCODED_RUSTFLAGS: [`--remap-path-prefix=${root}=/workspace`, `--remap-path-prefix=${cargoHome}=/cargo`].join(
+      '\x1f',
+    ),
+  };
+  delete wasmEnv.RUSTFLAGS;
+  run(
+    'cargo',
+    ['build', '--locked', '-p', 'artifact-wasm', '--target', 'wasm32-unknown-unknown', '--release'],
+    wasmEnv,
+  );
   const local = path.join(root, 'tools.local/bin/wasm-bindgen');
   run(existsSync(local) ? local : 'wasm-bindgen', [
     'target/wasm32-unknown-unknown/release/artifact_wasm.wasm',
@@ -23,6 +37,11 @@ if (mode !== 'macos') {
     '--out-dir',
     'packages/artifact-core-web/generated',
   ]);
+  const wasm = readFileSync(path.join(root, 'packages/artifact-core-web/generated/artifact_wasm_bg.wasm'));
+  for (const hostPath of [root, cargoHome]) {
+    if (wasm.includes(Buffer.from(hostPath)))
+      throw new Error(`Generated WASM embeds host path ${hostPath}. Check Rust path remapping.`);
+  }
   run(process.execPath, ['scripts/core-pilot/runtime-manifest.mjs', '--write']);
 }
 if (mode !== 'wasm') {

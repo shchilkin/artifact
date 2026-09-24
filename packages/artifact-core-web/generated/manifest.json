@@ -10,12 +10,12 @@
     "crates/artifact-wasm/Cargo.toml": "92f7df3d342b154809f0dc97a32ab2f1f82758ffaff9cbabb66601a3e5360ab6",
     "crates/artifact-wasm/src/lib.rs": "a0c39e31ae1a7cd3183fed70df722f0383e3d400fd50e60718f74a25d9293902",
     "rust-toolchain.toml": "444141cad75b3ff0428cdff7040e288b46177ef15aacb50be74287aa8f1798ca",
-    "scripts/core-pilot/build.mjs": "68f8e99a762a3b29afda5036acd3ca09e6c68344f93f75158ed27b2190aeebbc"
+    "scripts/core-pilot/build.mjs": "971b9a0e856fa4fec3fa0a802227d8985e84e1fc6a46a1e450882661c526207b"
   },
   "runtime": {
     "artifact_wasm.d.ts": "af28ba07134636698b003a44899f9e242790d14da86250801e9d11ec3e8c02ec",
     "artifact_wasm.js": "4b06a83e4bdb3da6d5bdf675411037819794cd561553b71f316cac9f0028de03",
-    "artifact_wasm_bg.wasm": "263327ae671972c086abca593cec660850b9fecd12ec5be5235b15fb55e5a886",
+    "artifact_wasm_bg.wasm": "2ce7efcafca66551c7934eb615e06377cd3de9d6bb642c790f62358759d4dcb2",
     "artifact_wasm_bg.wasm.d.ts": "cf3ccfbf5af9bbb736030dbc74a50315a9d0898f035268c24ea70ffc5cc48efb"
   }
 }

@@ -68,8 +68,14 @@ commands do not replace the existing Web deployment build or release gates.
 
 `npm run build:core-pilot -- wasm` compiles the WASM crate and regenerates
 `packages/artifact-core-web/generated/` with pinned `wasm-bindgen-cli`. It
-writes `manifest.json` last. The manifest hashes `Cargo.lock`, the Rust
-toolchain pin, the generator script, Cargo manifests and **all nested** Rust
+writes `manifest.json` last. The WASM build owns Rust flags: it replaces any
+inherited `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS`, remapping the workspace
+root to `/workspace` and Cargo home to `/cargo`. This removes host-specific
+source paths from panic locations; generation fails if the output still embeds
+either original host path. A local rebuild with an alternate Cargo-home path
+produced the same WASM SHA-256 after remapping. The manifest hashes
+`Cargo.lock`, the Rust toolchain pin, the generator script, Cargo manifests
+and **all nested** Rust
 sources in the core and WASM adapter, plus the generated JS/TS/WASM bytes.
 The regular Web `build` and `typecheck` paths reject a stale manifest.
 The WASM CI job rebuilds the runtime from source and fails if any generated
