@@ -63,8 +63,11 @@ revision and minimal changed IDs/fields. A gesture begins a transaction,
 updates transient values, then commits once; cancellation restores the
 pre-gesture document and adds no history entry. A committed drag or slider
 gesture is one Undo action; Undo restores the complete prior durable document,
-Redo reapplies it, and a fresh edit after Undo clears Redo. Locks and invalid
-connections reject atomically. The not-yet-migrated Web operations require an
+Redo reapplies it, and a fresh edit after Undo clears Redo. A locked layer
+rejects deletion and layer-stack reordering, including deletion of its
+layer-backed graph node; it remains editable in the inspector and movable in
+the node canvas. Invalid connections reject atomically. The not-yet-migrated
+Web operations require an
 explicit transaction bridge into the same timeline; two simultaneous Rust and
 TypeScript undo stacks are forbidden. Bindings pass asset references and
 metadata across hot command calls, not image/font payload copies.
@@ -75,7 +78,7 @@ owners land:
 | Fixture | Edit and expected Undo/Redo | Save/reopen invariant |
 | --- | --- | --- |
 | `text-font` | Change title content and drag once; Undo restores position in one step, next Undo restores text, Redo reapplies both. | Editable text, font URI, embedded font bytes and geometry survive. |
-| `alpha-nonsquare` | Move image then change aspect to 9:16; Undo restores 4:5 and prior placement. | Transparent corners, semitransparent image pixels and image payload survive. |
+| `alpha-nonsquare` | Move image then change aspect to 9:16; the first Undo restores 4:5, the second restores prior placement. | Transparent corners, semitransparent image pixels and image payload survive. |
 | `alpha-jpeg` | Change JPEG scale 2 to PNG scale 1; Undo restores both export fields together. | Export setting and image source survive; JPEG is compared after flattening policy is recorded. |
 | `blend-modes` | Change overlay layer opacity; Undo restores its original 35 value. | All five layer blend values survive, even if native cannot yet render them. |
 | `branch-merge-mask-repeat` | Change repeat count and mask invert in two actions; Undo twice restores original graph values. | All edges, ports, utility nodes, area membership and export target remain identical. |
@@ -90,6 +93,21 @@ redistributable and self-contained. The private Viber project stays in
 only acceptance source. Import the documents through the real Web **Open
 document file** action. `/app?doc=` is convenient for small documents, but the
 font and 100-node documents should use file import to avoid URL limits.
+
+The independently captured [Web reference](../tests/fixtures/native-2d/web-reference.json)
+is pinned to Web source `ca2a1e2b408998436414b2efde69777b65e249f5`
+and fixture revision `66cb64f379a2af609f2a1a0a93f8d6ad408e65c3`.
+It records eight successful real-editor imports and downloaded exports, with
+no page exceptions. The text export registered the embedded font and its ink
+bounds normalized to the 1000 × 1000 base were x=63, y=338, width=874,
+height=172 at the recorded threshold. The 4:5 PNG retained a clear corner
+`[0,0,0,0]` and a translucent center `[30,180,220,220]`; the 2× JPEG measured 2160 × 2700 and flattened
+that corner to opaque black `[0,0,0,255]`. Both repeat-count and mask-invert
+variants changed decoded graph pixels. The fixture
+[README](../tests/fixtures/native-2d/README.md) gives the capture recipe and
+full evidence limits. These observations establish current Web behavior on
+the recorded browser and host; they do not prove native rendering or
+cross-platform pixel equality.
 
 ## Render and export comparisons
 

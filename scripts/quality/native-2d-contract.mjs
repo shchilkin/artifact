@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,6 +8,7 @@ const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const matrix = JSON.parse(read('docs/native-2d-capabilities.json'));
 const cases = JSON.parse(read('tests/fixtures/native-2d/effect-cases.json'));
+const webReference = JSON.parse(read('tests/fixtures/native-2d/web-reference.json'));
 const config = read('apps/web/app/types/config.ts');
 const presetUnion = config.split('export type EffectPreset =')[1].split('export interface EffectLayer')[0];
 const webPresets = [...presetUnion.matchAll(/\| '([^']+)'/g)].map((match) => match[1]);
@@ -115,6 +117,44 @@ assert.deepEqual(
   new Set([...docCache.values()].map((doc) => doc.global.aspect)),
   new Set(['1:1', '4:5', '9:16', '16:9']),
 );
+assert.equal(webReference.productSourceRevision, matrix.base);
+assert.equal(webReference.fixtureRevision, '66cb64f379a2af609f2a1a0a93f8d6ad408e65c3');
+assert.equal(webReference.documents.length, 8);
+assert.deepEqual(webReference.variants.map((item) => item.variant).sort(), ['mask-inverted', 'repeat-count-1']);
+const baseSizes = { '1:1': [1000, 1000], '4:5': [1080, 1350], '9:16': [1080, 1920], '16:9': [1920, 1080] };
+const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
+const reportNames = new Set();
+for (const observation of webReference.documents) {
+  assert.ok(!reportNames.has(observation.fixture), `duplicate Web observation: ${observation.fixture}`);
+  reportNames.add(observation.fixture);
+  const doc = JSON.parse(read(observation.fixture));
+  assert.equal(observation.fixtureFileSha256, hash(readFileSync(resolve(root, observation.fixture))));
+  assert.equal(observation.imported.aspect, doc.global.aspect);
+  assert.equal(observation.imported.layerCount, doc.layers.length);
+  const [width, height] = baseSizes[doc.global.aspect];
+  assert.equal(observation.exported.width, width * doc.export.scale);
+  assert.equal(observation.exported.height, height * doc.export.scale);
+  assert.equal(
+    Object.values(observation.exported.alphaPixels).reduce((sum, count) => sum + count, 0),
+    observation.exported.width * observation.exported.height,
+  );
+  assert.deepEqual(observation.pageErrors, []);
+}
+assert.deepEqual(
+  reportNames,
+  new Set([...docCache.keys()]),
+  'Every editor fixture needs a pinned main-Web observation',
+);
+const observed = (name) => webReference.documents.find((item) => item.fixture.endsWith(`/${name}.artifact.json`));
+assert.ok(observed('text-font').imported.embeddedFontFaces.some((face) => face.status === 'loaded'));
+assert.deepEqual(observed('alpha-nonsquare').exported.samples.topLeft, [0, 0, 0, 0]);
+assert.ok(observed('alpha-nonsquare').exported.alphaPixels.translucent > 0);
+assert.deepEqual(observed('alpha-jpeg').exported.samples.topLeft, [0, 0, 0, 255]);
+for (const variant of webReference.variants) {
+  assert.equal(variant.fixture, observed('branch-merge-mask-repeat').fixture);
+  assert.notEqual(variant.exported.decodedRgbaSha256, observed('branch-merge-mask-repeat').exported.decodedRgbaSha256);
+  assert.deepEqual(variant.pageErrors, []);
+}
 console.log(
   `Native 2D P01 contract: ${matrix.effects.length} effects, ${matrix.capabilities.length} other capabilities, ${docCache.size} editor documents`,
 );
