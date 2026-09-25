@@ -67,7 +67,8 @@ for (const entry of [...matrix.effects, ...matrix.capabilities]) {
 }
 
 const docs = Object.fromEntries([...docCache].map(([path, doc]) => [path.split('/').at(-1), doc]));
-const fixture = (name) => docs[`${name}.artifact.json`];
+const fixture = (name) =>
+  docs[`${name}.artifact.json`] ?? JSON.parse(read(`tests/fixtures/native-2d/${name}.artifact.json`));
 assert.equal(
   fixture('text-font').layers.find((item) => item.id === 'font-title').font,
   'artifact-font://covered-grace-p01',
@@ -140,11 +141,21 @@ for (const observation of webReference.documents) {
   );
   assert.deepEqual(observation.pageErrors, []);
 }
-assert.deepEqual(
-  reportNames,
-  new Set([...docCache.keys()]),
-  'Every editor fixture needs a pinned main-Web observation',
-);
+const p09Reference = JSON.parse(read('tests/fixtures/native-2d/p09/web-reference-manifest.json'));
+const p09Names = new Set();
+for (const [name, entry] of Object.entries(p09Reference.files)) {
+  const source = `tests/fixtures/native-2d/p09/${name}.artifact.json`;
+  const png = `tests/fixtures/native-2d/p09/web-reference/${name}.png`;
+  assert.equal(hash(JSON.stringify(JSON.parse(read(source)))), entry.inputValueSha256);
+  assert.equal(hash(readFileSync(resolve(root, png))), entry.pngSha256);
+  p09Names.add(source);
+}
+for (const source of docCache.keys()) {
+  assert.ok(
+    reportNames.has(source) || p09Names.has(source),
+    `Editor fixture lacks a pinned main-Web observation: ${source}`,
+  );
+}
 const observed = (name) => webReference.documents.find((item) => item.fixture.endsWith(`/${name}.artifact.json`));
 assert.ok(observed('text-font').imported.embeddedFontFaces.some((face) => face.status === 'loaded'));
 assert.deepEqual(observed('alpha-nonsquare').exported.samples.topLeft, [0, 0, 0, 0]);

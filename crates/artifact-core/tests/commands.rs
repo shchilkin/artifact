@@ -65,6 +65,191 @@ fn doc(s: &DocumentSession) -> Value {
     serde_json::from_str::<Value>(&s.export_json()).unwrap()["document"].clone()
 }
 
+fn three_layers() -> Value {
+    let mut package: Value = serde_json::from_str(&source()).unwrap();
+    package["document"]["layers"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({
+            "id":"c","kind":"effect","locked":false,"visible":true,"opaque":{"keep":true}
+        }));
+    package
+}
+
+#[test]
+fn typed_reorder_keeps_stack_graphless_and_one_undo_restores_order() {
+    let mut package = three_layers();
+    package["document"].as_object_mut().unwrap().remove("graph");
+    let mut s = DocumentSession::open(&package.to_string()).unwrap();
+    let original = doc(&s);
+    let tx = begin(&mut s);
+    let changed = update(
+        &mut s,
+        tx,
+        json!([{"type":"reorder_layers","ids":["c","a","b"]}]),
+    );
+    assert_eq!(changed["ok"], true, "{changed}");
+    assert_eq!(changed["changes"]["order"], true);
+    assert!(doc(&s).get("graph").is_none());
+    assert_eq!(end(&mut s, "commit", tx)["revision"], 1);
+    assert_eq!(doc(&s)["layers"][0]["id"], "c");
+    assert_eq!(doc(&s)["layers"][0]["opaque"], json!({"keep":true}));
+    assert!(s.undo());
+    assert_eq!(doc(&s), original);
+    assert!(s.redo());
+    assert_eq!(doc(&s)["layers"][0]["id"], "c");
+}
+
+#[test]
+fn typed_reorder_rewires_only_changed_chain_edges_and_retains_graph_extensions() {
+    let mut package = three_layers();
+    package["document"]["graph"] = json!({
+        "edges":[
+            {"id":"ab","fromId":"a","fromPort":"out","toId":"b","toPort":"bg","future":"removed"},
+            {"id":"bc","fromId":"b","fromPort":"out","toId":"c","toPort":"in","future":"retained"},
+            {"id":"ce","fromId":"c","fromPort":"out","toId":"__export__","toPort":"in"}
+        ],"positions":{"a":{"x":11,"y":22}},"mergeNodes":[],"colorNodes":[],
+        "areas":[{"id":"area","nodeIds":["a"],"future":null}],
+        "futureGraph":{"keep":true},"futureNodes":{"opaque":true}
+    });
+    let mut s = DocumentSession::open(&package.to_string()).unwrap();
+    let original = doc(&s);
+    let tx = begin(&mut s);
+    let result = update(
+        &mut s,
+        tx,
+        json!([{"type":"reorder_layers","ids":["b","c","a"]}]),
+    );
+    assert_eq!(result["ok"], true, "{result}");
+    assert_eq!(result["changes"]["graph"], true);
+    assert_eq!(end(&mut s, "commit", tx)["ok"], true);
+    let graph = &doc(&s)["graph"];
+    assert_eq!(graph["edges"][0]["id"], "bc");
+    assert_eq!(graph["edges"][0]["future"], "retained");
+    assert_eq!(graph["edges"][0]["toId"], "c");
+    assert_eq!(graph["edges"][1]["toId"], "a");
+    assert_eq!(graph["edges"][2]["toId"], "__export__");
+    assert_eq!(graph["futureGraph"], json!({"keep":true}));
+    assert_eq!(graph["futureNodes"], json!({"opaque":true}));
+    assert_eq!(graph["areas"], original["graph"]["areas"]);
+    assert_eq!(graph["positions"], original["graph"]["positions"]);
+    assert!(s.undo());
+    assert_eq!(doc(&s), original);
+}
+
+#[test]
+fn reorder_uses_effective_graph_chain_for_noop_and_locked_barriers() {
+    let mut package = three_layers();
+    package["document"]["layers"][1]["locked"] = json!(true);
+    package["document"]["graph"] = json!({"edges":[
+        {"id":"cb","fromId":"c","fromPort":"out","toId":"b","toPort":"bg"},
+        {"id":"ba","fromId":"b","fromPort":"out","toId":"a","toPort":"bg"},
+        {"id":"ae","fromId":"a","fromPort":"out","toId":"__export__","toPort":"in"}
+    ],"positions":{},"mergeNodes":[],"colorNodes":[]});
+    let mut s = DocumentSession::open(&package.to_string()).unwrap();
+    let original = s.export_json();
+    let tx = begin(&mut s);
+    let noop = update(
+        &mut s,
+        tx,
+        json!([{"type":"reorder_layers","ids":["c","b","a"]}]),
+    );
+    assert_eq!(noop["changed"], false, "{noop}");
+    assert_eq!(s.export_json(), original);
+    let denied = update(
+        &mut s,
+        tx,
+        json!([{"type":"reorder_layers","ids":["a","b","c"]}]),
+    );
+    assert_eq!(denied["error"]["code"], "LOCKED_LAYER");
+    assert_eq!(s.export_json(), original);
+    assert_eq!(end(&mut s, "commit", tx)["changed"], false);
+    assert_eq!(s.revision(), 0);
+}
+
+#[test]
+fn reorder_rejects_invalid_permutations_and_nonlinear_graphs_atomically() {
+    let mut s = DocumentSession::open(&three_layers().to_string()).unwrap();
+    let tx = begin(&mut s);
+    let original = s.export_json();
+    for ids in [
+        json!(["a", "a", "b"]),
+        json!(["a", "b"]),
+        json!(["a", "b", "alien"]),
+    ] {
+        let result = update(&mut s, tx, json!([{"type":"reorder_layers","ids":ids}]));
+        assert_eq!(result["error"]["code"], "INVALID_TARGET", "{result}");
+        assert_eq!(s.export_json(), original);
+    }
+    assert_eq!(end(&mut s, "cancel", tx)["changed"], false);
+
+    let mut package = three_layers();
+    package["document"]["graph"] = json!({"edges":[
+        {"id":"ab","fromId":"a","fromPort":"out","toId":"b","toPort":"bg"},
+        {"id":"ae","fromId":"a","fromPort":"out","toId":"__export__","toPort":"in"}
+    ],"positions":{},"mergeNodes":[],"colorNodes":[]});
+    let mut s = DocumentSession::open(&package.to_string()).unwrap();
+    let original = s.export_json();
+    let tx = begin(&mut s);
+    let denied = update(
+        &mut s,
+        tx,
+        json!([{"type":"reorder_layers","ids":["c","b","a"]}]),
+    );
+    assert_eq!(denied["ok"], false, "{denied}");
+    assert_eq!(s.export_json(), original);
+    assert_eq!(end(&mut s, "cancel", tx)["changed"], false);
+
+    package["document"]["graph"]["futureNodes"] = json!([{"id":"future"}]);
+    let mut s = DocumentSession::open(&package.to_string()).unwrap();
+    let tx = begin(&mut s);
+    let denied = update(
+        &mut s,
+        tx,
+        json!([{"type":"reorder_layers","ids":["c","b","a"]}]),
+    );
+    assert_eq!(denied["error"]["code"], "UNSUPPORTED_CAPABILITY");
+}
+
+#[test]
+fn bootstrap_graph_and_area_commit_once_and_restore_absent_or_null() {
+    for absent in [true, false] {
+        let mut package = three_layers();
+        if absent {
+            package["document"].as_object_mut().unwrap().remove("graph");
+        }
+        let mut s = DocumentSession::open(&package.to_string()).unwrap();
+        let original = doc(&s);
+        let tx = begin(&mut s);
+        let bootstrap = update(&mut s, tx, json!([{"type":"bootstrap_graph"}]));
+        assert_eq!(bootstrap["ok"], true, "{bootstrap}");
+        assert_eq!(doc(&s)["graph"]["positions"]["a"], json!({"x":0,"y":80}));
+        assert_eq!(doc(&s)["graph"]["positions"]["b"], json!({"x":488,"y":80}));
+        assert_eq!(doc(&s)["graph"]["positions"]["c"], json!({"x":996,"y":80}));
+        assert_eq!(doc(&s)["graph"]["edges"][2]["toPort"], "in");
+        let area = update(
+            &mut s,
+            tx,
+            json!([{"type":"graph","action":{"kind":"add_area",
+            "area":{"id":"area-1","name":"Area","color":"#ff705f","nodeIds":["a"]}}}]),
+        );
+        assert_eq!(area["ok"], true, "{area}");
+        assert_eq!(end(&mut s, "commit", tx)["revision"], 1);
+        assert_eq!(doc(&s)["graph"]["areas"][0]["id"], "area-1");
+        assert!(s.undo());
+        assert_eq!(doc(&s), original);
+        assert_eq!(doc(&s).get("graph").is_none(), absent);
+        assert!(s.redo());
+        assert_eq!(doc(&s)["graph"]["areas"][0]["id"], "area-1");
+        let tx = begin(&mut s);
+        assert_eq!(
+            update(&mut s, tx, json!([{"type":"bootstrap_graph"}]))["changed"],
+            false
+        );
+        assert_eq!(end(&mut s, "commit", tx)["changed"], false);
+    }
+}
+
 #[test]
 fn cold_png_add_and_jpeg_patch_share_one_undoable_transaction() {
     let png = large_png_source();

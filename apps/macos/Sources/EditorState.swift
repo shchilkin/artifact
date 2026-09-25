@@ -16,10 +16,18 @@ struct EditorEdge: Identifiable {
     let from: String
     let to: String
 }
+struct EditorArea: Identifiable {
+    let id: String
+    let name: String
+    let color: String
+    let nodeIDs: [String]
+    let collapsed: Bool
+}
 struct EditorState {
     var layers: [EditorLayer] = []
     var order: [String] = []
     var edges: [EditorEdge] = []
+    var areas: [EditorArea] = []
     var positions: [String: CGPoint] = [:]
     var fonts: [(id: String, name: String)] = []
     var canReorder = false
@@ -32,6 +40,11 @@ struct EditorState {
         canReorder = value["canReorder"] as? Bool ?? false
         graphEditable = value["graphEditable"] as? Bool ?? false
         let graph = value["graph"] as? [String: Any] ?? [:]
+        areas = (graph["areas"] as? [[String: Any]] ?? []).compactMap { item in
+            guard let id = item["id"] as? String, let name = item["name"] as? String else { return nil }
+            return EditorArea(id: id, name: name, color: item["color"] as? String ?? "#999999",
+                nodeIDs: item["nodeIds"] as? [String] ?? [], collapsed: item["collapsed"] as? Bool ?? false)
+        }
         edges = (graph["edges"] as? [[String: Any]] ?? []).compactMap {
             guard let id = $0["id"] as? String, let from = $0["fromId"] as? String, let to = $0["toId"] as? String else { return nil }
             return EditorEdge(id: id, from: from, to: to)

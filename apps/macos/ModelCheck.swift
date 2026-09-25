@@ -152,7 +152,9 @@ import Foundation
         workspace.stageInspector(title, values: ["content":"PENDING TITLE"], patch: ["content":"PENDING TITLE"], valid: true)
         workspace.selectedID = copy
         workspace.editProperties(["visible": false])
-        try check(workspace.inspectorDrafts[title]?.values["content"] == "PENDING TITLE")
+        try check(workspace.inspectorDrafts[title] == nil &&
+                  workspace.editor.layers.first { $0.id == title }?.string("content") == "PENDING TITLE",
+                  "A later layer action did not commit the live inspector gesture")
         try check(workspace.save(to:saved))
         try check(!workspace.isModified && workspace.inspectorDrafts.isEmpty)
         try check(workspace.editor.layers.first { $0.id == title }?.string("content") == "PENDING TITLE")

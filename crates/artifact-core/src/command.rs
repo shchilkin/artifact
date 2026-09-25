@@ -40,6 +40,10 @@ pub enum Command {
         id: String,
         delta: i64,
     },
+    ReorderLayers {
+        ids: Vec<String>,
+    },
+    BootstrapGraph,
     Graph {
         action: crate::graph::GraphAction,
     },
@@ -895,6 +899,8 @@ impl DocumentSession {
                     .map_err(core_error)?;
             }
             Command::MoveLayer { id, delta } => self.move_layer(&id, delta)?,
+            Command::ReorderLayers { ids } => self.reorder_layers(ids)?,
+            Command::BootstrapGraph => self.bootstrap_graph()?,
             Command::Graph { action } => self.graph_command(action)?,
             Command::Bridge {
                 capability,
@@ -1209,6 +1215,157 @@ impl DocumentSession {
         });
         Ok(())
     }
+    fn reorder_layers(&mut self, requested: Vec<String>) -> Result<(), CommandError> {
+        let document = &self.package["document"];
+        let layers = document["layers"].as_array().unwrap();
+        let stored: Vec<String> = layers
+            .iter()
+            .map(|layer| layer["id"].as_str().unwrap().to_owned())
+            .collect();
+        if requested.len() != stored.len()
+            || requested.iter().collect::<HashSet<_>>().len() != requested.len()
+            || requested.iter().collect::<HashSet<_>>() != stored.iter().collect::<HashSet<_>>()
+        {
+            return Err(CommandError::new(
+                "INVALID_TARGET",
+                "Reorder requires every layer ID exactly once",
+            ));
+        }
+        let graph = document.get("graph").filter(|graph| !graph.is_null());
+        if let Some(graph) = graph {
+            let Some(graph_fields) = graph.as_object() else {
+                return Err(CommandError::new(
+                    "INVALID_VALUE",
+                    "Graph must be an object",
+                ));
+            };
+            for (name, value) in graph_fields {
+                if name.ends_with("Nodes")
+                    && value.as_array().is_some_and(|nodes| !nodes.is_empty())
+                {
+                    return Err(CommandError::new(
+                        "UNSUPPORTED_CAPABILITY",
+                        "Reorder requires a layer-only linear graph",
+                    ));
+                }
+            }
+        }
+        let current = crate::editor::linear_order(document).map_err(core_error)?;
+        if requested == current {
+            return Ok(());
+        }
+        let locked: HashSet<&str> = layers
+            .iter()
+            .filter(|layer| layer["locked"] == true)
+            .filter_map(|layer| layer["id"].as_str())
+            .collect();
+        let locked_positions = |order: &[String]| -> Vec<(usize, String)> {
+            order
+                .iter()
+                .enumerate()
+                .filter(|(_, id)| locked.contains(id.as_str()))
+                .map(|(index, id)| (index, id.clone()))
+                .collect()
+        };
+        if locked_positions(&current) != locked_positions(&requested) {
+            return Err(CommandError::new(
+                "LOCKED_LAYER",
+                "Unlock layers before reordering them",
+            ));
+        }
+        let segment = |order: &[String]| -> BTreeMap<String, usize> {
+            let mut count = 0;
+            order
+                .iter()
+                .map(|id| {
+                    let position = count;
+                    if locked.contains(id.as_str()) {
+                        count += 1;
+                    }
+                    (id.clone(), position)
+                })
+                .collect()
+        };
+        if segment(&current) != segment(&requested) {
+            return Err(CommandError::new(
+                "LOCKED_LAYER",
+                "Unlock layers before reordering them",
+            ));
+        }
+        let next_graph = if let Some(graph) = graph {
+            let mut next = graph.clone();
+            next["edges"] = Value::Array(reordered_chain_edges(layers, &requested, graph)?);
+            validate_graph(layers, &next)?;
+            Some(next)
+        } else {
+            None
+        };
+        if let Some(next_graph) = next_graph {
+            self.record_graph_change(Some(next_graph))?;
+        }
+        if requested != stored {
+            let layers = self.package["document"]["layers"].as_array_mut().unwrap();
+            let mut by_id: BTreeMap<String, Value> = std::mem::take(layers)
+                .into_iter()
+                .map(|layer| (layer["id"].as_str().unwrap().to_owned(), layer))
+                .collect();
+            *layers = requested
+                .iter()
+                .map(|id| by_id.remove(id).expect("validated layer ID"))
+                .collect();
+            self.record_edit(Edit {
+                layer_index: 0,
+                layer_id: None,
+                fields: Vec::new(),
+                structure: None,
+                extended: Some(ExtendedEdit::Reorder {
+                    before: stored,
+                    after: requested,
+                }),
+            });
+        }
+        Ok(())
+    }
+    fn bootstrap_graph(&mut self) -> Result<(), CommandError> {
+        let document = &self.package["document"];
+        match document.get("graph") {
+            Some(Value::Object(_)) => return Ok(()),
+            Some(value) if !value.is_null() => {
+                return Err(CommandError::new(
+                    "INVALID_VALUE",
+                    "Graph must be an object",
+                ));
+            }
+            _ => {}
+        }
+        let layers = document["layers"].as_array().unwrap();
+        let mut positions = Map::new();
+        let mut x = 0;
+        for layer in layers {
+            let id = layer["id"].as_str().unwrap();
+            positions.insert(id.to_owned(), json!({"x":x,"y":80}));
+            x += if matches!(
+                layer["kind"].as_str(),
+                Some("image" | "primitive" | "noise" | "array" | "lineField" | "model")
+            ) {
+                340 + 168
+            } else {
+                320 + 168
+            };
+        }
+        positions.insert("__export__".to_owned(), json!({"x":x,"y":80}));
+        let order: Vec<String> = layers
+            .iter()
+            .map(|layer| layer["id"].as_str().unwrap().to_owned())
+            .collect();
+        let edges = reordered_chain_edges(layers, &order, &json!({"edges":[]}))?;
+        self.record_graph_change(Some(json!({
+            "edges":edges,"positions":positions,"mergeNodes":[],"colorNodes":[],
+            "repeatNodes":[],"materialNodes":[],"maskNodes":[],"transformNodes":[],
+            "grimeShadowNodes":[],"scene3dNodes":[],"environmentNodes":[],
+            "shaderNodes":[],"areas":[]
+        })))
+    }
     fn bridge(
         &mut self,
         capability: String,
@@ -1324,6 +1481,60 @@ impl DocumentSession {
         });
         Ok(())
     }
+}
+
+fn reordered_chain_edges(
+    layers: &[Value],
+    order: &[String],
+    graph: &Value,
+) -> Result<Vec<Value>, CommandError> {
+    let existing = graph["edges"]
+        .as_array()
+        .ok_or_else(|| CommandError::new("INVALID_VALUE", "Graph edges must be an array"))?;
+    let mut retained = Vec::with_capacity(order.len());
+    for (index, from) in order.iter().enumerate() {
+        let to = order.get(index + 1).map_or("__export__", String::as_str);
+        let to_port = crate::editor::input_port(layers, to);
+        retained.push(existing.iter().find(|edge| {
+            edge["fromId"] == from.as_str()
+                && edge["toId"] == to
+                && edge["fromPort"] == "out"
+                && edge["toPort"] == to_port
+        }));
+    }
+    let mut used_ids: HashSet<String> = retained
+        .iter()
+        .flatten()
+        .filter_map(|edge| edge["id"].as_str().map(str::to_owned))
+        .collect();
+    let mut edges = Vec::with_capacity(order.len());
+    for (index, from) in order.iter().enumerate() {
+        if let Some(edge) = retained[index] {
+            edges.push(edge.clone());
+            continue;
+        }
+        let to = order.get(index + 1).map_or("__export__", String::as_str);
+        let preferred = format!("e-{from}-{to}");
+        let id = if preferred.len() <= 200
+            && !preferred.contains('\0')
+            && !used_ids.contains(&preferred)
+        {
+            preferred
+        } else {
+            let mut suffix = 0;
+            loop {
+                let candidate = format!("e-reorder-{index}-{suffix}");
+                if !used_ids.contains(&candidate) {
+                    break candidate;
+                }
+                suffix += 1;
+            }
+        };
+        used_ids.insert(id.clone());
+        edges.push(json!({"id":id,"fromId":from,"fromPort":"out","toId":to,
+            "toPort":crate::editor::input_port(layers,to)}));
+    }
+    Ok(edges)
 }
 
 pub(crate) fn validate_graph(layers: &[Value], graph: &Value) -> Result<(), CommandError> {

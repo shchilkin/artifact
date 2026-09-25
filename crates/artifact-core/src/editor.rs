@@ -115,7 +115,7 @@ fn id<'a>(command: &'a Value, key: &str) -> Result<&'a str, CoreError> {
         .filter(|s| !s.is_empty() && s.len() <= 200)
         .ok_or(CoreError("Missing or invalid id"))
 }
-fn input_port(layers: &[Value], to: &str) -> &'static str {
+pub(crate) fn input_port(layers: &[Value], to: &str) -> &'static str {
     if to == "__export__"
         || layers
             .iter()
@@ -212,7 +212,7 @@ fn output_order(doc: &Value) -> Vec<String> {
     result.reverse();
     result
 }
-fn linear_order(doc: &Value) -> Result<Vec<String>, CoreError> {
+pub(crate) fn linear_order(doc: &Value) -> Result<Vec<String>, CoreError> {
     basic_graph(doc)?;
     let order = output_order(doc);
     if order.len() != doc["layers"].as_array().unwrap().len()
