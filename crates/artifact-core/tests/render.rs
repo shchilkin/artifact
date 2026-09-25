@@ -1,7 +1,160 @@
 use artifact_core::{DocumentSession, render::effect_rgba};
 use serde_json::{Value, json};
 fn package() -> Value {
-    json!({"artifactPackage":"project","manifest":{"kind":"artifact-project-package","version":1,"documentSchemaVersion":3},"document":{"schemaVersion":3,"global":{"aspect":"1:1","seed":4242,"bg":"transparent"},"export":{},"layers":[{"id":"title","kind":"text"},{"id":"shadow","kind":"text"}],"graph":{"edges":[{"fromId":"shadow","fromPort":"out","toId":"title","toPort":"bg"},{"fromId":"title","fromPort":"out","toId":"__export__","toPort":"in"}]}}})
+    json!({"artifactPackage":"project","manifest":{"kind":"artifact-project-package","version":1,"documentSchemaVersion":3},"document":{"schemaVersion":3,"global":{"aspect":"1:1","seed":4242,"bg":"transparent"},"export":{},"layers":[{"id":"title","kind":"text"},{"id":"shadow","kind":"text"}],"graph":{"edges":[{"id":"e1","fromId":"shadow","fromPort":"out","toId":"title","toPort":"bg"},{"id":"e2","fromId":"title","fromPort":"out","toId":"__export__","toPort":"in"}],"mergeNodes":[],"positions":{}}}})
+}
+fn graph_fixture(source: &str) -> DocumentSession {
+    let document: Value = serde_json::from_str(source).unwrap();
+    let mut project = package();
+    project["document"] = document;
+    DocumentSession::open(&project.to_string()).unwrap()
+}
+#[test]
+fn branching_render_plan_keeps_ports_targets_and_document_immutable() {
+    let session = graph_fixture(include_str!(
+        "../../../tests/fixtures/native-2d/p09/combined.artifact.json"
+    ));
+    let before = session.export_json();
+    let export: Value =
+        serde_json::from_str(&session.render_plan_json(1920, 1080).unwrap()).unwrap();
+    assert_eq!(export["version"], 2);
+    assert_eq!(export["mode"], "graph");
+    assert_eq!(export["background"], "transparent");
+    assert_eq!(
+        export["nodes"].as_array().unwrap().last().unwrap()["id"],
+        "__export__"
+    );
+    let merge = export["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["id"] == "branch-merge")
+        .unwrap();
+    assert_eq!(merge["kind"], "merge");
+    assert_eq!(merge["inputs"].as_array().unwrap().len(), 2);
+    assert!(
+        merge["inputs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|i| i["port"] == "a")
+    );
+    assert!(
+        merge["inputs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|i| i["port"] == "b")
+    );
+    let target: Value = serde_json::from_str(
+        &session
+            .render_target_plan_json(1920, 1080, "branch-repeat")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(target["targetId"], "branch-repeat");
+    assert_eq!(target["nodes"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        target["nodes"].as_array().unwrap().last().unwrap()["id"],
+        "branch-repeat"
+    );
+    assert_eq!(before, session.export_json());
+}
+#[test]
+fn graph_render_keys_propagate_pixel_changes_but_ignore_ui_metadata_and_revision() {
+    let original: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/native-2d/p09/combined.artifact.json"
+    ))
+    .unwrap();
+    let plan = |document: Value| {
+        let mut p = package();
+        p["document"] = document;
+        let session = DocumentSession::open(&p.to_string()).unwrap();
+        let value: Value =
+            serde_json::from_str(&session.render_plan_json(1920, 1080).unwrap()).unwrap();
+        value["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| {
+                (
+                    n["id"].as_str().unwrap().to_owned(),
+                    n["cacheKey"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>()
+    };
+    let base = plan(original.clone());
+    let mut moved = original.clone();
+    moved["graph"]["positions"]["branch-repeat"]["x"] = json!(999);
+    moved["graph"]["repeatNodes"][0]["name"] = json!("Renamed");
+    assert_eq!(base, plan(moved));
+    let mut changed = original.clone();
+    changed["graph"]["repeatNodes"][0]["count"] = json!(2);
+    let next = plan(changed);
+    assert_eq!(base["branch-ground"], next["branch-ground"]);
+    assert_eq!(base["branch-art"], next["branch-art"]);
+    for id in ["branch-repeat", "branch-mask", "branch-merge", "__export__"] {
+        assert_ne!(base[id], next[id], "{id}");
+    }
+    let mut disconnected = original.clone();
+    disconnected["layers"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":"spare","kind":"fill","color":"#abcdef"}));
+    assert_eq!(base, plan(disconnected));
+}
+#[test]
+fn empty_graph_export_is_explicit_and_invalid_targets_reject() {
+    let session = graph_fixture(include_str!(
+        "../../../tests/fixtures/native-2d/p09/export-empty-transparent.artifact.json"
+    ));
+    let plan: Value = serde_json::from_str(&session.render_plan_json(1920, 1080).unwrap()).unwrap();
+    assert_eq!(plan["nodes"].as_array().unwrap().len(), 1);
+    assert_eq!(plan["background"], "transparent");
+    assert!(
+        session
+            .render_target_plan_json(1920, 1080, "missing")
+            .is_err()
+    );
+}
+#[test]
+fn shared_upstream_is_planned_once_and_unsupported_paths_reject() {
+    let mut document: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/native-2d/p09/shared-upstream.artifact.json"
+    ))
+    .unwrap();
+    let mut project = package();
+    project["document"] = document.clone();
+    let session = DocumentSession::open(&project.to_string()).unwrap();
+    let plan: Value = serde_json::from_str(&session.render_plan_json(1920, 1080).unwrap()).unwrap();
+    assert_eq!(
+        plan["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|n| n["id"] == "branch-art")
+            .count(),
+        1
+    );
+    let merge = plan["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["id"] == "branch-merge")
+        .unwrap();
+    assert!(
+        merge["inputs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n["port"] == "a" && n["sourceId"] == "branch-art")
+    );
+    document["graph"]["futureNodes"] = json!([{"id":"unknown","config":{"a":1}}]);
+    document["graph"]["edges"] = json!([{"id":"future-export","fromId":"unknown","fromPort":"out","toId":"__export__","toPort":"in"}]);
+    project["document"] = document;
+    let session = DocumentSession::open(&project.to_string()).unwrap();
+    assert!(session.render_plan_json(1920, 1080).is_err());
 }
 #[test]
 fn native_plan_accepts_four_aspects_blends_and_tiled_image_without_mutating_document() {
@@ -47,8 +200,12 @@ fn chromatic_aberration_plan_uses_web_540px_reference_without_mutating_saved_val
         let session = DocumentSession::open(&p.to_string()).unwrap();
         let saved = session.export_json();
         for (w, h) in [(width, height), (preview_width, preview_height)] {
-            let plan: Value = serde_json::from_str(&session.render_plan_json(w, h).unwrap()).unwrap();
-            assert_eq!(plan["layers"][0]["ca"], json!((7.5_f64 * f64::from(w) / 540.0).round()));
+            let plan: Value =
+                serde_json::from_str(&session.render_plan_json(w, h).unwrap()).unwrap();
+            assert_eq!(
+                plan["layers"][0]["ca"],
+                json!((7.5_f64 * f64::from(w) / 540.0).round())
+            );
             assert_eq!(session.export_json(), saved);
         }
     }

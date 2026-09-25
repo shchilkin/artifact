@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 3,
+  "global": {
+    "bg": "transparent",
+    "seed": 303,
+    "aspect": "16:9"
+  },
+  "layers": [
+    {
+      "id": "branch-ground",
+      "name": "branch-ground",
+      "visible": true,
+      "locked": false,
+      "kind": "fill",
+      "color": "#16273d",
+      "opacity": 100,
+      "blendMode": "normal"
+    },
+    {
+      "id": "branch-art",
+      "name": "branch-art",
+      "visible": true,
+      "locked": false,
+      "kind": "image",
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABACAYAAADlNHIOAAAAtElEQVR4nO3RwQnCAAAEwVTi20pSseWkCEuwAh8B4cCdxz4PDuZ4P89Du+YH6s0P1JsfqDc/UG9+oN78QL35gXrzA/VuDx6v69L3AABoBwBAOwAA2gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A4AgHYAALQD8O8A+m3zA/XmB+rND9SbH6g3P1BvfqDe/EC9+YF6H1W+/AKp38+wAAAAAElFTkSuQmCC",
+      "fit": "contain",
+      "x": 0.46,
+      "y": 0.5,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "opacity": 100,
+      "blendMode": "normal"
+    },
+    {
+      "id": "branch-matte",
+      "name": "branch-matte",
+      "visible": true,
+      "locked": false,
+      "kind": "image",
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABACAYAAADlNHIOAAAAtElEQVR4nO3RwQnCAAAEwVTi20pSseWkCEuwAh8B4cCdxz4PDuZ4P89Du+YH6s0P1JsfqDc/UG9+oN78QL35gXrzA/VuDx6v69L3AABoBwBAOwAA2gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A4AgHYAALQD8O8A+m3zA/XmB+rND9SbH6g3P1BvfqDe/EC9+YF6H1W+/AKp38+wAAAAAElFTkSuQmCC",
+      "fit": "contain",
+      "x": 0.58,
+      "y": 0.5,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "opacity": 100,
+      "blendMode": "normal"
+    }
+  ],
+  "export": {
+    "format": "png",
+    "scale": 1,
+    "target": "cover"
+  },
+  "graph": {
+    "edges": [
+      {
+        "id": "edge-branch-art-branch-repeat-in",
+        "fromId": "branch-art",
+        "fromPort": "out",
+        "toId": "branch-repeat",
+        "toPort": "in"
+      },
+      {
+        "id": "edge-branch-repeat-branch-mask-in",
+        "fromId": "branch-repeat",
+        "fromPort": "out",
+        "toId": "branch-mask",
+        "toPort": "in"
+      },
+      {
+        "id": "edge-branch-matte-branch-mask-mask",
+        "fromId": "branch-matte",
+        "fromPort": "out",
+        "toId": "branch-mask",
+        "toPort": "mask"
+      },
+      {
+        "id": "p09-branch-merge-export",
+        "fromId": "branch-merge",
+        "fromPort": "out",
+        "toId": "__export__",
+        "toPort": "in"
+      }
+    ],
+    "positions": {
+      "branch-ground": {
+        "x": 0,
+        "y": 520
+      },
+      "branch-art": {
+        "x": 0,
+        "y": 80
+      },
+      "branch-matte": {
+        "x": 520,
+        "y": 520
+      },
+      "branch-repeat": {
+        "x": 520,
+        "y": 80
+      },
+      "branch-mask": {
+        "x": 1040,
+        "y": 80
+      },
+      "branch-merge": {
+        "x": 1560,
+        "y": 80
+      },
+      "__export__": {
+        "x": 2080,
+        "y": 80
+      }
+    },
+    "mergeNodes": [
+      {
+        "id": "branch-merge",
+        "name": "Merge",
+        "blendMode": "source-over",
+        "opacity": 100
+      }
+    ],
+    "colorNodes": [],
+    "repeatNodes": [
+      {
+        "id": "branch-repeat",
+        "name": "Repeat",
+        "pattern": "grid",
+        "count": 3,
+        "rows": 2,
+        "gap": 100,
+        "radius": 90,
+        "scale": 28,
+        "jitter": 0,
+        "rotation": 0,
+        "seedOffset": 0,
+        "opacity": 100,
+        "blendMode": "normal"
+      }
+    ],
+    "maskNodes": [
+      {
+        "id": "branch-mask",
+        "name": "Mask",
+        "mode": "alpha",
+        "invert": false,
+        "threshold": 50,
+        "feather": 0,
+        "expand": 0,
+        "opacity": 100
+      }
+    ],
+    "transformNodes": [],
+    "grimeShadowNodes": [],
+    "areas": [
+      {
+        "id": "branch-area",
+        "name": "Composite",
+        "nodeIds": ["branch-repeat", "branch-mask", "branch-merge"],
+        "color": "#79e3c5"
+      }
+    ]
+  }
+}

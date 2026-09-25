@@ -5,23 +5,23 @@
     "crates/artifact-core/Cargo.toml": "0e83c574b9a4ad4e1ed2ce69aa52183f9d9d6af40ad04cf7ea9e9e0528471d82",
     "crates/artifact-core/src/command.rs": "6ec8e059c800a6a8d4c93db58cd940134aa6f88cd2efdb269a70049804dcbe0b",
     "crates/artifact-core/src/editor.rs": "b29aa1e6f49247eea1bcfd27dc8f5fb3d32c0bd9d8d645001422340602008b30",
-    "crates/artifact-core/src/graph.rs": "c469d9fc87418a4ee0eec6e8f532b89901ac42d4197db62a34a9b6c244b6df81",
+    "crates/artifact-core/src/graph.rs": "ce98383b3950624b093e9a8bc52f1051c5714e27ca522cbf5177fa892a5d8b35",
     "crates/artifact-core/src/image.rs": "a9221f36d700acb337173819a895f8f4a0ff75ea434338557a88560a883d130a",
     "crates/artifact-core/src/lib.rs": "60c23db5c7d0edf6831b115a50efd893d002ec428064312018335c6feee32bed",
     "crates/artifact-core/src/properties.rs": "f0b5a962a295dd0034144e592c28eb4f6e0b43f7f622ffbe428c6642448f1b4e",
-    "crates/artifact-core/src/render.rs": "ffa5825a420c09084b02609d74ea7e8a245289ced5803ad62721f3c0c51acb17",
+    "crates/artifact-core/src/render.rs": "ca452c0415f747f0e6472cf0f097bcf9030b8dda280a1efe66647ef4fead776e",
     "crates/artifact-core/src/structure_bridge.rs": "a8a2a7464d7ff6ff54299e13c81bb02ee43dc506d390a1b47d52c0e3a7f3b5c7",
     "crates/artifact-wasm/Cargo.toml": "92f7df3d342b154809f0dc97a32ab2f1f82758ffaff9cbabb66601a3e5360ab6",
-    "crates/artifact-wasm/src/lib.rs": "e12100b6b9502e52d0e0f31a2fcc03f10ae9df1fcff0ea07e286abdf60324b7d",
+    "crates/artifact-wasm/src/lib.rs": "72229e6a5e4c3757f7528e5b756c1dc89f87875e889fb29b9af073b19c7f235c",
     "rust-toolchain.toml": "444141cad75b3ff0428cdff7040e288b46177ef15aacb50be74287aa8f1798ca",
     "scripts/core-pilot/build-plan.mjs": "78add83694b11130cbdc1276b2992cbe4191fd63c3d7b5ed226522ca3bb0117d",
     "scripts/core-pilot/build-wasm-canonical.mjs": "dca3ca3e905510f84c5e8c20f3ff99d0df64872e9a41d000607155b169359792",
-    "scripts/core-pilot/build.mjs": "338eedd77a2e4a0118081cbe4dcb326563b2ee066512dc65ba981527de6226b6"
+    "scripts/core-pilot/build.mjs": "57eb21e3bdc9a2128bf2b3005b14be909e0c1399d0b5644e0460d907af6c4241"
   },
   "runtime": {
-    "artifact_wasm.d.ts": "a31ccfc3b7ee3b0887d6c72123b692ee27daff20845508ff2fcd4e770ae77a4d",
-    "artifact_wasm.js": "8fb94b8171b91b1de7458fdd2ec3e377e95c86c9296029a6929a8b1a876c382c",
-    "artifact_wasm_bg.wasm": "441ba377cbc7291760d37bc62693623d6352c903c23ec28d345b8680f70295d4",
-    "artifact_wasm_bg.wasm.d.ts": "2dcc1f85d8ca681e365abf6e72835a5d79c427b28053b139fda421f5e112f606"
+    "artifact_wasm.d.ts": "e97a70c1592747bfb4f20372eb2f01e6153d5d8f7fdae3b5d159eaae49b3deb9",
+    "artifact_wasm.js": "ca96a79219add972959235dfd5167ea7fbd2121b5ba3f4c7e28d885a075aedca",
+    "artifact_wasm_bg.wasm": "bb000cff8d2e74d478ab488f29ead108810b018e8da373b7c9c33100999b8d79",
+    "artifact_wasm_bg.wasm.d.ts": "43cce85185ad473dda0201f0782f2f7ebab487919b61be024ae3439c0909dbf6"
   }
 }

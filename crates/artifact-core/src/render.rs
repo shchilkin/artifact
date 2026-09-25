@@ -2,7 +2,7 @@
 //! Raster text/image decoding remains in the platform adapter. No document mutation.
 use crate::{CoreError, DocumentSession};
 use serde_json::{Value, json};
-use std::collections::HashSet;
+use std::collections::BTreeMap;
 
 pub fn number(v: &Value, key: &str, default: f64) -> f64 {
     v[key].as_f64().unwrap_or(default)
@@ -126,6 +126,18 @@ fn aspect_dimensions(aspect: &str, width: u32, height: u32) -> Result<(), CoreEr
 }
 impl DocumentSession {
     pub fn render_plan_json(&self, width: u32, height: u32) -> Result<String, CoreError> {
+        self.render_target_plan_json(width, height, crate::graph::OUTPUT_ID)
+    }
+
+    /// Immutable platform render recipe. `graph::plan` is the only topology
+    /// authority; the native rasterizer receives ordered nodes and explicit
+    /// port inputs rather than inferring a chain from `layers`.
+    pub fn render_target_plan_json(
+        &self,
+        width: u32,
+        height: u32,
+        target_id: &str,
+    ) -> Result<String, CoreError> {
         dimensions(width, height)?;
         let doc = &self.package["document"];
         aspect_dimensions(
@@ -137,67 +149,24 @@ impl DocumentSession {
         if layers.len() > 256 {
             return Err(CoreError("Render pilot supports up to 256 layers"));
         }
-        let mut order = Vec::new();
-        if !doc["graph"].is_null() {
-            let graph = &doc["graph"];
-            for key in [
-                "mergeNodes",
-                "colorNodes",
-                "repeatNodes",
-                "maskNodes",
-                "transformNodes",
-                "grimeShadowNodes",
-                "materialNodes",
-                "scene3dNodes",
-                "environmentNodes",
-                "shaderNodes",
-            ] {
-                if graph[key].as_array().is_some_and(|a| !a.is_empty()) {
-                    return Err(CoreError(
-                        "Only a linear layer graph is supported for rendering",
-                    ));
-                }
-            }
-            let edges = graph["edges"]
-                .as_array()
-                .ok_or(CoreError("Missing graph edges"))?;
-            let mut current = "__export__";
-            let mut visited = HashSet::new();
-            loop {
-                if !visited.insert(current) {
-                    return Err(CoreError("Cycle in render graph"));
-                }
-                let incoming: Vec<_> = edges.iter().filter(|e| e["toId"] == current).collect();
-                if incoming.is_empty() {
-                    break;
-                }
-                if incoming.len() != 1 {
-                    return Err(CoreError("Only one input per node is supported"));
-                }
-                let edge = incoming[0];
-                let layer = layers
-                    .iter()
-                    .find(|l| l["id"] == edge["fromId"])
-                    .ok_or(CoreError("Graph references an unsupported or missing node"))?;
-                let expected_port = if current == "__export__"
-                    || layers
-                        .iter()
-                        .any(|l| l["id"] == current && l["kind"] == "effect")
-                {
-                    "in"
-                } else {
-                    "bg"
-                };
-                if edge["fromPort"] != "out" || edge["toPort"] != expected_port {
-                    return Err(CoreError("Unsupported graph port"));
-                }
-                order.push(layer.clone());
-                current = layer["id"].as_str().unwrap();
-            }
-            order.reverse();
-        } else {
-            order = layers.clone();
+        let semantic = crate::graph::plan(doc, target_id)
+            .map_err(|_| CoreError("Invalid graph target or topology"))?;
+        if semantic["renderable2d"] != true {
+            return Err(CoreError(
+                "Graph target contains an unsupported 2D render capability",
+            ));
         }
+        let is_graph = semantic["mode"] == "graph";
+        let mut order: Vec<Value> = if is_graph {
+            semantic["renderLayerIds"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|id| layers.iter().find(|layer| layer["id"] == *id).cloned())
+                .collect()
+        } else {
+            layers.clone()
+        };
         let seed = number(&doc["global"], "seed", 0.0) as u32;
         for layer in &mut order {
             if layer["visible"] == false {
@@ -245,7 +214,8 @@ impl DocumentSession {
                     // canvas. Apply it to the transient plan at every render
                     // size; export renders at the base aspect before upscaling.
                     if number(layer, "ca", 0.0) > 0.0 {
-                        layer["ca"] = json!((number(layer, "ca", 0.0) * width as f64 / 540.0).round());
+                        layer["ca"] =
+                            json!((number(layer, "ca", 0.0) * width as f64 / 540.0).round());
                     }
                 }
                 "emoji" => {
@@ -286,7 +256,92 @@ impl DocumentSession {
                 _ => return Err(CoreError("Unsupported layer kind for the render pilot")),
             }
         }
-        Ok(json!({"width":width,"height":height,"seed":seed,"background":if doc["graph"].is_null(){doc["global"]["bg"].clone()}else{json!("transparent")},"layers":order,"fontAssets":doc["fontAssets"]}).to_string())
+        let mut nodes = Vec::new();
+        if is_graph {
+            let mut keys: BTreeMap<String, String> = BTreeMap::new();
+            let mut ids: Vec<String> = semantic["dependencyNodeIds"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|id| id.as_str().map(str::to_owned))
+                .collect();
+            if target_id == crate::graph::OUTPUT_ID {
+                ids.push(target_id.to_owned());
+            }
+            for id in ids {
+                let (kind, config) = if id == crate::graph::OUTPUT_ID {
+                    ("export", json!({"id":id}))
+                } else if let Some(layer) = order.iter().find(|layer| layer["id"] == id) {
+                    (layer["kind"].as_str().unwrap_or(""), layer.clone())
+                } else {
+                    let graph = &doc["graph"];
+                    let families = [
+                        ("merge", "mergeNodes"),
+                        ("color", "colorNodes"),
+                        ("repeat", "repeatNodes"),
+                        ("mask", "maskNodes"),
+                        ("transform", "transformNodes"),
+                        ("grimeShadow", "grimeShadowNodes"),
+                    ];
+                    let (kind, collection, raw) = families
+                        .iter()
+                        .find_map(|(kind, collection)| {
+                            graph[*collection]
+                                .as_array()?
+                                .iter()
+                                .find(|node| node["id"] == id)
+                                .map(|node| (*kind, *collection, node))
+                        })
+                        .ok_or(CoreError(
+                            "Graph target contains an unsupported 2D render capability",
+                        ))?;
+                    let mut config = crate::graph::node_defaults(collection);
+                    for (key, value) in raw.as_object().ok_or(CoreError("Invalid graph node"))? {
+                        if crate::graph::valid_node_field(collection, key, value) == Some(false) {
+                            return Err(CoreError("Invalid 2D graph node parameter"));
+                        }
+                        config[key] = value.clone();
+                    }
+                    (kind, config)
+                };
+                let mut inputs = Vec::new();
+                for edge in semantic["dependencyEdges"].as_array().unwrap() {
+                    if edge["toId"] != id {
+                        continue;
+                    }
+                    let from = edge["fromId"]
+                        .as_str()
+                        .ok_or(CoreError("Invalid graph edge"))?;
+                    let key = keys
+                        .get(from)
+                        .ok_or(CoreError("Graph dependencies are out of order"))?;
+                    inputs.push(json!({"port":edge["toPort"],"sourceId":from,"sourceKey":key}));
+                }
+                // Canonical Value serialization uses sorted object keys. Include
+                // resources, dimensions and all upstream signatures; omit UI
+                // positions, names and the document revision.
+                let mut pixel_config = config.clone();
+                if let Some(object) = pixel_config.as_object_mut() {
+                    object.remove("name");
+                }
+                let signature = json!({"kind":kind,"config":pixel_config,"inputs":inputs,
+                    "width":width,"height":height,"seed":seed,"fontAssets":doc["fontAssets"]});
+                let mut hash = 0xcbf29ce484222325_u64;
+                for byte in signature.to_string().bytes() {
+                    hash = (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3);
+                }
+                let cache_key = format!("{id}:{hash:016x}");
+                keys.insert(id.clone(), cache_key.clone());
+                nodes.push(json!({"id":id,"kind":kind,"config":config,"inputs":inputs,"cacheKey":cache_key}));
+            }
+        }
+        Ok(
+            json!({"version":2,"mode":semantic["mode"],"targetId":target_id,
+            "width":width,"height":height,"seed":seed,
+            "background":if is_graph {json!("transparent")} else {doc["global"]["bg"].clone()},
+            "layers":order,"nodes":nodes,"fontAssets":doc["fontAssets"]})
+            .to_string(),
+        )
     }
 }
 fn byte(v: f64) -> u8 {

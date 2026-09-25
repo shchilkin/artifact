@@ -603,55 +603,55 @@
       "id": "graph.merge",
       "owner": 269,
       "web": "implemented",
-      "native": "missing",
-      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
-      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
-      "acceptance": "planned"
+      "native": "implemented",
+      "fixture": "tests/fixtures/native-2d/p09/merge.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/render.rs; tests/native-2d-graph/verify.mjs; apps/macos/GraphRenderCheck.swift; independent main-Web PNG fixtures at source 0b39f6e",
+      "acceptance": "automated render verified; native GUI pending integration"
     },
     {
       "id": "graph.mask",
       "owner": 269,
       "web": "implemented",
-      "native": "missing",
-      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
-      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
-      "acceptance": "planned"
+      "native": "implemented",
+      "fixture": "tests/fixtures/native-2d/p09/mask-expanded-feathered.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/render.rs; tests/native-2d-graph/verify.mjs; apps/macos/GraphRenderCheck.swift; independent main-Web PNG fixtures at source 0b39f6e",
+      "acceptance": "automated render verified; native GUI pending integration"
     },
     {
       "id": "graph.repeat",
       "owner": 269,
       "web": "implemented",
-      "native": "missing",
-      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
-      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
-      "acceptance": "planned"
+      "native": "implemented",
+      "fixture": "tests/fixtures/native-2d/p09/repeat.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/render.rs; tests/native-2d-graph/verify.mjs; apps/macos/GraphRenderCheck.swift; independent main-Web PNG fixtures at source 0b39f6e",
+      "acceptance": "automated render verified; native GUI pending integration"
     },
     {
       "id": "graph.color",
       "owner": 269,
       "web": "implemented",
-      "native": "missing",
-      "fixture": "tests/fixtures/native-2d/graph-utilities.artifact.json",
-      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
-      "acceptance": "planned"
+      "native": "implemented",
+      "fixture": "tests/fixtures/native-2d/p09/color-translucent-clipping.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/render.rs; tests/native-2d-graph/verify.mjs; apps/macos/GraphRenderCheck.swift; independent main-Web PNG fixtures at source 0b39f6e",
+      "acceptance": "automated render verified; native GUI pending integration"
     },
     {
       "id": "graph.transform",
       "owner": 269,
       "web": "implemented",
-      "native": "missing",
-      "fixture": "tests/fixtures/native-2d/graph-utilities.artifact.json",
-      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
-      "acceptance": "planned"
+      "native": "implemented",
+      "fixture": "tests/fixtures/native-2d/p09/transform-nonsquare.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/render.rs; tests/native-2d-graph/verify.mjs; apps/macos/GraphRenderCheck.swift; independent main-Web PNG fixtures at source 0b39f6e",
+      "acceptance": "automated render verified; native GUI pending integration"
     },
     {
       "id": "graph.grimeShadow",
       "owner": 269,
       "web": "implemented",
-      "native": "missing",
-      "fixture": "tests/fixtures/native-2d/graph-utilities.artifact.json",
-      "contractEvidence": "crates/artifact-core/tests/graph.rs; shared graph commands/dependencies only, native render pending #269",
-      "acceptance": "planned"
+      "native": "implemented",
+      "fixture": "tests/fixtures/native-2d/p09/grime-shadow.artifact.json",
+      "contractEvidence": "crates/artifact-core/tests/render.rs; tests/native-2d-graph/verify.mjs; apps/macos/GraphRenderCheck.swift; independent main-Web PNG fixtures at source 0b39f6e",
+      "acceptance": "automated render verified; native GUI pending integration"
     },
     {
       "id": "interaction.layers.select",
