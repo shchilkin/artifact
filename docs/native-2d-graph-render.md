@@ -21,9 +21,11 @@ thumbnail recipes; P10 supplies the native node UI. Source/effect painting
 still uses `PilotRenderer`. Six utilities live in `NativeGraphUtilities.swift`:
 merge (`a`/`b`), repeat (`in`/`bg`), mask (`in`/`mask`), and color, transform
 and grime shadow (`in`). Layer-backed sources take `bg`; effects take `in`.
-The transient cache is capped at 128 MiB and includes dimensions, seed, font
-bytes, source configuration, utility parameters, ordered ports and upstream
-signatures. It omits UI positions, names and document revision. The executor
+The transient cache is capped at 128 MiB and includes dimensions, source
+configuration, utility parameters, ordered ports and upstream signatures.
+Seed enters only nodes with stochastic output; text includes only its selected
+font payload. It omits unrelated font imports, UI positions, names, locks and
+document revision. The executor
 skips cached subtrees and releases intermediate images after their last
 consumer. No cache image or render plan enters serialized document state.
 
@@ -34,7 +36,7 @@ clean source `0b39f6e`, Chrome 153.0.8010.53, Apple M5 Max/macOS 26.6.2.
 JSON value hash, and the exported PNG hash. The native gate checks semantic
 input identity after repository formatting and refuses missing or changed
 references. Cases cover every utility, translucent color clipping,
-expanded/feathered mask, combined branches,
+expanded/feathered mask, seeded random rotation and position jitter, combined branches,
 missing ports, empty graph export, non-square transform, reordered stack and
 shared upstream reuse. References are independent of the Rust/Swift work.
 
@@ -42,10 +44,7 @@ Run after `npm run build:core-pilot -- macos`:
 
 ```bash
 cargo test -p artifact-core --test render
-node tests/native-2d-graph/verify.mjs
-apps/macos/.build/graph-render-check \
-  tests/fixtures/native-2d/p09/combined.artifact.json \
-  tests/fixtures/native-2d/hundred-node.artifact.json
+npm run test:core-native-graph
 ```
 
 The pixel gate compares decoded sRGB RGBA at Web base dimensions. For painted
@@ -56,9 +55,11 @@ targets must be fully transparent. Six arbitrary node targets must yield the
 same native PNG as routing each to export. The Swift check tests cache reuse,
 branch invalidation, cancellation and a 100-node live-image frontier. Rust
 tests cover immutable plans, shared branches, invalid cycles, unsupported
-targets and dependency-key propagation.
+targets, selected-font readiness and dependency-key propagation. The seeded
+repeat fixture must also be byte-stable across independent native runs and
+stay below whole-image alpha MAE 1 against the Web export.
 
-At the 16-fixture checkpoint, all painted-area gates passed: interior RGB p99
+At the 17-fixture checkpoint, all painted-area gates passed: interior RGB p99
 was at most 3 and alpha p99 was 0. The largest whole-image alpha mean error
 was 0.67 on shared-upstream; its interior RGB/alpha p99 values were both 0.
 Grime-shadow interior RGB mean error was 0.39. Edge bands

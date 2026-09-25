@@ -42,6 +42,15 @@ for (const [name, id] of [
   ['merge', 'branch-merge'],
 ])
   save(name, target(branch, id));
+const repeatRandom = target(branch, 'branch-repeat');
+Object.assign(repeatRandom.graph.repeatNodes[0], {
+  jitter: 16,
+  rotation: 12,
+  rotationMode: 'random',
+  rotationJitter: 55,
+  seedOffset: 17,
+});
+save('repeat-random-jitter', repeatRandom);
 save('combined', branch);
 const shared = structuredClone(branch);
 const sharedBase = shared.graph.edges.find((item) => item.toId === 'branch-merge' && item.toPort === 'a');

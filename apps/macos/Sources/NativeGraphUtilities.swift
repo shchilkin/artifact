@@ -265,13 +265,14 @@ enum NativeGraphUtilities {
         func drawItem(_ x: Double, _ y: Double, _ index: Int, _ radialAngle: Double) throws {
             let dx = jitter == 0 ? 0 : (rng.next() - 0.5) * jitter * 2
             let dy = jitter == 0 ? 0 : (rng.next() - 0.5) * jitter * 2
-            let extra = angleJitter == 0 ? 0 : (rng.next() - 0.5) * angleJitter * 2
+            // Web repeatItemAngle draws jitter before its random rotation mode.
+            let jitterAngle = angleJitter == 0 ? 0 : (rng.next() - 0.5) * angleJitter * 2
             let angle: Double
             switch mode {
-            case "radial": angle = radialAngle + extra
-            case "step": angle = rotation + Double(index) * step + extra
-            case "random": angle = rotation + (rng.next() - 0.5) * .pi * 2 + extra
-            default: angle = rotation + extra
+            case "radial": angle = radialAngle + jitterAngle
+            case "step": angle = rotation + Double(index) * step + jitterAngle
+            case "random": angle = rotation + (rng.next() - 0.5) * .pi * 2 + jitterAngle
+            default: angle = rotation + jitterAngle
             }
             c.context.saveGState()
             c.context.translateBy(x: x + dx, y: y + dy)

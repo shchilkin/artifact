@@ -103,6 +103,91 @@ fn graph_render_keys_propagate_pixel_changes_but_ignore_ui_metadata_and_revision
         .unwrap()
         .push(json!({"id":"spare","kind":"fill","color":"#abcdef"}));
     assert_eq!(base, plan(disconnected));
+    let mut new_seed = original.clone();
+    new_seed["global"]["seed"] = json!(304);
+    assert_eq!(
+        base,
+        plan(new_seed),
+        "deterministic paths ignore scene seed"
+    );
+    let mut seeded = original.clone();
+    seeded["graph"]["repeatNodes"][0]["jitter"] = json!(16);
+    let before_seed = plan(seeded.clone());
+    seeded["global"]["seed"] = json!(304);
+    let after_seed = plan(seeded);
+    for id in ["branch-ground", "branch-art", "branch-matte"] {
+        assert_eq!(
+            before_seed[id], after_seed[id],
+            "{id} does not consume seed"
+        );
+    }
+    for id in ["branch-repeat", "branch-mask", "branch-merge", "__export__"] {
+        assert_ne!(
+            before_seed[id], after_seed[id],
+            "{id} depends on seeded repeat"
+        );
+    }
+}
+#[test]
+fn graph_render_keys_use_only_selected_text_font_payload() {
+    let document = json!({
+        "schemaVersion":3,"global":{"aspect":"1:1","seed":7,"bg":"transparent"},"export":{},
+        "layers":[{"id":"base","kind":"fill","color":"#123456"},
+                  {"id":"letter","kind":"text","font":"artifact-font://f1","text":"A"}],
+        "fontAssets":[{"id":"f1","dataUrl":"data:font/ttf;base64,AA==","label":"Used"}],
+        "graph":{"edges":[{"id":"e1","fromId":"base","fromPort":"out","toId":"letter","toPort":"bg"},
+                          {"id":"e2","fromId":"letter","fromPort":"out","toId":"__export__","toPort":"in"}],
+                 "mergeNodes":[],"positions":{}}
+    });
+    let plan = |document: Value| {
+        let mut p = package();
+        p["document"] = document;
+        let session = DocumentSession::open(&p.to_string()).unwrap();
+        let value: Value =
+            serde_json::from_str(&session.render_plan_json(1000, 1000).unwrap()).unwrap();
+        value["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|node| {
+                (
+                    node["id"].as_str().unwrap().to_owned(),
+                    node["cacheKey"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>()
+    };
+    let base = plan(document.clone());
+    let mut unrelated = document.clone();
+    unrelated["fontAssets"].as_array_mut().unwrap().push(json!({
+        "id":"f2","dataUrl":"data:font/ttf;base64,AQ==","label":"Unused"
+    }));
+    assert_eq!(
+        base,
+        plan(unrelated),
+        "unrelated font import cannot invalidate target"
+    );
+    let mut metadata = document.clone();
+    metadata["fontAssets"][0]["label"] = json!("New display name");
+    metadata["layers"][0]["locked"] = json!(true);
+    assert_eq!(
+        base,
+        plan(metadata),
+        "font and lock metadata do not affect pixels"
+    );
+    let mut used_payload = document.clone();
+    used_payload["fontAssets"][0]["dataUrl"] = json!("data:font/ttf;base64,AQ==");
+    let changed = plan(used_payload);
+    assert_eq!(base["base"], changed["base"]);
+    assert_ne!(base["letter"], changed["letter"]);
+    assert_ne!(base["__export__"], changed["__export__"]);
+    let mut missing = document;
+    missing["fontAssets"] = json!([]);
+    assert_ne!(
+        base["letter"],
+        plan(missing)["letter"],
+        "missing font readiness changes key"
+    );
 }
 #[test]
 fn empty_graph_export_is_explicit_and_invalid_targets_reject() {

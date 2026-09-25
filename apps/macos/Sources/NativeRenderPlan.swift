@@ -33,8 +33,16 @@ struct NativeRenderPlan {
     }
 
     func singleLayer(_ layer: [String: Any]) -> NativeRenderPlan {
-        NativeRenderPlan(version: 2, mode: "stack", targetId: "__export__", width: width, height: height,
-                         seed: seed, background: "transparent", layers: [layer], fontAssets: fontAssets, nodes: [])
+        let selectedFonts: [[String: Any]]
+        if layer["kind"] as? String == "text", let font = layer["font"] as? String,
+           font.hasPrefix("artifact-font://") {
+            let id = String(font.dropFirst("artifact-font://".count))
+            selectedFonts = fontAssets.last(where: { $0["id"] as? String == id }).map { [$0] } ?? []
+        } else {
+            selectedFonts = []
+        }
+        return NativeRenderPlan(version: 2, mode: "stack", targetId: "__export__", width: width, height: height,
+                         seed: seed, background: "transparent", layers: [layer], fontAssets: selectedFonts, nodes: [])
     }
 
     init(json: String) throws {
