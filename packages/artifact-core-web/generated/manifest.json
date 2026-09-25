@@ -4,24 +4,24 @@
     "Cargo.toml": "d9786a5cf7ffa340158f73c46bd865227ad887c7f8087a119aac8e9bb554c729",
     "crates/artifact-core/Cargo.toml": "0e83c574b9a4ad4e1ed2ce69aa52183f9d9d6af40ad04cf7ea9e9e0528471d82",
     "crates/artifact-core/src/command.rs": "400a14d27cf88e7fbca8d7a5d741ef7c5ef0a073e2c97bc645dfe8753ceefc29",
-    "crates/artifact-core/src/editor.rs": "b2094fb3690417d18c4c00d1fcbfc2f6e756e82f195c947e3bd80ffc653a49cd",
+    "crates/artifact-core/src/editor.rs": "eb14a0e54052a7d5098d840291cdee1d690c2acd142fdba806d629e6c47f8111",
     "crates/artifact-core/src/graph.rs": "c469d9fc87418a4ee0eec6e8f532b89901ac42d4197db62a34a9b6c244b6df81",
     "crates/artifact-core/src/image.rs": "a9221f36d700acb337173819a895f8f4a0ff75ea434338557a88560a883d130a",
     "crates/artifact-core/src/lib.rs": "60c23db5c7d0edf6831b115a50efd893d002ec428064312018335c6feee32bed",
     "crates/artifact-core/src/properties.rs": "f0b5a962a295dd0034144e592c28eb4f6e0b43f7f622ffbe428c6642448f1b4e",
-    "crates/artifact-core/src/render.rs": "63277c71f76dd5ef5c9193436fe0d809ca6105c2ba3b87596016fbcf1512e3b9",
+    "crates/artifact-core/src/render.rs": "ffa5825a420c09084b02609d74ea7e8a245289ced5803ad62721f3c0c51acb17",
     "crates/artifact-core/src/structure_bridge.rs": "a8a2a7464d7ff6ff54299e13c81bb02ee43dc506d390a1b47d52c0e3a7f3b5c7",
     "crates/artifact-wasm/Cargo.toml": "92f7df3d342b154809f0dc97a32ab2f1f82758ffaff9cbabb66601a3e5360ab6",
     "crates/artifact-wasm/src/lib.rs": "e12100b6b9502e52d0e0f31a2fcc03f10ae9df1fcff0ea07e286abdf60324b7d",
     "rust-toolchain.toml": "444141cad75b3ff0428cdff7040e288b46177ef15aacb50be74287aa8f1798ca",
     "scripts/core-pilot/build-plan.mjs": "78add83694b11130cbdc1276b2992cbe4191fd63c3d7b5ed226522ca3bb0117d",
     "scripts/core-pilot/build-wasm-canonical.mjs": "dca3ca3e905510f84c5e8c20f3ff99d0df64872e9a41d000607155b169359792",
-    "scripts/core-pilot/build.mjs": "2a8768144160fb1fc1aef26edb874ba42c313bdad34633c5b2855e513d67f15f"
+    "scripts/core-pilot/build.mjs": "43cb907cdd68324e55861863cc9f4a588698c79837857a7605b453cf640c9a33"
   },
   "runtime": {
     "artifact_wasm.d.ts": "a31ccfc3b7ee3b0887d6c72123b692ee27daff20845508ff2fcd4e770ae77a4d",
     "artifact_wasm.js": "8fb94b8171b91b1de7458fdd2ec3e377e95c86c9296029a6929a8b1a876c382c",
-    "artifact_wasm_bg.wasm": "875b0441ed3e64b275eceb1566922f251b87df906be976d4c0c218114570f60f",
+    "artifact_wasm_bg.wasm": "58eab5d5be53005fd2df09da2012b5efa196e77788bd304c06f0458bd5e56d60",
     "artifact_wasm_bg.wasm.d.ts": "2dcc1f85d8ca681e365abf6e72835a5d79c427b28053b139fda421f5e112f606"
   }
 }
