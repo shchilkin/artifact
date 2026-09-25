@@ -1325,6 +1325,7 @@ pub(crate) fn validate_graph(layers: &[Value], graph: &Value) -> Result<(), Comm
     for edge in edges {
         let id = edge["id"]
             .as_str()
+            .filter(|id| !id.is_empty() && id.len() <= 200 && !id.contains('\0'))
             .ok_or_else(|| CommandError::new("INVALID_VALUE", "Edge needs an id"))?;
         let from = edge["fromId"]
             .as_str()

@@ -36,12 +36,16 @@ requires the actual bytes or a replacement font.
 
 The active file, recents and recovery files are handled by the model and file
 service. Save adopts its destination. Save Copy writes the current committed
-content to another file while retaining the active file and dirty state.
+content to another file while retaining the active file, inspector drafts,
+history and dirty state. It never applies valid or invalid inspector drafts.
 Atomic writes leave an old destination intact on failure. The close/quit guard
 includes unapplied inspector drafts; Save applies valid drafts and blocks an
 invalid draft, Cancel keeps the session, and Discard removes recovery. Recovery
 stores the committed project plus inspector drafts in a hash-linked sidecar.
 An interrupted or mismatched sidecar restores only the committed project.
+At startup, New and Open ask whether to Restore, Discard and continue, or
+Cancel when recovery exists. Recovery remains on disk until New or Open
+succeeds, so canceling the picker or failing to open a file leaves it available.
 
 ## Raster export
 
@@ -54,7 +58,7 @@ an opaque black background, matching the recorded P01 Web alpha/JPEG fixture.
 The full raster never comes from a 500- or 1000-pixel draft preview. A newer
 document revision cancels the task; the model checks the captured revision
 again immediately before the atomic destination write. File-panel callbacks
-also reject a project changed while the panel was open.
+also reject a project or inspector draft changed while the panel was open.
 
 The former native pilot scaled chromatic aberration against 3000 pixels.
 `render_plan_json` now rounds `ca × render width / 540`, matching the Web
@@ -77,8 +81,15 @@ writes, inspector drafts and late export cancellation. Synthetic samples are
 written under ignored `test-results/core-pilot/public-native/files-export/`;
 the source font and alpha image are from `tests/fixtures/native-2d`.
 
-The coordinator still needs to exercise the actual app's Open, New, Save, Save
-Copy, Recents, close/quit prompts, image/font pickers, Finder drop, clipboard,
-PNG/JPEG export and each scale, followed by Web reopen of the Mac-saved file.
-The native model harness does not prove those UI paths. Save and export remain
-local; this package does not add cloud storage or distribution.
+Before the review fixes, the coordinator exercised the actual app's Restore →
+Save path and checked exact package JSON, kept the draft after New → Cancel,
+kept the active file and dirty state after Save Copy, imported an OFL font
+through confirmation with Undo/Redo, imported an image through the picker,
+opened a Web font package, and wrote a 2× PNG and 3× JPEG. The Mac Save Copy
+at `/private/tmp/artifact-wave3-evidence/web-mac-assets-roundtrip.artifact`
+contains the imported font and image and the edited title. These observations
+were made before the recovery, Save Copy draft and panel-generation review
+fixes; those fixes still need a fresh GUI smoke. Finder drag, clipboard and
+Web reopen of the Mac-saved file were not observed in that pass. The native
+model harness does not prove those UI paths. Save and export remain local;
+this package does not add cloud storage or distribution.

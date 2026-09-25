@@ -85,4 +85,21 @@ describe('real WASM shared transactions', () => {
       session.free();
     }
   });
+
+  it('rejects an empty graph edge ID during replacement without changing the draft', () => {
+    const session = open();
+    try {
+      const original = JSON.parse(session.export_json());
+      const transactionId = beginTransaction(session, 0).transactionId!;
+      const document = { ...original.document, graph: { edges: [{ id: '', fromId: 'title', toId: '__export__' }] } };
+      const result = updateTransaction(session, transactionId, [{ type: 'replace_document', document }]);
+      expect(result.error?.code).toBe('INVALID_VALUE');
+      expect(result.draftRevision).toBe(0);
+      expect(JSON.parse(session.export_json())).toEqual(original);
+      expect(cancelTransaction(session, transactionId).changed).toBe(false);
+      expect(JSON.parse(session.summary_json()).undoCount).toBe(0);
+    } finally {
+      session.free();
+    }
+  });
 });

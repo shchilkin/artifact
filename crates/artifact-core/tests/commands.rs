@@ -240,6 +240,45 @@ fn replace_document_preserves_package_metadata_and_unknown_json() {
 }
 
 #[test]
+fn replace_document_rejects_invalid_graph_edge_ids_without_changing_history() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    let changed = begin(&mut s);
+    assert_eq!(
+        update(
+            &mut s,
+            changed,
+            json!([{"type":"patch_layer","id":"a","patch":{"content":"B"}}])
+        )["ok"],
+        true
+    );
+    assert_eq!(end(&mut s, "commit", changed)["ok"], true);
+    assert!(s.undo());
+    let original: Value = serde_json::from_str(&s.export_json()).unwrap();
+    let revision = s.revision();
+    let id = begin(&mut s);
+    for edge_id in ["", "\0", &"x".repeat(201)] {
+        let mut replacement = doc(&s);
+        replacement["graph"] = json!({"edges":[{"id":edge_id,"fromId":"a","toId":"__export__"}]});
+        let rejected = update(
+            &mut s,
+            id,
+            json!([{"type":"replace_document","document":replacement}]),
+        );
+        assert_eq!(rejected["error"]["code"], "INVALID_VALUE", "{rejected}");
+        assert_eq!(rejected["draftRevision"], 0);
+        assert_eq!(
+            serde_json::from_str::<Value>(&s.export_json()).unwrap(),
+            original
+        );
+        assert_eq!(s.revision(), revision);
+    }
+    assert_eq!(end(&mut s, "cancel", id)["changed"], false);
+    assert!(s.can_redo());
+    assert!(s.redo());
+    assert_eq!(doc(&s)["layers"][0]["content"], "B");
+}
+
+#[test]
 fn gesture_is_one_undo_and_updates_only_touched_fields() {
     let mut s = DocumentSession::open(&source()).unwrap();
     let initial = s.export_json();

@@ -3,7 +3,7 @@
     "Cargo.lock": "730ab039c28d64203aac9322c11260b0fc8f5ce677a5334462dfe57af78496f7",
     "Cargo.toml": "d9786a5cf7ffa340158f73c46bd865227ad887c7f8087a119aac8e9bb554c729",
     "crates/artifact-core/Cargo.toml": "0e83c574b9a4ad4e1ed2ce69aa52183f9d9d6af40ad04cf7ea9e9e0528471d82",
-    "crates/artifact-core/src/command.rs": "4240336be0a0333127e77e7f8846c935cce47407ae02bc00204b9a5087440140",
+    "crates/artifact-core/src/command.rs": "8b3007b71672fb05dcbc3fd705ec92678c34dddfb73530bfcdfe99360bb2d027",
     "crates/artifact-core/src/editor.rs": "33432b27a14d2e20522ba615240215aef5de702361f62be76396adc2ba7c7be3",
     "crates/artifact-core/src/image.rs": "8850d7053fee00f9932bd58117130a335c9b217ca7710ea7762e8bbc40ae34c2",
     "crates/artifact-core/src/lib.rs": "44ccd34095752365730fdd8b76508bd22817a207b8e492804f4a6bfd01bb6ae5",
@@ -20,7 +20,7 @@
   "runtime": {
     "artifact_wasm.d.ts": "59d1478e366b8f026f15af7767b4f4856164b1a9c50cb1812114a0d3096f228a",
     "artifact_wasm.js": "dcb31a6053ecece614cd816e6c15333c1ebe9b487f16aa6f4dbcac5cbfe48f29",
-    "artifact_wasm_bg.wasm": "fd715040313dd378eb6e365d80d9fe2d04fe769c6a6ee37a120e80b40f3d15fe",
+    "artifact_wasm_bg.wasm": "28bbe8949e93a903709d0935842d45c9403a20527f97c69f86f0e877440da85c",
     "artifact_wasm_bg.wasm.d.ts": "93c3d09195f72babdafa02a1dd5afd95eec635e95c4f582dc8f6eceb5707c66a"
   }
 }

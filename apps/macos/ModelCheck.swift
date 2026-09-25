@@ -167,17 +167,73 @@ import Foundation
         workspace.editProperties(["content":"Changed"])
         try check(workspace.isModified)
         let savedCopy = directory.appendingPathComponent("native-workspace-copy.artifact")
+        let panelGeneration = workspace.filePanelGeneration
+        workspace.stageInspector(title, values: ["content":"NOT IN COPY"], patch: ["content":"NOT IN COPY"], valid: true)
+        try check(!workspace.filePanelIsCurrent(panelGeneration), "A staged inspector change left an open file panel current")
         try check(workspace.saveCopy(to: savedCopy))
         try check(workspace.isModified && workspace.fileName == saved.lastPathComponent,
                   "Save Copy replaced the active project")
+        try check(workspace.inspectorDrafts[title]?.values["content"] == "NOT IN COPY",
+                  "Save Copy applied or discarded a valid inspector draft")
         let copyModel = ProjectModel(persist: false)
         copyModel.load(savedCopy)
         try check(copyModel.editor.layers.first { $0.id == title }?.string("content") == "Changed")
+        workspace.stageInspector(title, values: ["size":"invalid"], patch: [:], valid: false)
+        let invalidCopy = directory.appendingPathComponent("native-workspace-invalid-draft-copy.artifact")
+        try check(workspace.saveCopy(to: invalidCopy) && workspace.inspectorDrafts[title]?.valid == false,
+                  "Save Copy lost an invalid inspector draft")
+        try check(try Data(contentsOf: invalidCopy) == Data(contentsOf: savedCopy),
+                  "Save Copy included an unapplied inspector draft")
+        workspace.discardInspector(title)
         let impossible = directory.appendingPathComponent("missing-parent/failure.artifact")
         try check(!workspace.saveCopy(to: impossible) && workspace.isModified,
                   "Write failure cleared unsaved changes")
         workspace.undo()
         try check(!workspace.isModified, "Undo to saved document remained dirty")
+        // Two imports can overlap; the busy state must stay true until both
+        // readers finish, including when the first reader fails.
+        let imports = Pending<String>()
+        let importModel = ProjectModel(renderImage: { _ in image(1) },
+            renderExportData: { _, _, _ in Data() },
+            readClipboardImage: { _ in try await imports.run("clipboard") })
+        importModel.load(source)
+        importModel.importImage(data: Data([1]))
+        importModel.importImage(data: Data([2]))
+        try await wait { imports.requests.count == 2 }
+        try check(importModel.isImporting)
+        imports.requests[0].resume(throwing: RenderFailure(message: "First reader failed"))
+        try await wait { importModel.message == "First reader failed" }
+        await Task.yield()
+        try check(importModel.isImporting, "One completed import hid another active import")
+        imports.requests[1].resume(throwing: RenderFailure(message: "Second reader failed"))
+        try await wait { !importModel.isImporting }
+        // A startup recovery must survive Cancel and an unsuccessful Open.
+        let recovery = directory.appendingPathComponent("startup-recovery.artifact")
+        let sourceJSON = try String(contentsOf: source, encoding: .utf8)
+        try ProjectFileService.writeRecovery(sourceJSON, drafts: [], to: recovery)
+        let testSuite = "artifact-model-check-\(UUID().uuidString)"
+        let testPreferences = UserDefaults(suiteName: testSuite)!
+        defer { testPreferences.removePersistentDomain(forName: testSuite) }
+        let startup = ProjectModel(renderImage: { _ in image(1) },
+            renderExportData: { _, _, _ in Data() }, persist: true, recoveryURL: recovery,
+            preferences: testPreferences)
+        try check(startup.needsStartupRecoveryChoice)
+        var proceeded = false
+        startup.resolveStartupRecovery(.cancel) { proceeded = true }
+        try check(!proceeded && FileManager.default.fileExists(atPath: recovery.path),
+                  "Cancel discarded startup recovery")
+        startup.resolveStartupRecovery(.discard) { startup.load(impossible) }
+        try check(startup.needsStartupRecoveryChoice && FileManager.default.fileExists(atPath: recovery.path),
+                  "Failed Open discarded startup recovery")
+        startup.resolveStartupRecovery(.restore) { proceeded = true }
+        try check(!proceeded && startup.isModified && startup.summary != nil,
+                  "Startup recovery did not restore the committed project")
+        let successfulOpen = ProjectModel(renderImage: { _ in image(1) },
+            renderExportData: { _, _, _ in Data() }, persist: true, recoveryURL: recovery,
+            preferences: testPreferences)
+        successfulOpen.resolveStartupRecovery(.discard) { successfulOpen.load(source) }
+        try check(!FileManager.default.fileExists(atPath: recovery.path),
+                  "Successful Open did not retire the prior recovery")
         let reopened = ProjectModel(persist:false)
         reopened.load(saved)
         try check(reopened.editor.layers.count == 3 && reopened.message == nil)
