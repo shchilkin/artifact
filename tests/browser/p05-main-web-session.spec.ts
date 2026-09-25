@@ -141,3 +141,75 @@ test('main Web reopens a locally saved native copy with assets', async ({ page }
   const download = await expectImageExportDownload(page, /\.png$/i);
   await download.saveAs(testInfo.outputPath('p05-native-copy-web-export.png'));
 });
+
+test('Open in Nodes is one undo step, and rejected Open keeps the document and project binding', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/app?new=blank');
+  await expect(page.getByRole('heading', { name: 'Artifact Cover Editor' })).toBeVisible();
+  await switchToNodeView(page);
+  await expect
+    .poll(() => page.evaluate(() => Boolean(JSON.parse(localStorage.getItem('doc') ?? '{}').graph)))
+    .toBe(true);
+
+  const firstChooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open document file' }).click();
+  await (await firstChooser).setFiles(fontFixture.pathname);
+  await page.getByRole('dialog', { name: 'Open artifact file' }).getByRole('button', { name: 'OPEN FILE' }).click();
+  await expect(page.getByRole('dialog', { name: 'Open artifact file' })).toBeHidden();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('doc') ?? '{}').layers?.length)).toBe(2);
+  await expect
+    .poll(() => page.evaluate(() => Boolean(JSON.parse(localStorage.getItem('doc') ?? '{}').graph)))
+    .toBe(true);
+
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('doc') ?? '{}').layers?.length)).toBe(0);
+  await expect
+    .poll(() => page.evaluate(() => Boolean(JSON.parse(localStorage.getItem('doc') ?? '{}').graph)))
+    .toBe(true);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect
+    .poll(() => page.evaluate(() => Boolean(JSON.parse(localStorage.getItem('doc') ?? '{}').graph)))
+    .toBe(false);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => Boolean(JSON.parse(localStorage.getItem('doc') ?? '{}').graph))).toBe(false);
+
+  const binding = {
+    projectId: 'existing-project',
+    savedFingerprint: 'before-open',
+  };
+  await page.evaluate((value) => localStorage.setItem('artifact-active-project-v1', JSON.stringify(value)), binding);
+  const invalidPath = testInfo.outputPath('p05-rejected-document.artifact.json');
+  const invalid = JSON.parse(readFileSync(fontFixture, 'utf8'));
+  invalid.graph = {
+    edges: [
+      {
+        id: '',
+        fromId: invalid.layers[0].id,
+        fromPort: 'out',
+        toId: '__export__',
+        toPort: 'in',
+      },
+    ],
+    positions: {},
+    mergeNodes: [],
+    colorNodes: [],
+  };
+  writeFileSync(invalidPath, JSON.stringify(invalid));
+  const invalidChooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open document file' }).click();
+  await (await invalidChooser).setFiles(invalidPath);
+  await page.getByRole('dialog', { name: 'Open artifact file' }).getByRole('button', { name: 'OPEN FILE' }).click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('artifact-active-project-v1')))
+    .toBe(JSON.stringify(binding));
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('doc') ?? '{}').layers?.length)).toBe(0);
+  await page.getByRole('dialog', { name: 'Open artifact file' }).getByRole('button', { name: 'Cancel import' }).click();
+
+  const validChooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open document file' }).click();
+  await (await validChooser).setFiles(fontFixture.pathname);
+  await page.getByRole('dialog', { name: 'Open artifact file' }).getByRole('button', { name: 'OPEN FILE' }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('doc') ?? '{}').layers?.length)).toBe(2);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('artifact-active-project-v1'))).toBeNull();
+});

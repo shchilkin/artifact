@@ -34,7 +34,11 @@ import { useEditorPanels } from './editor/useEditorPanels';
 import { useEditorPrimitiveExportState } from './editor/useEditorPrimitiveExportState';
 import { type ViewMode, ViewModeToggle } from './editor/ViewModeToggle';
 
-const NodeCanvas = lazy(() => import('../components/node-canvas').then((module) => ({ default: module.NodeCanvas })));
+const NodeCanvas = lazy(() =>
+  import('../components/node-canvas').then((module) => ({
+    default: module.NodeCanvas,
+  })),
+);
 const MAX_ENVIRONMENT_BYTES = 80 * 1024 * 1024;
 const MAX_MODEL_BYTES = 50 * 1024 * 1024;
 
@@ -299,6 +303,7 @@ export default function Editor() {
     toggleProjects,
     closeProjects,
     handleLoadProject,
+    cancelPendingProjectLoads,
     clearActiveProject,
     saveCurrentProject,
     saveActiveProject,
@@ -314,12 +319,16 @@ export default function Editor() {
     initialDocumentClearsProject: fromDocParam || fromBlankParam,
   });
   const handleLoadExternalDocument = useCallback(
-    (nextDoc: typeof doc) => {
-      clearActiveProject();
-      setAiPanelRequested(false);
-      loadDocument(nextDoc);
+    async (nextDoc: typeof doc) => {
+      cancelPendingProjectLoads();
+      const accepted = await loadDocument(nextDoc);
+      if (accepted) {
+        clearActiveProject();
+        setAiPanelRequested(false);
+      }
+      return accepted;
     },
-    [clearActiveProject, loadDocument],
+    [cancelPendingProjectLoads, clearActiveProject, loadDocument],
   );
   const {
     fileInputRef,
@@ -375,31 +384,36 @@ export default function Editor() {
     ) {
       return;
     }
-    closePanels();
-    clearActiveProject();
-    setAiPanelRequested(false);
-    handleNewBlank();
-    resetPrimitiveViewStates();
-    setViewMode('layers');
-  }, [clearActiveProject, closePanels, handleNewBlank, isBlank, resetPrimitiveViewStates]);
+    cancelPendingProjectLoads();
+    if (handleNewBlank()) {
+      closePanels();
+      clearActiveProject();
+      setAiPanelRequested(false);
+      resetPrimitiveViewStates();
+      setViewMode('layers');
+    }
+  }, [cancelPendingProjectLoads, clearActiveProject, closePanels, handleNewBlank, isBlank, resetPrimitiveViewStates]);
 
   const handleLoadStarter = useCallback(
     (id: string) => {
       const starter = getStarterDocument(id);
       if (!starter) return;
-      closePanels();
-      clearActiveProject();
-      setAiPanelRequested(false);
-      loadDocument(cloneDocument(starter.doc));
-      resetPrimitiveViewStates();
-      setViewMode('layers');
+      cancelPendingProjectLoads();
+      void loadDocument(cloneDocument(starter.doc)).then((accepted) => {
+        if (!accepted) return;
+        closePanels();
+        clearActiveProject();
+        setAiPanelRequested(false);
+        resetPrimitiveViewStates();
+        setViewMode('layers');
+      });
     },
-    [clearActiveProject, closePanels, loadDocument, resetPrimitiveViewStates],
+    [cancelPendingProjectLoads, clearActiveProject, closePanels, loadDocument, resetPrimitiveViewStates],
   );
 
-  const finishDroppedDocumentImport = useCallback(() => {
+  const finishDroppedDocumentImport = useCallback(async () => {
+    if (!(await handleConfirmDocumentImport())) return;
     closePanels();
-    handleConfirmDocumentImport();
     resetPrimitiveViewStates();
     setViewMode('layers');
   }, [closePanels, handleConfirmDocumentImport, resetPrimitiveViewStates]);
@@ -409,7 +423,7 @@ export default function Editor() {
     setDocumentImportBusy(true);
     try {
       const canOpenDroppedDocument = await saveRecoveryDraftOrConfirm(saveRecoveryDraft);
-      if (canOpenDroppedDocument) finishDroppedDocumentImport();
+      if (canOpenDroppedDocument) await finishDroppedDocumentImport();
     } finally {
       setDocumentImportBusy(false);
     }
@@ -453,7 +467,9 @@ export default function Editor() {
           role={coreState === 'error' ? 'alert' : 'status'}
           aria-live={coreState === 'error' ? 'assertive' : 'polite'}
           className="fixed inset-0 z-[100] flex items-center justify-center p-6"
-          style={{ background: 'color-mix(in oklch, var(--surface-app) 75%, transparent)' }}
+          style={{
+            background: 'color-mix(in oklch, var(--surface-app) 75%, transparent)',
+          }}
         >
           <div
             className="max-w-md rounded-xl border p-6 shadow-xl"

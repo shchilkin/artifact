@@ -166,6 +166,16 @@ replies, because byte-budget eviction can shorten the stacks.
 The shared transaction validator accepts the Web image `fit: "tile"` choice
 and does not impose an extra length cap on text content or layer names. Normal
 command envelopes remain limited to 1 MiB, and the complete package to 64 MiB.
+For a stored-image fallback, exactly one `patch_layer` with only `src`, or one
+`add_layer` with `kind: "image"` and `src`, may use a cold envelope up to the
+64 MiB package limit when `src` is an embedded `data:image/` URL. This only
+widens the envelope: the same image-kind, source-value, package and history
+validation still applies, and an oversized batch or mixed property patch is
+rejected. PNG and JPEG data URLs are accepted after base64/envelope and
+1–4096-pixel dimension checks, with at most 16 MiB of decoded bytes. The host
+fully decodes images before calling core; core is not a pixel decoder. Image
+property edits, including locked-layer inspector edits, remain narrower
+commands rather than `replace_document`.
 The separate legacy `set_text` entry point retains its older patch limit.
 
 ## Verification and evidence limits

@@ -81,6 +81,7 @@ function normalizePrimitiveViewStates(value: unknown): CanvasGraph['primitiveVie
       [
         id,
         {
+          ...state,
           rotationX,
           rotationY,
           zoom,
@@ -158,20 +159,22 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
   const arrayField = <K extends keyof CanvasGraph>(key: K) =>
     Array.isArray(value[key]) ? (value[key] as CanvasGraph[K]) : ([] as CanvasGraph[K]);
   return {
+    ...value,
     edges: arrayField('edges'),
     positions: isRecord(value.positions) ? (value.positions as CanvasGraph['positions']) : {},
     mergeNodes: arrayField('mergeNodes'),
     colorNodes: arrayField('colorNodes'),
     repeatNodes: normalizeRepeatNodes(arrayField('repeatNodes')),
     materialNodes: Array.isArray(value.materialNodes)
-      ? value.materialNodes.filter(isRecord).map((node) =>
-          makeGraphMaterialNode(
+      ? value.materialNodes.filter(isRecord).map((node) => ({
+          ...node,
+          ...makeGraphMaterialNode(
             normalizeMaterialPatch({
               ...node,
               id: String(node.id ?? `material-${Date.now()}`),
             } as Partial<GraphMaterialNode>),
           ),
-        )
+        }))
       : [],
     maskNodes: arrayField('maskNodes'),
     transformNodes: normalizeTransformNodes(arrayField('transformNodes')),
@@ -186,38 +189,60 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
 
 function normalizeShaderNodes(nodes: CanvasGraph['shaderNodes']): GraphShaderNode[] {
   return (nodes ?? []).filter(isRecord).map((node) => {
+    // Legacy customShaderCode is intentionally migrated into shaderInstance;
+    // unrelated future metadata remains in the package unchanged.
+    const retained = { ...node };
+    delete retained.customShaderCode;
+    delete retained.colorA;
+    delete retained.colorB;
+    delete retained.colorC;
     const shaderKind = normalizeShaderKind(node.shaderKind);
     const id = String(node.id ?? `shader-${Date.now()}`);
     const role =
       shaderKind === 'aiShader' ? 'effect' : node.role === 'effect' || node.role === 'fill' ? node.role : 'fill';
     const defaults = makeGraphShaderNode({ id, shaderKind, role });
     const normalizedInstance = normalizeShaderInstance(node.shaderInstance, `${id}-definition`);
-    const shaderInstance =
-      normalizedInstance ?? (shaderKind === 'customCode' ? makeDefaultCodeShaderInstance(id) : undefined);
-    return makeGraphShaderNode({
-      id,
-      name: typeof node.name === 'string' ? node.name : defaults.name,
-      shaderKind,
-      role,
-      palette: normalizeShaderPalette(shaderKind, node.palette),
-      distortion:
-        node.shaderKind === 'staticMeshGradient' ? 0 : normalizeShaderNumber(node.distortion, defaults.distortion),
-      swirl: normalizeShaderNumber(node.swirl, defaults.swirl),
-      grain: normalizeShaderNumber(node.grain, defaults.grain),
-      scale: normalizeShaderNumber(node.scale, defaults.scale),
-      rotation: normalizeShaderNumber(node.rotation, defaults.rotation),
-      offsetX: normalizeShaderNumber(node.offsetX, defaults.offsetX),
-      offsetY: normalizeShaderNumber(node.offsetY, defaults.offsetY),
-      seedOffset: normalizeShaderNumber(node.seedOffset, defaults.seedOffset),
-      opacity: normalizeShaderNumber(node.opacity, defaults.opacity),
-      blendMode: typeof node.blendMode === 'string' ? node.blendMode : defaults.blendMode,
-      ...(shaderInstance
-        ? {
-            shaderInstance,
-          }
-        : {}),
-      aiPrompt: typeof node.aiPrompt === 'string' ? node.aiPrompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH) : undefined,
-    });
+    const retainedInstance = isRecord(node.shaderInstance) ? node.shaderInstance : {};
+    const retainedDefinition = isRecord(retainedInstance.definition) ? retainedInstance.definition : {};
+    const shaderInstance = normalizedInstance
+      ? {
+          ...retainedInstance,
+          ...normalizedInstance,
+          definition: {
+            ...retainedDefinition,
+            ...normalizedInstance.definition,
+          },
+        }
+      : shaderKind === 'customCode'
+        ? makeDefaultCodeShaderInstance(id)
+        : undefined;
+    return {
+      ...retained,
+      ...makeGraphShaderNode({
+        id,
+        name: typeof node.name === 'string' ? node.name : defaults.name,
+        shaderKind,
+        role,
+        palette: normalizeShaderPalette(shaderKind, node.palette),
+        distortion:
+          node.shaderKind === 'staticMeshGradient' ? 0 : normalizeShaderNumber(node.distortion, defaults.distortion),
+        swirl: normalizeShaderNumber(node.swirl, defaults.swirl),
+        grain: normalizeShaderNumber(node.grain, defaults.grain),
+        scale: normalizeShaderNumber(node.scale, defaults.scale),
+        rotation: normalizeShaderNumber(node.rotation, defaults.rotation),
+        offsetX: normalizeShaderNumber(node.offsetX, defaults.offsetX),
+        offsetY: normalizeShaderNumber(node.offsetY, defaults.offsetY),
+        seedOffset: normalizeShaderNumber(node.seedOffset, defaults.seedOffset),
+        opacity: normalizeShaderNumber(node.opacity, defaults.opacity),
+        blendMode: typeof node.blendMode === 'string' ? node.blendMode : defaults.blendMode,
+        ...(shaderInstance
+          ? {
+              shaderInstance,
+            }
+          : {}),
+        aiPrompt: typeof node.aiPrompt === 'string' ? node.aiPrompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH) : undefined,
+      }),
+    } as GraphShaderNode;
   });
 }
 
@@ -328,8 +353,11 @@ function normalizePortableEnvironmentAsset(item: unknown): PortableEnvironmentAs
   if (!isRecord(item)) return null;
   const id = stringField(item.id);
   const dataUrl = stringField(item.dataUrl);
-  if (!id || !dataUrl?.startsWith('data:')) return null;
+  if (!id) return null;
+  if (!dataUrl) return { ...item, id } as unknown as PortableEnvironmentAsset;
+  if (!dataUrl.startsWith('data:')) return null;
   return {
+    ...item,
     id,
     dataUrl,
     mime: stringField(item.mime) ?? 'image/x-exr',
@@ -343,8 +371,11 @@ function normalizePortableModelAsset(item: unknown): PortableModelAsset | null {
   if (!isRecord(item)) return null;
   const id = stringField(item.id);
   const dataUrl = stringField(item.dataUrl);
-  if (!id || !dataUrl?.startsWith('data:')) return null;
+  if (!id) return null;
+  if (!dataUrl) return { ...item, id } as unknown as PortableModelAsset;
+  if (!dataUrl.startsWith('data:')) return null;
   return {
+    ...item,
     id,
     dataUrl,
     mime: stringField(item.mime) ?? 'model/gltf-binary',
@@ -358,8 +389,11 @@ function normalizePortableFontAsset(item: unknown): PortableFontAsset | null {
   if (!isRecord(item)) return null;
   const id = stringField(item.id);
   const dataUrl = stringField(item.dataUrl);
-  if (!id || !dataUrl?.startsWith('data:')) return null;
+  if (!id) return null;
+  if (!dataUrl) return { ...item, id } as unknown as PortableFontAsset;
+  if (!dataUrl.startsWith('data:')) return null;
   return {
+    ...item,
     id,
     dataUrl,
     mime: stringField(item.mime) ?? 'application/octet-stream',
@@ -394,6 +428,7 @@ function fontAssetLicenseField(license: unknown): Pick<PortableFontAsset, 'licen
   if (!isRecord(license) || typeof license.name !== 'string') return {};
   return {
     license: {
+      ...license,
       name: license.name,
       ...(typeof license.url === 'string' ? { url: license.url } : {}),
       ...(typeof license.allowsEmbedding === 'boolean' ? { allowsEmbedding: license.allowsEmbedding } : {}),
@@ -567,7 +602,11 @@ function migrateLegacyAiShaderInstance(node: Record<string, unknown>, id: string
       language: 'glsl-fragment',
       code,
       properties: [],
-      provenance: { source: 'localFallback', prompt, model: 'legacy-operation-migration' },
+      provenance: {
+        source: 'localFallback',
+        prompt,
+        model: 'legacy-operation-migration',
+      },
     },
     values: {},
   };
@@ -680,11 +719,17 @@ function normalizeLegacyShaderOperation(operation: unknown): Record<string, unkn
         softness: legacyClamp(operation.softness, 0, 1, 0.08),
       };
     case 'posterize':
-      return { op: 'posterize', steps: Math.round(legacyClamp(operation.steps, 2, 16, 4)) };
+      return {
+        op: 'posterize',
+        steps: Math.round(legacyClamp(operation.steps, 2, 16, 4)),
+      };
     case 'invert':
       return { op: 'invert', amount: legacyClamp(operation.amount, 0, 1, 1) };
     case 'sourceLuma':
-      return { op: 'sourceLuma', amount: legacyClamp(operation.amount, 0, 1, 0.45) };
+      return {
+        op: 'sourceLuma',
+        amount: legacyClamp(operation.amount, 0, 1, 0.45),
+      };
     case 'edgeGlow':
       return {
         op: 'edgeGlow',
@@ -698,7 +743,10 @@ function normalizeLegacyShaderOperation(operation: unknown): Record<string, unkn
         angle: legacyClamp(operation.angle, -360, 360, 0),
       };
     case 'gradientMap':
-      return { op: 'gradientMap', amount: legacyClamp(operation.amount, 0, 1, 0.65) };
+      return {
+        op: 'gradientMap',
+        amount: legacyClamp(operation.amount, 0, 1, 0.65),
+      };
     default:
       return null;
   }

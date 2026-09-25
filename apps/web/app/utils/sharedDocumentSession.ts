@@ -8,7 +8,9 @@ import {
   updateTransaction,
 } from '@artifact/core-web/transactions';
 import type { CanvasDocument, CanvasGraph, GraphEdge } from '../types/config';
+import { deleteNodesFromDocument } from './documentCommands';
 import type { DocumentUpdateMode } from './documentHistory';
+import { assignNodesToGraphArea, splitEdgeWithNode } from './nodeGraph';
 
 const SHARED_FIELDS: Record<string, ReadonlySet<string>> = {
   text: new Set([
@@ -64,6 +66,11 @@ const GRAPH_LISTS = [
 
 type RecordValue = Record<string, unknown>;
 type GraphNode = { id: string } & RecordValue;
+const COLD_IMAGE_SOURCE_LENGTH = 512 * 1024;
+
+function largeInlineImage(value: unknown): boolean {
+  return typeof value === 'string' && value.startsWith('data:image/') && value.length > COLD_IMAGE_SOURCE_LENGTH;
+}
 
 function equal(a: unknown, b: unknown): boolean {
   if (a === b) return true;
@@ -134,11 +141,10 @@ function sharedNodeKind(doc: CanvasDocument, id: string): string | null {
   return null;
 }
 
-function sharedEdge(doc: CanvasDocument, edge: GraphEdge, validatePorts: boolean): boolean {
+function sharedEdge(doc: CanvasDocument, edge: GraphEdge): boolean {
   const source = sharedNodeKind(doc, edge.fromId);
   const target = sharedNodeKind(doc, edge.toId);
   if (!source || !target) return false;
-  if (!validatePorts) return true; // remove_edges validates only known endpoints.
   const ports: Record<string, string[]> = {
     output: ['in'],
     color: ['in'],
@@ -156,7 +162,115 @@ function sharedEdge(doc: CanvasDocument, edge: GraphEdge, validatePorts: boolean
   );
 }
 
-function graphAction(doc: CanvasDocument, before: CanvasGraph, after: CanvasGraph): SharedGraphAction | null {
+function duplicateGraphCommands(before: CanvasDocument, after: CanvasDocument): SharedGraphAction[] | null {
+  if (!before.graph || !after.graph) return null;
+  const oldIds = new Set(before.layers.map((layer) => layer.id));
+  for (const list of SHARED_GRAPH_LISTS)
+    for (const node of (before.graph[list] ?? []) as GraphNode[]) oldIds.add(node.id);
+  const additions = [
+    ...after.layers.map((layer) => layer.id),
+    ...SHARED_GRAPH_LISTS.flatMap((list) => ((after.graph![list] ?? []) as GraphNode[]).map((node) => node.id)),
+  ].filter((id) => !oldIds.has(id));
+  if (additions.length !== 1) return null;
+  const newId = additions[0];
+  const position = after.graph.positions[newId];
+  if (!position) return null;
+  const baseGraph = {
+    ...before.graph,
+    positions: { ...before.graph.positions, [newId]: position },
+  };
+  for (const source of before.layers) {
+    if (!sharedNodeKind(before, source.id)) continue;
+    const layers = [...before.layers];
+    layers.splice(layers.findIndex((layer) => layer.id === source.id) + 1, 0, {
+      ...source,
+      id: newId,
+      name: `${source.name} copy`,
+    });
+    if (equal({ ...before, layers, graph: baseGraph }, after))
+      return [
+        { kind: 'duplicate_nodes', copies: [{ id: source.id, new_id: newId }] },
+        { kind: 'set_positions', positions: { [newId]: position } },
+      ];
+  }
+  for (const list of SHARED_GRAPH_LISTS) {
+    const prior = (before.graph[list] ?? []) as GraphNode[];
+    for (const source of prior) {
+      const graph = {
+        ...baseGraph,
+        [list]: [...prior, { ...source, id: newId }],
+      };
+      if (equal({ ...before, graph }, after))
+        return [
+          {
+            kind: 'duplicate_nodes',
+            copies: [{ id: source.id, new_id: newId }],
+          },
+          { kind: 'set_positions', positions: { [newId]: position } },
+        ];
+    }
+  }
+  return null;
+}
+
+function insertAndSplitGraphCommands(before: CanvasDocument, after: CanvasDocument): SharedGraphAction[] | null {
+  if (!before.graph || !after.graph || !equal(before.layers, after.layers)) return null;
+  for (const list of SHARED_GRAPH_LISTS) {
+    const prior = (before.graph[list] ?? []) as GraphNode[];
+    const next = (after.graph[list] ?? []) as GraphNode[];
+    if (next.length !== prior.length + 1 || !equal(next.slice(0, -1), prior)) continue;
+    const node = next.at(-1)!;
+    const position = after.graph.positions[node.id];
+    if (!position || before.graph.positions[node.id]) continue;
+    const insertedGraph = {
+      ...before.graph,
+      [list]: next,
+      positions: { ...before.graph.positions, [node.id]: position },
+    };
+    for (const edge of before.graph.edges) {
+      if (!sharedEdge(before, edge)) continue;
+      const inputPort = after.graph.edges.find((item) => item.id === `${edge.id}__before`)?.toPort;
+      if (!inputPort || !equal(splitEdgeWithNode(insertedGraph, edge.id, node.id, inputPort), after.graph)) continue;
+      return [
+        {
+          kind: 'add_node',
+          collection: list.slice(0, -'Nodes'.length) as Extract<SharedGraphAction, { kind: 'add_node' }>['collection'],
+          node,
+          position,
+        },
+        {
+          kind: 'split_edge',
+          id: edge.id,
+          node_id: node.id,
+          input_port: inputPort,
+        },
+      ];
+    }
+  }
+  return null;
+}
+
+function graphAction(doc: CanvasDocument, candidateDoc: CanvasDocument): SharedGraphAction | null {
+  const before = doc.graph!;
+  const after = candidateDoc.graph!;
+  const deletedIds = [
+    ...doc.layers.map((layer) => layer.id).filter((id) => !candidateDoc.layers.some((item) => item.id === id)),
+    ...SHARED_GRAPH_LISTS.flatMap((list) =>
+      ((before[list] ?? []) as GraphNode[])
+        .map((node) => node.id)
+        .filter((id) => !((after[list] ?? []) as GraphNode[]).some((node) => node.id === id)),
+    ),
+  ];
+  if (
+    deletedIds.length &&
+    deletedIds.every((id) => sharedNodeKind(doc, id)) &&
+    before.edges.every(
+      (edge) => (!deletedIds.includes(edge.fromId) && !deletedIds.includes(edge.toId)) || sharedEdge(doc, edge),
+    ) &&
+    equal(deleteNodesFromDocument(doc, deletedIds), candidateDoc)
+  )
+    return { kind: 'remove_nodes', ids: deletedIds };
+
   const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])];
   const changed = keys.filter((key) => !equal((before as RecordValue)[key], (after as RecordValue)[key]));
   for (const list of SHARED_GRAPH_LISTS) {
@@ -183,7 +297,12 @@ function graphAction(doc: CanvasDocument, before: CanvasGraph, after: CanvasGrap
         SharedGraphAction,
         { kind: 'add_node' }
       >['collection'];
-      return { kind: 'add_node', collection, node: added[0], position: after.positions[added[0].id] };
+      return {
+        kind: 'add_node',
+        collection,
+        node: added[0],
+        position: after.positions[added[0].id],
+      };
     }
   }
   if (changed.length !== 1) return null;
@@ -200,9 +319,24 @@ function graphAction(doc: CanvasDocument, before: CanvasGraph, after: CanvasGrap
     const removed = before.edges.filter((edge) => !after.edges.some((next) => next.id === edge.id));
     const added = after.edges.filter((edge) => !before.edges.some((old) => old.id === edge.id));
     const modified = after.edges.filter((edge) => before.edges.some((old) => old.id === edge.id && !equal(old, edge)));
-    if (modified.length || (removed.length && added.length)) return null;
-    if (added.length === 1 && sharedEdge(doc, added[0], true)) return { kind: 'add_edge', edge: added[0] };
-    if (removed.length && removed.every((edge) => sharedEdge(doc, edge, false)))
+    if (modified.length) return null;
+    if (removed.length === 1 && added.length === 2 && sharedEdge(doc, removed[0])) {
+      const inserted = added.find((edge) => edge.id === `${removed[0].id}__before`);
+      if (
+        inserted &&
+        sharedNodeKind(doc, inserted.toId) &&
+        equal(splitEdgeWithNode(before, removed[0].id, inserted.toId, inserted.toPort), after)
+      )
+        return {
+          kind: 'split_edge',
+          id: removed[0].id,
+          node_id: inserted.toId,
+          input_port: inserted.toPort,
+        };
+    }
+    if (removed.length && added.length) return null;
+    if (added.length === 1 && sharedEdge(doc, added[0])) return { kind: 'add_edge', edge: added[0] };
+    if (removed.length && removed.every((edge) => sharedEdge(doc, edge)))
       return { kind: 'remove_edges', ids: removed.map((edge) => edge.id) };
     return null;
   }
@@ -218,7 +352,12 @@ function graphAction(doc: CanvasDocument, before: CanvasGraph, after: CanvasGrap
     )
       return null;
     const edits = next.flatMap((node, index) =>
-      changedFields(prior[index], node).map(([field, value, present]) => ({ id: node.id, field, value, present })),
+      changedFields(prior[index], node).map(([field, value, present]) => ({
+        id: node.id,
+        field,
+        value,
+        present,
+      })),
     );
     if (edits.length === 0 || edits.some((edit) => !edit.present || edit.field === 'id')) return null;
     const ids = new Set(edits.map((edit) => edit.id));
@@ -234,6 +373,16 @@ function graphAction(doc: CanvasDocument, before: CanvasGraph, after: CanvasGrap
     const next = after.areas ?? [];
     const added = next.filter((area) => !prior.some((old) => old.id === area.id));
     const removed = prior.filter((area) => !next.some((newArea) => newArea.id === area.id));
+    for (const area of prior) {
+      const updated = next.find((item) => item.id === area.id);
+      if (
+        updated &&
+        !equal(updated.nodeIds, area.nodeIds) &&
+        updated.nodeIds.every((id) => sharedNodeKind(doc, id)) &&
+        equal(assignNodesToGraphArea(before, area.id, updated.nodeIds), after)
+      )
+        return { kind: 'assign_area', id: area.id, node_ids: updated.nodeIds };
+    }
     if (
       added.length === 1 &&
       removed.length === 0 &&
@@ -285,13 +434,18 @@ export function documentCommands(before: CanvasDocument, after: CanvasDocument):
       commands.push({
         type: 'edit_assets',
         collection,
-        replace: after[collection] as (Record<string, unknown> & { id: string })[],
+        replace: after[collection] as (Record<string, unknown> & {
+          id: string;
+        })[],
       });
     }
   }
   const global = changedFields(before.global as RecordValue, after.global as RecordValue);
   if (global.length)
-    commands.push({ type: 'patch_global', patch: Object.fromEntries(global.map(([field, value]) => [field, value])) });
+    commands.push({
+      type: 'patch_global',
+      patch: Object.fromEntries(global.map(([field, value]) => [field, value])),
+    });
   const exportFields = changedFields(before.export as RecordValue, after.export as RecordValue);
   if (exportFields.length) {
     const shared = exportFields.filter(([field, value]) => field !== 'target' || value === 'cover');
@@ -309,14 +463,21 @@ export function documentCommands(before: CanvasDocument, after: CanvasDocument):
       });
   }
 
-  const typedGraphAction = before.graph && after.graph ? graphAction(before, before.graph, after.graph) : null;
+  const duplicateCommands = duplicateGraphCommands(before, after);
+  const insertAndSplitCommands = insertAndSplitGraphCommands(before, after);
+  const typedGraphAction =
+    before.graph && after.graph && !duplicateCommands && !insertAndSplitCommands ? graphAction(before, after) : null;
+  const typedGraphCommands =
+    duplicateCommands ?? insertAndSplitCommands ?? (typedGraphAction ? [typedGraphAction] : null);
   const structural =
     structureChanged(before, after) &&
-    (!typedGraphAction ||
-      !equal(
-        before.layers.map((layer) => layer.id),
-        after.layers.map((layer) => layer.id),
-      ));
+    (!typedGraphCommands ||
+      (typedGraphAction?.kind !== 'remove_nodes' &&
+        !duplicateCommands &&
+        !equal(
+          before.layers.map((layer) => layer.id),
+          after.layers.map((layer) => layer.id),
+        )));
   if (structural) {
     const oldById = new Map(before.layers.map((layer) => [layer.id, layer]));
     const layers = after.layers.map((layer) => oldById.get(layer.id) ?? layer);
@@ -349,6 +510,10 @@ export function documentCommands(before: CanvasDocument, after: CanvasDocument):
         });
       }
     }
+    if (largeInlineImage(typed.src)) {
+      commands.push({ type: 'patch_layer', id: layer.id, patch: { src: typed.src } });
+      delete typed.src;
+    }
     if (Object.keys(typed).length) commands.push({ type: 'patch_layer', id: layer.id, patch: typed });
   }
 
@@ -362,8 +527,8 @@ export function documentCommands(before: CanvasDocument, after: CanvasDocument):
         target: { scope: 'graph' },
         ...(after.graph ? { value: after.graph } : { remove: true }),
       });
-    } else if (typedGraphAction) {
-      commands.push({ type: 'graph', action: typedGraphAction });
+    } else if (typedGraphCommands) {
+      commands.push(...typedGraphCommands.map((action): SharedCommand => ({ type: 'graph', action })));
     } else {
       commands.push({
         type: 'bridge',
@@ -379,7 +544,11 @@ export function documentCommands(before: CanvasDocument, after: CanvasDocument):
 function packageSource(doc: CanvasDocument): string {
   return JSON.stringify({
     artifactPackage: 'project',
-    manifest: { kind: 'artifact-project-package', version: 1, documentSchemaVersion: 3 },
+    manifest: {
+      kind: 'artifact-project-package',
+      version: 1,
+      documentSchemaVersion: 3,
+    },
     document: doc,
   });
 }
@@ -497,8 +666,11 @@ export class SharedDocumentSession {
       const remaining = documentCommands(starter ? sessionDocument(this.session) : this.current, candidate);
       if (!starter && !remaining.length) throw new Error('Document changed outside shared command capabilities');
       commands = [...commands, ...remaining];
-      for (let i = 0; i < remaining.length; i += 128) {
-        const result = updateTransaction(this.session, this.transactionId!, remaining.slice(i, i + 128));
+      for (const command of remaining) {
+        // A portable image fallback can exceed the ordinary 1 MiB update
+        // envelope. Rust permits a single cold structure command up to the
+        // package bound; it remains part of this same user transaction.
+        const result = updateTransaction(this.session, this.transactionId!, [command]);
         if (!result.ok) throw new Error(result.error?.message ?? 'Document edit was rejected');
       }
       if (!equal(sessionDocument(this.session), candidate))
@@ -528,12 +700,17 @@ export class SharedDocumentSession {
       if (this.pendingTicks.length) {
         const reopened = beginTransaction(this.session, this.session.revision());
         if (!reopened.ok || reopened.transactionId === null)
-          throw new Error('Could not restore the active gesture', { cause: error });
+          throw new Error('Could not restore the active gesture', {
+            cause: error,
+          });
         this.transactionId = reopened.transactionId;
         for (const tick of this.pendingTicks) {
-          for (let i = 0; i < tick.length; i += 128) {
-            const replayed = updateTransaction(this.session, this.transactionId, tick.slice(i, i + 128));
-            if (!replayed.ok) throw new Error('Could not restore the active gesture', { cause: error });
+          for (const command of tick) {
+            const replayed = updateTransaction(this.session, this.transactionId, [command]);
+            if (!replayed.ok)
+              throw new Error('Could not restore the active gesture', {
+                cause: error,
+              });
           }
         }
       }
