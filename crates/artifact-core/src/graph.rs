@@ -320,7 +320,7 @@ fn unique_ids(ids: &[Value]) -> Vec<Value> {
         .cloned()
         .collect()
 }
-fn node_defaults(list: &str) -> Value {
+pub(crate) fn node_defaults(list: &str) -> Value {
     match list {
         "mergeNodes" => json!({"name":"Merge","blendMode":"source-over","opacity":100}),
         "colorNodes" => {
@@ -346,7 +346,7 @@ fn valid_number(value: &Value, min: f64, max: f64, integer: bool) -> bool {
         .as_f64()
         .is_some_and(|n| n.is_finite() && n >= min && n <= max && (!integer || n.fract() == 0.0))
 }
-fn valid_node_field(list: &str, key: &str, value: &Value) -> Option<bool> {
+pub(crate) fn valid_node_field(list: &str, key: &str, value: &Value) -> Option<bool> {
     let choice = |options: &[&str]| value.as_str().is_some_and(|v| options.contains(&v));
     let number = |min, max, integer| valid_number(value, min, max, integer);
     Some(match key {

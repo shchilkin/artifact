@@ -13,6 +13,7 @@ struct RenderFailure: LocalizedError {
 actor RenderWorker {
     static let shared = RenderWorker()
     private let resources = NativeRenderResources()
+    private let graphCache = NativeGraphRenderCache()
     func png(plan: String) throws -> Data {
         let image = try render(plan: plan)
         try Task.checkCancellation()
@@ -27,7 +28,8 @@ actor RenderWorker {
     }
     func render(plan: String) throws -> CGImage {
         try Task.checkCancellation()
-        return try PilotRenderer(plan: NativeRenderPlan(json: plan), resources: resources).render()
+        let recipe = try NativeRenderPlan(json: plan)
+        return try NativeGraphExecutor(resources: resources, cache: graphCache).render(recipe)
     }
 }
 
@@ -45,7 +47,8 @@ final class PilotRenderer {
         try self.init(plan: NativeRenderPlan(json: planJSON), resources: NativeRenderResources())
     }
 
-    init(plan: NativeRenderPlan, resources: NativeRenderResources, registry: NativeRenderRegistry = .pilot()) throws {
+    init(plan: NativeRenderPlan, resources: NativeRenderResources, registry: NativeRenderRegistry = .pilot(),
+         initialImage: CGImage? = nil) throws {
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
               let context = CGContext(data: nil, width: plan.width, height: plan.height, bitsPerComponent: 8,
                   bytesPerRow: plan.width * 4, space: colorSpace,
@@ -63,6 +66,12 @@ final class PilotRenderer {
         }
         if plan.background != "transparent" {
             context.setFillColor(try color(plan.background)); context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        if let initialImage {
+            context.saveGState()
+            context.translateBy(x: 0, y: CGFloat(height)); context.scaleBy(x: 1, y: -1)
+            context.draw(initialImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            context.restoreGState()
         }
     }
     private func n(_ obj: [String: Any], _ key: String, _ fallback: Double = 0) -> Double {
