@@ -144,6 +144,32 @@ fn large_asset_update_is_cold_bounded_and_upsert_preserves_metadata() {
 }
 
 #[test]
+fn shared_web_tile_and_long_text_properties_accept_within_envelope() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    let id = begin(&mut s);
+    let long_content = "x".repeat(20_000);
+    let long_name = "N".repeat(250);
+    let updated = update(
+        &mut s,
+        id,
+        json!([
+            {"type":"patch_layer","id":"a","patch":{"content":long_content,"name":long_name}},
+            {"type":"patch_layer","id":"b","patch":{"fit":"tile"}}
+        ]),
+    );
+    assert_eq!(updated["ok"], true, "{updated}");
+    assert_eq!(end(&mut s, "commit", id)["revision"], 1);
+    assert_eq!(
+        doc(&s)["layers"][0]["content"].as_str().unwrap().len(),
+        20_000
+    );
+    assert_eq!(doc(&s)["layers"][0]["name"].as_str().unwrap().len(), 250);
+    assert_eq!(doc(&s)["layers"][1]["fit"], "tile");
+    assert!(s.undo());
+    assert!(doc(&s)["layers"][1].get("fit").is_none());
+}
+
+#[test]
 fn replace_document_preserves_package_metadata_and_unknown_json() {
     let mut s = DocumentSession::open(&source()).unwrap();
     let original = s.export_json();
