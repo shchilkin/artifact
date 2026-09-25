@@ -42,6 +42,8 @@ export interface SessionSummary {
   layers: LayerSummary[];
   canUndo: boolean;
   canRedo: boolean;
+  undoCount: number;
+  redoCount: number;
 }
 
 /** Initialize once; each consumer owns and frees its independent WASM session. */

@@ -42,6 +42,8 @@ pub struct SessionSummary {
     pub layers: Vec<LayerSummary>,
     pub can_undo: bool,
     pub can_redo: bool,
+    pub undo_count: usize,
+    pub redo_count: usize,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -235,6 +237,8 @@ impl DocumentSession {
             layers,
             can_undo: self.can_undo(),
             can_redo: self.can_redo(),
+            undo_count: self.past.len(),
+            redo_count: self.future.len(),
         }
     }
 

@@ -44,10 +44,13 @@ describe('real WASM shared transactions', () => {
         ]).ok,
       ).toBe(true);
       expect(commitTransaction(session, transactionId).revision).toBe(1);
+      expect(JSON.parse(session.summary_json())).toMatchObject({ undoCount: 1, redoCount: 0 });
       expect(JSON.parse(session.export_json()).document.fontAssets[0].future).toEqual({ keep: true });
       expect(session.undo()).toBe(true);
+      expect(JSON.parse(session.summary_json())).toMatchObject({ undoCount: 0, redoCount: 1 });
       expect(JSON.parse(session.export_json())).toEqual(original);
       expect(session.redo()).toBe(true);
+      expect(JSON.parse(session.summary_json())).toMatchObject({ undoCount: 1, redoCount: 0 });
       expect(JSON.parse(session.export_json()).document.layers[0].font).toBe('artifact-font://native-font');
     } finally {
       session.free();

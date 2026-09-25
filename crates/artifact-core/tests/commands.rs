@@ -170,6 +170,32 @@ fn shared_web_tile_and_long_text_properties_accept_within_envelope() {
 }
 
 #[test]
+fn summary_counts_follow_the_core_history_owner() {
+    let mut s = DocumentSession::open(&source()).unwrap();
+    let counts = |s: &DocumentSession| serde_json::from_str::<Value>(&s.summary_json()).unwrap();
+    assert_eq!(counts(&s)["undoCount"], 0);
+    assert_eq!(counts(&s)["redoCount"], 0);
+    let id = begin(&mut s);
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"a","patch":{"content":"B"}}])
+        )["ok"],
+        true
+    );
+    assert_eq!(counts(&s)["undoCount"], 0);
+    assert_eq!(end(&mut s, "commit", id)["ok"], true);
+    assert_eq!(counts(&s)["undoCount"], 1);
+    assert!(s.undo());
+    assert_eq!(counts(&s)["undoCount"], 0);
+    assert_eq!(counts(&s)["redoCount"], 1);
+    assert!(s.redo());
+    assert_eq!(counts(&s)["undoCount"], 1);
+    assert_eq!(counts(&s)["redoCount"], 0);
+}
+
+#[test]
 fn replace_document_preserves_package_metadata_and_unknown_json() {
     let mut s = DocumentSession::open(&source()).unwrap();
     let original = s.export_json();
