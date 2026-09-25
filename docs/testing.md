@@ -1,5 +1,12 @@
 # Testing
 
+Native P06 render checks are part of `npm run check:core-native` after a native
+build. `tests/native-2d-render/verify.mjs` covers the four output aspects,
+alpha, layered blends, embedded-font bounds and ordinary/subpixel tiling.
+Its [evidence boundary](./native-2d-render-foundation.md) separates those
+harness results from the actual Mac GUI observation and independent main-Web
+export.
+
 The main Web editor's shared-core integration is covered by
 `app/utils/sharedCoreCommands.test.ts`, using actual compiled WASM bytes through
 production document commands. See [the integration boundary](./web-macos-main-web-integration.md).

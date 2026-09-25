@@ -78,6 +78,13 @@ On Apple Silicon macOS, `node scripts/core-pilot/doctor.mjs macos`,
 execute the native model and renderer checks. `npm run test:core-tooling`
 tests missing-prerequisite diagnostics and stale-manifest rejection. These
 commands do not replace the existing Web deployment build or release gates.
+The native check also runs `tests/native-2d-render/verify.mjs` for P06 aspect,
+alpha, blend, embedded text and tiling fixtures; see the
+[native render evidence](./native-2d-render-foundation.md).
+P07 adds `file-export-check` to the native harness for portable file, font,
+recovery and all-aspect PNG/JPEG scale behavior; see
+[native files and export](./native-files-export.md). Its output is headless
+model/raster evidence, separate from the Mac file-panel and Web reopen gate.
 
 ## Generated runtime and app identity
 

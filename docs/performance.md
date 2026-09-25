@@ -266,6 +266,14 @@ Raw samples: `test-results/core-pilot/preview/performance.json` and
 
 ## Native 2D parity measurement boundary
 
+The [P06 foundation evidence](./native-2d-render-foundation.md#measurements-and-comparison-2026-09-24)
+reports the public P01 scene's before/after headless draft response, raster
+render-plus-PNG timings, process peak RSS and an independent main-Web image
+comparison on an identified M5 Max. The 70 ms timer reduction improved draft
+response while isolated text and scanline raster costs increased. Those
+process measurements do not establish GUI input-to-present, 100-node memory
+or the proposed M3 Pro budgets.
+
 Epic #260 uses the [P01 parity contract](./native-2d-parity-contract.md) for a
 named target Mac, synthetic text/alpha/branching/100-node scenes, and separate
 interaction, preview, export and memory budgets. Those numbers are proposed

@@ -46,11 +46,15 @@ final class ProjectModel: ObservableObject {
     func stageInspector(_ id: String, values: [String: String], patch: [String: Any], valid: Bool) {
         if patch.isEmpty && valid { inspectorDrafts.removeValue(forKey: id) }
         else { inspectorDrafts[id] = InspectorDraft(values: values, patch: patch, valid: valid) }
+        filePanelGeneration += 1
         updateModified()
+        persistRecovery()
     }
     func discardInspector(_ id: String) {
         inspectorDrafts.removeValue(forKey: id)
+        filePanelGeneration += 1
         updateModified()
+        persistRecovery()
     }
     private func updateModified() {
         isModified = !inspectorDrafts.isEmpty || ((try? session?.exportJson()) != savedJSON)
@@ -60,6 +64,7 @@ final class ProjectModel: ObservableObject {
         guard draft.valid else { message = "Check the values in the layer inspector before saving."; return false }
         guard command(["type": "edit_layer", "id": id, "patch": draft.patch]) else { return false }
         inspectorDrafts.removeValue(forKey: id)
+        filePanelGeneration += 1
         updateModified()
         return true
     }
@@ -69,9 +74,14 @@ final class ProjectModel: ObservableObject {
     }
     @Published var recentFiles: [URL] = []
     @Published var recoveryAvailable = false
-    @Published var isImporting = false
+    @Published private(set) var isImporting = false
+    private var activeImports = 0
+    private func beginImport() { activeImports += 1; isImporting = true }
+    private func endImport() { activeImports -= 1; isImporting = activeImports > 0 }
     private var currentURL: URL?
     private let persistenceEnabled: Bool
+    private let recoveryFileURL: URL
+    private let preferences: UserDefaults
     private static var recoveryURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Artifact Workspace/recovery.artifact")
@@ -82,51 +92,81 @@ final class ProjectModel: ObservableObject {
     @Published var message: String?
     @Published var isModified = false
     @Published var preview: NSImage?
+    @Published private(set) var canvasAspect = "1:1"
     @Published var isRendering = false
     @Published var renderMessage: String?
     static let previewSize: UInt32 = 1000
-    static let exportSize: UInt32 = 3000
     @Published var isExporting = false
     @Published var exportMessage: String?
     private var exportTask: Task<Void, Never>?
     private let renderImage: (String) async throws -> CGImage
-    private let renderPNGData: (String) async throws -> Data
+    private let renderExportData: (String, Int, NativeExportFormat) async throws -> Data
+    private let readClipboardImage: (Data) async throws -> String
+    private(set) var filePanelGeneration = 0
+    func filePanelIsCurrent(_ generation: Int) -> Bool { filePanelGeneration == generation }
 
     convenience init(persist: Bool = true) {
         self.init(
             renderImage: { try await RenderWorker.shared.render(plan: $0) },
-            renderPNGData: { try await RenderWorker.shared.png(plan: $0) }, persist: persist
+            renderExportData: { try await RenderWorker.shared.export(plan: $0, scale: $1, format: $2) }, persist: persist
         )
     }
 
     init(
         renderImage: @escaping (String) async throws -> CGImage,
-        renderPNGData: @escaping (String) async throws -> Data,
-        persist: Bool = false
+        renderExportData: @escaping (String, Int, NativeExportFormat) async throws -> Data,
+        readClipboardImage: @escaping (Data) async throws -> String = { try ImageImport.shared.readClipboard($0) },
+        persist: Bool = false,
+        recoveryURL: URL? = nil,
+        preferences: UserDefaults = .standard
     ) {
         self.renderImage = renderImage
-        self.renderPNGData = renderPNGData
+        self.renderExportData = renderExportData
+        self.readClipboardImage = readClipboardImage
         self.persistenceEnabled = persist
+        self.recoveryFileURL = recoveryURL ?? Self.recoveryURL
+        self.preferences = preferences
         if persist {
-            recentFiles = (UserDefaults.standard.stringArray(forKey: "artifactRecentFiles") ?? []).map { URL(fileURLWithPath: $0) }
-            recoveryAvailable = FileManager.default.fileExists(atPath: Self.recoveryURL.path)
+            recentFiles = (preferences.stringArray(forKey: "artifactRecentFiles") ?? []).map { URL(fileURLWithPath: $0) }
+            recoveryAvailable = FileManager.default.fileExists(atPath: self.recoveryFileURL.path)
         }
     }
 
     private var renderRevision = 0
     private var renderTask: Task<Void, Never>?
+    private var hasTransientPreview = false
 
-    private func refreshPreview() {
-        documentRevision += 1
-        renderRevision += 1
+    var previewDimensions: NativeCanvasDimensions { NativeCanvasDimensions.base(canvasAspect).fit(maxSide: Self.previewSize) }
+    var exportDimensions: NativeCanvasDimensions { NativeCanvasDimensions.base(canvasAspect) }
+
+    private func aspect(in source: String) -> String? {
+        guard let package = try? JSONSerialization.jsonObject(with: Data(source.utf8)) as? [String: Any],
+              let document = package["document"] as? [String: Any],
+              let global = document["global"] as? [String: Any],
+              let aspect = global["aspect"] as? String else { return nil }
+        return aspect
+    }
+    private func syncAspect() {
+        guard let session, let source = try? session.exportJson(), let aspect = aspect(in: source) else { return }
+        canvasAspect = aspect
+    }
+
+    private func refreshPreview(documentChanged: Bool = true) {
+        if documentChanged {
+            documentRevision += 1
+            filePanelGeneration += 1
+            renderRevision += 1
+            exportTask?.cancel()
+            isExporting = false
+            exportMessage = nil
+        }
+        hasTransientPreview = false
         let revision = renderRevision
         renderTask?.cancel()
-        exportTask?.cancel()
-        isExporting = false
-        exportMessage = nil
         guard let session else { return }
         do {
-            let plan = try session.renderPlanJson(width: Self.previewSize, height: Self.previewSize)
+            let dimensions = previewDimensions
+            let plan = try session.renderPlanJson(width: dimensions.width, height: dimensions.height)
             isRendering = true
             renderMessage = nil
             let render = renderImage
@@ -156,29 +196,56 @@ final class ProjectModel: ObservableObject {
             panel.beginSheetModal(for: window, completionHandler: finish)
         } else { panel.begin(completionHandler: finish) }
     }
-    func exportPNG() {
+    func exportPNG() { exportFile(format: .png) }
+    func exportJPEG() { exportFile(format: .jpeg) }
+    func exportFile(format: NativeExportFormat, scale: Int? = nil) {
         guard session != nil, !isExporting, applyInspectors() else { return }
+        do {
+            guard let session else { return }
+            let source = try session.exportJson()
+            if let root = try JSONSerialization.jsonObject(with: Data(source.utf8)) as? [String: Any],
+               let document = root["document"] as? [String: Any],
+               let notice = ProjectFileService.dependencyNotice(document) {
+                exportMessage = notice
+                return
+            }
+            let dimensions = exportDimensions
+            _ = try session.renderPlanJson(width: dimensions.width, height: dimensions.height)
+        } catch { exportMessage = displayMessage(error); return }
+        let requestedRevision = filePanelGeneration
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue = "\(URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent).png"
-        presentFilePanel(panel) { [weak self] url in if let url { self?.exportPNG(to: url) } }
+        panel.allowedContentTypes = [format.type]
+        panel.nameFieldStringValue = "\(URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent).\(format.extensionName)"
+        presentFilePanel(panel) { [weak self] url in
+            guard let self, let url else { return }
+            guard self.filePanelIsCurrent(requestedRevision) else {
+                self.exportMessage = "Project changed while export was open. Choose export again."
+                return
+            }
+            self.export(to: url, format: format, scale: scale)
+        }
     }
 
     // Export always renders a fresh full-size plan. An edit/open invalidates it
     // before it can write, even if a renderer ignores cooperative cancellation.
-    func exportPNG(to url: URL) {
+    func exportPNG(to url: URL) { export(to: url, format: .png) }
+    func export(to url: URL, format: NativeExportFormat, scale: Int? = nil) {
         guard let session, !isExporting, applyInspectors() else { return }
         let revision = renderRevision
         do {
-            let plan = try session.renderPlanJson(width: Self.exportSize, height: Self.exportSize)
-            let render = renderPNGData
+            let source = try session.exportJson()
+            let selectedScale = scale ?? exportScale(in: source)
+            guard (1...3).contains(selectedScale) else { throw RenderFailure(message: "Choose export scale 1, 2 or 3.") }
+            let dimensions = exportDimensions
+            let plan = try session.renderPlanJson(width: dimensions.width, height: dimensions.height)
+            let render = renderExportData
             isExporting = true
             exportMessage = nil
             exportTask = Task { [weak self] in
                 do {
-                    let data = try await render(plan)
+                    let data = try await render(plan, selectedScale, format)
                     guard let self, self.renderRevision == revision, !Task.isCancelled else { return }
-                    try data.write(to: url, options: .atomic)
+                    try ProjectFileService.writeExport(data, to: url)
                     self.isExporting = false
                 } catch {
                     guard let self, self.renderRevision == revision, !Task.isCancelled else { return }
@@ -187,6 +254,12 @@ final class ProjectModel: ObservableObject {
                 }
             }
         } catch { exportMessage = displayMessage(error) }
+    }
+    private func exportScale(in source: String) -> Int {
+        guard let root = try? JSONSerialization.jsonObject(with: Data(source.utf8)) as? [String: Any],
+              let document = root["document"] as? [String: Any],
+              let config = document["export"] as? [String: Any] else { return 1 }
+        return config["scale"] as? Int ?? 1
     }
     private var session: NativeSession?
     private var savedJSON = ""
@@ -198,7 +271,37 @@ final class ProjectModel: ObservableObject {
         return error.localizedDescription
     }
 
-    func confirmDiscard(_ proceed: @escaping () -> Void) {
+    enum StartupRecoveryChoice { case restore, discard, cancel }
+    var needsStartupRecoveryChoice: Bool { session == nil && recoveryAvailable }
+
+    func resolveStartupRecovery(_ choice: StartupRecoveryChoice, proceed: () -> Void) {
+        switch choice {
+        case .restore: restoreRecoveryNow()
+        case .discard: proceed() // The recovery file remains until New/Open succeeds.
+        case .cancel: break
+        }
+    }
+
+    func confirmDiscard(purgeOnDiscard: Bool = false, _ proceed: @escaping () -> Void) {
+        if needsStartupRecoveryChoice {
+            let alert = NSAlert()
+            alert.messageText = "Restore the unsaved project?"
+            alert.informativeText = "New or Open will replace the recovery only after it succeeds. Canceling a file picker keeps it."
+            alert.addButton(withTitle: "Restore")
+            alert.addButton(withTitle: "Discard and Continue")
+            alert.addButton(withTitle: "Cancel")
+            let finish: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+                switch response {
+                case .alertFirstButtonReturn: self?.resolveStartupRecovery(.restore, proceed: proceed)
+                case .alertSecondButtonReturn: self?.resolveStartupRecovery(.discard, proceed: proceed)
+                default: self?.resolveStartupRecovery(.cancel, proceed: proceed)
+                }
+            }
+            if let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
+                alert.beginSheetModal(for: window, completionHandler: finish)
+            } else { finish(alert.runModal()) }
+            return
+        }
         guard isModified else { proceed(); return }
         let alert = NSAlert()
         alert.messageText = "Save changes before closing this project?"
@@ -209,13 +312,22 @@ final class ProjectModel: ObservableObject {
         let finish: (NSApplication.ModalResponse) -> Void = { [weak self] response in
             switch response {
             case .alertFirstButtonReturn: self?.save { if $0 { proceed() } }
-            case .alertThirdButtonReturn: proceed()
+            case .alertThirdButtonReturn:
+                if purgeOnDiscard { self?.discardRecovery() }
+                proceed()
             default: break
             }
         }
         if let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
             alert.beginSheetModal(for: window, completionHandler: finish)
         } else { finish(alert.runModal()) }
+    }
+    private func discardRecovery() {
+        guard persistenceEnabled else { return }
+        do {
+            try ProjectFileService.clearRecovery(at: recoveryFileURL)
+            recoveryAvailable = false
+        } catch { message = "Could not discard recovery draft: " + error.localizedDescription }
     }
 
     func open() {
@@ -232,11 +344,8 @@ final class ProjectModel: ObservableObject {
 
     func load(_ url: URL) {
         do {
-            let values = try url.resourceValues(forKeys: [.fileSizeKey])
-            guard (values.fileSize ?? 0) <= 64 * 1024 * 1024 else {
-                throw CocoaError(.fileReadTooLarge)
-            }
-            let candidate = try NativeSession.open(source: String(contentsOf: url, encoding: .utf8))
+            let opened = try ProjectFileService.read(url)
+            let candidate = try NativeSession.open(source: opened.source)
             let nextSummary = try JSONDecoder().decode(SessionSummary.self, from: Data(candidate.summaryJson().utf8))
             let nextJSON = try candidate.exportJson()
             session = candidate
@@ -246,12 +355,14 @@ final class ProjectModel: ObservableObject {
             currentURL = url
             remember(url)
             savedJSON = nextJSON
+            canvasAspect = aspect(in: nextJSON) ?? "1:1"
             selectedID = nextSummary.layers.first(where: { ($0.scanlines ?? 0) > 0 })?.id
                 ?? nextSummary.layers.first?.id
             fileName = url.lastPathComponent
             isModified = false
-            message = nil
+            message = opened.notice
             preview = nil
+            if url != recoveryFileURL { discardRecovery() }
             refreshPreview()
         } catch { message = displayMessage(error) }
     }
@@ -278,18 +389,24 @@ final class ProjectModel: ObservableObject {
     }
 
     func undo() {
-        if !inspectorDrafts.isEmpty { inspectorDrafts.removeAll(); updateModified(); documentRevision += 1; return }
-        guard let session else { return }; perform { _ = try session.undo() }
+        if !inspectorDrafts.isEmpty { inspectorDrafts.removeAll(); updateModified(); filePanelGeneration += 1; documentRevision += 1; return }
+        guard let session else { return }; perform(mayChangeAspect: true) { _ = try session.undo() }
     }
-    func redo() { guard let session else { return }; perform { _ = try session.redo() } }
+    func redo() { guard let session else { return }; perform(mayChangeAspect: true) { _ = try session.redo() } }
 
-    @discardableResult private func perform(_ action: () throws -> Void) -> Bool {
+    @discardableResult private func perform(mayChangeAspect: Bool = false, _ action: () throws -> Void) -> Bool {
         do {
             message = nil
+            let beforeRevision = try session?.revision()
             try action()
             if let session {
+                if try session.revision() == beforeRevision {
+                    if hasTransientPreview { refreshPreview(documentChanged: false) }
+                    return true
+                }
                 summary = try JSONDecoder().decode(SessionSummary.self, from: Data(session.summaryJson().utf8))
                 editor = try EditorState(json: session.editorStateJson())
+                if mayChangeAspect { syncAspect() }
                 if !editor.layers.contains(where: { $0.id == selectedID }) { selectedID = editor.orderedLayers.last?.id }
                 inspectorDrafts = inspectorDrafts.filter { id, _ in editor.layers.contains { $0.id == id } }
                 updateModified()
@@ -297,14 +414,18 @@ final class ProjectModel: ObservableObject {
                 refreshPreview()
             }
             return true
-        } catch { message = displayMessage(error); return false }
+        } catch {
+            if hasTransientPreview { refreshPreview(documentChanged: false) }
+            message = displayMessage(error)
+            return false
+        }
     }
 
     var selectedLayer: EditorLayer? { editor.layers.first { $0.id == selectedID } }
 
     @discardableResult func command(_ command: [String: Any], select: String? = nil) -> Bool {
         guard let session else { return false }
-        return perform {
+        return perform(mayChangeAspect: command["type"] as? String == "patch_global") {
             let bytes = try JSONSerialization.data(withJSONObject: command, options: [.sortedKeys, .withoutEscapingSlashes])
             _ = try session.execute(commandJson: String(decoding: bytes, as: UTF8.self))
             if let select { selectedID = select }
@@ -312,21 +433,25 @@ final class ProjectModel: ObservableObject {
     }
     func previewTransform(_ patch: [String: Double]) {
         guard let session, let selectedID else { return }
+        hasTransientPreview = true
         renderTask?.cancel()
         let revision = renderRevision
+        let render = renderImage
         renderTask = Task { [weak self] in
             do {
-                try await Task.sleep(for: .milliseconds(70))
+                try await Task.sleep(for: .milliseconds(16))
                 let json = try JSONSerialization.data(withJSONObject: patch)
                 let plan = try session.draftPlanJson(layerId: selectedID, patchJson: String(decoding: json, as: UTF8.self), size: 500)
-                let image = try await RenderWorker.shared.render(plan: plan)
+                let image = try await render(plan)
                 guard let self, !Task.isCancelled, renderRevision == revision, self.selectedID == selectedID else { return }
                 isRendering = false
                 preview = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
             } catch { /* A superseded pointer draft has no durable state. */ }
         }
     }
-    func cancelTransformPreview() { refreshPreview() }
+    func cancelTransformPreview() {
+        if hasTransientPreview { refreshPreview(documentChanged: false) }
+    }
     func editProperties(_ patch: [String: Any]) {
         guard let selectedID else { return }
         command(["type": "edit_layer", "id": selectedID, "patch": patch])
@@ -347,18 +472,67 @@ final class ProjectModel: ObservableObject {
     func moveSelected(_ delta: Int) { guard let selectedID else { return }; command(["type": "move_layer", "id": selectedID, "delta": delta]) }
     func importLayer() {
         let panel = NSOpenPanel(); panel.allowedContentTypes = [.png, .jpeg]; panel.allowsMultipleSelection = false
+        let requestedRevision = filePanelGeneration
         presentFilePanel(panel) { [weak self] url in
             guard let self, let url else { return }
-            let revision = documentRevision
-            isImporting = true
-            Task {
-                defer { self.isImporting = false }
-                do {
-                    let src = try await ImageImport.shared.read(url)
-                    guard self.documentRevision == revision else { return }
-                    self.addLayer("image", src: src)
-                } catch { self.message = self.displayMessage(error) }
-            }
+            guard self.filePanelIsCurrent(requestedRevision) else { return }
+            self.importImage(from: url)
+        }
+    }
+    func importImage(from url: URL) {
+        let revision = documentRevision
+        beginImport()
+        Task {
+            defer { endImport() }
+            do {
+                let src = try await ImageImport.shared.read(url)
+                guard documentRevision == revision else { return }
+                addLayer("image", src: src)
+            } catch { if documentRevision == revision { message = displayMessage(error) } }
+        }
+    }
+    func pasteImage() {
+        let board = NSPasteboard.general
+        if let file = board.readObjects(forClasses: [NSURL.self])?.first as? URL {
+            importImage(from: file)
+            return
+        }
+        guard let data = board.data(forType: .png) ?? board.data(forType: NSPasteboard.PasteboardType("public.jpeg"))
+                ?? board.data(forType: .tiff) else {
+            message = "Clipboard has no image."
+            return
+        }
+        importImage(data: data)
+    }
+    func importImage(data: Data) {
+        let revision = documentRevision
+        beginImport()
+        Task {
+            defer { endImport() }
+            do {
+                let src = try await readClipboardImage(data)
+                guard documentRevision == revision else { return }
+                addLayer("image", src: src)
+            } catch { if documentRevision == revision { message = displayMessage(error) } }
+        }
+    }
+    func importFont(to layerID: String, from url: URL) {
+        guard session != nil, applyInspectors() else { return }
+        let revision = documentRevision
+        beginImport()
+        Task {
+            defer { endImport() }
+            do {
+                let imported = try await FontImport.shared.read(url)
+                guard documentRevision == revision, let session,
+                      editor.layers.contains(where: { $0.id == layerID && $0.kind == "text" }) else { return }
+                _ = perform {
+                    try NativeCommandService.commit(session, commands: [
+                        ["type": "edit_assets", "collection": "fontAssets", "upsert": [imported.asset]],
+                        ["type": "patch_layer", "id": layerID, "patch": ["font": imported.reference]]
+                    ])
+                }
+            } catch { if documentRevision == revision { message = displayMessage(error) } }
         }
     }
     func newDocument() {
@@ -369,59 +543,101 @@ final class ProjectModel: ObservableObject {
                 inspectorDrafts.removeAll()
                 summary = try JSONDecoder().decode(SessionSummary.self, from: Data(session!.summaryJson().utf8))
                 editor = try EditorState(json: session!.editorStateJson())
-                currentURL = nil; savedJSON = ""; fileName = "Untitled.artifact"; selectedID = nil
+                currentURL = nil; savedJSON = ""; fileName = "Untitled.artifact"; selectedID = nil; canvasAspect = "1:1"
                 isModified = true; message = nil; preview = nil; persistRecovery(); refreshPreview()
             } catch { message = displayMessage(error) }
         }
     }
     func openURL(_ url: URL) { confirmDiscard { [weak self] in self?.load(url) } }
     private func remember(_ url: URL) {
-        guard persistenceEnabled, url != Self.recoveryURL else { return }
+        guard persistenceEnabled, url != recoveryFileURL else { return }
         recentFiles.removeAll { $0 == url }; recentFiles.insert(url, at: 0)
         recentFiles = Array(recentFiles.prefix(10))
-        UserDefaults.standard.set(recentFiles.map(\.path), forKey: "artifactRecentFiles")
-        NSDocumentController.shared.noteNewRecentDocumentURL(url)
+        preferences.set(recentFiles.map(\.path), forKey: "artifactRecentFiles")
+        if preferences === UserDefaults.standard { NSDocumentController.shared.noteNewRecentDocumentURL(url) }
     }
     private func persistRecovery() {
-        guard persistenceEnabled, let session, isModified else { return }
+        guard persistenceEnabled, let session else { return }
         do {
-            let url = Self.recoveryURL
-            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try Data(session.exportJson().utf8).write(to: url, options: .atomic)
-            recoveryAvailable = true
+            let url = recoveryFileURL
+            if isModified {
+                let drafts: [[String: Any]] = inspectorDrafts.map { id, draft in
+                    ["id": id, "values": draft.values, "patch": draft.patch, "valid": draft.valid]
+                }
+                try ProjectFileService.writeRecovery(session.exportJson(), drafts: drafts, to: url)
+                recoveryAvailable = true
+            } else {
+                try ProjectFileService.clearRecovery(at: url)
+                recoveryAvailable = false
+            }
         } catch { message = "Could not save recovery draft: " + error.localizedDescription }
     }
     func restoreRecovery() {
+        if needsStartupRecoveryChoice { restoreRecoveryNow(); return }
         confirmDiscard { [weak self] in
-            guard let self else { return }
-            load(Self.recoveryURL)
-            if currentURL == Self.recoveryURL { currentURL = nil; fileName = "Recovered.artifact"; savedJSON = ""; isModified = true }
+            self?.restoreRecoveryNow()
+        }
+    }
+    private func restoreRecoveryNow() {
+        let source = try? String(contentsOf: recoveryFileURL, encoding: .utf8)
+        let drafts = source.map { ProjectFileService.recoveryDrafts(at: recoveryFileURL, matching: $0) } ?? []
+        load(recoveryFileURL)
+        if currentURL == recoveryFileURL {
+            currentURL = nil; fileName = "Recovered.artifact"; savedJSON = ""; isModified = true
+            for item in drafts {
+                guard let id = item["id"] as? String, let values = item["values"] as? [String: String],
+                      let patch = item["patch"] as? [String: Any], let valid = item["valid"] as? Bool else { continue }
+                inspectorDrafts[id] = InspectorDraft(values: values, patch: patch, valid: valid)
+            }
+            if !inspectorDrafts.isEmpty { message = "Unapplied inspector changes were restored. Review them before saving." }
         }
     }
     func save(completion: @escaping (Bool) -> Void = { _ in }) {
-        guard let url = currentURL else { saveCopy(completion: completion); return }
+        guard let url = currentURL else { saveAs(completion: completion); return }
         completion(save(to: url))
     }
     @discardableResult func save(to url: URL) -> Bool {
         guard let session, applyInspectors() else { return false }
         do {
             let source = try session.exportJson()
-            try Data(source.utf8).write(to: url, options: .atomic)
+            try ProjectFileService.write(source, to: url)
             currentURL = url; savedJSON = source; fileName = url.lastPathComponent
             isModified = false; message = nil; remember(url)
-            if persistenceEnabled { try? FileManager.default.removeItem(at: Self.recoveryURL); recoveryAvailable = false }
+            if persistenceEnabled { try? ProjectFileService.clearRecovery(at: recoveryFileURL); recoveryAvailable = false }
             return true
         } catch { message = displayMessage(error); return false }
     }
     func saveCopy(completion: @escaping (Bool) -> Void = { _ in }) {
+        presentProjectSavePanel(copy: true, completion: completion)
+    }
+    private func saveAs(completion: @escaping (Bool) -> Void) {
+        presentProjectSavePanel(copy: false, completion: completion)
+    }
+    private func presentProjectSavePanel(copy: Bool, completion: @escaping (Bool) -> Void) {
         guard session != nil else { completion(false); return }
+        let requestedRevision = filePanelGeneration
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "artifact") ?? .json]
         panel.allowsOtherFileTypes = true
-        panel.nameFieldStringValue = "\(URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent)-copy.artifact"
+        let stem = URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
+        panel.nameFieldStringValue = "\(stem)\(copy ? "-copy" : "").artifact"
         presentFilePanel(panel) { [weak self] url in
             guard let self, let url else { completion(false); return }
-            completion(save(to: url))
+            guard self.filePanelIsCurrent(requestedRevision) else {
+                self.message = "Project changed while Save was open. Choose Save again."
+                completion(false)
+                return
+            }
+            if !copy { completion(save(to: url)); return }
+            completion(saveCopy(to: url))
         }
+    }
+    @discardableResult func saveCopy(to url: URL) -> Bool {
+        guard let session else { return false }
+        do {
+            try ProjectFileService.write(session.exportJson(), to: url)
+            message = nil
+            return true
+        } catch { message = displayMessage(error); return false }
     }
 }
