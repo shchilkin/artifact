@@ -35,9 +35,12 @@ rendering, normal blend and a linear graph export path. Existing native
 document preservation, some Layers/Nodes controls and PNG export are useful
 but do not imply support for other graph utilities, procedural sources,
 non-square art, JPEG, Web scales or the remaining 59 effects. The main Web
-currently has property patches routed through WASM for supported fields; it
-still owns broad commands and history in TypeScript. #263 then #265 must
-establish one durable history owner on each active document timeline.
+had property patches routed through WASM for supported fields at the pinned
+reference revision, while broad commands and history still lived in TypeScript.
+#263 and #265 move the active timeline to one durable shared session; the
+current main-Web boundary is documented in
+[main Web integration](./web-macos-main-web-integration.md). The pinned visual
+reference remains a baseline, not a re-capture from the new session.
 
 The scope is local 2D Web + native SwiftUI/AppKit macOS in this monorepo. The
 existing Web renderer stays in place. 3D/model/material/environment, shader

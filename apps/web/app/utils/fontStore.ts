@@ -218,25 +218,7 @@ async function saveImportedFontAsset(asset: ImportedFontAsset | PortableFontAsse
 }
 
 function portableFontAsset(asset: ImportedFontAsset): PortableFontAsset {
-  const stored: ImportedFontAsset = {
-    ...asset,
-  };
-  const { id, dataUrl, mime, bytes, label, family, createdAt } = stored;
-  const { source, sourceName, sourceUrl, license, embeddingPolicy } = stored;
-  return {
-    id,
-    dataUrl,
-    mime,
-    bytes,
-    label,
-    family,
-    createdAt,
-    ...(source ? { source } : {}),
-    ...(sourceName ? { sourceName } : {}),
-    ...(sourceUrl ? { sourceUrl } : {}),
-    ...(license ? { license } : {}),
-    ...(embeddingPolicy ? { embeddingPolicy } : {}),
-  };
+  return { ...asset };
 }
 
 export async function loadImportedFontAsset(font: string): Promise<ImportedFontAsset | null> {
@@ -295,13 +277,17 @@ export async function hydrateDocumentFontAssets(
   options: HydrateDocumentFontAssetOptions = {},
 ): Promise<CanvasDocument> {
   const loadFontAsset = options.loadFontAsset ?? loadImportedFontAsset;
-  const fontAssets: PortableFontAsset[] = [];
+  const fontAssets: PortableFontAsset[] = [...(doc.fontAssets ?? [])];
   for (const font of collectDocumentFontRefs(doc)) {
     if (!isFontUri(font)) continue;
     const asset = await loadFontAsset(font);
-    if (asset) fontAssets.push(portableFontAsset(asset));
+    if (asset) {
+      const existing = fontAssets.findIndex((item) => item.id === asset.id);
+      if (existing >= 0) fontAssets[existing] = { ...fontAssets[existing], ...portableFontAsset(asset) };
+      else fontAssets.push(portableFontAsset(asset));
+    }
   }
-  if (fontAssets.length === 0) return doc.fontAssets ? stripDocumentFontAssets(doc) : doc;
+  if (fontAssets.length === 0) return doc;
   return { ...doc, fontAssets };
 }
 
@@ -315,8 +301,12 @@ export async function storeDocumentFontAssets(
 ): Promise<CanvasDocument> {
   if (!doc.fontAssets?.length) return doc.fontAssets ? stripDocumentFontAssets(doc) : doc;
   const saveFontAsset = options.saveFontAsset ?? saveImportedFontAsset;
-  await Promise.all(doc.fontAssets.map((asset) => saveFontAsset(asset)));
-  return stripDocumentFontAssets(doc);
+  const storable = doc.fontAssets.filter(
+    (asset) => typeof asset.dataUrl === 'string' && asset.dataUrl.startsWith('data:'),
+  );
+  await Promise.all(storable.map((asset) => saveFontAsset(asset)));
+  const metadataOnly = doc.fontAssets.filter((asset) => !storable.includes(asset));
+  return metadataOnly.length ? { ...doc, fontAssets: metadataOnly } : stripDocumentFontAssets(doc);
 }
 
 export function stripDocumentFontAssets(doc: CanvasDocument): CanvasDocument {

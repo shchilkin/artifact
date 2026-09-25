@@ -1,4 +1,4 @@
-import { type MutableRefObject, useCallback, useEffect, useMemo, useState } from 'react';
+import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CanvasDocument } from '../types/config';
 import {
@@ -11,6 +11,7 @@ import {
 import { storePortableDocumentAssets } from '../utils/documentAssets';
 import { documentFingerprint } from '../utils/documentFingerprint';
 import { type SavedProject } from '../utils/projectLibrary';
+import { acceptProjectDocument } from '../utils/projectLoadBinding';
 import type { ProjectSaveState } from '../utils/storageStatus';
 import { useProjects } from './useProjects';
 
@@ -18,7 +19,7 @@ interface UseGeneratorProjectsControllerOptions {
   doc: CanvasDocument;
   docRef: MutableRefObject<CanvasDocument>;
   imageCache: Map<string, HTMLImageElement>;
-  onLoadDocument: (doc: CanvasDocument) => void;
+  onLoadDocument: (doc: CanvasDocument) => Promise<CanvasDocument | null>;
   initialDocumentClearsProject?: boolean;
 }
 
@@ -30,6 +31,7 @@ export function useEditorProjectsController({
   initialDocumentClearsProject = false,
 }: UseGeneratorProjectsControllerOptions) {
   const [showProjects, setShowProjects] = useState(false);
+  const pendingProjectLoad = useRef(0);
   const [activeProjectBinding, setActiveProjectBinding] = useState<ActiveProjectBinding | null>(() =>
     typeof window === 'undefined' || initialDocumentClearsProject
       ? null
@@ -68,6 +70,9 @@ export function useEditorProjectsController({
   const clearActiveProject = useCallback(() => {
     updateActiveProjectBinding(null);
   }, [updateActiveProjectBinding]);
+  const cancelPendingProjectLoads = useCallback(() => {
+    pendingProjectLoad.current += 1;
+  }, []);
 
   useEffect(() => {
     if (initialDocumentClearsProject) {
@@ -77,25 +82,28 @@ export function useEditorProjectsController({
 
   const handleLoadProject = useCallback(
     (project: SavedProject) => {
+      const serial = ++pendingProjectLoad.current;
       void loadProject(project)
         .then(({ doc }) => storePortableDocumentAssets(doc).catch(() => doc))
-        .then((storedDoc) => {
-          onLoadDocument(storedDoc);
-          updateActiveProjectBinding(
-            project.id === 'pre-blank-draft'
-              ? null
-              : {
-                  projectId: project.id,
-                  savedFingerprint: documentFingerprint(storedDoc),
-                },
-          );
+        .then(async (storedDoc) => {
+          if (serial !== pendingProjectLoad.current) return;
+          if (
+            !(await acceptProjectDocument(
+              project,
+              storedDoc,
+              onLoadDocument,
+              () => docRef.current,
+              updateActiveProjectBinding,
+            ))
+          )
+            return;
           setShowProjects(false);
         })
         .catch((error) => {
           console.error('[projects] unable to load project', error);
         });
     },
-    [loadProject, onLoadDocument, updateActiveProjectBinding],
+    [docRef, loadProject, onLoadDocument, updateActiveProjectBinding],
   );
 
   const saveProjectAndBind = useCallback(
@@ -122,6 +130,7 @@ export function useEditorProjectsController({
     },
     closeProjects: () => setShowProjects(false),
     handleLoadProject,
+    cancelPendingProjectLoads,
     clearActiveProject,
     saveCurrentProject: (name: string) => {
       saveProjectAndBind(name);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { CanvasDocument, GraphEnvironmentNode, ImageLayer, ModelLayer } from '../types/config';
 import { isAssetUri, isImageDataUrl, resolveImageSource, saveImageAsset } from '../utils/assetStore';
 import { environmentUriFromId, isSupportedEnvironmentFile, saveEnvironmentFileAsset } from '../utils/envAssetStore';
@@ -74,6 +74,7 @@ export function useEditorAssets(
     position?: { x: number; y: number },
   ) => void,
   onStoreImageAsset?: (layerId: string, src: string, previousSrc: string) => void,
+  ownerEpochRef?: RefObject<number>,
 ) {
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
   const [dropError, setDropError] = useState<string | null>(null);
@@ -147,6 +148,7 @@ export function useEditorAssets(
     // Existing drop/import guard logic; v0.32 tracks asset hook debt.
     // fallow-ignore-next-line complexity
     async (file: File, position?: { x: number; y: number }) => {
+      const startingEpoch = ownerEpochRef?.current;
       if (isSupportedModelFile(file)) {
         if (!onImportModel) return;
         if (file.size > MAX_MODEL_BYTES) {
@@ -155,6 +157,7 @@ export function useEditorAssets(
         }
         try {
           const asset = await saveModelFileAsset(file);
+          if (startingEpoch !== ownerEpochRef?.current) return;
           onImportModel(
             {
               modelSrc: modelUriFromId(asset.id),
@@ -177,6 +180,7 @@ export function useEditorAssets(
         }
         try {
           const asset = await saveEnvironmentFileAsset(file);
+          if (startingEpoch !== ownerEpochRef?.current) return;
           onImportEnvironment(
             {
               environmentSrc: environmentUriFromId(asset.id),
@@ -209,12 +213,12 @@ export function useEditorAssets(
         } catch {
           // Keep the upload usable even if IndexedDB is blocked or temporarily unavailable.
         }
-        onImportImage(importedSrc, position);
+        if (startingEpoch === ownerEpochRef?.current) onImportImage(importedSrc, position);
       } catch {
         showDropError('Could not read image');
       }
     },
-    [onImportEnvironment, onImportImage, onImportModel, showDropError],
+    [onImportEnvironment, onImportImage, onImportModel, ownerEpochRef, showDropError],
   );
 
   useEffect(() => {

@@ -1,4 +1,3 @@
-import { trySharedLayerPatch } from '@artifact/core-web/commands';
 import {
   type AspectRatio,
   type CanvasDocument,
@@ -885,9 +884,7 @@ export function deleteNodesFromDocument(doc: CanvasDocument, ids: string[]): Can
 export function updateLayerInDocument(doc: CanvasDocument, id: string, patch: Partial<Layer>): CanvasDocument {
   return {
     ...doc,
-    layers: doc.layers.map((layer) =>
-      layer.id === id ? (trySharedLayerPatch(layer, patch) ?? { ...layer, ...patch }) : layer,
-    ),
+    layers: doc.layers.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer)),
   };
 }
 

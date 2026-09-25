@@ -76,19 +76,31 @@ describe('normalizeDocument', () => {
         colorNodes: [],
         shaderNodes: [
           { id: 'shader-liquid', name: 'Liquid', shaderKind: 'liquidMetal' },
-          { id: 'shader-static-mesh', name: 'Static Mesh', shaderKind: 'staticMeshGradient', distortion: 44 },
+          {
+            id: 'shader-static-mesh',
+            name: 'Static Mesh',
+            shaderKind: 'staticMeshGradient',
+            distortion: 44,
+          },
           { id: 'shader-border', name: 'Border', shaderKind: 'pulsingBorder' },
           { id: 'shader-dither', name: 'Dither', shaderKind: 'imageDithering' },
           { id: 'shader-warp', name: 'Warp', shaderKind: 'warp' },
           { id: 'shader-rays', name: 'Rays', shaderKind: 'godRays' },
-          { id: 'shader-tileless', name: 'Tileless', shaderKind: 'tilelessTexture' },
+          {
+            id: 'shader-tileless',
+            name: 'Tileless',
+            shaderKind: 'tilelessTexture',
+          },
           { id: 'shader-unknown', name: 'Unknown', shaderKind: 'futureShader' },
         ],
       },
     });
 
     expect(doc.graph?.shaderNodes?.[0]?.shaderKind).toBe('liquidMetal');
-    expect(doc.graph?.shaderNodes?.[0]).toMatchObject({ opacity: 58, blendMode: 'screen' });
+    expect(doc.graph?.shaderNodes?.[0]).toMatchObject({
+      opacity: 58,
+      blendMode: 'screen',
+    });
     expect(doc.graph?.shaderNodes?.[1]?.shaderKind).toBe('meshGradient');
     expect(doc.graph?.shaderNodes?.[1]?.distortion).toBe(0);
     expect(doc.graph?.shaderNodes?.[2]?.shaderKind).toBe('borderRings');
@@ -143,7 +155,10 @@ describe('normalizeDocument', () => {
     expect(node?.shaderInstance).toMatchObject({
       definition: {
         language: 'glsl-fragment',
-        provenance: { source: 'localFallback', model: 'legacy-operation-migration' },
+        provenance: {
+          source: 'localFallback',
+          model: 'legacy-operation-migration',
+        },
         properties: [],
       },
       values: {},
@@ -164,7 +179,15 @@ describe('normalizeDocument', () => {
       schemaVersion: 1,
       layers: [],
       graph: {
-        edges: [{ id: 'e-source-shader', fromId: 'source', fromPort: 'out', toId: 'shader-code', toPort: 'bg' }],
+        edges: [
+          {
+            id: 'e-source-shader',
+            fromId: 'source',
+            fromPort: 'out',
+            toId: 'shader-code',
+            toPort: 'bg',
+          },
+        ],
         positions: {},
         mergeNodes: [],
         colorNodes: [],
@@ -214,15 +237,30 @@ describe('normalizeDocument', () => {
             shaderKind: 'customCode',
             role: 'effect',
             shaderInstance: {
+              futureMetadata: { source: 'studio', tags: ['licensed'] },
               definition: {
+                rightsNote: { owner: 'studio' },
                 version: 1,
                 id: 'water-effect',
                 label: 'Water Effect',
                 language: 'glsl-fragment',
                 code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv); }',
                 properties: [
-                  { key: 'amount', label: 'Amount', type: 'number', default: 0.5, min: 0, max: 1, step: 0.01 },
-                  { key: 'tint', label: 'Tint', type: 'color', default: '#55ccff' },
+                  {
+                    key: 'amount',
+                    label: 'Amount',
+                    type: 'number',
+                    default: 0.5,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                  },
+                  {
+                    key: 'tint',
+                    label: 'Tint',
+                    type: 'color',
+                    default: '#55ccff',
+                  },
                 ],
               },
               values: { amount: 9, tint: 'invalid', ignored: true },
@@ -235,7 +273,8 @@ describe('normalizeDocument', () => {
     expect(doc.graph?.shaderNodes?.[0]).toMatchObject({
       role: 'effect',
       shaderInstance: {
-        definition: { id: 'water-effect' },
+        futureMetadata: { source: 'studio', tags: ['licensed'] },
+        definition: { id: 'water-effect', rightsNote: { owner: 'studio' } },
         values: { amount: 1, tint: '#55ccff' },
       },
     });
@@ -280,9 +319,21 @@ describe('normalizeDocument', () => {
           language: 'glsl-fragment',
           code: 'vec4 mainImage(vec2 uv) { return texture2D(u_backdrop, uv + u_prop_amount); }',
           properties: [
-            { key: 'amount', label: 'Amount', type: 'number', default: 0.02, min: 0, max: 0.1, step: 0.001 },
+            {
+              key: 'amount',
+              label: 'Amount',
+              type: 'number',
+              default: 0.02,
+              min: 0,
+              max: 0.1,
+              step: 0.001,
+            },
           ],
-          provenance: { source: 'openai', prompt: 'neon waves', model: 'gpt-5.5-mini' },
+          provenance: {
+            source: 'openai',
+            prompt: 'neon waves',
+            model: 'gpt-5.5-mini',
+          },
         },
         values: { amount: 0.03 },
       },
@@ -291,8 +342,19 @@ describe('normalizeDocument', () => {
       global: { bg: 'transparent', seed: 1234, aspect: '16:9' },
       layers: [],
       graph: {
-        edges: [{ id: 'e-ai-export', fromId: shaderNode.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
-        positions: { [shaderNode.id]: { x: 0, y: 80 }, [EXPORT_NODE_ID]: { x: 320, y: 80 } },
+        edges: [
+          {
+            id: 'e-ai-export',
+            fromId: shaderNode.id,
+            fromPort: 'out',
+            toId: EXPORT_NODE_ID,
+            toPort: 'in',
+          },
+        ],
+        positions: {
+          [shaderNode.id]: { x: 0, y: 80 },
+          [EXPORT_NODE_ID]: { x: 320, y: 80 },
+        },
         mergeNodes: [],
         colorNodes: [],
         shaderNodes: [shaderNode],
@@ -312,7 +374,11 @@ describe('normalizeDocument', () => {
         definition: {
           id: 'shader-ai-definition',
           label: 'AI Waves',
-          provenance: { source: 'openai', prompt: 'neon waves', model: 'gpt-5.5-mini' },
+          provenance: {
+            source: 'openai',
+            prompt: 'neon waves',
+            model: 'gpt-5.5-mini',
+          },
         },
         values: { amount: 0.03 },
       },
@@ -344,7 +410,10 @@ describe('normalizeDocument', () => {
     });
 
     expect(doc.fontAssets).toHaveLength(1);
-    expect(doc.fontAssets?.[0]).toMatchObject({ id: 'poster-local', label: 'Poster Local' });
+    expect(doc.fontAssets?.[0]).toMatchObject({
+      id: 'poster-local',
+      label: 'Poster Local',
+    });
   });
 
   it('normalizes portable imported model assets without keeping invalid payloads', () => {
@@ -364,7 +433,10 @@ describe('normalizeDocument', () => {
     });
 
     expect(doc.modelAssets).toHaveLength(1);
-    expect(doc.modelAssets?.[0]).toMatchObject({ id: 'model-a', label: 'skull.glb' });
+    expect(doc.modelAssets?.[0]).toMatchObject({
+      id: 'model-a',
+      label: 'skull.glb',
+    });
   });
 
   it('normalizes portable environment assets without keeping invalid payloads', () => {
@@ -374,7 +446,13 @@ describe('normalizeDocument', () => {
         edges: [],
         positions: {},
         mergeNodes: [],
-        environmentNodes: [{ id: 'env-node-a', name: 'Environment Map', environmentSrc: 'artifact-env://env-a' }],
+        environmentNodes: [
+          {
+            id: 'env-node-a',
+            name: 'Environment Map',
+            environmentSrc: 'artifact-env://env-a',
+          },
+        ],
       },
       envAssets: [
         {
@@ -390,7 +468,10 @@ describe('normalizeDocument', () => {
     });
 
     expect(doc.envAssets).toHaveLength(1);
-    expect(doc.envAssets?.[0]).toMatchObject({ id: 'env-a', label: 'studio.exr' });
+    expect(doc.envAssets?.[0]).toMatchObject({
+      id: 'env-a',
+      label: 'studio.exr',
+    });
     expect(doc.graph?.environmentNodes?.[0]).toMatchObject({
       id: 'env-node-a',
       environmentSrc: 'artifact-env://env-a',
@@ -468,7 +549,10 @@ describe('normalizeDocument', () => {
       },
     });
 
-    expect(doc.graph?.repeatNodes?.[0]).toMatchObject({ id: 'repeat-a', seedOffset: 0 });
+    expect(doc.graph?.repeatNodes?.[0]).toMatchObject({
+      id: 'repeat-a',
+      seedOffset: 0,
+    });
   });
 
   it('adds interaction defaults to older transform nodes', () => {
@@ -532,7 +616,11 @@ describe('normalizeDocument', () => {
       ],
     });
 
-    expect(doc.layers[0]).toMatchObject({ id: 'emoji-a', kind: 'emoji', seedOffset: 0 });
+    expect(doc.layers[0]).toMatchObject({
+      id: 'emoji-a',
+      kind: 'emoji',
+      seedOffset: 0,
+    });
   });
 
   it('adds seed defaults to older effect layers', () => {
@@ -550,7 +638,11 @@ describe('normalizeDocument', () => {
       ],
     });
 
-    expect(doc.layers[0]).toMatchObject({ id: 'effect-a', kind: 'effect', seedOffset: 0 });
+    expect(doc.layers[0]).toMatchObject({
+      id: 'effect-a',
+      kind: 'effect',
+      seedOffset: 0,
+    });
   });
 
   it('splits legacy combined effect presets into focused effect layers', () => {
@@ -572,8 +664,19 @@ describe('normalizeDocument', () => {
 
     expect(doc.layers).toHaveLength(2);
     expect(doc.layers).toMatchObject([
-      { id: 'legacy-warp-morph-0', kind: 'effect', preset: 'morph', morphAmt: 30, morphFreq: 7 },
-      { id: 'legacy-warp-noiseWarp-1', kind: 'effect', preset: 'noiseWarp', noiseWarp: 40 },
+      {
+        id: 'legacy-warp-morph-0',
+        kind: 'effect',
+        preset: 'morph',
+        morphAmt: 30,
+        morphFreq: 7,
+      },
+      {
+        id: 'legacy-warp-noiseWarp-1',
+        kind: 'effect',
+        preset: 'noiseWarp',
+        noiseWarp: 40,
+      },
     ]);
   });
 
@@ -835,7 +938,14 @@ describe('document serialization helpers', () => {
     });
     expect(isBlankDocument(blank)).toBe(true);
     expect(
-      isBlankDocument({ ...blank, graph: { edges: [], positions: { __export__: { x: 0, y: 80 } }, mergeNodes: [] } }),
+      isBlankDocument({
+        ...blank,
+        graph: {
+          edges: [],
+          positions: { __export__: { x: 0, y: 80 } },
+          mergeNodes: [],
+        },
+      }),
     ).toBe(true);
   });
 
@@ -843,7 +953,11 @@ describe('document serialization helpers', () => {
     const serialized = serializeArtifactDocument({
       ...doc,
       global: { ...doc.global, aspect: '4:5' },
-      graph: { edges: [], positions: {}, mergeNodes: [] } as CanvasDocument['graph'],
+      graph: {
+        edges: [],
+        positions: {},
+        mergeNodes: [],
+      } as CanvasDocument['graph'],
     });
     const parsed = parseArtifactDocument(serialized);
 
@@ -861,10 +975,30 @@ describe('document serialization helpers', () => {
     const graphDoc: CanvasDocument = {
       ...doc,
       graph: {
-        edges: [{ id: 'e-text-export', fromId: 'share-text', fromPort: 'out', toId: '__export__', toPort: 'in' }],
-        positions: { 'share-text': { x: 0, y: 80 }, __export__: { x: 216, y: 80 } },
+        edges: [
+          {
+            id: 'e-text-export',
+            fromId: 'share-text',
+            fromPort: 'out',
+            toId: '__export__',
+            toPort: 'in',
+          },
+        ],
+        positions: {
+          'share-text': { x: 0, y: 80 },
+          __export__: { x: 216, y: 80 },
+        },
         mergeNodes: [{ id: 'merge-a', name: 'Merge', blendMode: 'multiply', opacity: 75 }],
-        colorNodes: [{ id: 'color-a', name: 'Color', contrast: 110, brightness: 90, saturation: 120, hue: 15 }],
+        colorNodes: [
+          {
+            id: 'color-a',
+            name: 'Color',
+            contrast: 110,
+            brightness: 90,
+            saturation: 120,
+            hue: 15,
+          },
+        ],
         repeatNodes: [
           {
             id: 'repeat-a',
@@ -920,7 +1054,14 @@ describe('document serialization helpers', () => {
           },
         ],
         primitiveViewStates: {
-          'primitive-a': { rotationX: 12, rotationY: -18, zoom: 0.22, panX: 0.4, panY: -0.2, locked: true },
+          'primitive-a': {
+            rotationX: 12,
+            rotationY: -18,
+            zoom: 0.22,
+            panX: 0.4,
+            panY: -0.2,
+            locked: true,
+          },
         },
       },
     };
@@ -932,7 +1073,12 @@ describe('document serialization helpers', () => {
   });
 
   it('round-trips shader material bridge graphs with shader effects and texture-map ports', () => {
-    const source = makeFillLayer({ id: 'shader-effect-source', color: '#2244ff', opacity: 100, blendMode: 'normal' });
+    const source = makeFillLayer({
+      id: 'shader-effect-source',
+      color: '#2244ff',
+      opacity: 100,
+      blendMode: 'normal',
+    });
     const effect = makeEffectLayer({
       id: 'shader-effect-a',
       preset: 'patternRefraction',
@@ -951,11 +1097,41 @@ describe('document serialization helpers', () => {
       layers: [source, effect, primitive],
       graph: {
         edges: [
-          { id: 'e-shader-albedo', fromId: 'shader-a', fromPort: 'out', toId: 'material-a', toPort: 'albedo' },
-          { id: 'e-source-effect', fromId: source.id, fromPort: 'out', toId: effect.id, toPort: 'in' },
-          { id: 'e-effect-normal', fromId: effect.id, fromPort: 'out', toId: 'material-a', toPort: 'normal' },
-          { id: 'e-material-primitive', fromId: 'material-a', fromPort: 'out', toId: primitive.id, toPort: 'material' },
-          { id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: '__export__', toPort: 'in' },
+          {
+            id: 'e-shader-albedo',
+            fromId: 'shader-a',
+            fromPort: 'out',
+            toId: 'material-a',
+            toPort: 'albedo',
+          },
+          {
+            id: 'e-source-effect',
+            fromId: source.id,
+            fromPort: 'out',
+            toId: effect.id,
+            toPort: 'in',
+          },
+          {
+            id: 'e-effect-normal',
+            fromId: effect.id,
+            fromPort: 'out',
+            toId: 'material-a',
+            toPort: 'normal',
+          },
+          {
+            id: 'e-material-primitive',
+            fromId: 'material-a',
+            fromPort: 'out',
+            toId: primitive.id,
+            toPort: 'material',
+          },
+          {
+            id: 'e-primitive-export',
+            fromId: primitive.id,
+            fromPort: 'out',
+            toId: '__export__',
+            toPort: 'in',
+          },
         ],
         positions: {
           'shader-a': { x: 0, y: 0 },

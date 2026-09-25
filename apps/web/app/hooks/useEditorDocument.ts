@@ -1,4 +1,3 @@
-import { warmSharedCommands } from '@artifact/core-web/commands';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { InsertConnectionConfig } from '../components/node-canvas';
 import {
@@ -23,11 +22,11 @@ import {
 } from '../types/config';
 import type { AddAction } from '../utils/addActions';
 import { type ArrayPresetId, makeArrayPresetLayer } from '../utils/arrayPresets';
+import { isImageDataUrl, saveImageAsset } from '../utils/assetStore';
 import {
   hasPortableDocumentPayloads,
   preparePortableDocument,
   storePortableDocumentAssets,
-  stripPortableDocumentAssets,
 } from '../utils/documentAssets';
 import {
   addEnvironmentMapToDocument,
@@ -62,15 +61,7 @@ import {
   updateShaderNodeInDocument,
   updateTransformNodeInDocument,
 } from '../utils/documentCommands';
-import {
-  createPendingHistoryEntry,
-  type DocumentUpdateMode,
-  flushPendingHistory,
-  type HistoryEntry,
-  pushSnapshotHistory,
-  redoHistory,
-  undoHistory,
-} from '../utils/documentHistory';
+import type { DocumentUpdateMode } from '../utils/documentHistory';
 import {
   createBlankDocument,
   createDocumentShareUrl,
@@ -81,10 +72,12 @@ import {
   saveDocumentToStorage,
   takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
+import { ImageSourceWriteGate } from '../utils/imageSourceWriteGate';
 import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
 import { isSelectableScene3DTarget } from '../utils/scene3DInputs';
+import { SharedDocumentSession } from '../utils/sharedDocumentSession';
 import type { TextPresetId } from '../utils/textPresets';
 
 type EditorLayerInsertAction =
@@ -120,11 +113,19 @@ function createLayerForInsertAction(action: EditorLayerInsertAction): Layer {
 }
 
 export function useEditorDocument(nodeModeEnabled: boolean) {
-  useEffect(() => {
-    void warmSharedCommands();
-  }, []);
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
-  const [documentSaveStatus, setDocumentSaveStatus] = useState<{ ok: boolean; savedAt: string | null }>({
+  const [coreState, setCoreState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [coreError, setCoreError] = useState<string | null>(null);
+  const [coreRetryRevision, setCoreRetryRevision] = useState(0);
+  const [historyState, setHistoryState] = useState({
+    canUndo: false,
+    canRedo: false,
+    undoCount: 0,
+  });
+  const [documentSaveStatus, setDocumentSaveStatus] = useState<{
+    ok: boolean;
+    savedAt: string | null;
+  }>({
     ok: true,
     savedAt: null,
   });
@@ -137,8 +138,6 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     return ['blank', '1'].includes(params.get('new') ?? '') || params.get('blank') === '1';
   });
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
-  const [past, setPast] = useState<HistoryEntry[]>([]);
-  const [future, setFuture] = useState<HistoryEntry[]>([]);
 
   const safeSelectedLayerId =
     selectedLayerId &&
@@ -148,8 +147,80 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
 
   const docRef = useRef(doc);
   const selectedLayerIdRef = useRef(selectedLayerId);
-  const histDebounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const preChangeRef = useRef<HistoryEntry | null>(null);
+  const sessionRef = useRef<SharedDocumentSession | null>(null);
+  const documentEpochRef = useRef(0);
+  const wasNodeModeReadyRef = useRef(false);
+  const pendingReplacementRef = useRef(0);
+  const imageWriteGateRef = useRef<ImageSourceWriteGate | null>(null);
+  imageWriteGateRef.current ??= new ImageSourceWriteGate(() => documentEpochRef.current);
+
+  const refreshHistory = useCallback((session: SharedDocumentSession) => {
+    setHistoryState({
+      canUndo: session.canUndo,
+      canRedo: session.canRedo,
+      undoCount: session.undoCount,
+    });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const prepare = async () => {
+      const source = docRef.current;
+      if (!hasPortableDocumentPayloads(source)) return source;
+      try {
+        return await storePortableDocumentAssets(source);
+      } catch {
+        return source;
+      }
+    };
+    void prepare()
+      .then((prepared) => {
+        if (cancelled) return null;
+        docRef.current = prepared;
+        _setDoc(prepared);
+        return SharedDocumentSession.open(
+          prepared,
+          (error, recovered) => {
+            docRef.current = recovered;
+            _setDoc(recovered);
+            setCoreError(error.message);
+            const active = sessionRef.current;
+            if (active) refreshHistory(active);
+          },
+          () => {
+            const active = sessionRef.current;
+            if (active) refreshHistory(active);
+          },
+        );
+      })
+      .then((session) => {
+        if (!session) return;
+        if (cancelled) session.dispose();
+        else {
+          sessionRef.current = session;
+          refreshHistory(session);
+          setCoreState('ready');
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setCoreError(error instanceof Error ? error.message : 'The editor could not open this document.');
+          setCoreState('error');
+        }
+      });
+    return () => {
+      cancelled = true;
+      sessionRef.current?.dispose();
+      sessionRef.current = null;
+    };
+  }, [coreRetryRevision, refreshHistory]);
+
+  const retryCore = useCallback(() => {
+    if (sessionRef.current) return;
+    setCoreError(null);
+    setCoreState('loading');
+    setCoreRetryRevision((value) => value + 1);
+  }, []);
 
   useLayoutEffect(() => {
     docRef.current = doc;
@@ -173,39 +244,21 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     });
   }, [fromBlankParam]);
 
-  const clearPendingHistory = useCallback(() => {
-    clearTimeout(histDebounceRef.current);
-    preChangeRef.current = null;
-  }, []);
-
-  useEffect(() => () => clearTimeout(histDebounceRef.current), []);
-
   const commitDocument = useCallback(
     (newDoc: CanvasDocument, mode: DocumentUpdateMode) => {
-      if (mode === 'snapshot') {
-        clearPendingHistory();
-        setPast((items) => pushSnapshotHistory({ past: items, future: [] }, docRef.current).past);
-        setFuture([]);
-        _setDoc(newDoc);
-        return;
+      const session = sessionRef.current;
+      if (!session) return;
+      try {
+        const accepted = session.apply(newDoc, mode);
+        docRef.current = accepted;
+        _setDoc(accepted);
+        setCoreError(null);
+        refreshHistory(session);
+      } catch (error) {
+        setCoreError(error instanceof Error ? error.message : 'The document edit could not be applied.');
       }
-
-      if (mode === 'debounce') {
-        _setDoc(newDoc);
-        preChangeRef.current = createPendingHistoryEntry(docRef.current, preChangeRef.current);
-        clearTimeout(histDebounceRef.current);
-        histDebounceRef.current = setTimeout(() => {
-          if (!preChangeRef.current) return;
-          setPast((items) => flushPendingHistory({ past: items, future: [] }, preChangeRef.current).past);
-          setFuture([]);
-          preChangeRef.current = null;
-        }, 400);
-        return;
-      }
-
-      _setDoc(newDoc);
     },
-    [clearPendingHistory],
+    [refreshHistory],
   );
 
   const setDoc = useCallback(
@@ -222,12 +275,48 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     [commitDocument],
   );
 
-  const replaceDocument = useCallback(
+  const replaceCurrentDocument = useCallback(
     (nextDoc: CanvasDocument) => {
-      commitDocument(normalizeDocument(nextDoc), 'snapshot');
-      setSelectedLayerId(null);
+      const session = sessionRef.current;
+      if (!session) return null;
+      try {
+        const replacement = nodeModeEnabled && !nextDoc.graph ? bootstrapDocumentGraph(nextDoc) : nextDoc;
+        const accepted = session.replace(replacement);
+        documentEpochRef.current += 1;
+        imageWriteGateRef.current?.clear();
+        docRef.current = accepted;
+        _setDoc(accepted);
+        setSelectedLayerId(null);
+        setCoreError(null);
+        refreshHistory(session);
+        return accepted;
+      } catch (error) {
+        setCoreError(error instanceof Error ? error.message : 'The document could not be opened.');
+        return null;
+      }
     },
-    [commitDocument],
+    [nodeModeEnabled, refreshHistory],
+  );
+
+  const replaceDocument = useCallback(
+    async (nextDoc: CanvasDocument): Promise<CanvasDocument | null> => {
+      const replacement = ++pendingReplacementRef.current;
+      const epoch = ++documentEpochRef.current;
+      imageWriteGateRef.current?.clear();
+      setCoreState('loading');
+      try {
+        const prepared = await storePortableDocumentAssets(normalizeDocument(nextDoc));
+        if (pendingReplacementRef.current !== replacement || documentEpochRef.current !== epoch) return null;
+        return replaceCurrentDocument(prepared);
+      } catch (error) {
+        if (pendingReplacementRef.current === replacement)
+          setCoreError(error instanceof Error ? error.message : 'The document could not be prepared.');
+        return null;
+      } finally {
+        if (pendingReplacementRef.current === replacement) setCoreState('ready');
+      }
+    },
+    [replaceCurrentDocument],
   );
 
   const setSeed = useCallback(
@@ -244,70 +333,75 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
-  const applyHistoryNavigation = useCallback(
-    (navigate: typeof undoHistory | typeof redoHistory) => {
-      clearPendingHistory();
-      const result = navigate({ past, future }, docRef.current);
-      if (!result) return;
-      setPast(result.past);
-      setFuture(result.future);
-      _setDoc(result.doc);
-    },
-    [clearPendingHistory, future, past],
-  );
-
   const undo = useCallback(() => {
-    applyHistoryNavigation(undoHistory);
-  }, [applyHistoryNavigation]);
+    const session = sessionRef.current;
+    if (!session) return;
+    try {
+      const previous = session.undo();
+      if (!previous) return;
+      documentEpochRef.current += 1;
+      imageWriteGateRef.current?.clear();
+      docRef.current = previous;
+      _setDoc(previous);
+      refreshHistory(session);
+      setCoreError(null);
+    } catch (error) {
+      setCoreError(error instanceof Error ? error.message : 'Undo could not be applied.');
+    }
+  }, [refreshHistory]);
 
   const redo = useCallback(() => {
-    applyHistoryNavigation(redoHistory);
-  }, [applyHistoryNavigation]);
+    const session = sessionRef.current;
+    if (!session) return;
+    try {
+      const next = session.redo();
+      if (!next) return;
+      documentEpochRef.current += 1;
+      imageWriteGateRef.current?.clear();
+      docRef.current = next;
+      _setDoc(next);
+      refreshHistory(session);
+      setCoreError(null);
+    } catch (error) {
+      setCoreError(error instanceof Error ? error.message : 'Redo could not be applied.');
+    }
+  }, [refreshHistory]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (!isUndoShortcut(event)) return;
+      if (coreState !== 'ready' || !isUndoShortcut(event)) return;
       event.preventDefault();
       if (event.shiftKey) redo();
       else undo();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [redo, undo]);
+  }, [coreState, redo, undo]);
 
   useEffect(() => {
+    if (coreState !== 'ready') return;
     const ok = saveDocumentToStorage(doc);
     let cancelled = false;
     queueMicrotask(() => {
-      if (!cancelled) setDocumentSaveStatus({ ok, savedAt: ok ? new Date().toISOString() : null });
+      if (!cancelled)
+        setDocumentSaveStatus({
+          ok,
+          savedAt: ok ? new Date().toISOString() : null,
+        });
     });
     return () => {
       cancelled = true;
     };
-  }, [doc]);
+  }, [coreState, doc]);
 
   useEffect(() => {
-    if (!hasPortableDocumentPayloads(doc)) return;
-    const sourceDoc = doc;
-    let cancelled = false;
-    void storePortableDocumentAssets(sourceDoc)
-      .then((storedDoc) => {
-        if (!cancelled && docRef.current === sourceDoc) commitDocument(storedDoc, 'silent');
-      })
-      .catch(() => {
-        if (!cancelled && docRef.current === sourceDoc)
-          commitDocument(stripPortableDocumentAssets(docRef.current), 'silent');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [commitDocument, doc]);
-
-  useEffect(() => {
-    if (nodeModeEnabled && !docRef.current.graph) {
-      commitDocument(bootstrapDocumentGraph(docRef.current), 'silent');
+    if (coreState !== 'ready') return;
+    const enteredNodes = nodeModeEnabled && !wasNodeModeReadyRef.current;
+    wasNodeModeReadyRef.current = nodeModeEnabled;
+    if (enteredNodes && !docRef.current.graph) {
+      commitDocument(bootstrapDocumentGraph(docRef.current), 'snapshot');
     }
-  }, [commitDocument, nodeModeEnabled]);
+  }, [commitDocument, coreState, nodeModeEnabled]);
 
   const addLayer = useCallback(
     (kind: Exclude<LayerKind, 'effect'>) => {
@@ -364,11 +458,19 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   );
 
   const addImageFromSource = useCallback(
-    (src: string, aiGeneration?: ImageLayer['aiGeneration'], nodePosition?: { x: number; y: number }) => {
+    async (src: string, aiGeneration?: ImageLayer['aiGeneration'], nodePosition?: { x: number; y: number }) => {
+      const epoch = documentEpochRef.current;
+      const storedSrc = isImageDataUrl(src) ? await saveImageAsset(src).catch(() => src) : src;
+      if (documentEpochRef.current !== epoch) return;
       const layer = {
-        ...createImageLayerFromSource(src),
+        ...createImageLayerFromSource(storedSrc),
         aiGeneration,
-        ...(aiGeneration ? { aiGenerationHistory: [{ src, aiGeneration }], aiGenerationHistoryIndex: 0 } : {}),
+        ...(aiGeneration
+          ? {
+              aiGenerationHistory: [{ src: storedSrc, aiGeneration }],
+              aiGenerationHistoryIndex: 0,
+            }
+          : {}),
       };
       updateDocument(
         (current) =>
@@ -435,20 +537,30 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
 
   const updateLayer = useCallback(
     (id: string, patch: Partial<Layer>) => {
-      updateDocument((current) => updateLayerInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const storeImageAssetSource = useCallback(
-    (id: string, src: string, previousSrc: string) => {
-      updateDocument((current) => {
-        const layer = current.layers.find((item): item is ImageLayer => item.id === id && item.kind === 'image');
-        const aiGenerationHistory = layer?.aiGenerationHistory?.map((variant) =>
-          variant.src === previousSrc ? { ...variant, src } : variant,
-        );
-        return updateLayerInDocument(current, id, { src, aiGenerationHistory } as Partial<Layer>);
-      }, 'silent');
+      const imagePatch = patch as Partial<ImageLayer>;
+      if (imagePatch.src && isImageDataUrl(imagePatch.src)) {
+        const source = imagePatch.src;
+        void imageWriteGateRef.current?.storeThenApply(id, source, saveImageAsset, (storedSrc) => {
+          const aiGenerationHistory = imagePatch.aiGenerationHistory?.map((variant) =>
+            variant.src === source ? { ...variant, src: storedSrc } : variant,
+          );
+          updateDocument(
+            (current) =>
+              updateLayerInDocument(current, id, {
+                ...patch,
+                src: storedSrc,
+                ...(aiGenerationHistory ? { aiGenerationHistory } : {}),
+              } as Partial<Layer>),
+            'snapshot',
+          );
+        });
+        return;
+      }
+      if ('src' in imagePatch) imageWriteGateRef.current?.invalidateLayer(id);
+      updateDocument(
+        (current) => updateLayerInDocument(current, id, patch),
+        'src' in imagePatch ? 'snapshot' : 'debounce',
+      );
     },
     [updateDocument],
   );
@@ -554,9 +666,8 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   );
 
   const handleRandomize = useCallback(() => {
-    commitDocument(randomDocument(), 'snapshot');
-    setSelectedLayerId(null);
-  }, [commitDocument]);
+    replaceCurrentDocument(randomDocument());
+  }, [replaceCurrentDocument]);
 
   const handleNewBlank = useCallback(() => {
     const current = docRef.current;
@@ -567,9 +678,13 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
           // Recovery drafts are best-effort. The blank action should not be blocked by storage failure.
         });
     }
-    commitDocument(createBlankDocument({ aspect: current.global.aspect, seed: current.global.seed }), 'snapshot');
-    setSelectedLayerId(null);
-  }, [commitDocument]);
+    return replaceCurrentDocument(
+      createBlankDocument({
+        aspect: current.global.aspect,
+        seed: current.global.seed,
+      }),
+    );
+  }, [replaceCurrentDocument]);
 
   const saveRecoveryDraft = useCallback(async () => {
     const current = docRef.current;
@@ -623,7 +738,6 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     removeLayer,
     deleteNodeSelection,
     updateLayer,
-    storeImageAssetSource,
     updateMergeNode,
     updateColorNode,
     updateRepeatNode,
@@ -649,12 +763,16 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     setAspect,
     undo,
     redo,
-    canUndo: past.length > 0,
-    canRedo: future.length > 0,
-    undoCount: past.length,
+    canUndo: coreState === 'ready' && historyState.canUndo,
+    canRedo: coreState === 'ready' && historyState.canRedo,
+    undoCount: historyState.undoCount,
+    coreState,
+    coreError,
+    retryCore,
     fromDocParam,
     fromBlankParam,
     isBlank: isBlankDocument(doc),
     documentSaveStatus,
+    documentEpochRef,
   };
 }

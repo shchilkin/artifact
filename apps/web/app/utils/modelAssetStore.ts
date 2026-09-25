@@ -149,7 +149,8 @@ export async function hydrateDocumentModelAssets(
   const hydratedAssets = Array.from(loadedSrcByModel.values()).filter((asset): asset is StoredModelAsset =>
     Boolean(asset),
   );
-  const assetsById = new Map([...existingAssets, ...hydratedAssets].map((asset) => [asset.id, asset]));
+  const assetsById = new Map(existingAssets.map((asset) => [asset.id, asset]));
+  for (const asset of hydratedAssets) assetsById.set(asset.id, { ...assetsById.get(asset.id), ...asset });
   const modelAssets = Array.from(assetsById.values());
   return changed || modelAssets.length !== existingAssets.length
     ? { ...doc, layers, ...(modelAssets.length > 0 ? { modelAssets } : {}) }
@@ -167,12 +168,16 @@ export async function storePortableModelAssets(
   const saveAsset = options.saveModelAsset ?? persistModelAsset;
   if (!doc.modelAssets?.length) return doc;
   const refsByDataUrl = new Map<string, string>();
-  for (const asset of doc.modelAssets) {
+  const storable = doc.modelAssets.filter(
+    (asset) => typeof asset.dataUrl === 'string' && asset.dataUrl.startsWith('data:'),
+  );
+  for (const asset of storable) {
     const stored = await saveAsset(asset);
     refsByDataUrl.set(asset.dataUrl, modelUriFromId(stored.id));
   }
   const storedDoc = await mapDocumentModelSources(doc, async (source) => refsByDataUrl.get(source) ?? source);
-  return stripDocumentModelAssets(storedDoc);
+  const metadataOnly = doc.modelAssets.filter((asset) => !storable.includes(asset));
+  return metadataOnly.length ? { ...storedDoc, modelAssets: metadataOnly } : stripDocumentModelAssets(storedDoc);
 }
 
 export function stripDocumentModelAssets(doc: CanvasDocument): CanvasDocument {

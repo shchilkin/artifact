@@ -536,6 +536,14 @@
   ],
   "capabilities": [
     {
+      "id": "integration.webSharedSession",
+      "owner": 265,
+      "web": "implemented",
+      "native": "partial",
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "acceptance": "planned"
+    },
+    {
       "id": "source.text",
       "owner": 268,
       "web": "implemented",

@@ -1,27 +1,14 @@
 # State Model
 
-The main Web editor now routes supported layer-property patches through the
-shared Rust/WASM core, while keeping its existing document and history ownership.
-The isolated shared-core session also exposes the P03
-[versioned transaction contract](./native-2d-command-transactions.md) for
-future main Web adoption: begin/update/commit/cancel, one durable Undo per
-gesture, and explicit Web-only bridge steps in that same timeline.
-See [main Web integration](./web-macos-main-web-integration.md) for the boundary,
-fallbacks and runtime build checks. Native/package sessions retain their own
-bounded Rust history. See [Web + native macOS pilot](./web-macos-viber-pilot.md) for its
-binding conformance checks and remaining UI/render acceptance. In that pilot,
-Scanlines and text edits use the same bounded patch history. A text Apply is
-one atomic command covering only changed content, size, color, or X/Y fields.
-Input drafts stay in client UI state; embedded assets and unknown document
-fields are never copied into history or rewritten by those commands.
-The image slice adds atomic `set_image` patches for `src`, X/Y, scale X/Y and
-rotation. Source replacements retain only the changed old/new payload fields
-for Undo; summaries never include image bytes. History keeps at most 50 entries
-and evicts oldest entries above 64 MiB of retained string data, keeping the
-newest undo entry even if it alone exceeds the byte target. Portable package
-payloads remain in the isolated Rust session; decoded images and import drafts
-remain outside document state. Existing manifest import provenance and unrelated
-fields remain unchanged.
+The main Web `useEditorDocument` hook keeps the React document selector and
+browser storage ownership while its persistent Rust/WASM `WebSession` owns the
+single durable history. Supported edits use the P03
+[versioned transaction contract](./native-2d-command-transactions.md);
+unmigrated Web 3D/shader properties enter the same timeline through explicit
+bridges. See [main Web integration](./web-macos-main-web-integration.md) for
+loading, asset preparation, Undo and failure behavior. The isolated pilot and
+native client each own their separate document sessions. Decoded media and
+render caches remain outside all serializable documents.
 
 
 This document defines where state belongs in Artifact. The goal is predictable editing: a gesture should update the smallest possible state, commit deliberately, invalidate only what changed, and export the same image the user saw.
@@ -36,7 +23,7 @@ If a value affects the final artwork, it belongs in `CanvasDocument` or in expli
 
 | Category | Owner | Persisted | Undo history | Export impact | Thumbnail impact |
 | --- | --- | --- | --- | --- | --- |
-| Document state | `useEditorDocument` | Yes, localStorage | Yes | Yes | Yes |
+| Document state | `useEditorDocument` selector with `SharedDocumentSession` transaction owner | Yes, localStorage | Rust session | Yes | Yes |
 | Graph state | `CanvasDocument.graph`, graph helpers | Yes, inside document | Yes | Yes | Yes |
 | Export config | `CanvasDocument.export` | Yes | Yes | Yes | No, except export thumbnail |
 | Selection and overlays | `nodeCanvasMachine`, route/component state | No | No | No | No |
@@ -55,7 +42,7 @@ Durable document state is the creative artifact. It is serialized, persisted, sh
 
 Current owner:
 
-- `apps/web/app/hooks/useEditorDocument.ts`
+- `apps/web/app/hooks/useEditorDocument.ts` and `apps/web/app/utils/sharedDocumentSession.ts`
 - `apps/web/app/utils/documentCommands.ts` for pure document mutations
 - `apps/web/app/utils/documentPersistence.ts` for normalization and initial document
   loading helpers
@@ -222,7 +209,10 @@ Document commits use explicit update modes:
 | --- | --- |
 | `snapshot` | Discrete creative actions such as add, delete, duplicate, randomize, or document import |
 | `debounce` | Continuous edits such as sliders, graph node movement, and inspector field drags |
-| `silent` | Internal normalization/bootstrap work that should persist but should not create undo history |
+| first Nodes bootstrap | One explicit graph-creation transaction, undoable after prior Layers edits |
+
+Portable asset normalization runs before opening or explicitly replacing a
+session. It does not create an invisible edit inside an active timeline.
 
 Expected behavior:
 
@@ -365,9 +355,10 @@ Rules:
 - Shared portable document helpers combine image hydration and font hydration at
   file/share/project boundaries; UI components should not reassemble those
   steps directly.
-- Imported `.artifact.json` or `?doc=` payloads that contain `fontAssets` should
-  store those assets locally and then strip the payload from the active
-  document.
+- Imported `.artifact.json` or `?doc=` payloads that contain `fontAssets` store
+  those assets locally and strip the payload from the active document after
+  successful storage. If IndexedDB rejects the write, the active document
+  retains the portable bytes so later save/export can recover them.
 - Missing imported font payloads must fall back to a bundled stack instead of
   producing blank text.
 

@@ -15,6 +15,7 @@ import {
   storePortableDocumentAssets,
 } from './documentAssets';
 import { makePortableAssetLoaders } from './documentAssetTestHelpers';
+import { normalizeDocument, parseArtifactDocument, serializeArtifactDocument } from './documentPersistence';
 import { fontUriFromId } from './fontStore';
 import { EXPORT_NODE_ID } from './nodeGraph';
 
@@ -78,7 +79,15 @@ describe('documentAssets', () => {
         fontAssets: [fontAsset],
         modelAssets: [modelAsset],
         graph: {
-          edges: [{ id: 'e-text-export', fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+          edges: [
+            {
+              id: 'e-text-export',
+              fromId: 'text-a',
+              fromPort: 'out',
+              toId: EXPORT_NODE_ID,
+              toPort: 'in',
+            },
+          ],
           positions: {},
           mergeNodes: [],
           colorNodes: [],
@@ -89,7 +98,12 @@ describe('documentAssets', () => {
               materialRoughnessSrc: materialImageDataUrl,
             }),
           ],
-          environmentNodes: [makeGraphEnvironmentNode({ id: 'env-node-a', environmentSrc: environmentRef })],
+          environmentNodes: [
+            makeGraphEnvironmentNode({
+              id: 'env-node-a',
+              environmentSrc: environmentRef,
+            }),
+          ],
         },
         envAssets: [environmentAsset],
       }),
@@ -111,7 +125,10 @@ describe('documentAssets', () => {
 
   it('reports graph documents without an export input', () => {
     const inventory = inspectDocumentDependencies(
-      doc({ layers: [makeFillLayer()], graph: { edges: [], positions: {}, mergeNodes: [], colorNodes: [] } }),
+      doc({
+        layers: [makeFillLayer()],
+        graph: { edges: [], positions: {}, mergeNodes: [], colorNodes: [] },
+      }),
     );
 
     expect(inventory.hasGraphExportTarget).toBe(false);
@@ -153,7 +170,12 @@ describe('documentAssets', () => {
               materialAlbedoSrc: materialImageRef,
             }),
           ],
-          environmentNodes: [makeGraphEnvironmentNode({ id: 'env-node-a', environmentSrc: environmentRef })],
+          environmentNodes: [
+            makeGraphEnvironmentNode({
+              id: 'env-node-a',
+              environmentSrc: environmentRef,
+            }),
+          ],
         },
       }),
       { loadAssetDataUrl, loadFontAsset, loadModelAsset, loadEnvironmentAsset },
@@ -164,10 +186,19 @@ describe('documentAssets', () => {
     expect(loadFontAsset).toHaveBeenCalledWith(fontRef);
     expect(loadModelAsset).toHaveBeenCalledWith(modelRef);
     expect(loadEnvironmentAsset).toHaveBeenCalledWith(environmentRef);
-    expect(portable.layers[0]).toMatchObject({ kind: 'image', src: imageDataUrl });
-    expect(portable.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: materialImageDataUrl });
+    expect(portable.layers[0]).toMatchObject({
+      kind: 'image',
+      src: imageDataUrl,
+    });
+    expect(portable.graph?.materialNodes?.[0]).toMatchObject({
+      materialAlbedoSrc: materialImageDataUrl,
+    });
     expect(portable.fontAssets).toEqual([fontAsset]);
-    expect(portable.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelDataUrl, modelName: 'skull.glb' });
+    expect(portable.layers[2]).toMatchObject({
+      kind: 'model',
+      modelSrc: modelDataUrl,
+      modelName: 'skull.glb',
+    });
     expect(portable.modelAssets).toEqual([modelAsset]);
     expect(portable.graph?.environmentNodes?.[0]).toMatchObject({
       environmentSrc: environmentDataUrl,
@@ -225,16 +256,23 @@ describe('documentAssets', () => {
     expect(saveEnvironmentDataUrl).not.toHaveBeenCalled();
     expect(saveEnvironmentAsset).toHaveBeenCalledWith(environmentAsset);
     expect(stored.layers[0]).toMatchObject({ kind: 'image', src: imageRef });
-    expect(stored.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: imageRef });
-    expect(stored.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelRef });
-    expect(stored.graph?.environmentNodes?.[0]).toMatchObject({ environmentSrc: environmentRef });
+    expect(stored.graph?.materialNodes?.[0]).toMatchObject({
+      materialAlbedoSrc: imageRef,
+    });
+    expect(stored.layers[2]).toMatchObject({
+      kind: 'model',
+      modelSrc: modelRef,
+    });
+    expect(stored.graph?.environmentNodes?.[0]).toMatchObject({
+      environmentSrc: environmentRef,
+    });
     expect(stored.fontAssets).toBeUndefined();
     expect(stored.modelAssets).toBeUndefined();
     expect(stored.envAssets).toBeUndefined();
     expect(hasPortableDocumentPayloads(stored)).toBe(false);
   });
 
-  it('keeps documents usable when local payload storage is unavailable', async () => {
+  it('keeps portable bytes in the canonical document when local payload storage is unavailable', async () => {
     const stored = await storePortableDocumentAssets(
       doc({
         layers: [
@@ -244,6 +282,7 @@ describe('documentAssets', () => {
         ],
         fontAssets: [fontAsset],
         modelAssets: [modelAsset],
+        envAssets: [environmentAsset],
       }),
       {
         saveAssetDataUrl: vi.fn(async () => {
@@ -258,12 +297,120 @@ describe('documentAssets', () => {
         saveModelAsset: vi.fn(async () => {
           throw new Error('model store unavailable');
         }),
+        saveEnvironmentAsset: vi.fn(async () => {
+          throw new Error('environment store unavailable');
+        }),
       },
     );
 
-    expect(stored.layers[0]).toMatchObject({ kind: 'image', src: imageDataUrl });
-    expect(stored.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelDataUrl });
-    expect(stored.fontAssets).toBeUndefined();
+    expect(stored.layers[0]).toMatchObject({
+      kind: 'image',
+      src: imageDataUrl,
+    });
+    expect(stored.layers[2]).toMatchObject({
+      kind: 'model',
+      modelSrc: modelDataUrl,
+    });
+    expect(stored.fontAssets).toEqual([fontAsset]);
+    expect(stored.modelAssets).toEqual([modelAsset]);
+    expect(stored.envAssets).toEqual([environmentAsset]);
+  });
+
+  it('preserves future graph and asset metadata through normalization, storage, hydration, and export', async () => {
+    const future = { rightsNote: { owner: 'studio', tags: ['approved'] } };
+    const normalized = normalizeDocument({
+      ...doc({
+        layers: [makeTextLayer({ font: fontRef }), makeSourceLayer('model', { modelSrc: modelDataUrl })],
+        graph: {
+          edges: [],
+          positions: {},
+          mergeNodes: [],
+          colorNodes: [],
+          environmentNodes: [makeGraphEnvironmentNode({ environmentSrc: environmentDataUrl })],
+          shaderNodes: [
+            {
+              id: 'future-shader',
+              shaderKind: 'staticMeshGradient',
+              distortion: 80,
+              future,
+            },
+          ],
+          futureCollection: { nested: [1, { flag: true }] },
+        } as CanvasDocument['graph'],
+      }),
+      fontAssets: [
+        { ...fontAsset, future, bytes: '128' },
+        {
+          id: 'external-font',
+          externalUri: 'artifact-font://external-font',
+          future,
+        },
+      ],
+      modelAssets: [{ ...modelAsset, future }],
+      envAssets: [{ ...environmentAsset, future }],
+    });
+    expect(normalized.graph?.futureCollection).toEqual({
+      nested: [1, { flag: true }],
+    });
+    expect(normalized.graph?.shaderNodes?.[0]).toMatchObject({
+      shaderKind: 'meshGradient',
+      distortion: 0,
+      future,
+    });
+    expect(normalized.fontAssets?.[0]).toMatchObject({ bytes: 128, future });
+    expect(normalized.fontAssets?.[1]).toEqual({
+      id: 'external-font',
+      externalUri: 'artifact-font://external-font',
+      future,
+    });
+
+    const stored = await storePortableDocumentAssets(normalized, {
+      saveFontAsset: vi.fn(async (asset) => asset),
+      saveModelAsset: vi.fn(async (asset) => asset),
+      saveEnvironmentAsset: vi.fn(async (asset) => asset),
+    });
+    expect(stored.fontAssets).toEqual([normalized.fontAssets?.[1]]);
     expect(stored.modelAssets).toBeUndefined();
+    expect(stored.envAssets).toBeUndefined();
+    const hydrated = await preparePortableDocument(stored, {
+      loadFontAsset: vi.fn(async () => normalized.fontAssets![0]),
+      loadModelAsset: vi.fn(async () => normalized.modelAssets![0]),
+      loadEnvironmentAsset: vi.fn(async () => normalized.envAssets![0]),
+    });
+    const exported = parseArtifactDocument(serializeArtifactDocument(hydrated));
+    expect(exported?.fontAssets).toEqual([normalized.fontAssets?.[1], normalized.fontAssets?.[0]]);
+    expect(exported?.modelAssets?.[0]).toMatchObject({ future });
+    expect(exported?.envAssets?.[0]).toMatchObject({ future });
+    expect(exported?.graph?.futureCollection).toEqual({
+      nested: [1, { flag: true }],
+    });
+    expect(exported?.graph?.shaderNodes?.[0]).toMatchObject({ future });
+  });
+
+  it('keeps metadata-only asset fields when a referenced older IndexedDB entry has the same ID', async () => {
+    const future = { rightsNote: { owner: 'studio' } };
+    const source = normalizeDocument({
+      ...doc({
+        layers: [makeTextLayer({ font: fontRef }), makeSourceLayer('model', { modelSrc: modelRef })],
+        graph: {
+          edges: [],
+          positions: {},
+          mergeNodes: [],
+          colorNodes: [],
+          environmentNodes: [makeGraphEnvironmentNode({ environmentSrc: environmentRef })],
+        },
+      }),
+      fontAssets: [{ id: fontAsset.id, future }],
+      modelAssets: [{ id: modelAsset.id, future }],
+      envAssets: [{ id: environmentAsset.id, future }],
+    });
+    const hydrated = await preparePortableDocument(source, {
+      loadFontAsset: vi.fn(async () => fontAsset),
+      loadModelAsset: vi.fn(async () => modelAsset),
+      loadEnvironmentAsset: vi.fn(async () => environmentAsset),
+    });
+    expect(hydrated.fontAssets).toEqual([{ ...fontAsset, future }]);
+    expect(hydrated.modelAssets).toEqual([{ ...modelAsset, future }]);
+    expect(hydrated.envAssets).toEqual([{ ...environmentAsset, future }]);
   });
 });
