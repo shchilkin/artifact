@@ -107,15 +107,14 @@ file differs from the reviewed checkout. Regenerate and commit the output
 whenever any of these inputs change; editing only the manifest cannot pass
 that clean rebuild check.
 
-The one app version source is the root `package.json`. The Web Vite build
-already reads that value and its Git commit for `getAppBuildInfo`. The native
-build reads the same root version and full `git rev-parse HEAD` via
-`scripts/core-pilot/build-identity.mjs`. Its local artifact is
-`apps/macos/.build/Artifact.app`, with version and full SHA in `Info.plist`
-and `Contents/Resources/build-identity.json`. A `dirty` flag identifies local
-builds with uncommitted tracked or untracked files. CI verifies the bundle's
-SHA against its checkout and validates the ad hoc signature. This is an
-identifiable internal build, not a notarized or distributed release.
+Client versions are independent: Web reads `apps/web/package.json`, Mac reads
+`apps/macos/app-version.json` with separate app version/build number. Both
+record the full source SHA and the exact embedded core source, adapter and
+runtime hashes through `scripts/core-pilot/build-identity.mjs`. Web emits
+`build/client/build-identity.json`; Mac embeds the manifest in
+`Contents/Resources/` and records app version/build/SHA in `Info.plist`.
+See [component releases](./component-releases.md) for provenance limitations,
+version sources and gates. The native bundle remains an ad hoc internal build.
 
 ## Public checks and evidence limits
 

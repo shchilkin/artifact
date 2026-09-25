@@ -4,25 +4,32 @@ This document is the release checklist for Artifact. It is intentionally
 separate from the architecture roadmap: a feature can be exciting and still not
 belong in the next production release.
 
-## Release Gate
+## Component Release Gate
 
-Run these before cutting a public release:
+Core, Web and macOS release independently. Use
+[component-releases.md](./component-releases.md) for authoritative version
+sources, namespaced notes/tags, build identities and workflow actions.
+`npm run release:verify -- --metadata-only` checks ordinary commits without
+claiming that a release is ready. For a chosen release, pass `--component` and
+`--version`; fill the [component template](./release-template.md) first.
 
-```bash
-npm run release:verify
-npm run check
-npm run build
-npm run test:browser:release
-```
+Every release runs common Rust/WASM/Swift and document compatibility checks.
+Web additionally requires `npm run check`, `npm run build:ci`, the complete
+`npm run test:browser:release` gate and Fallow changed-code audit. macOS
+additionally requires app identity/signature/archive checks and native manual
+QA appropriate to its scope. A core release does not ship either client.
 
-Release notes are template-gated. Before committing a release, copy
-`docs/release-template.md` to `docs/releases/vX.Y.Z.md` and fill every required
-section. Do not create a tag or GitHub Release from free-form notes.
+`development` remains the integration/candidate branch; reviewed candidates
+are promoted to `main`. The manual `Release` workflow selects a component and
+separate verify, tag/draft, publish or Web deploy action. Writes retain the
+`production-release` approval boundary. Core and macOS cannot invoke Web/API
+deployment. Existing historical release entries below remain evidence for the
+old `vX.Y.Z` stream, not approval for a new component release.
 
 CI should run:
 
-- `npm run release:verify` when package metadata, release notes, version plans,
-  production readiness notes, or release workflow files change.
+- `npm run release:verify -- --metadata-only` and `npm run test:release` on
+  every PR, with component notes/plan checks in the selected release workflow.
 - `npm run check`
 - `npm run build:ci`
 - `npm run test:browser` in a browser-capable job with Chromium, Firefox, and
@@ -49,7 +56,7 @@ CI should run:
 - `main` is the production release branch. Production tags, GitHub Releases,
   and production deployments must use a reviewed commit already promoted from
   `development`.
-- `.github/workflows/release.yml` is the manual production release workflow. It
+- `.github/workflows/release.yml` is the manual component release workflow. It
   runs the release gate, verifies release metadata, and then can create a tag,
   manage a GitHub Release, or execute the gated production deployment depending
   on the selected action.

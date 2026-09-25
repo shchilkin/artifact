@@ -10,7 +10,7 @@ Artifact's stricter exact-revision production release gate.
 | --- | --- | --- | --- | --- |
 | Pull-request preview | Feature branch | Vercel Git integration | Ephemeral Vercel URL | No dedicated stack |
 | Staging | `development` | Successful `CI` workflow, or manual rollback | Stable staging alias | Dedicated Coolify staging application |
-| Production | `main` plus release tag | Manual `Release` workflow | Production Vercel domains | Dedicated Coolify production application |
+| Production | `main` plus `web/vX.Y.Z` tag | Manual `Release` workflow | Production Vercel domains | Dedicated Coolify production application |
 
 `development` remains the default integration branch. `main` is the production
 branch and should only receive reviewed release-candidate revisions promoted
@@ -96,19 +96,21 @@ verification.
 
 Production stays deliberately manual:
 
-1. Prepare `docs/releases/vX.Y.Z.md` from `docs/release-template.md`, update
+1. Prepare `docs/releases/web/vX.Y.Z.md` from `docs/release-template.md`, update
    package metadata and release status docs, and merge the release-prep PR into
    `development`.
 2. Verify the release candidate on the stable staging environment.
 3. Promote the reviewed `development` revision to `main` through a PR.
-4. Run `.github/workflows/release.yml` from `main` with
+4. Run `.github/workflows/release.yml` from `main` with component `web` and
    `tag-and-create-draft` (or `create-draft` when the tag already exists).
 5. Review the draft GitHub Release, run `deploy-production`, and only then
    publish the draft.
 6. Merge the released `main` revision back into `development` so both long-lived
    branches contain release status and deployment fixes.
 
-`deploy-production` requires an existing release tag. It reruns the release
+`deploy-production` is available only for Web and requires an existing
+`web/vX.Y.Z` tag resolving to the exact checked commit. Core and macOS release
+actions do not deploy Web or API services. It reruns the release
 gate, stages Vercel without production domains, deploys Coolify at the exact
 verified SHA, verifies the production API, optionally runs one provider-backed
 AI smoke, promotes the same web deployment, and verifies the production domain.

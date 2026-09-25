@@ -49,3 +49,6 @@ apps/web/public/favicon.png
 /tools.local/
 /apps/macos/Generated/
 /apps/macos/.build/
+
+# Downloaded release artifacts are not source inputs.
+/release-artifacts/

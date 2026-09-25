@@ -99,11 +99,11 @@ describe('deployment configuration', () => {
   it('requires the release tag to exist before production deployment', async () => {
     const releaseWorkflow = await readFile(new URL('.github/workflows/release.yml', root), 'utf8');
 
-    assert.match(
-      releaseWorkflow,
-      /create-draft\|publish-draft\|deploy-production\)\n\s+tag_policy=\(--require-existing-tag\)/,
-    );
-    assert.doesNotMatch(releaseWorkflow, /verify\|tag-and-create-draft\|deploy-production\)/);
+    assert.match(releaseWorkflow, /node scripts\/verify-release.mjs --component/);
+    const components = await import('../release/components.mjs');
+    assert.equal(components.releasePlan('web', '1.2.3', 'deploy-production').requiresTag, true);
+    assert.throws(() => components.releasePlan('core', '1.2.3', 'deploy-production'));
+    assert.throws(() => components.releasePlan('macos', '1.2.3', 'deploy-production'));
   });
 
   it('embeds the verified commit and authenticates staged Vercel verification', async () => {

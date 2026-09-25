@@ -26,6 +26,7 @@ Read these docs before changing state ownership, rendering, node editor behavior
   token, shared primitive, and style-guide route rules.
 - `docs/improvement-plan.md` — ordered implementation plan with phase exit criteria.
 - `docs/roadmap.md` — codebase overview, strengths, risks, and long-term roadmap.
+- `docs/component-releases.md` — independent core/Web/macOS versions, exact build identities and release gates.
 - `docs/version-planning.md` — version split rules: one release thesis, one primary blast radius, explicit non-goals, checkable acceptance criteria, and discovery boundaries.
 - `docs/production-readiness.md` — release gate, manual QA checklist, known risks, and feature intake split.
 - `docs/release-template.md` — mandatory release notes template and checklist. Do not tag or publish releases from free-form notes.

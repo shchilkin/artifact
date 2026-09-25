@@ -95,7 +95,7 @@ skills. In short:
   or security scans are in scope.
 - Use the project-local `artifact-release` skill for release prep, version
   bumps, tags, and GitHub Releases. Do not tag or publish a release unless
-  `docs/releases/vX.Y.Z.md` has been filled from `docs/release-template.md`.
+  `docs/releases/<component>/vX.Y.Z.md` has been filled from `docs/release-template.md`.
 
 Do not use `frontend-design` as a default Artifact skill. Its installed copy
 appears Anthropic-origin and overlaps with `impeccable`; prefer `impeccable`
