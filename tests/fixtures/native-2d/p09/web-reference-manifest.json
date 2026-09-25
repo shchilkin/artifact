@@ -99,6 +99,12 @@
       "dimensions": [1920, 1080],
       "capturedInputSha256": "444317a15c2e64ecde8fb8536b8313c701e118e432e0a02456baa6b988b1804c",
       "inputValueSha256": "d6439e560fffbb62e0b7d4a85b9d246f9cfbe2dc51edf4919b334d77bf0bd0ed"
+    },
+    "repeat-random-jitter": {
+      "pngSha256": "6120cfae41327632cf9f463f036cf1d6958addda40ee1c45a3803b89ea9a190c",
+      "dimensions": [1920, 1080],
+      "capturedInputSha256": "181aa9e5329d7c0876fe545557bf7e50fcce23062028cfb83dba8bb1e083d9c7",
+      "inputValueSha256": "7c987c33c592e35faa2d6a9546096a425b5d6712fa1b33829081540d00458bb7"
     }
   }
 }

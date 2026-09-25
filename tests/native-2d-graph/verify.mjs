@@ -10,7 +10,7 @@ const fixtures = path.join(root, 'tests/fixtures/native-2d/p09');
 const renderer = process.env.ARTIFACT_NATIVE_RENDER_CHECK ?? path.join(root, 'apps/macos/.build/render-check');
 const referenceDir = process.env.ARTIFACT_P09_WEB_REFERENCE_DIR ?? path.join(fixtures, 'web-reference');
 const manifest = JSON.parse(readFileSync(path.join(fixtures, 'web-reference-manifest.json')));
-const output = process.env.ARTIFACT_P09_OUTPUT_DIR ?? '/private/tmp/artifact-p09-native-output';
+const output = process.env.ARTIFACT_P09_OUTPUT_DIR ?? path.join(root, 'test-results/native-2d-graph');
 mkdirSync(output, { recursive: true });
 const sizes = { '1:1': [1000, 1000], '4:5': [1080, 1350], '9:16': [1080, 1920], '16:9': [1920, 1080] };
 
@@ -156,6 +156,7 @@ for (const name of [
   'transform-nonsquare',
   'grime-shadow',
   'repeat',
+  'repeat-random-jitter',
   'mask',
   'mask-expanded-feathered',
   'merge',
@@ -191,6 +192,16 @@ for (const name of [
   );
   const command = spawnSync(renderer, [input, png, `${width}x${height}`], { encoding: 'utf8', timeout: 20000 });
   assert.equal(command.status, 0, `${name}: ${command.stderr}`);
+  if (name === 'repeat-random-jitter') {
+    const repeated = path.join(output, `${name}-repeat.png`);
+    const second = spawnSync(renderer, [input, repeated, `${width}x${height}`], { encoding: 'utf8', timeout: 20000 });
+    assert.equal(second.status, 0, `${name}: second seeded render failed: ${second.stderr}`);
+    assert.equal(
+      createHash('sha256').update(readFileSync(png)).digest('hex'),
+      createHash('sha256').update(readFileSync(repeated)).digest('hex'),
+      `${name}: seeded render changed across runs`,
+    );
+  }
   const native = await pixels(png);
   assert.equal(native.width, width);
   assert.equal(native.height, height);
@@ -224,6 +235,10 @@ for (const name of [
     assert.ok(entry.interior.rgbMAE <= 4, `${name}: painted RGB MAE ${entry.interior.rgbMAE}`);
     assert.ok(entry.interior.rgbP99 <= 16, `${name}: painted RGB p99 ${entry.interior.rgbP99}`);
     assert.ok(entry.interior.alphaP99 <= 2, `${name}: painted alpha p99 ${entry.interior.alphaP99}`);
+  }
+  if (name === 'repeat-random-jitter') {
+    // Angle/position RNG order moves copy silhouettes when it diverges.
+    assert.ok(entry.delta.alphaMAE <= 1, `${name}: seeded copy geometry diverged from Web`);
   }
   if (name === 'merge-empty' || name === 'export-empty-transparent') {
     assert.equal(entry.nativeAlpha.transparent, width * height, `${name} must be transparent`);

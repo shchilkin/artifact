@@ -323,9 +323,47 @@ impl DocumentSession {
                 let mut pixel_config = config.clone();
                 if let Some(object) = pixel_config.as_object_mut() {
                     object.remove("name");
+                    object.remove("locked");
                 }
+                let uses_seed = match kind {
+                    "effect" => ["glitch", "grain", "noiseWarp", "tearAmt"]
+                        .iter()
+                        .any(|field| number(&config, field, 0.0) > 0.0),
+                    "repeat" => {
+                        inputs.iter().any(|input| input["port"] == "in")
+                            && (number(&config, "jitter", 0.0) > 0.0
+                                || number(&config, "rotationJitter", 0.0) != 0.0
+                                || config["rotationMode"] == "random")
+                    }
+                    "grimeShadow" => {
+                        inputs.iter().any(|input| input["port"] == "in")
+                            && (number(&config, "jitter", 10.0) > 0.0
+                                || number(&config, "grime", 45.0) > 0.0)
+                    }
+                    // Emoji renderItems have already been projected from the
+                    // seed into config. Other sources and utilities do not
+                    // consume it; their upstream keys carry seed changes.
+                    _ => false,
+                };
+                let selected_font = if kind == "text" {
+                    config["font"].as_str().and_then(|font| {
+                        font.strip_prefix("artifact-font://").and_then(|font_id| {
+                            doc["fontAssets"]
+                                .as_array()?
+                                .iter()
+                                .rev()
+                                .find_map(|asset| {
+                                    (asset["id"] == font_id)
+                                        .then(|| json!({"id":font_id,"dataUrl":asset["dataUrl"]}))
+                                })
+                        })
+                    })
+                } else {
+                    None
+                };
                 let signature = json!({"kind":kind,"config":pixel_config,"inputs":inputs,
-                    "width":width,"height":height,"seed":seed,"fontAssets":doc["fontAssets"]});
+                    "width":width,"height":height,"seed":uses_seed.then_some(seed),
+                    "selectedFont":selected_font});
                 let mut hash = 0xcbf29ce484222325_u64;
                 for byte in signature.to_string().bytes() {
                     hash = (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3);

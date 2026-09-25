@@ -1,8 +1,8 @@
 # Testing
 
-P09 adds `node tests/native-2d-graph/verify.mjs` for independent main-Web
-reference pixels, graph targets and geometry, plus
-`apps/macos/.build/graph-render-check` for cache/cancellation/100-node checks.
+P09 adds `npm run test:core-native-graph` to `check:core-native`: its pixel
+verifier compares independent main-Web references, graph targets and geometry;
+`graph-render-check` covers cache, cancellation and 100-node checks.
 See [native graph evidence](native-2d-graph-render.md).
 
 Native P06 render checks are part of `npm run check:core-native` after a native
