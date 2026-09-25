@@ -3,8 +3,8 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::Serialize;
 use serde_json::Value;
 
-const MAX_PNG_BYTES: usize = 16 * 1024 * 1024;
-const MAX_IMAGE_PATCH: usize = MAX_PNG_BYTES * 4 / 3 + 4096;
+const MAX_IMAGE_BYTES: usize = 16 * 1024 * 1024;
+const MAX_IMAGE_PATCH: usize = MAX_IMAGE_BYTES * 4 / 3 + 4096;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,7 +45,7 @@ pub(crate) fn dimensions(layer: &Value) -> Option<(u32, u32)> {
 
 // Platform importers fully decode and normalize PNG/JPEG (including orientation)
 // before calling this command. Core checks the portable envelope and bounds;
-// it is not a PNG pixel decoder. Existing package payloads are not rewritten.
+// it is not a pixel decoder. Existing package payloads are not rewritten.
 pub(crate) fn validate_source(value: &Value) -> Result<(), CoreError> {
     if let Some(reference) = value
         .as_str()
@@ -61,28 +61,77 @@ pub(crate) fn validate_source(value: &Value) -> Result<(), CoreError> {
         }
         return Err(CoreError("Invalid asset reference"));
     }
-    let encoded = value
-        .as_str()
-        .and_then(|s| s.strip_prefix("data:image/png;base64,"))
-        .ok_or(CoreError("Replacement must be an embedded PNG"))?;
+    let source = value.as_str().ok_or(CoreError("Invalid image source"))?;
+    let (encoded, format) = if let Some(encoded) = source.strip_prefix("data:image/png;base64,") {
+        (encoded, "png")
+    } else if let Some(encoded) = source.strip_prefix("data:image/jpeg;base64,") {
+        (encoded, "jpeg")
+    } else {
+        return Err(CoreError("Replacement must be an embedded PNG or JPEG"));
+    };
     let bytes = STANDARD
         .decode(encoded)
-        .map_err(|_| CoreError("Invalid PNG base64"))?;
-    if bytes.len() > MAX_PNG_BYTES
-        || bytes.len() < 45
-        || !bytes.starts_with(b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR")
-        || !bytes.ends_with(b"\0\0\0\0IEND\xaeB`\x82")
-    {
-        return Err(CoreError("Invalid PNG envelope or image exceeds 16 MiB"));
+        .map_err(|_| CoreError("Invalid image base64"))?;
+    if bytes.len() > MAX_IMAGE_BYTES {
+        return Err(CoreError("Image exceeds 16 MiB"));
     }
-    let width = u32::from_be_bytes(bytes[16..20].try_into().unwrap());
-    let height = u32::from_be_bytes(bytes[20..24].try_into().unwrap());
+    let (width, height) = if format == "png" {
+        if bytes.len() < 45
+            || !bytes.starts_with(b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR")
+            || !bytes.ends_with(b"\0\0\0\0IEND\xaeB`\x82")
+        {
+            return Err(CoreError("Invalid PNG envelope"));
+        }
+        (
+            u32::from_be_bytes(bytes[16..20].try_into().unwrap()),
+            u32::from_be_bytes(bytes[20..24].try_into().unwrap()),
+        )
+    } else {
+        jpeg_dimensions(&bytes).ok_or(CoreError("Invalid JPEG envelope"))?
+    };
     if width == 0 || height == 0 || width > 4096 || height > 4096 {
         return Err(CoreError(
             "Replacement image dimensions must be 1–4096 pixels",
         ));
     }
     Ok(())
+}
+
+fn jpeg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    if !bytes.starts_with(&[0xff, 0xd8]) || !bytes.ends_with(&[0xff, 0xd9]) {
+        return None;
+    }
+    let mut index = 2;
+    while index + 4 <= bytes.len() {
+        if bytes[index] != 0xff {
+            return None;
+        }
+        while bytes.get(index) == Some(&0xff) {
+            index += 1;
+        }
+        let marker = *bytes.get(index)?;
+        index += 1;
+        if marker == 0xd9 || marker == 0xda {
+            return None; // A frame must precede the scan and end marker.
+        }
+        if marker == 0x01 || (0xd0..=0xd7).contains(&marker) {
+            continue;
+        }
+        let length = u16::from_be_bytes([*bytes.get(index)?, *bytes.get(index + 1)?]) as usize;
+        if length < 2 || index.checked_add(length)? > bytes.len() {
+            return None;
+        }
+        if matches!(marker, 0xc0..=0xc3 | 0xc5..=0xc7 | 0xc9..=0xcb | 0xcd..=0xcf) {
+            if length < 7 {
+                return None;
+            }
+            let height = u16::from_be_bytes([bytes[index + 3], bytes[index + 4]]) as u32;
+            let width = u16::from_be_bytes([bytes[index + 5], bytes[index + 6]]) as u32;
+            return Some((width, height));
+        }
+        index += length;
+    }
+    None
 }
 
 impl DocumentSession {

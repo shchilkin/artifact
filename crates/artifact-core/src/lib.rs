@@ -42,6 +42,8 @@ pub struct SessionSummary {
     pub layers: Vec<LayerSummary>,
     pub can_undo: bool,
     pub can_redo: bool,
+    pub undo_count: usize,
+    pub redo_count: usize,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -62,6 +64,7 @@ struct FieldEdit {
 #[derive(Clone)]
 enum ExtendedEdit {
     Group(Vec<Edit>),
+    RootFields(Vec<FieldEdit>),
     Section {
         name: &'static str,
         fields: Vec<FieldEdit>,
@@ -90,6 +93,9 @@ impl Edit {
         if let Some(extended) = &self.extended {
             return match extended {
                 ExtendedEdit::Group(steps) => steps.iter().map(Edit::retained_bytes).sum(),
+                ExtendedEdit::RootFields(fields) => {
+                    fields.iter().map(FieldEdit::retained_bytes).sum()
+                }
                 ExtendedEdit::Section { fields, .. } => {
                     fields.iter().map(FieldEdit::retained_bytes).sum()
                 }
@@ -231,6 +237,8 @@ impl DocumentSession {
             layers,
             can_undo: self.can_undo(),
             can_redo: self.can_redo(),
+            undo_count: self.past.len(),
+            redo_count: self.future.len(),
         }
     }
 
