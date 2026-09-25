@@ -14,11 +14,7 @@ fn color(value: &Value) -> bool {
 }
 fn shared(kind: &str, key: &str, value: &Value) -> Option<bool> {
     match key {
-        "name" => Some(
-            value
-                .as_str()
-                .is_some_and(|s| !s.trim().is_empty() && s.len() <= 200 && !s.contains('\0')),
-        ),
+        "name" => Some(value.as_str().is_some_and(|s| !s.contains('\0'))),
         "visible" | "locked" => Some(value.is_boolean()),
         "opacity" if kind != "effect" => Some(number(value, 0.0, 100.0)),
         _ => None,
@@ -34,11 +30,7 @@ fn transform(key: &str, value: &Value) -> Option<bool> {
 }
 fn text(_doc: &Value, key: &str, value: &Value) -> Option<bool> {
     match key {
-        "content" => Some(
-            value
-                .as_str()
-                .is_some_and(|s| s.len() <= 16_384 && !s.contains('\0')),
-        ),
+        "content" => Some(value.as_str().is_some_and(|s| !s.contains('\0'))),
         "size" => Some(number(value, 1.0, 540.0)),
         "color" => Some(color(value)),
         "align" => Some(
@@ -76,7 +68,7 @@ fn image(key: &str, value: &Value) -> Option<bool> {
         "fit" => Some(
             value
                 .as_str()
-                .is_some_and(|s| ["free", "cover", "contain"].contains(&s)),
+                .is_some_and(|s| ["free", "cover", "contain", "tile"].contains(&s)),
         ),
         _ => transform(key, value),
     }
