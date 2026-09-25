@@ -114,6 +114,60 @@ seam creates a second history owner. Unknown package/document/layer/graph
 fields and absent versus explicit null values are preserved by commands,
 Undo/Redo, save, and reopen at the JSON value level.
 
+## Root assets and cold document replacement
+
+`edit_assets` is a shared typed command for exactly one root collection:
+`fontAssets`, `modelAssets`, or `envAssets`. It accepts `upsert` asset objects,
+`removeIds`, or an exclusive `replace` array. Every entry needs a unique,
+nonempty string `id` (at most 200 characters). Upsert merges the supplied
+object into an existing object with the same ID, preserving unknown fields;
+untouched objects remain unchanged. Removing an absent ID is a no-op, including
+when the root collection is absent. Explicit `replace: []` creates an empty
+collection, distinct from an absent field. A collection that was already empty
+remains empty on a no-op. The command does not inspect payload bytes or make
+font-license decisions; native and Web file import validate those before the
+command. Serialized asset metadata and portable data URLs are document data;
+decoded objects and host asset-store content remain outside the session.
+
+For a native font import, begin one transaction, update with
+`{"commands":[{"type":"edit_assets","collection":"fontAssets","upsert":[{"id":"font-1","dataUrl":"data:font/ttf;base64,...", "mime":"font/ttf", "bytes":123, "label":"My Font", "family":"My Font", "createdAt":"..."}]}]}`,
+then update the same transaction with
+`{"commands":[{"type":"patch_layer","id":"title","patch":{"font":"artifact-font://font-1"}}]}`
+and commit once. Both updates can share one envelope when it is below 1 MiB.
+Larger single `edit_assets` updates may use the cold 64 MiB envelope allowance.
+Commit, cancel, Undo, and Redo cover both changes together. A bounded font URI
+may point to a host-managed IndexedDB asset even when `fontAssets` is absent;
+the host must resolve it before rendering or export. Core accepts the current
+bundled font IDs from `apps/web/app/types/typography.ts` and syntactically valid
+`artifact-font://` IDs. Native must separately report missing font resources.
+
+`replace_document` accepts a complete schema-3 document object in one cold
+command, for New, import, or explicit replacement only. It validates the same
+package/schema/layer invariants as opening a package and validates graph IDs
+and edge endpoints. The package manifest and package-level metadata stay
+untouched. Unknown document JSON values, and absent versus explicit null root
+fields, survive at the JSON value level. Replacement is one Undo step and has
+no lock restriction because the user is replacing the document. Normal edits
+must use narrower commands. A replacement must be the only command in its
+update. A single cold replacement can use a 64 MiB command envelope. The
+package remains limited to 64 MiB; root asset/replacement inverse history is
+bounded to 128 MiB within a transaction, while ordinary edits keep the 64 MiB
+transaction budget. A rejected update leaves the prior draft intact.
+
+Results add `changes.assets` (names of changed collections) and
+`changes.document` (other root document fields, such as schema or future
+metadata). Existing layer/global/export/graph/order details remain in the
+same result. No new FFI method is needed: send these commands through the
+existing `update_transaction_json` method on WebSession or NativeSession.
+`summary_json` also exposes `undoCount` and `redoCount` from the core history
+stacks. Clients should read these counts rather than infer them from command
+replies, because byte-budget eviction can shorten the stacks.
+
+The shared transaction validator accepts the Web image `fit: "tile"` choice
+and does not impose an extra length cap on text content or layer names. Normal
+command envelopes remain limited to 1 MiB, and the complete package to 64 MiB.
+The separate legacy `set_text` entry point retains its older patch limit.
+
 ## Verification and evidence limits
 
 Run `cargo test -p artifact-core` and `npm run check:core-native` after

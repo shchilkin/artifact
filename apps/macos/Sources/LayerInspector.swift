@@ -10,6 +10,7 @@ struct LayerInspector: View {
     @State private var importing = false
     @State private var importError: String?
     @State private var importTask: Task<Void, Never>?
+    @State private var pendingFontURL: URL?
 
     private var originals: [String: String] {
         let current = model.editor.layers.first { $0.id == layer.id } ?? layer
@@ -84,6 +85,12 @@ struct LayerInspector: View {
             }
         }
     }
+    private func chooseFont() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "ttf") ?? .data, UTType(filenameExtension: "otf") ?? .data]
+        panel.allowsMultipleSelection = false
+        model.presentFilePanel(panel) { pendingFontURL = $0 }
+    }
 
     var body: some View {
         ScrollView {
@@ -101,6 +108,7 @@ struct LayerInspector: View {
                         Text("Courier New").tag("MONO")
                         ForEach(model.editor.fonts, id: \.id) { font in Text(font.name).tag(font.id) }
                     }
+                    Button("Import font…", action: chooseFont).disabled(model.isImporting)
                     Picker("Alignment", selection: binding("align")) {
                         Text("Left").tag("left");Text("Center").tag("center");Text("Right").tag("right")
                     }
@@ -153,6 +161,17 @@ struct LayerInspector: View {
             if empty { draft = originals; replacement = nil }
         }
         .onDisappear { importTask?.cancel() }
+        .confirmationDialog("Embed this font in the project?", isPresented: Binding(
+            get: { pendingFontURL != nil }, set: { if !$0 { pendingFontURL = nil } }
+        )) {
+            Button("Embed font") {
+                if let url = pendingFontURL { model.importFont(to: layer.id, from: url) }
+                pendingFontURL = nil
+            }
+            Button("Cancel", role: .cancel) { pendingFontURL = nil }
+        } message: {
+            Text("Confirm that you have permission to include this font file when sharing the project.")
+        }
     }
 }
 private struct PropertyField {

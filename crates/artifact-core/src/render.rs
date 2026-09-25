@@ -241,10 +241,11 @@ impl DocumentSession {
                 }
                 "effect" => {
                     validate_effect(layer)?;
-                    // CA is stored in output pixels at the pilot's canonical
-                    // 3000px export size. Scale only the transient preview plan.
-                    if width != 3000 && number(layer, "ca", 0.0) > 0.0 {
-                        layer["ca"] = json!(number(layer, "ca", 0.0) * width as f64 / 3000.0);
+                    // Web's color pass rounds CA against its 540px reference
+                    // canvas. Apply it to the transient plan at every render
+                    // size; export renders at the base aspect before upscaling.
+                    if number(layer, "ca", 0.0) > 0.0 {
+                        layer["ca"] = json!((number(layer, "ca", 0.0) * width as f64 / 540.0).round());
                     }
                 }
                 "emoji" => {

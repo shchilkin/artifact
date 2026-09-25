@@ -53,6 +53,17 @@ pub enum Command {
         layers: Vec<Value>,
         graph: crate::structure_bridge::GraphCandidate,
     },
+    EditAssets {
+        collection: String,
+        #[serde(default)]
+        upsert: Vec<Value>,
+        #[serde(default, rename = "removeIds")]
+        remove_ids: Vec<String>,
+        replace: Option<Vec<Value>>,
+    },
+    ReplaceDocument {
+        document: Value,
+    },
 }
 
 /// A Web-only operation must name the exact graph or unknown layer field it owns.
@@ -98,6 +109,8 @@ struct Changes {
     export: BTreeSet<String>,
     graph: bool,
     order: bool,
+    assets: BTreeSet<String>,
+    document: bool,
 }
 impl Changes {
     fn is_empty(&self) -> bool {
@@ -106,6 +119,8 @@ impl Changes {
             && self.export.is_empty()
             && !self.graph
             && !self.order
+            && self.assets.is_empty()
+            && !self.document
     }
 }
 
@@ -175,13 +190,29 @@ fn parse_update(request: &str) -> Result<UpdateRequest, CommandError> {
     }
     let parsed: UpdateRequest = serde_json::from_str(request)
         .map_err(|_| CommandError::new("INVALID_ENVELOPE", "Invalid command envelope"))?;
-    if request.len() > 1024 * 1024
-        && (parsed.commands.len() != 1
-            || !matches!(parsed.commands[0], Command::BridgeStructure { .. }))
+    if parsed
+        .commands
+        .iter()
+        .any(|command| matches!(command, Command::ReplaceDocument { .. }))
+        && parsed.commands.len() != 1
     {
         return Err(CommandError::new(
             "INVALID_ENVELOPE",
-            "Large envelope requires one cold structure bridge",
+            "Document replacement must be one cold command",
+        ));
+    }
+    if request.len() > 1024 * 1024
+        && (parsed.commands.len() != 1
+            || !matches!(
+                parsed.commands[0],
+                Command::BridgeStructure { .. }
+                    | Command::EditAssets { .. }
+                    | Command::ReplaceDocument { .. }
+            ))
+    {
+        return Err(CommandError::new(
+            "INVALID_ENVELOPE",
+            "Large envelope requires one cold structure, asset, or document command",
         ));
     }
     Ok(parsed)
@@ -232,6 +263,24 @@ fn value_growth(key: &str, before: &Option<Value>, after: &Option<Value>) -> i64
             0
         }
 }
+fn asset_id(value: &Value) -> Option<&str> {
+    value
+        .as_object()?
+        .get("id")?
+        .as_str()
+        .filter(|id| !id.is_empty() && id.len() <= 200 && !id.contains('\0'))
+}
+fn validate_asset_entries(entries: &[Value]) -> Result<(), CommandError> {
+    let mut ids = HashSet::new();
+    for entry in entries {
+        let id = asset_id(entry)
+            .ok_or_else(|| CommandError::new("INVALID_VALUE", "Asset entry needs a valid id"))?;
+        if !ids.insert(id) {
+            return Err(CommandError::new("INVALID_VALUE", "Duplicate asset id"));
+        }
+    }
+    Ok(())
+}
 fn bridge_slot<'a>(
     doc: &'a mut Value,
     target: &BridgeTarget,
@@ -265,6 +314,9 @@ pub(crate) fn apply_edit_to(doc: &mut Value, edit: &Edit, forward: bool) {
                         apply_edit_to(doc, step, false);
                     }
                 }
+            }
+            ExtendedEdit::RootFields(fields) => {
+                apply_fields(doc.as_object_mut().expect("document"), fields, forward);
             }
             ExtendedEdit::Section { name, fields } => {
                 apply_fields(
@@ -342,6 +394,25 @@ fn diff_documents(before: &Value, doc: &Value) -> Changes {
         .collect();
     changes.order = old_ids != new_ids;
     changes.graph = before.get("graph") != doc.get("graph");
+    for key in ["fontAssets", "modelAssets", "envAssets"] {
+        if before.get(key) != doc.get(key) {
+            changes.assets.insert(key.to_owned());
+        }
+    }
+    for key in before
+        .as_object()
+        .unwrap()
+        .keys()
+        .chain(doc.as_object().unwrap().keys())
+    {
+        if !matches!(
+            key.as_str(),
+            "layers" | "global" | "export" | "graph" | "fontAssets" | "modelAssets" | "envAssets"
+        ) && before.get(key) != doc.get(key)
+        {
+            changes.document = true;
+        }
+    }
     for id in old_ids
         .iter()
         .chain(&new_ids)
@@ -675,12 +746,24 @@ impl DocumentSession {
                 .iter()
                 .map(Edit::retained_bytes)
                 .sum::<usize>();
-            if retained > MAX_PACKAGE_BYTES {
+            let history_limit = if self
+                .transaction
+                .as_ref()
+                .unwrap()
+                .steps
+                .iter()
+                .any(|step| matches!(step.extended, Some(ExtendedEdit::RootFields(_))))
+            {
+                MAX_PACKAGE_BYTES * 2
+            } else {
+                MAX_PACKAGE_BYTES
+            };
+            if retained > history_limit {
                 // Near the budget, test compaction on a journal copy before
                 // mutating the rollback source. Normal gesture ticks never clone.
                 let mut candidate = self.transaction.as_ref().unwrap().steps.clone();
                 coalesce_steps(&mut candidate);
-                if candidate.iter().map(Edit::retained_bytes).sum::<usize>() <= MAX_PACKAGE_BYTES {
+                if candidate.iter().map(Edit::retained_bytes).sum::<usize>() <= history_limit {
                     self.transaction.as_mut().unwrap().steps = candidate;
                     self.transaction.as_mut().unwrap().draft_revision += 1;
                     return Ok((true, changes));
@@ -692,7 +775,7 @@ impl DocumentSession {
                 self.serialized_len = prior_len;
                 return Err(CommandError::new(
                     "HISTORY_LIMIT",
-                    "Transaction history exceeds 64 MiB",
+                    "Transaction history exceeds the cold document budget",
                 ));
             }
             self.transaction.as_mut().unwrap().draft_revision += 1;
@@ -806,8 +889,177 @@ impl DocumentSession {
             } => {
                 self.bridge_structure(&capability, layers, graph)?;
             }
+            Command::EditAssets {
+                collection,
+                upsert,
+                remove_ids,
+                replace,
+            } => {
+                self.edit_assets(&collection, upsert, remove_ids, replace)?;
+            }
+            Command::ReplaceDocument { document } => self.replace_document(document)?,
         }
         Ok(())
+    }
+    fn record_root_fields(&mut self, fields: Vec<FieldEdit>) -> Result<(), CommandError> {
+        if fields.is_empty() {
+            return Ok(());
+        }
+        let growth: i64 = fields
+            .iter()
+            .map(|field| value_growth(&field.key, &field.before, &field.after))
+            .sum();
+        let next_size = self.serialized_len as i64 + growth;
+        if next_size > MAX_PACKAGE_BYTES as i64 {
+            return Err(CommandError::new(
+                "PACKAGE_LIMIT",
+                "Project would exceed 64 MiB",
+            ));
+        }
+        apply_fields(
+            self.package["document"].as_object_mut().unwrap(),
+            &fields,
+            true,
+        );
+        self.serialized_len = next_size as usize;
+        self.record_edit(Edit {
+            layer_index: 0,
+            layer_id: None,
+            fields: Vec::new(),
+            structure: None,
+            extended: Some(ExtendedEdit::RootFields(fields)),
+        });
+        Ok(())
+    }
+
+    fn edit_assets(
+        &mut self,
+        collection: &str,
+        upsert: Vec<Value>,
+        remove_ids: Vec<String>,
+        replace: Option<Vec<Value>>,
+    ) -> Result<(), CommandError> {
+        if !matches!(collection, "fontAssets" | "modelAssets" | "envAssets") {
+            return Err(CommandError::new(
+                "INVALID_TARGET",
+                "Unknown asset collection",
+            ));
+        }
+        if replace.is_some() && (!upsert.is_empty() || !remove_ids.is_empty()) {
+            return Err(CommandError::new(
+                "INVALID_ENVELOPE",
+                "Replace cannot be combined with upsert or removeIds",
+            ));
+        }
+        let before = self.package["document"].get(collection).cloned();
+        let existing = match &before {
+            Some(value) => value
+                .as_array()
+                .ok_or_else(|| {
+                    CommandError::new("INVALID_VALUE", "Asset collection must be an array")
+                })?
+                .clone(),
+            None => Vec::new(),
+        };
+        let is_replace = replace.is_some();
+        let mut entries = if let Some(entries) = replace {
+            entries
+        } else {
+            existing.clone()
+        };
+        validate_asset_entries(&entries)?;
+        let mut removed = HashSet::new();
+        for id in &remove_ids {
+            if id.is_empty() || !removed.insert(id) {
+                return Err(CommandError::new(
+                    "INVALID_TARGET",
+                    "removeIds must be unique nonempty ids",
+                ));
+            }
+        }
+        entries.retain(|entry| !removed.contains(&entry["id"].as_str().unwrap().to_owned()));
+        let mut upsert_seen = HashSet::new();
+        for entry in upsert {
+            let id = asset_id(&entry)
+                .ok_or_else(|| CommandError::new("INVALID_VALUE", "Asset entry needs a valid id"))?
+                .to_owned();
+            if !upsert_seen.insert(id.clone()) || removed.contains(&id) {
+                return Err(CommandError::new(
+                    "INVALID_TARGET",
+                    "Asset id is repeated across operations",
+                ));
+            }
+            if let Some(index) = entries.iter().position(|old| old["id"] == id) {
+                for (key, value) in entry.as_object().unwrap() {
+                    entries[index][key] = value.clone();
+                }
+            } else {
+                entries.push(entry);
+            }
+        }
+        let after = Value::Array(entries);
+        if before.as_ref() == Some(&after)
+            || (before.is_none() && !is_replace && after == Value::Array(existing))
+        {
+            return Ok(());
+        }
+        self.record_root_fields(vec![FieldEdit {
+            key: collection.to_owned(),
+            before,
+            after: Some(after),
+        }])
+    }
+
+    fn replace_document(&mut self, document: Value) -> Result<(), CommandError> {
+        if !document.is_object() {
+            return Err(CommandError::new(
+                "INVALID_VALUE",
+                "Document must be an object",
+            ));
+        }
+        let mut candidate = self.package.clone();
+        candidate["document"] = document.clone();
+        let source = candidate.to_string();
+        if source.len() > MAX_PACKAGE_BYTES {
+            return Err(CommandError::new(
+                "PACKAGE_LIMIT",
+                "Project would exceed 64 MiB",
+            ));
+        }
+        let checked = DocumentSession::open(&source)
+            .map_err(|error| CommandError::new("INVALID_VALUE", error.to_string()))?;
+        for collection in ["fontAssets", "modelAssets", "envAssets"] {
+            if let Some(value) = document.get(collection) {
+                let entries = value.as_array().ok_or_else(|| {
+                    CommandError::new("INVALID_VALUE", "Asset collection must be an array")
+                })?;
+                validate_asset_entries(entries)?;
+            }
+        }
+        if let Some(graph) = document.get("graph").filter(|graph| !graph.is_null()) {
+            if !graph.is_object() {
+                return Err(CommandError::new(
+                    "INVALID_VALUE",
+                    "Graph must be an object or null",
+                ));
+            }
+            validate_graph(document["layers"].as_array().unwrap(), graph)?;
+        }
+        let old = self.package["document"].as_object().unwrap();
+        let new = checked.package["document"].as_object().unwrap();
+        let fields = old
+            .keys()
+            .chain(new.keys())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter(|key| old.get(*key) != new.get(*key))
+            .map(|key| FieldEdit {
+                key: key.clone(),
+                before: old.get(key).cloned(),
+                after: new.get(key).cloned(),
+            })
+            .collect();
+        self.record_root_fields(fields)
     }
     fn patch_section(
         &mut self,
@@ -1073,6 +1325,7 @@ pub(crate) fn validate_graph(layers: &[Value], graph: &Value) -> Result<(), Comm
     for edge in edges {
         let id = edge["id"]
             .as_str()
+            .filter(|id| !id.is_empty() && id.len() <= 200 && !id.contains('\0'))
             .ok_or_else(|| CommandError::new("INVALID_VALUE", "Edge needs an id"))?;
         let from = edge["fromId"]
             .as_str()

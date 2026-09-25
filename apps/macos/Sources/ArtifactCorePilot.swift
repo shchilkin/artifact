@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
@@ -8,12 +9,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var pendingURL: URL?
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !closing, let model, model.isModified else { return .terminateNow }
-        model.confirmDiscard { [weak self] in self?.closing = true; sender.terminate(nil) }
+        model.confirmDiscard(purgeOnDiscard: true) { [weak self] in self?.closing = true; sender.terminate(nil) }
         return .terminateCancel
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !closing, let model, model.isModified else { return true }
-        model.confirmDiscard { [weak self] in self?.closing = true; sender.close(); self?.closing = false }
+        model.confirmDiscard(purgeOnDiscard: true) { [weak self] in self?.closing = true; sender.close(); self?.closing = false }
         return false
     }
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
@@ -44,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 Button("Save"){model.save()}.keyboardShortcut("s").disabled(model.summary==nil)
                 Button("Save Copy…"){model.saveCopy()}.keyboardShortcut("s",modifiers:[.command,.shift]).disabled(model.summary==nil)
                 Button("Export PNG…",action:model.exportPNG).keyboardShortcut("e",modifiers:[.command,.shift]).disabled(model.summary==nil||model.isExporting)
+                Button("Export JPEG…",action:model.exportJPEG).disabled(model.summary==nil||model.isExporting)
             }
             CommandGroup(replacing:.undoRedo) {
                 Button("Undo",action:model.undo).keyboardShortcut("z").disabled(model.summary?.canUndo != true)
@@ -52,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             CommandMenu("Layer") {
                 Button("Add Text"){model.addLayer("text")}.keyboardShortcut("t",modifiers:[.command,.shift]).disabled(model.summary==nil)
                 Button("Import Image…",action:model.importLayer).keyboardShortcut("i",modifiers:[.command,.shift]).disabled(model.summary==nil)
+                Button("Paste Image",action:model.pasteImage).keyboardShortcut("v").disabled(model.summary==nil)
                 Divider()
                 Button("Duplicate",action:model.duplicate).keyboardShortcut("d").disabled(model.selectedID==nil)
                 Button("Delete Layer",action:model.deleteSelected).keyboardShortcut(.delete,modifiers:.command).disabled(model.selectedID==nil||model.selectedLayer?.locked==true)
@@ -85,7 +88,7 @@ struct EditorWorkspace: View {
             } else {welcome.frame(maxWidth:.infinity,maxHeight:.infinity)}
             if let message=model.message {notice(message)}
             if let message=model.exportMessage {notice(message)}
-            if model.isExporting {HStack{ProgressView().controlSize(.small);Text("Exporting PNG…");Spacer()}.padding(10)}
+            if model.isExporting {HStack{ProgressView().controlSize(.small);Text("Exporting…");Spacer()}.padding(10)}
         }
         .toolbar {
             ToolbarItemGroup(placement:.navigation) {
@@ -99,11 +102,33 @@ struct EditorWorkspace: View {
                 Button(action:model.undo){Image(systemName:"arrow.uturn.backward")}.help("Undo").disabled(model.summary?.canUndo != true)
                 Button(action:model.redo){Image(systemName:"arrow.uturn.forward")}.help("Redo").disabled(model.summary?.canRedo != true)
                 Button("Save"){model.save()}.disabled(model.summary==nil)
-                Button("Export PNG…",action:model.exportPNG).disabled(model.summary==nil||model.isExporting)
+                Menu("Export") {
+                    ForEach(1...3,id:\.self) { scale in
+                        Button("PNG · \(scale)×") { model.exportFile(format: .png, scale: scale) }
+                        Button("JPEG · \(scale)×") { model.exportFile(format: .jpeg, scale: scale) }
+                    }
+                }.disabled(model.summary==nil||model.isExporting)
             }
         }
         .navigationTitle(model.summary==nil ? "Artifact" : model.fileName)
         .navigationSubtitle(model.isModified ? "Edited" : "")
+        .onDrop(of: [UTType.fileURL.identifier, UTType.png.identifier, UTType.jpeg.identifier, UTType.tiff.identifier], isTargeted: nil) { providers in
+            guard model.summary != nil, let provider = providers.first else { return false }
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                    let url = (item as? URL) ?? (item as? Data).flatMap { URL(dataRepresentation: $0, relativeTo: nil) }
+                    if let url { Task { @MainActor in model.importImage(from: url) } }
+                }
+                return true
+            }
+            guard let type = [UTType.png, .jpeg, .tiff].first(where: {
+                provider.hasItemConformingToTypeIdentifier($0.identifier)
+            }) else { return false }
+            provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
+                if let data { Task { @MainActor in model.importImage(data: data) } }
+            }
+            return true
+        }
     }
     private var layerPanel:some View {
         VStack(spacing:0) {

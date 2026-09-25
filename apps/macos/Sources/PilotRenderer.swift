@@ -20,6 +20,11 @@ actor RenderWorker {
         try Task.checkCancellation()
         return data
     }
+    func export(plan: String, scale: Int, format: NativeExportFormat) throws -> Data {
+        let image = try render(plan: plan)
+        try Task.checkCancellation()
+        return try NativeExportService.encode(image, scale: scale, format: format)
+    }
     func render(plan: String) throws -> CGImage {
         try Task.checkCancellation()
         return try PilotRenderer(plan: NativeRenderPlan(json: plan), resources: resources).render()
