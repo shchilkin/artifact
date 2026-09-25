@@ -234,7 +234,7 @@ describe('documentAssets', () => {
     expect(hasPortableDocumentPayloads(stored)).toBe(false);
   });
 
-  it('keeps documents usable when local payload storage is unavailable', async () => {
+  it('keeps portable bytes in the canonical document when local payload storage is unavailable', async () => {
     const stored = await storePortableDocumentAssets(
       doc({
         layers: [
@@ -244,6 +244,7 @@ describe('documentAssets', () => {
         ],
         fontAssets: [fontAsset],
         modelAssets: [modelAsset],
+        envAssets: [environmentAsset],
       }),
       {
         saveAssetDataUrl: vi.fn(async () => {
@@ -258,12 +259,16 @@ describe('documentAssets', () => {
         saveModelAsset: vi.fn(async () => {
           throw new Error('model store unavailable');
         }),
+        saveEnvironmentAsset: vi.fn(async () => {
+          throw new Error('environment store unavailable');
+        }),
       },
     );
 
     expect(stored.layers[0]).toMatchObject({ kind: 'image', src: imageDataUrl });
     expect(stored.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelDataUrl });
-    expect(stored.fontAssets).toBeUndefined();
-    expect(stored.modelAssets).toBeUndefined();
+    expect(stored.fontAssets).toEqual([fontAsset]);
+    expect(stored.modelAssets).toEqual([modelAsset]);
+    expect(stored.envAssets).toEqual([environmentAsset]);
   });
 });

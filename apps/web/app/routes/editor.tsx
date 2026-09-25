@@ -130,6 +130,7 @@ export default function Editor() {
   const [modelFileError, setModelFileError] = useState<string | null>(null);
   const [aiPanelRequested, setAiPanelRequested] = useState(false);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const assetReplacementSerials = useRef(new Map<string, number>());
 
   // fallow-ignore-next-line code-duplication
   const {
@@ -149,7 +150,6 @@ export default function Editor() {
     removeLayer,
     deleteNodeSelection,
     updateLayer,
-    storeImageAssetSource,
     updateMergeNode,
     updateColorNode,
     updateRepeatNode,
@@ -181,13 +181,18 @@ export default function Editor() {
     fromBlankParam,
     isBlank,
     documentSaveStatus,
+    documentEpochRef,
+    coreState,
+    coreError,
+    retryCore,
   } = useEditorDocument(viewMode === 'nodes');
   const { imageCache, dropError, handleDroppedFile } = useEditorAssets(
     doc,
     (src, position) => addImageFromSource(src, undefined, position),
     addModelFromAsset,
     addEnvironmentFromAsset,
-    storeImageAssetSource,
+    undefined,
+    documentEpochRef,
   );
   const handleDroppedFiles = useCallback(
     (files: File[], position?: { x: number; y: number }) => {
@@ -206,6 +211,11 @@ export default function Editor() {
 
   const handleReplaceEnvironmentNodeFile = useCallback(
     async (id: string, file: File) => {
+      const key = `environment:${id}`;
+      const serial = (assetReplacementSerials.current.get(key) ?? 0) + 1;
+      assetReplacementSerials.current.set(key, serial);
+      const epoch = documentEpochRef.current;
+      const previousSource = docRef.current.graph?.environmentNodes?.find((node) => node.id === id)?.environmentSrc;
       setEnvironmentFileError(null);
       if (!isSupportedEnvironmentFile(file)) {
         setEnvironmentFileError('Use an EXR or HDR environment map.');
@@ -217,6 +227,9 @@ export default function Editor() {
       }
       try {
         const asset = await saveEnvironmentFileAsset(file);
+        if (epoch !== documentEpochRef.current || assetReplacementSerials.current.get(key) !== serial) return;
+        if (docRef.current.graph?.environmentNodes?.find((node) => node.id === id)?.environmentSrc !== previousSource)
+          return;
         updateEnvironmentNode(id, {
           environmentSrc: environmentUriFromId(asset.id),
           environmentName: asset.label,
@@ -227,10 +240,15 @@ export default function Editor() {
         setEnvironmentFileError('Could not read environment map.');
       }
     },
-    [updateEnvironmentNode],
+    [docRef, documentEpochRef, updateEnvironmentNode],
   );
   const handleReplaceModelLayerFile = useCallback(
     async (id: string, file: File) => {
+      const key = `model:${id}`;
+      const serial = (assetReplacementSerials.current.get(key) ?? 0) + 1;
+      assetReplacementSerials.current.set(key, serial);
+      const epoch = documentEpochRef.current;
+      const previousSource = docRef.current.layers.find((layer) => layer.id === id && layer.kind === 'model')?.modelSrc;
       setModelFileError(null);
       if (!isSupportedModelFile(file)) {
         setModelFileError('Use a GLB model.');
@@ -242,6 +260,11 @@ export default function Editor() {
       }
       try {
         const asset = await saveModelFileAsset(file);
+        if (epoch !== documentEpochRef.current || assetReplacementSerials.current.get(key) !== serial) return;
+        if (
+          docRef.current.layers.find((layer) => layer.id === id && layer.kind === 'model')?.modelSrc !== previousSource
+        )
+          return;
         updateLayer(id, {
           modelSrc: modelUriFromId(asset.id),
           modelName: asset.label,
@@ -252,7 +275,7 @@ export default function Editor() {
         setModelFileError('Could not read model.');
       }
     },
-    [updateLayer],
+    [docRef, documentEpochRef, updateLayer],
   );
   const {
     effectivePrimitiveViewStates,
@@ -425,202 +448,240 @@ export default function Editor() {
 
   return (
     <div className={`editor-layout editor-layout-${viewMode} flex flex-col w-full h-full`}>
-      <SiteNav
-        ariaLabel="Editor navigation"
-        solid
-        compact
-        compactSlot={<EditorChromeSlot viewMode={viewMode} onViewModeChange={setViewMode} />}
-      />
-      <input
-        ref={fileInputRef}
-        className="sr-only"
-        type="file"
-        accept=".artifact,.artifact.json,application/json,application/vnd.artifact.project+json"
-        onChange={(event) => {
-          const file = event.currentTarget.files?.[0];
-          void handleStageDocumentImport(file);
-          event.currentTarget.value = '';
-        }}
-      />
-      <input
-        ref={imageFileInputRef}
-        className="sr-only"
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={(event) => {
-          const files = Array.from(event.currentTarget.files ?? []);
-          if (files.length > 0) handleDroppedFiles(files);
-          event.currentTarget.value = '';
-        }}
-      />
-      {fromDocParam && !docsBannerDismissed && (
-        <EditorWorkflowNotice
-          className="editor-workflow-notice--docs"
-          action={
-            <IconButton
-              label="Dismiss loaded document notice"
-              icon={<span aria-hidden="true">×</span>}
-              onClick={() => setDocsBannerDismissed(true)}
-            />
-          }
+      {coreState !== 'ready' && (
+        <div
+          role={coreState === 'error' ? 'alert' : 'status'}
+          aria-live={coreState === 'error' ? 'assertive' : 'polite'}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+          style={{ background: 'color-mix(in oklch, var(--surface-app) 75%, transparent)' }}
         >
-          <span>
-            Loaded from <Link to="/docs/nodes">docs</Link> — customize or randomize to make it yours.
-          </span>
-        </EditorWorkflowNotice>
+          <div
+            className="max-w-md rounded-xl border p-6 shadow-xl"
+            style={{
+              background: 'var(--surface-panel)',
+              borderColor: 'var(--line-default)',
+              color: 'var(--text-primary)',
+            }}
+          >
+            <h2 className="text-lg font-semibold">
+              {coreState === 'loading' ? 'Opening editor…' : 'Editor unavailable'}
+            </h2>
+            {coreState === 'error' && (
+              <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                {coreError ?? 'The document could not be opened.'}
+              </p>
+            )}
+            {coreState === 'error' && (
+              <Button className="mt-4" onClick={retryCore}>
+                Try again
+              </Button>
+            )}
+          </div>
+        </div>
       )}
-      <div className={`app app-${viewMode}`}>
-        <main
-          className={`main main-${viewMode}`}
-          onDragEnter={(event) => {
-            if (Array.from(event.dataTransfer.types).includes('Files')) {
-              setDropPreview(inferDropPreviewKind(event.dataTransfer));
-            }
+      <div className="contents" inert={coreState !== 'ready'}>
+        <SiteNav
+          ariaLabel="Editor navigation"
+          solid
+          compact
+          compactSlot={<EditorChromeSlot viewMode={viewMode} onViewModeChange={setViewMode} />}
+        />
+        <input
+          ref={fileInputRef}
+          className="sr-only"
+          type="file"
+          accept=".artifact,.artifact.json,application/json,application/vnd.artifact.project+json"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            void handleStageDocumentImport(file);
+            event.currentTarget.value = '';
           }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDropPreview(inferDropPreviewKind(event.dataTransfer));
+        />
+        <input
+          ref={imageFileInputRef}
+          className="sr-only"
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(event) => {
+            const files = Array.from(event.currentTarget.files ?? []);
+            if (files.length > 0) handleDroppedFiles(files);
+            event.currentTarget.value = '';
           }}
-          onDragLeave={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropPreview(null);
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDropPreview(null);
-            const files = Array.from(event.dataTransfer.files);
-            const documentFile = files.find(isArtifactDocumentFile);
-            if (documentFile) void handleStageDocumentImport(documentFile);
-            const assetFiles = files.filter((file) => !isArtifactDocumentFile(file));
-            if (assetFiles.length > 0) handleDroppedFiles(assetFiles);
-          }}
-        >
-          <h1 className="sr-only">Artifact Cover Editor</h1>
-          <StorageWarningStrip status={storageStatus} storageError={storageError} />
-
-          {viewMode === 'layers' ? (
-            <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
-              <CanvasPreview
-                doc={doc}
-                imageCache={imageCache}
-                selectedLayerId={selectedLayerId}
-                primitiveViewStates={effectivePrimitiveViewStates}
-                dropPreview={dropPreview}
-                onLayerUpdate={updateLayer}
-                onSelectLayer={setSelectedLayerId}
-                onStartEmptyCanvas={() => addLayer('text')}
+        />
+        {fromDocParam && !docsBannerDismissed && (
+          <EditorWorkflowNotice
+            className="editor-workflow-notice--docs"
+            action={
+              <IconButton
+                label="Dismiss loaded document notice"
+                icon={<span aria-hidden="true">×</span>}
+                onClick={() => setDocsBannerDismissed(true)}
               />
-              {doc.layers.length === 0 && (
-                <EmptyCanvasStart
-                  onImportImage={() => imageFileInputRef.current?.click()}
-                  onStartAiImage={handleStartAiImage}
-                  onAddText={() => addLayer('text')}
-                  onAddNoise={() => addLayer('noise')}
-                  onLoadStarter={handleLoadStarter}
-                />
-              )}
-            </ErrorBoundary>
-          ) : (
-            <div className="node-mode-stage">
-              <Suspense fallback={<div style={{ flex: 1, background: 'var(--surface-app)' }} />}>
-                <NodeCanvas
+            }
+          >
+            <span>
+              Loaded from <Link to="/docs/nodes">docs</Link> — customize or randomize to make it yours.
+            </span>
+          </EditorWorkflowNotice>
+        )}
+        <div className={`app app-${viewMode}`}>
+          <main
+            className={`main main-${viewMode}`}
+            onDragEnter={(event) => {
+              if (Array.from(event.dataTransfer.types).includes('Files')) {
+                setDropPreview(inferDropPreviewKind(event.dataTransfer));
+              }
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDropPreview(inferDropPreviewKind(event.dataTransfer));
+            }}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropPreview(null);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDropPreview(null);
+              const files = Array.from(event.dataTransfer.files);
+              const documentFile = files.find(isArtifactDocumentFile);
+              if (documentFile) void handleStageDocumentImport(documentFile);
+              const assetFiles = files.filter((file) => !isArtifactDocumentFile(file));
+              if (assetFiles.length > 0) handleDroppedFiles(assetFiles);
+            }}
+          >
+            <h1 className="sr-only">Artifact Cover Editor</h1>
+            <StorageWarningStrip status={storageStatus} storageError={storageError} />
+
+            {viewMode === 'layers' ? (
+              <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
+                <CanvasPreview
                   doc={doc}
                   imageCache={imageCache}
-                  initialPrimitiveViewStates={effectivePrimitiveViewStates}
-                  onPrimitiveViewStatesChange={handlePrimitiveViewStatesChange}
                   selectedLayerId={selectedLayerId}
+                  primitiveViewStates={effectivePrimitiveViewStates}
+                  dropPreview={dropPreview}
+                  onLayerUpdate={updateLayer}
                   onSelectLayer={setSelectedLayerId}
-                  onGraphChange={handleGraphChange}
-                  onUpdateLayer={updateLayer}
-                  onUpdateMergeNode={updateMergeNode}
-                  onUpdateColorNode={updateColorNode}
-                  onUpdateRepeatNode={updateRepeatNode}
-                  onUpdateMaterialNode={updateMaterialNode}
-                  onUpdateMaskNode={updateMaskNode}
-                  onUpdateTransformNode={updateTransformNode}
-                  onUpdateGrimeShadowNode={updateGrimeShadowNode}
-                  onUpdateScene3DNode={updateScene3DNode}
-                  onUpdateEnvironmentNode={updateEnvironmentNode}
-                  onUpdateShaderNode={updateShaderNode}
-                  onReplaceModelLayerFile={handleReplaceModelLayerFile}
-                  onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
-                  onUpdateExportConfig={handleExportConfigChange}
-                  onUpdateAspectRatio={setAspect}
-                  exportBusy={exportBusy}
-                  onExport={handleNodeExport}
-                  onAddLayerAt={handleAddLayerAt}
-                  onImageFileDrop={(file, position) => void handleDroppedFile(file, position)}
-                  onFilesDrop={handleNodeDroppedFiles}
-                  onFileDragPreviewChange={handleNodeFileDragPreviewChange}
-                  onDeleteNodes={deleteNodeSelection}
-                  onDuplicateLayer={duplicateLayer}
+                  onStartEmptyCanvas={() => addLayer('text')}
                 />
-              </Suspense>
-            </div>
-          )}
-          {viewMode === 'nodes' && <EditorDropPreview dropPreview={dropPreview} />}
+                {doc.layers.length === 0 && (
+                  <EmptyCanvasStart
+                    onImportImage={() => imageFileInputRef.current?.click()}
+                    onStartAiImage={handleStartAiImage}
+                    onAddText={() => addLayer('text')}
+                    onAddNoise={() => addLayer('noise')}
+                    onLoadStarter={handleLoadStarter}
+                  />
+                )}
+              </ErrorBoundary>
+            ) : (
+              <div className="node-mode-stage">
+                <Suspense fallback={<div style={{ flex: 1, background: 'var(--surface-app)' }} />}>
+                  <NodeCanvas
+                    doc={doc}
+                    imageCache={imageCache}
+                    initialPrimitiveViewStates={effectivePrimitiveViewStates}
+                    onPrimitiveViewStatesChange={handlePrimitiveViewStatesChange}
+                    selectedLayerId={selectedLayerId}
+                    onSelectLayer={setSelectedLayerId}
+                    onGraphChange={handleGraphChange}
+                    onUpdateLayer={updateLayer}
+                    onUpdateMergeNode={updateMergeNode}
+                    onUpdateColorNode={updateColorNode}
+                    onUpdateRepeatNode={updateRepeatNode}
+                    onUpdateMaterialNode={updateMaterialNode}
+                    onUpdateMaskNode={updateMaskNode}
+                    onUpdateTransformNode={updateTransformNode}
+                    onUpdateGrimeShadowNode={updateGrimeShadowNode}
+                    onUpdateScene3DNode={updateScene3DNode}
+                    onUpdateEnvironmentNode={updateEnvironmentNode}
+                    onUpdateShaderNode={updateShaderNode}
+                    onReplaceModelLayerFile={handleReplaceModelLayerFile}
+                    onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
+                    onUpdateExportConfig={handleExportConfigChange}
+                    onUpdateAspectRatio={setAspect}
+                    exportBusy={exportBusy}
+                    onExport={handleNodeExport}
+                    onAddLayerAt={handleAddLayerAt}
+                    onImageFileDrop={(file, position) => void handleDroppedFile(file, position)}
+                    onFilesDrop={handleNodeDroppedFiles}
+                    onFileDragPreviewChange={handleNodeFileDragPreviewChange}
+                    onDeleteNodes={deleteNodeSelection}
+                    onDuplicateLayer={duplicateLayer}
+                  />
+                </Suspense>
+              </div>
+            )}
+            {viewMode === 'nodes' && <EditorDropPreview dropPreview={dropPreview} />}
 
-          <DocumentImportConfirm
-            pendingImport={pendingDocumentImport}
-            busy={documentImportBusy}
-            returnFocusTargetRef={documentPickerReturnFocusRef}
-            onCancel={handleCancelDocumentImport}
-            onConfirm={() => {
-              void handleConfirmDroppedDocument();
-            }}
-          />
+            <DocumentImportConfirm
+              pendingImport={pendingDocumentImport}
+              busy={documentImportBusy}
+              returnFocusTargetRef={documentPickerReturnFocusRef}
+              onCancel={handleCancelDocumentImport}
+              onConfirm={() => {
+                void handleConfirmDroppedDocument();
+              }}
+            />
 
-          {(dropError || exportError || documentFileError || modelFileError || environmentFileError) && (
-            <EditorWorkflowNotice className="editor-workflow-notice--error" variant="danger">
-              {dropError ?? exportError ?? documentFileError ?? modelFileError ?? environmentFileError}
-            </EditorWorkflowNotice>
-          )}
-          <BottomBar {...bottomBarProps} />
-        </main>
+            {(dropError || exportError || documentFileError || modelFileError || environmentFileError) && (
+              <EditorWorkflowNotice className="editor-workflow-notice--error" variant="danger">
+                {dropError ?? exportError ?? documentFileError ?? modelFileError ?? environmentFileError}
+              </EditorWorkflowNotice>
+            )}
+            {coreState === 'ready' && coreError && (
+              <EditorWorkflowNotice className="editor-workflow-notice--error" variant="danger">
+                {coreError}
+              </EditorWorkflowNotice>
+            )}
+            <BottomBar {...bottomBarProps} />
+          </main>
 
-        {viewMode === 'layers' && (
-          <Sidebar
-            doc={doc}
-            onDocChange={setDoc}
-            selectedLayerId={selectedLayerId}
-            onSelectLayer={setSelectedLayerId}
-            onAddLayer={addLayer}
-            onAddEffectPreset={addEffectPreset}
-            onAddTextPreset={addTextPreset}
-            onAddNoisePreset={addNoisePreset}
-            onAddArrayPreset={addArrayPreset}
-            onAddScene3D={() => handleAddLayerAt({ kind: 'scene3d' }, { x: 360, y: 180 })}
-            onStartAiImage={handleStartAiImage}
-            onRemoveLayer={removeLayer}
-            onReorderLayers={reorderLayers}
-            onDuplicateLayer={duplicateLayer}
-            showAiGeneration={showAiGeneration}
-            onGeneratedImageSource={handleGeneratedImageSource}
-            mobileActionBar={<BottomBar {...bottomBarProps} />}
-          />
-        )}
-
-        <AnimatePresence>
-          {showProjects && (
-            <ProjectsPanel
-              projects={projects}
-              activeProject={activeProject}
-              recoveryDraft={recoveryDraft}
-              storageStatus={storageStatus}
-              storageError={storageError}
-              projectSyncStates={projectSyncStates}
-              maxProjects={maxProjects}
-              onSaveCopy={saveCurrentProject}
-              onSaveActive={saveActiveProject}
-              onLoad={handleLoadProject}
-              onDelete={deleteProject}
-              onSaveToCloud={saveProjectToCloud}
-              onDeleteRecoveryDraft={deleteRecoveryDraft}
-              onNewBlank={handleNewBlankRequest}
-              onClose={closeProjects}
+          {viewMode === 'layers' && (
+            <Sidebar
+              doc={doc}
+              onDocChange={setDoc}
+              selectedLayerId={selectedLayerId}
+              onSelectLayer={setSelectedLayerId}
+              onAddLayer={addLayer}
+              onAddEffectPreset={addEffectPreset}
+              onAddTextPreset={addTextPreset}
+              onAddNoisePreset={addNoisePreset}
+              onAddArrayPreset={addArrayPreset}
+              onAddScene3D={() => handleAddLayerAt({ kind: 'scene3d' }, { x: 360, y: 180 })}
+              onStartAiImage={handleStartAiImage}
+              onRemoveLayer={removeLayer}
+              onReorderLayers={reorderLayers}
+              onDuplicateLayer={duplicateLayer}
+              showAiGeneration={showAiGeneration}
+              onGeneratedImageSource={handleGeneratedImageSource}
+              mobileActionBar={<BottomBar {...bottomBarProps} />}
             />
           )}
-        </AnimatePresence>
+
+          <AnimatePresence>
+            {showProjects && (
+              <ProjectsPanel
+                projects={projects}
+                activeProject={activeProject}
+                recoveryDraft={recoveryDraft}
+                storageStatus={storageStatus}
+                storageError={storageError}
+                projectSyncStates={projectSyncStates}
+                maxProjects={maxProjects}
+                onSaveCopy={saveCurrentProject}
+                onSaveActive={saveActiveProject}
+                onLoad={handleLoadProject}
+                onDelete={deleteProject}
+                onSaveToCloud={saveProjectToCloud}
+                onDeleteRecoveryDraft={deleteRecoveryDraft}
+                onNewBlank={handleNewBlankRequest}
+                onClose={closeProjects}
+              />
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

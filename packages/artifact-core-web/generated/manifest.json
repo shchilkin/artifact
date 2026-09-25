@@ -3,12 +3,12 @@
     "Cargo.lock": "730ab039c28d64203aac9322c11260b0fc8f5ce677a5334462dfe57af78496f7",
     "Cargo.toml": "d9786a5cf7ffa340158f73c46bd865227ad887c7f8087a119aac8e9bb554c729",
     "crates/artifact-core/Cargo.toml": "0e83c574b9a4ad4e1ed2ce69aa52183f9d9d6af40ad04cf7ea9e9e0528471d82",
-    "crates/artifact-core/src/command.rs": "0902752d04ec60b18cd2e28cd8720ec9a5aa73d8c40f3f4e899a78d134a4ed6d",
+    "crates/artifact-core/src/command.rs": "63d33ec34cb597731b84fb427c87f8498cd3bbf5283e505b4b3474dcf67db2ae",
     "crates/artifact-core/src/editor.rs": "b2094fb3690417d18c4c00d1fcbfc2f6e756e82f195c947e3bd80ffc653a49cd",
     "crates/artifact-core/src/graph.rs": "c469d9fc87418a4ee0eec6e8f532b89901ac42d4197db62a34a9b6c244b6df81",
     "crates/artifact-core/src/image.rs": "8850d7053fee00f9932bd58117130a335c9b217ca7710ea7762e8bbc40ae34c2",
-    "crates/artifact-core/src/lib.rs": "42ffa24325fbef4e16ccac7bb3490995313fc4f134db950faff6dd788f12cbbc",
-    "crates/artifact-core/src/properties.rs": "438480731760ac52319c84cd78144e4b6134e4d0bfd37fd7b888f39c05a42a62",
+    "crates/artifact-core/src/lib.rs": "60c23db5c7d0edf6831b115a50efd893d002ec428064312018335c6feee32bed",
+    "crates/artifact-core/src/properties.rs": "f0b5a962a295dd0034144e592c28eb4f6e0b43f7f622ffbe428c6642448f1b4e",
     "crates/artifact-core/src/render.rs": "63277c71f76dd5ef5c9193436fe0d809ca6105c2ba3b87596016fbcf1512e3b9",
     "crates/artifact-core/src/structure_bridge.rs": "a8a2a7464d7ff6ff54299e13c81bb02ee43dc506d390a1b47d52c0e3a7f3b5c7",
     "crates/artifact-wasm/Cargo.toml": "92f7df3d342b154809f0dc97a32ab2f1f82758ffaff9cbabb66601a3e5360ab6",
@@ -21,7 +21,7 @@
   "runtime": {
     "artifact_wasm.d.ts": "a31ccfc3b7ee3b0887d6c72123b692ee27daff20845508ff2fcd4e770ae77a4d",
     "artifact_wasm.js": "8fb94b8171b91b1de7458fdd2ec3e377e95c86c9296029a6929a8b1a876c382c",
-    "artifact_wasm_bg.wasm": "30d012e68d5c8384b7d1b0350f6ec311f5b3ac063bc86d7a6b3d7a4dad356c3f",
+    "artifact_wasm_bg.wasm": "1ec9c47588de9c0935d122860458548b197517b206e35af9b2b07783ab482a3d",
     "artifact_wasm_bg.wasm.d.ts": "2dcc1f85d8ca681e365abf6e72835a5d79c427b28053b139fda421f5e112f606"
   }
 }

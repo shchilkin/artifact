@@ -172,21 +172,20 @@ export async function storePortableDocumentAssets(
   try {
     storedDoc = await storeDocumentFontAssets(storedDoc, options);
   } catch {
-    // Font payloads are portable import data only; keep the font ref and let
-    // the renderer/UI fall back when the local font cannot be stored.
-    storedDoc = stripDocumentFontAssets(storedDoc);
+    // Keep the portable bytes in the canonical document if IndexedDB fails.
+    // Dropping them here would make a later Save/Undo unable to recover them.
   }
   try {
     storedDoc = await storePortableModelAssets(storedDoc, options);
     storedDoc = await storeDocumentModelAssets(storedDoc, options);
   } catch {
-    storedDoc = stripDocumentModelAssets(storedDoc);
+    // Preserve the original payload and sources for a later retry or export.
   }
   try {
     storedDoc = await storePortableEnvironmentAssets(storedDoc, options);
     return await storeDocumentEnvironmentAssets(storedDoc, options);
   } catch {
-    return stripDocumentEnvironmentAssets(storedDoc);
+    return storedDoc;
   }
 }
 
