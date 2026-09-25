@@ -4,6 +4,17 @@ Artifact versions are scoped around one product promise or one technical risk.
 Do not use a version as a bucket for unrelated improvements that happened during
 the same week.
 
+## Component boundary
+
+Plan core, Web and macOS separately under
+`docs/version-plans/<component>/vX.Y.md`. Name the release thesis, accepted
+scope, shared compatibility checks and the selected client gate. Mark a
+completed candidate `Status: release-ready` and a published version
+`Status: released`. Historical unqualified plans remain historical Web plans;
+link their approved scope when preparing a future component plan.
+See [component-releases.md](./component-releases.md). A schema change needs its
+own compatibility decision; a component version bump does not imply one.
+
 ## Version Split Criteria
 
 Every planned version should have one release thesis: a short sentence that

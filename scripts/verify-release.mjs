@@ -1,153 +1,93 @@
 #!/usr/bin/env node
+import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
+import { readText, releasePlan, verifyVersions } from './release/components.mjs';
 
-const ROOT = process.cwd();
-
-const options = new Set();
-const values = new Map();
-
-for (let index = 2; index < process.argv.length; index += 1) {
-  const arg = process.argv[index];
-  if (!arg.startsWith('--')) {
-    throw new Error(`Unknown argument: ${arg}`);
+export function verifyRelease(
+  root,
+  { component, version, action = 'verify', skipTagCheck = false },
+  git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim(),
+) {
+  assert.ok(!skipTagCheck || action === 'verify', 'Tag checks may only be skipped for verification');
+  const versions = verifyVersions(root);
+  const plan = releasePlan(component, version ?? versions[component], action);
+  assert.equal(plan.version, versions[component], `${component} metadata does not match requested release`);
+  const notes = readText(root, plan.notes);
+  for (const heading of [
+    `# ${plan.tag} Release Notes`,
+    '## Highlights',
+    '## Scope Boundaries',
+    '## Compatibility',
+    '## Validation',
+    '## Manual QA',
+    '## Accepted Risks',
+  ]) {
+    assert.ok(notes.includes(heading), `${plan.notes} is missing ${heading}`);
+    const section = notes.split(heading)[1]?.split(/\n## /)[0].trim();
+    assert.ok(section, `${heading} must be filled`);
   }
+  assert.ok(
+    !/\[(?:TODO|TBD|release name|YYYY-MM-DD|scope item|describe\b|record\b|Manual check|Known risk|N\] passed)[^\]\n]*\]/i.test(
+      notes,
+    ),
+    'Release notes contain template placeholders',
+  );
+  assert.ok(
+    !/Internal release checklist|Internal maintenance notes|^- \[[ xX]\]/im.test(notes),
+    'Release notes contain internal checklist',
+  );
+  const versionPlan = readText(root, plan.versionPlan);
+  assert.ok(!/- \[ \]/.test(versionPlan), `${plan.versionPlan} has incomplete acceptance criteria`);
+  assert.match(
+    versionPlan,
+    /^Status: (?:release-ready|released)\.?$/m,
+    'Version plan must be release-ready or released',
+  );
+  assert.ok(
+    readText(root, 'docs/production-readiness.md').includes(`### ${plan.tag} Release Prep`),
+    'Missing component release prep entry',
+  );
+  assert.ok(readText(root, 'docs/roadmap.md').includes(plan.tag), 'Missing component roadmap status');
+  if (!skipTagCheck) {
+    let taggedSha;
+    try {
+      taggedSha = git(['rev-parse', '--verify', `refs/tags/${plan.tag}^{commit}`]);
+    } catch {
+      /* absent tag */
+    }
+    if (plan.requiresTag) {
+      assert.ok(taggedSha, `Expected release tag ${plan.tag} to exist`);
+      assert.equal(taggedSha, git(['rev-parse', 'HEAD']), 'Release tag must resolve to the exact checked commit');
+    } else {
+      assert.ok(!taggedSha, `Release tag ${plan.tag} already exists`);
+    }
+  }
+  return plan;
+}
 
-  const next = process.argv[index + 1];
-  if (next && !next.startsWith('--')) {
-    values.set(arg, next);
-    index += 1;
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const { values } = parseArgs({
+    options: {
+      component: { type: 'string' },
+      version: { type: 'string' },
+      action: { type: 'string', default: 'verify' },
+      'metadata-only': { type: 'boolean' },
+      'skip-tag-check': { type: 'boolean' },
+    },
+  });
+  if (values['metadata-only'] || !values.component) {
+    assert.ok(!values.version && values.action === 'verify', '--component is required for a release action/version');
+    console.log(JSON.stringify({ metadata: verifyVersions(process.cwd()) }, null, 2));
   } else {
-    options.add(arg);
+    assert.ok(
+      !values['skip-tag-check'] || values.action === 'verify',
+      'Tag checks may only be skipped for verification',
+    );
+    console.log(
+      JSON.stringify(verifyRelease(process.cwd(), { ...values, skipTagCheck: values['skip-tag-check'] }), null, 2),
+    );
   }
 }
-
-const readJson = (filePath) => {
-  return JSON.parse(readFileSync(path.join(ROOT, filePath), 'utf8'));
-};
-
-const readText = (filePath) => {
-  return readFileSync(path.join(ROOT, filePath), 'utf8');
-};
-
-const fail = (message) => {
-  throw new Error(message);
-};
-
-const gitTagExists = (tag) => {
-  try {
-    execFileSync('git', ['rev-parse', '--verify', '--quiet', `refs/tags/${tag}`], {
-      stdio: 'ignore',
-    });
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-const rootPackage = readJson('package.json');
-const webPackage = readJson('apps/web/package.json');
-const packageLock = readJson('package-lock.json');
-const version = values.get('--version') ?? rootPackage.version;
-
-if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
-  fail(`Release version must look like X.Y.Z. Received: ${version}`);
-}
-
-const majorMinor = version.split('.').slice(0, 2).join('.');
-const tag = `v${version}`;
-const releaseNotesPath = `docs/releases/${tag}.md`;
-const versionPlanPath = `docs/version-plans/v${majorMinor}.md`;
-
-const packageVersions = [
-  ['package.json', rootPackage.version],
-  ['apps/web/package.json', webPackage.version],
-  ['package-lock.json root package', packageLock.packages?.['']?.version],
-  ['package-lock.json apps/web package', packageLock.packages?.['apps/web']?.version],
-];
-
-for (const [label, packageVersion] of packageVersions) {
-  if (packageVersion !== version) {
-    fail(`${label} is ${packageVersion ?? 'missing'}, expected ${version}`);
-  }
-}
-
-if (!existsSync(path.join(ROOT, releaseNotesPath))) {
-  fail(`Missing release notes: ${releaseNotesPath}`);
-}
-
-if (!existsSync(path.join(ROOT, versionPlanPath))) {
-  fail(`Missing active version plan: ${versionPlanPath}`);
-}
-
-const releaseNotes = readText(releaseNotesPath);
-const versionPlan = readText(versionPlanPath);
-const productionReadiness = readText('docs/production-readiness.md');
-const roadmap = readText('docs/roadmap.md');
-
-const requiredReleaseSections = [
-  `# ${tag} Release Notes`,
-  '## Highlights',
-  '## Scope Boundaries',
-  '## Validation',
-  '## Manual QA',
-  '## Accepted Risks',
-];
-
-for (const section of requiredReleaseSections) {
-  if (!releaseNotes.includes(section)) {
-    fail(`${releaseNotesPath} is missing required section: ${section}`);
-  }
-}
-
-const templatePlaceholders = [
-  '[release name]',
-  '[One or two sentences',
-  '[state the main boundary',
-  '[User-visible',
-  '[scope item]',
-  '[explicitly deferred item]',
-  '[YYYY-MM-DD]',
-  '[N] passed',
-  '[Manual check',
-  '[Known risk',
-];
-
-for (const placeholder of templatePlaceholders) {
-  if (releaseNotes.includes(placeholder)) {
-    fail(`${releaseNotesPath} still contains template placeholder: ${placeholder}`);
-  }
-}
-
-const forbiddenReleaseNotesPatterns = [/Internal release checklist/i, /Internal maintenance notes/i, /^- \[[ xX]\]/m];
-
-for (const pattern of forbiddenReleaseNotesPatterns) {
-  if (pattern.test(releaseNotes)) {
-    fail(`${releaseNotesPath} contains internal checklist or maintenance notes`);
-  }
-}
-
-if (versionPlan.includes('- [ ]')) {
-  fail(`${versionPlanPath} still has unchecked release-plan items`);
-}
-
-if (!productionReadiness.includes(`### ${tag} Release Prep`)) {
-  fail(`docs/production-readiness.md is missing release prep entry for ${tag}`);
-}
-
-if (!roadmap.includes(`v${majorMinor}`)) {
-  fail(`docs/roadmap.md does not mention v${majorMinor}`);
-}
-
-if (!options.has('--skip-tag-check')) {
-  const tagExists = gitTagExists(tag);
-  if (options.has('--require-existing-tag') && !tagExists) {
-    fail(`Expected release tag ${tag} to exist`);
-  }
-  if (!options.has('--require-existing-tag') && !options.has('--allow-existing-tag') && tagExists) {
-    fail(`Release tag ${tag} already exists`);
-  }
-}
-
-console.log(`Release metadata verified for ${tag}`);

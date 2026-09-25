@@ -177,7 +177,7 @@ if (stages.macos) {
 <key>CFBundleName</key><string>Artifact</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>${identity.version}</string>
-<key>CFBundleVersion</key><string>${identity.version}</string>
+<key>CFBundleVersion</key><string>${identity.buildNumber}</string>
 <key>ArtifactBuildSHA</key><string>${identity.sha}</string>
 <key>ArtifactBuildDirty</key><${identity.dirty ? 'true' : 'false'}/>
 <key>LSMinimumSystemVersion</key><string>14.0</string>

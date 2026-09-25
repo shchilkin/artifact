@@ -1,46 +1,32 @@
-import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { reactRouter } from '@react-router/dev/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-plugin-tsconfig-paths';
+import { buildIdentity } from '../../scripts/core-pilot/build-identity.mjs';
 
-function readGitValue(command: string, fallback: string) {
-  try {
-    return execSync(command, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function readPackageVersion() {
-  try {
-    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
-      version?: unknown;
-    };
-    return typeof pkg.version === 'string' && pkg.version.trim() ? pkg.version.trim() : null;
-  } catch {
-    return null;
-  }
-}
-
-const appVersion =
-  process.env.VITE_APP_VERSION ??
-  readPackageVersion() ??
-  readGitValue('git describe --tags --always --dirty', 'local-development');
-const appCommit =
-  process.env.VITE_APP_COMMIT ??
-  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ??
-  process.env.GITHUB_SHA?.slice(0, 12) ??
-  readGitValue('git rev-parse --short=12 HEAD', 'unknown');
+const identity = buildIdentity('web');
 
 export default defineConfig({
   envDir: '../..',
-  plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  plugins: [
+    tailwindcss(),
+    reactRouter(),
+    tsconfigPaths(),
+    {
+      name: 'artifact-build-identity',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'build-identity.json',
+          source: JSON.stringify(identity, null, 2) + '\n',
+        });
+      },
+    },
+  ],
   define: {
-    __ARTIFACT_APP_VERSION__: JSON.stringify(appVersion),
-    __ARTIFACT_COMMIT_HASH__: JSON.stringify(appCommit),
+    __ARTIFACT_APP_VERSION__: JSON.stringify(identity.version),
+    __ARTIFACT_COMMIT_HASH__: JSON.stringify(identity.sha),
   },
   resolve: {
     alias: {
