@@ -160,6 +160,11 @@ metadata). Existing layer/global/export/graph/order details remain in the
 same result. No new FFI method is needed: send these commands through the
 existing `update_transaction_json` method on WebSession or NativeSession.
 
+The shared transaction validator accepts the Web image `fit: "tile"` choice
+and does not impose an extra length cap on text content or layer names. Normal
+command envelopes remain limited to 1 MiB, and the complete package to 64 MiB.
+The separate legacy `set_text` entry point retains its older patch limit.
+
 ## Verification and evidence limits
 
 Run `cargo test -p artifact-core` and `npm run check:core-native` after
