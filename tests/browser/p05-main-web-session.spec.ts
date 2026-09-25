@@ -81,7 +81,12 @@ test('main Web shared owner edits, undoes, reopens a font package and exports bo
   await png.saveAs(pngPath);
 
   await switchToNodeView(page);
-  await page.locator('.node-shell-kind-export').click();
+  const closeProperties = page.getByRole('button', { name: 'Close properties', exact: true });
+  if (await closeProperties.isVisible()) await closeProperties.click();
+  await page.getByRole('button', { name: 'Jump to output node', exact: true }).click();
+  const outputNode = page.locator('.node-shell-kind-export');
+  await outputNode.locator('.node-shell-header').click();
+  await expect(outputNode).toHaveClass(/node-shell-selected/);
   await page.getByRole('combobox', { name: 'Format' }).selectOption('jpeg');
   await expect
     .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('doc') ?? '{}').export?.format))
