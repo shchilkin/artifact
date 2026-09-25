@@ -84,7 +84,7 @@ final class PilotRenderer {
     private func middleBaseline(_ font: CTFont) -> Double {
         // CoreText ascent includes headroom outside the visible Latin letter box.
         // Center the cap-height/descent box for Canvas textBaseline=middle.
-        (CTFontGetCapHeight(font) - CTFontGetDescent(font)) / 2
+        LayerGeometry.middleBaseline(font)
     }
     private func drawText(_ text: String, font: CTFont, color: CGColor, align: String, maxWidth: Double, latinBaseline: Bool = true) {
         let l = line(text, font: font, color: color)
@@ -113,25 +113,18 @@ final class PilotRenderer {
             throw RenderFailure(message: "Embedded font is missing required glyphs")
         }
         let fill = try color(layer["color"] as? String ?? "#000000")
-        let maxWidth = Double(width) * 0.92
-        var lines: [String] = []
-        for paragraph in text.components(separatedBy: "\n") {
-            var current = ""
-            for word in paragraph.split(whereSeparator: { $0.isWhitespace }) {
-                let candidate = current.isEmpty ? String(word) : current + " " + word
-                if !current.isEmpty && CTLineGetTypographicBounds(line(candidate, font: font, color: fill), nil, nil, nil) > maxWidth {
-                    lines.append(current); current = String(word)
-                } else { current = candidate }
-            }
-            lines.append(current)
-        }
+        let lines = LayerGeometry.textLines(text, font: font, color: fill,
+            align: layer["align"] as? String ?? "center", width: width)
         context.translateBy(x: n(layer,"x") * Double(width), y: n(layer,"y") * Double(height))
         context.rotate(by: n(layer,"rotation") * .pi / 180)
         context.scaleBy(x: n(layer,"scaleX",1), y: n(layer,"scaleY",1))
-        for (index, text) in lines.enumerated() {
+        for item in lines {
             context.saveGState()
-            context.translateBy(x: 0, y: (Double(index) - Double(lines.count - 1) / 2) * CTFontGetSize(font) * 1.25)
-            drawText(text, font: font, color: fill, align: layer["align"] as? String ?? "center", maxWidth: maxWidth)
+            context.translateBy(x: 0, y: item.origin.y)
+            context.scaleBy(x: item.horizontalScale, y: -1)
+            context.textMatrix = .identity
+            context.textPosition = CGPoint(x: item.origin.x, y: -LayerGeometry.middleBaseline(font))
+            CTLineDraw(item.line, context)
             context.restoreGState()
         }
     }
@@ -154,12 +147,11 @@ final class PilotRenderer {
             context.restoreGState()
             return
         }
-        let a = Double(width) / Double(image.width), b = Double(height) / Double(image.height)
-        let scale = fit == "cover" ? max(a,b) : (fit == "contain" ? min(a,b) : Double(width) / 540)
-        let w = Double(image.width) * scale * n(layer,"scaleX",1), h = Double(image.height) * scale * n(layer,"scaleY",1)
+        let rect = LayerGeometry.imageBounds(image, layer: layer, width: width, height: height)
         context.translateBy(x: n(layer,"x") * Double(width), y: n(layer,"y") * Double(height))
-        context.rotate(by: n(layer,"rotation") * .pi / 180); context.scaleBy(x: 1, y: -1)
-        context.draw(image, in: CGRect(x: -w/2, y: -h/2, width: w, height: h))
+        context.rotate(by: n(layer,"rotation") * .pi / 180)
+        context.scaleBy(x: n(layer,"scaleX",1), y: -n(layer,"scaleY",1))
+        context.draw(image, in: rect)
     }
     func paintEmoji(_ layer: [String: Any]) throws {
         for item in layer["renderItems"] as? [[String: Any]] ?? [] {

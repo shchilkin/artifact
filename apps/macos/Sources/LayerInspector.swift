@@ -11,9 +11,10 @@ struct LayerInspector: View {
     @State private var importError: String?
     @State private var importTask: Task<Void, Never>?
     @State private var pendingFontURL: URL?
+    @FocusState private var focusedKey: String?
 
     private var originals: [String: String] {
-        let current = model.editor.layers.first { $0.id == layer.id } ?? layer
+        let current = model.inspectorOriginal(layer.id) ?? layer
         var result = ["name": current.name]
         for key in stringKeys { result[key] = current.string(key, key == "align" ? "center" : key == "fit" ? "contain" : "#ffffff") }
         if current.kind == "emoji" { result["emojis"] = (current.raw["emojis"] as? [String] ?? []).joined(separator: " ") }
@@ -55,10 +56,16 @@ struct LayerInspector: View {
     private func valid(_ values: [String: String]) -> Bool {
         !values.isEmpty && !(values["name"] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
             && numberFields.allSatisfy { field in Double(values[field.key] ?? "").map { $0.isFinite && field.range.contains($0) } ?? false }
+            && (values["color"].map { $0.range(of: "^#[0-9a-fA-F]{6}$", options: .regularExpression) != nil } ?? true)
+            && (values["align"].map { ["left", "center", "right"].contains($0) } ?? true)
+            && (values["fit"].map { ["contain", "cover", "free", "tile"].contains($0) } ?? true)
     }
-    private func stage() { model.stageInspector(layer.id, values: draft, patch: patch(for: draft), valid: valid(draft)) }
+    private func stage(commitWhenUnfocused key: String? = nil) {
+        model.stageInspector(layer.id, values: draft, patch: patch(for: draft), valid: valid(draft))
+        if let key, focusedKey != key, valid(draft) { _ = model.applyInspector(layer.id) }
+    }
     private func binding(_ key: String) -> Binding<String> {
-        Binding(get: { draft[key] ?? originals[key] ?? "" }, set: { draft[key] = $0; stage() })
+        Binding(get: { draft[key] ?? originals[key] ?? "" }, set: { draft[key] = $0; stage(commitWhenUnfocused: key) })
     }
     private var colorBinding: Binding<Color> {
         Binding(get: {
@@ -67,7 +74,7 @@ struct LayerInspector: View {
         }, set: { color in
             guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return }
             draft["color"] = String(format: "#%02x%02x%02x", Int((rgb.redComponent * 255).rounded()), Int((rgb.greenComponent * 255).rounded()), Int((rgb.blueComponent * 255).rounded()))
-            stage()
+            stage(commitWhenUnfocused: "color")
         })
     }
     private func chooseImage() {
@@ -96,14 +103,14 @@ struct LayerInspector: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 HStack { Image(systemName: layer.symbol).foregroundStyle(layer.tint); Text(layer.kind.capitalized).font(.headline); Spacer() }
-                TextField("Layer name", text: binding("name")).textFieldStyle(.roundedBorder)
+                TextField("Layer name", text: binding("name")).textFieldStyle(.roundedBorder).focused($focusedKey, equals: "name")
                 HStack {
                     Toggle("Visible", isOn: Binding(get: { layer.visible }, set: { model.editProperties(["visible": $0]) }))
                     Toggle("Locked", isOn: Binding(get: { layer.locked }, set: { model.editProperties(["locked": $0]) }))
                 }.toggleStyle(.checkbox)
                 Divider()
                 if layer.kind == "text" {
-                    TextField("Text", text: binding("content"), axis: .vertical).lineLimit(3...6).textFieldStyle(.roundedBorder)
+                    TextField("Text", text: binding("content"), axis: .vertical).lineLimit(3...6).textFieldStyle(.roundedBorder).focused($focusedKey, equals: "content")
                     Picker("Font", selection: binding("font")) {
                         Text("Courier New").tag("MONO")
                         ForEach(model.editor.fonts, id: \.id) { font in Text(font.name).tag(font.id) }
@@ -116,7 +123,7 @@ struct LayerInspector: View {
                 if layer.kind == "text" || layer.kind == "fill" {
                     HStack {
                         ColorPicker("Color", selection: colorBinding, supportsOpacity: false)
-                        TextField("Hex color", text: binding("color")).textFieldStyle(.roundedBorder).frame(width: 100)
+                        TextField("Hex color", text: binding("color")).textFieldStyle(.roundedBorder).frame(width: 100).focused($focusedKey, equals: "color")
                     }
                 }
                 if layer.kind == "image" {
@@ -126,25 +133,29 @@ struct LayerInspector: View {
                         Text(replacementName).font(.caption).lineLimit(2)
                         Button("Cancel replacement") { replacement = nil; stage() }
                     }
-                    Picker("Fit", selection: binding("fit")) { Text("Contain").tag("contain");Text("Cover").tag("cover");Text("Free").tag("free") }
+                    Picker("Fit", selection: binding("fit")) {
+                        Text("Contain").tag("contain"); Text("Cover").tag("cover")
+                        Text("Free").tag("free"); Text("Tile").tag("tile")
+                    }
                 }
-                if layer.kind == "emoji" { TextField("Emojis separated by spaces", text: binding("emojis"), axis: .vertical).lineLimit(2...4).textFieldStyle(.roundedBorder) }
+                if layer.kind == "emoji" { TextField("Emojis separated by spaces", text: binding("emojis"), axis: .vertical).lineLimit(2...4).textFieldStyle(.roundedBorder).focused($focusedKey, equals: "emojis") }
                 ForEach(numberFields, id: \.key) { field in
                     HStack {
                         Text(field.label).foregroundStyle(.secondary)
                         Spacer(minLength: 8)
                         TextField(field.label, text: binding(field.key)).multilineTextAlignment(.trailing)
                             .textFieldStyle(.roundedBorder).frame(width: 88)
+                            .focused($focusedKey, equals: field.key)
                             .accessibilityIdentifier("property-" + field.key)
                     }
                 }
-                if model.inspectorDrafts[layer.id] != nil { Text("Unapplied changes").font(.caption).foregroundStyle(.secondary) }
+                if model.inspectorDrafts[layer.id] != nil { Text(valid(draft) ? "Editing live" : "Check this value").font(.caption).foregroundStyle(.secondary) }
                 HStack {
-                    Button("Apply changes") {
+                    Button("Finish edit") {
                         if model.applyInspector(layer.id) { replacement = nil; draft = originals }
-                    }.buttonStyle(.borderedProminent).disabled(!valid(draft) || model.inspectorDrafts[layer.id] == nil || importing)
+                    }.disabled(!valid(draft) || model.inspectorDrafts[layer.id] == nil || importing)
                         .keyboardShortcut(.return, modifiers: .command)
-                    Button("Discard") { model.discardInspector(layer.id); replacement = nil; draft = originals }
+                    Button("Cancel edit") { model.discardInspector(layer.id); replacement = nil; draft = originals }
                         .disabled(model.inspectorDrafts[layer.id] == nil)
                 }
                 if let importError { Text(importError).foregroundStyle(.red).font(.caption) }
@@ -153,6 +164,15 @@ struct LayerInspector: View {
         .onAppear {
             draft = model.inspectorDrafts[layer.id]?.values ?? originals
             replacement = model.inspectorDrafts[layer.id]?.patch["src"] as? String
+            if model.renameRequestID == layer.id {
+                Task { @MainActor in focusedKey = "name"; model.renameRequestID = nil }
+            }
+        }
+        .onChange(of: model.renameRequestID) { _, request in
+            if request == layer.id {
+                focusedKey = "name"
+                model.renameRequestID = nil
+            }
         }
         .onChange(of: model.documentRevision) { _, _ in
             if model.inspectorDrafts[layer.id] == nil { draft = originals; replacement = nil }
@@ -160,7 +180,15 @@ struct LayerInspector: View {
         .onChange(of: model.inspectorDrafts[layer.id] == nil) { _, empty in
             if empty { draft = originals; replacement = nil }
         }
-        .onDisappear { importTask?.cancel() }
+        .onChange(of: focusedKey) { old, new in
+            model.isTextEditing = new != nil
+            if old != nil && old != new && valid(draft) { _ = model.applyInspector(layer.id) }
+        }
+        .onDisappear {
+            model.isTextEditing = false
+            importTask?.cancel()
+            if valid(draft) { _ = model.applyInspector(layer.id) }
+        }
         .confirmationDialog("Embed this font in the project?", isPresented: Binding(
             get: { pendingFontURL != nil }, set: { if !$0 { pendingFontURL = nil } }
         )) {

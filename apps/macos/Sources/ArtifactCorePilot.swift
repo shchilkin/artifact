@@ -48,16 +48,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 Button("Export JPEG…",action:model.exportJPEG).disabled(model.summary==nil||model.isExporting)
             }
             CommandGroup(replacing:.undoRedo) {
-                Button("Undo",action:model.undo).keyboardShortcut("z").disabled(model.summary?.canUndo != true)
-                Button("Redo",action:model.redo).keyboardShortcut("z",modifiers:[.command,.shift]).disabled(model.summary?.canRedo != true)
+                Button("Undo") {
+                    if model.isTextEditing { NSApp.sendAction(Selector(("undo:")), to: nil, from: nil) }
+                    else { model.undo() }
+                }.keyboardShortcut("z").disabled(!model.isTextEditing && model.summary?.canUndo != true)
+                Button("Redo") {
+                    if model.isTextEditing { NSApp.sendAction(Selector(("redo:")), to: nil, from: nil) }
+                    else { model.redo() }
+                }.keyboardShortcut("z",modifiers:[.command,.shift]).disabled(!model.isTextEditing && model.summary?.canRedo != true)
             }
             CommandMenu("Layer") {
                 Button("Add Text"){model.addLayer("text")}.keyboardShortcut("t",modifiers:[.command,.shift]).disabled(model.summary==nil)
                 Button("Import Image…",action:model.importLayer).keyboardShortcut("i",modifiers:[.command,.shift]).disabled(model.summary==nil)
-                Button("Paste Image",action:model.pasteImage).keyboardShortcut("v").disabled(model.summary==nil)
+                Button("Paste Image",action:model.pasteImage).disabled(model.summary==nil)
                 Divider()
-                Button("Duplicate",action:model.duplicate).keyboardShortcut("d").disabled(model.selectedID==nil)
-                Button("Delete Layer",action:model.deleteSelected).keyboardShortcut(.delete,modifiers:.command).disabled(model.selectedID==nil||model.selectedLayer?.locked==true)
+                Button("Duplicate",action:model.duplicateSelection).keyboardShortcut("d").disabled(model.selectedIDs.isEmpty || model.isTextEditing)
+                Button("Delete Layers",action:model.deleteSelection).keyboardShortcut(.delete,modifiers:.command)
+                    .disabled(model.isTextEditing || model.selectedIDs.isEmpty || model.editor.layers.contains { model.selectedIDs.contains($0.id) && $0.locked })
+                Divider()
+                Button("Move Up") { model.moveSelection(1) }.keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                    .disabled(model.isTextEditing || !model.editor.canReorder || model.selectedIDs.isEmpty)
+                Button("Move Down") { model.moveSelection(-1) }.keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                    .disabled(model.isTextEditing || !model.editor.canReorder || model.selectedIDs.isEmpty)
+                Button("Create Area", action: model.createArea).disabled(model.selectedIDs.isEmpty || model.isTextEditing)
             }
         }
     }
@@ -69,7 +82,7 @@ struct EditorWorkspace: View {
         VStack(spacing:0) {
             if model.summary != nil {
                 HSplitView {
-                    layerPanel.frame(minWidth:210,idealWidth:240,maxWidth:260)
+                    LayersPanel(model:model).frame(minWidth:210,idealWidth:240,maxWidth:260)
                     VStack(spacing:0) {
                         if mode=="Nodes" {NodeWorkspace(model:model)} else {ArtworkCanvas(model:model)}
                         if let error=model.renderMessage {notice(error)}
@@ -77,7 +90,9 @@ struct EditorWorkspace: View {
                     VStack(spacing:0) {
                         HStack{Text("Properties").font(.headline);Spacer()}.padding(18)
                         Divider()
-                        if let layer=model.selectedLayer {
+                        if model.selectedIDs.count > 1 {
+                            MultiSelectionInspector(model:model)
+                        } else if let layer=model.selectedLayer {
                             LayerInspector(model:model,layer:layer).id(layer.id)
                         } else {
                             Text("Select a layer or node to edit its properties.").foregroundStyle(.secondary).padding(24)
@@ -128,53 +143,6 @@ struct EditorWorkspace: View {
                 if let data { Task { @MainActor in model.importImage(data: data) } }
             }
             return true
-        }
-    }
-    private var layerPanel:some View {
-        VStack(spacing:0) {
-            HStack {
-                Text("Layers").font(.headline)
-                Text("\(model.editor.layers.count)").foregroundStyle(.secondary).monospacedDigit()
-                Spacer()
-                Menu {
-                    Button("Text"){model.addLayer("text")}
-                    Button("Image…",action:model.importLayer)
-                    Button("Fill"){model.addLayer("fill")}
-                    Button("Emojis"){model.addLayer("emoji")}
-                    Button("Effect"){model.addLayer("effect")}
-                } label:{Image(systemName:"plus")}.menuStyle(.borderlessButton).frame(width:28).help("Add layer").disabled(!model.editor.graphEditable)
-            }.padding(16)
-            Divider()
-            List(selection:$model.selectedID) {
-                ForEach(Array(model.editor.orderedLayers.reversed())) {layer in
-                    HStack(spacing:10) {
-                        Image(systemName:layer.symbol).foregroundStyle(layer.tint).frame(width:20)
-                        Text(layer.name).lineLimit(2).opacity(layer.visible ? 1 : 0.5)
-                        Spacer(minLength:0)
-                        if layer.locked {Image(systemName:"lock.fill").font(.caption).foregroundStyle(.secondary)}
-                        Button {
-                            model.command(["type":"edit_layer","id":layer.id,"patch":["visible": !layer.visible]])
-                        } label:{Image(systemName:layer.visible ? "eye" : "eye.slash").foregroundStyle(.secondary)}
-                            .buttonStyle(.borderless).help(layer.visible ? "Hide \(layer.name)" : "Show \(layer.name)")
-                    }.padding(.vertical,5).tag(layer.id)
-                    .listRowBackground(model.selectedID == layer.id ? Color.accentColor.opacity(0.22) : Color.clear)
-                    .contextMenu {
-                        Button("Duplicate"){model.selectedID=layer.id;model.duplicate()}
-                        Button(layer.locked ? "Unlock" : "Lock"){model.command(["type":"edit_layer","id":layer.id,"patch":["locked": !layer.locked]])}
-                        Divider()
-                        Button("Delete",role:.destructive){model.selectedID=layer.id;model.deleteSelected()}.disabled(layer.locked)
-                    }
-                }
-            }.listStyle(.sidebar)
-            if !model.editor.canReorder {Text("Composition order follows node connections.").font(.caption).foregroundStyle(.secondary).padding(12)}
-            Divider()
-            HStack {
-                Button{model.moveSelected(1)}label:{Image(systemName:"arrow.up")}.help("Move layer up").disabled(!model.editor.canReorder||model.selectedLayer?.locked==true)
-                Button{model.moveSelected(-1)}label:{Image(systemName:"arrow.down")}.help("Move layer down").disabled(!model.editor.canReorder||model.selectedLayer?.locked==true)
-                Spacer()
-                Button(action:model.duplicate){Image(systemName:"plus.square.on.square")}.help("Duplicate layer")
-                Button(action:model.deleteSelected){Image(systemName:"trash")}.help("Delete layer").disabled(model.selectedLayer?.locked==true)
-            }.buttonStyle(.borderless).padding(14).disabled(model.selectedID==nil)
         }
     }
     private var welcome:some View {

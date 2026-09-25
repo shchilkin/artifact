@@ -2,26 +2,35 @@ import Foundation
 
 // Coarse, serializable command adapter shared by file/asset workflows and P08.
 enum NativeCommandService {
-    static func commit(_ session: NativeSession, commands: [[String: Any]]) throws {
-        let begin = try decode(session.beginTransactionJson(request: json([
+    static func begin(_ session: NativeSession) throws -> UInt64 {
+        let reply = try decode(session.beginTransactionJson(request: json([
             "version": 1, "expectedRevision": try session.revision()
         ])))
-        guard let id = begin["transactionId"] as? UInt64 ?? (begin["transactionId"] as? NSNumber)?.uint64Value else {
+        guard let id = reply["transactionId"] as? UInt64 ?? (reply["transactionId"] as? NSNumber)?.uint64Value else {
             throw RenderFailure(message: "Could not begin document edit.")
         }
+        return id
+    }
+
+    static func update(_ session: NativeSession, id: UInt64, commands: [[String: Any]]) throws {
+        _ = try decode(session.updateTransactionJson(request: json([
+            "version": 1, "transactionId": id, "commands": commands
+        ])))
+    }
+
+    static func finish(_ session: NativeSession, id: UInt64, commit: Bool) throws {
+        let request = try json(["version": 1, "transactionId": id])
+        _ = try decode(commit ? session.commitTransactionJson(request: request)
+                              : session.cancelTransactionJson(request: request))
+    }
+
+    static func commit(_ session: NativeSession, commands: [[String: Any]]) throws {
+        let id = try begin(session)
         do {
-            for command in commands {
-                let reply = try decode(session.updateTransactionJson(request: json([
-                    "version": 1, "transactionId": id, "commands": [command]
-                ])))
-                try requireSuccess(reply)
-            }
-            let reply = try decode(session.commitTransactionJson(request: json([
-                "version": 1, "transactionId": id
-            ])))
-            try requireSuccess(reply)
+            for command in commands { try update(session, id: id, commands: [command]) }
+            try finish(session, id: id, commit: true)
         } catch {
-            _ = try? session.cancelTransactionJson(request: json(["version": 1, "transactionId": id]))
+            try? finish(session, id: id, commit: false)
             throw error
         }
     }

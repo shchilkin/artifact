@@ -1,143 +1,224 @@
+import AppKit
 import SwiftUI
 
-struct ArtworkTransform {
-    var x: Double; var y: Double; var scaleX: Double; var scaleY: Double; var rotation: Double
-    init(_ layer: EditorLayer) {
-        x = layer.number("x", 0.5); y = layer.number("y", 0.5)
-        scaleX = layer.number("scaleX", 1); scaleY = layer.number("scaleY", 1); rotation = layer.number("rotation")
-    }
-    var patch: [String: Double] { ["x":x,"y":y,"scaleX":scaleX,"scaleY":scaleY,"rotation":rotation] }
-    func moved(_ size: CGSize, canvas: CGSize) -> Self {
-        var result = self
-        let deltaX = Double(size.width / canvas.width)
-        let deltaY = Double(size.height / canvas.height)
-        result.x = min(3,max(-2,x + deltaX)); result.y = min(3,max(-2,y + deltaY))
-        return result
-    }
-    func scaled(_ factor: Double) -> Self {
-        var result = self; result.scaleX = min(10,max(0.01,scaleX * factor)); result.scaleY = min(10,max(0.01,scaleY * factor)); return result
-    }
-}
+private enum CanvasHandle { case move, scale, rotate }
+
 struct ArtworkCanvas: View {
     @ObservedObject var model: ProjectModel
     @State private var zoom = 1.0
-    @State private var initial: ArtworkTransform?
-    @State private var draft: ArtworkTransform?
+    @State private var pinchStart: Double?
+    @State private var initial: [String: ArtworkTransform] = [:]
+    @State private var draft: [String: ArtworkTransform] = [:]
+    @State private var keyboardMode: CanvasHandle = .move
+    @State private var suppressGestureUntilEnd = false
+    @State private var fitRequest = 0
+    @FocusState private var canvasFocused: Bool
 
-    private func bounds(_ layer: EditorLayer, _ transform: ArtworkTransform, _ canvas: CGSize) -> CGSize {
-        let ratio = Double(canvas.width / canvas.height)
-        if layer.kind == "text" {
-            let lines = layer.string("content").components(separatedBy: "\n")
-            let length = Double(lines.map(\.count).max() ?? 1)
-            let width = min(0.92,max(0.05,length * layer.number("size",74) * 0.6 / 540)) * transform.scaleX
-            let height = max(0.06,Double(lines.count) * layer.number("size",74) * 1.25 / 540 * ratio) * transform.scaleY
-            return CGSize(width: CGFloat(width), height: CGFloat(height))
+    private func transformedLayer(_ layer: EditorLayer) -> [String: Any] {
+        var raw = layer.raw
+        for (key, value) in (draft[layer.id] ?? ArtworkTransform(layer)).patch { raw[key] = value }
+        return raw
+    }
+
+    private func geometry(_ layer: EditorLayer, canvas: CGSize) -> (center: CGPoint, size: CGSize)? {
+        let local = model.localBounds(for: layer)
+        guard !local.isNull, !local.isEmpty else { return nil }
+        let t = draft[layer.id] ?? ArtworkTransform(layer)
+        let dimension = model.previewDimensions
+        let scale = Double(canvas.width) / Double(dimension.width)
+        let angle = t.rotation * .pi / 180
+        let offsetX = Double(local.midX) * t.scaleX
+        let offsetY = Double(local.midY) * t.scaleY
+        let center = CGPoint(x: (t.x * Double(dimension.width) + offsetX * cos(angle) - offsetY * sin(angle)) * scale,
+                             y: (t.y * Double(dimension.height) + offsetX * sin(angle) + offsetY * cos(angle)) * scale)
+        let size = CGSize(width: max(12, local.width * t.scaleX * scale),
+                          height: max(12, local.height * t.scaleY * scale))
+        return (center, size)
+    }
+
+    private func hit(_ point: CGPoint, canvas: CGSize) -> String? {
+        guard model.canDirectEdit else { return nil }
+        let dimensions = model.previewDimensions
+        let rasterPoint = CGPoint(x: point.x * CGFloat(dimensions.width) / canvas.width,
+                                  y: point.y * CGFloat(dimensions.height) / canvas.height)
+        for layer in model.editor.orderedLayers.reversed() where layer.visible && layer.movable {
+            if LayerGeometry.contains(rasterPoint, local: model.localBounds(for: layer), layer: transformedLayer(layer),
+                                      width: Int(dimensions.width), height: Int(dimensions.height)) { return layer.id }
         }
-        let width: Double = layer.number("sourceWidth",540)
-        let height: Double = layer.number("sourceHeight",540)
-        let fit = layer.string("fit", "free")
-        let scale: Double = fit == "cover" ? max(1/width,1/(height * ratio)) : fit == "contain" ? min(1/width,1/(height * ratio)) : 1/540.0
-        return CGSize(width: CGFloat(width * scale * transform.scaleX), height: CGFloat(height * scale * ratio * transform.scaleY))
+        return nil
     }
-    private func contains(_ point: CGPoint, in layer: EditorLayer, canvas: CGSize) -> Bool {
-        guard layer.visible && layer.movable && !layer.locked else { return false }
-        let transform = ArtworkTransform(layer)
-        let size = bounds(layer, transform, canvas)
-        let angle: Double = -transform.rotation * .pi / 180
-        let dx: Double = Double(point.x) - transform.x * Double(canvas.width)
-        let dy: Double = Double(point.y) - transform.y * Double(canvas.height)
-        let rotatedX = dx * cos(angle) - dy * sin(angle)
-        let rotatedY = dx * sin(angle) + dy * cos(angle)
-        let halfWidth = Double(size.width * canvas.width) / 2
-        let halfHeight = Double(size.height * canvas.height) / 2
-        return abs(rotatedX) <= halfWidth && abs(rotatedY) <= halfHeight
+
+    private func handle(_ offset: CGSize, center: CGPoint, rotation: Double) -> CGPoint {
+        let angle = rotation * .pi / 180
+        return CGPoint(x: center.x + offset.width * cos(angle) - offset.height * sin(angle),
+                       y: center.y + offset.width * sin(angle) + offset.height * cos(angle))
     }
-    private func select(at point: CGPoint, canvas: CGSize) {
-        for layer in model.editor.orderedLayers.reversed() {
-            if contains(point, in: layer, canvas: canvas) {
-                model.selectedID = layer.id
-                return
+
+    private func beginGesture() {
+        canvasFocused = true
+        if initial.isEmpty {
+            initial = Dictionary(uniqueKeysWithValues: model.editor.orderedLayers
+                .filter { model.selectedIDs.contains($0.id) && $0.movable }
+                .map { ($0.id, ArtworkTransform($0)) })
+        }
+    }
+    private func updateGesture(_ next: [String: ArtworkTransform]) {
+        draft = next
+        model.previewTransforms(next.mapValues(\.patch))
+    }
+    private func finishGesture() {
+        if suppressGestureUntilEnd { suppressGestureUntilEnd = false; return }
+        if !draft.isEmpty { model.commitTransforms(draft.mapValues(\.patch)) }
+        initial = [:]; draft = [:]
+    }
+    private func cancelGesture() {
+        if !draft.isEmpty { model.cancelTransformPreview() }
+        initial = [:]; draft = [:]
+    }
+
+    private func arrow(_ key: KeyEquivalent, modifiers: EventModifiers) -> KeyPress.Result {
+        guard canvasFocused, model.canDirectEdit, let id = model.selectedID,
+              let layer = model.editor.layers.first(where: { $0.id == id }), layer.movable else { return .ignored }
+        let step: Double = modifiers.contains(.shift) ? 10 : 1
+        let dx = key == .leftArrow ? -step : (key == .rightArrow ? step : 0)
+        let dy = key == .upArrow ? -step : (key == .downArrow ? step : 0)
+        let selected = model.editor.layers.filter { model.selectedIDs.contains($0.id) && $0.movable }
+        let patches: [String: [String: Double]] = Dictionary(uniqueKeysWithValues: selected.map { item in
+            var next = ArtworkTransform(item)
+            switch keyboardMode {
+            case .move: next = next.nudged(dx: dx, dy: dy, artwork: model.exportDimensions)
+            case .rotate: next = next.rotated((dx != 0 ? dx : -dy))
+            case .scale:
+                let artwork = model.exportDimensions
+                next = next.scaled(CGSize(width: dx, height: dy),
+                                   canvas: CGSize(width: CGFloat(artwork.width), height: CGFloat(artwork.height)),
+                                   independent: modifiers.contains(.option))
             }
-        }
+            return (item.id, next.patch)
+        })
+        model.commitTransforms(patches)
+        return .handled
     }
-    private func update(_ transform: ArtworkTransform) { draft = transform; model.previewTransform(transform.patch) }
-    private func finish() {
-        if let draft { model.editProperties(draft.patch) }
-        initial = nil; draft = nil
-    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Text("Canvas").font(.headline)
                 Spacer()
-                Button { zoom = max(0.25,zoom-0.25) } label: { Image(systemName:"minus.magnifyingglass") }.help("Zoom out")
-                Text(zoom == 1 ? "Fit" : "\(zoom, specifier: "%.2g")× fit").monospacedDigit().frame(width:64)
-                Button { zoom = min(3,zoom+0.25) } label: { Image(systemName:"plus.magnifyingglass") }.help("Zoom in")
-                Button("Fit") { zoom = 1 }
-            }.buttonStyle(.borderless).padding(.horizontal,20).padding(.vertical,12)
+                Button { zoom = max(0.25, zoom / 1.25) } label: { Image(systemName: "minus.magnifyingglass") }.help("Zoom out")
+                Text("\(Int(zoom * 100))%").monospacedDigit().frame(width: 48)
+                Button { zoom = min(8, zoom * 1.25) } label: { Image(systemName: "plus.magnifyingglass") }.help("Zoom in")
+                Button("Fit") { zoom = 1; fitRequest += 1 }.help("Fit artwork to window")
+            }.buttonStyle(.borderless).padding(.horizontal, 20).padding(.vertical, 12)
             Divider()
-            GeometryReader { geometry in
+            GeometryReader { viewport in
                 let dimensions = model.previewDimensions
-                let fitWidth: CGFloat = (geometry.size.width - 72) / CGFloat(dimensions.width)
-                let fitHeight: CGFloat = (geometry.size.height - 72) / CGFloat(dimensions.height)
-                let scale: CGFloat = max(0.1, min(fitWidth, fitHeight)) * CGFloat(zoom)
+                let fitScale = min((viewport.size.width - 72) / CGFloat(dimensions.width),
+                                   (viewport.size.height - 72) / CGFloat(dimensions.height))
+                let scale = max(0.1, fitScale) * CGFloat(zoom)
                 let canvas = CGSize(width: CGFloat(dimensions.width) * scale, height: CGFloat(dimensions.height) * scale)
-                ScrollView([.horizontal,.vertical]) {
+                ScrollViewReader { scroll in
+                ScrollView([.horizontal, .vertical]) {
                     ZStack {
-                        Canvas { context,size in
-                            for y in stride(from:0.0,to:size.height,by:16) {
-                                for x in stride(from:0.0,to:size.width,by:16) {
-                                    context.fill(Path(CGRect(x:x,y:y,width:16,height:16)),with:.color((Int(x/16)+Int(y/16))%2 == 0 ? Color(nsColor:.controlBackgroundColor) : Color(nsColor:.windowBackgroundColor)))
+                        Canvas { context, size in
+                            for y in stride(from: 0.0, to: size.height, by: 16) {
+                                for x in stride(from: 0.0, to: size.width, by: 16) {
+                                    context.fill(Path(CGRect(x: x, y: y, width: 16, height: 16)),
+                                        with: .color((Int(x/16) + Int(y/16)) % 2 == 0
+                                            ? Color(nsColor: .controlBackgroundColor) : Color(nsColor: .windowBackgroundColor)))
                                 }
                             }
                         }
-                        if let image=model.preview { Image(nsImage:image).resizable().interpolation(.high).frame(width:canvas.width,height:canvas.height).allowsHitTesting(false) }
-                        if let layer=model.selectedLayer, layer.movable, layer.visible, !layer.locked {
-                            let t=draft ?? ArtworkTransform(layer), box=bounds(layer,t,canvas)
-                            let w=max(24,box.width*canvas.width), h=max(24,box.height*canvas.height)
-                            ZStack {
-                                Rectangle().stroke(Color.accentColor,lineWidth:1)
-                                    .contentShape(Rectangle()).gesture(DragGesture(minimumDistance:3).onChanged { value in
-                                        if initial == nil { initial=ArtworkTransform(layer) }
-                                        update(initial!.moved(value.translation,canvas:canvas))
-                                    }.onEnded { _ in finish() })
-                                Circle().fill(Color.accentColor).frame(width:7,height:7).allowsHitTesting(false)
-                                Image(systemName:"arrow.up.left.and.arrow.down.right")
-                                    .font(.system(size:12,weight:.semibold)).padding(7).background(.regularMaterial,in:RoundedRectangle(cornerRadius:4))
-                                    .position(x:w,y:h).accessibilityLabel("Scale selected layer")
-                                    .gesture(DragGesture().onChanged { value in
-                                        if initial == nil { initial=ArtworkTransform(layer) }
-                                        let movement: CGFloat = value.translation.width + value.translation.height
-                                        let denominator: CGFloat = max(40, w + h)
-                                        let factor: Double = max(0.02, 1 + Double(movement / denominator))
-                                        update(initial!.scaled(factor))
-                                    }.onEnded { _ in finish() })
-                                Image(systemName:"arrow.clockwise")
-                                    .font(.system(size:12,weight:.semibold)).padding(7).background(.regularMaterial,in:RoundedRectangle(cornerRadius:4))
-                                    .position(x:w/2,y:-22).accessibilityLabel("Rotate selected layer")
-                                    .gesture(DragGesture().onChanged { value in
-                                        if initial == nil { initial=ArtworkTransform(layer) }
-                                        var next=initial!; next.rotation=min(360,max(-360,next.rotation+Double(value.translation.width)/2));update(next)
-                                    }.onEnded { _ in finish() })
-                            }.frame(width:w,height:h).rotationEffect(.degrees(t.rotation)).position(x:CGFloat(t.x)*canvas.width,y:CGFloat(t.y)*canvas.height)
+                        if let image = model.preview {
+                            Image(nsImage: image).resizable().interpolation(.high)
+                                .frame(width: canvas.width, height: canvas.height).allowsHitTesting(false)
                         }
-                    }.frame(width:canvas.width,height:canvas.height).contentShape(Rectangle())
-                        .simultaneousGesture(SpatialTapGesture().onEnded { select(at:$0.location,canvas:canvas) })
-                        .padding(36).frame(minWidth:geometry.size.width,minHeight:geometry.size.height)
+                        ForEach(model.editor.orderedLayers.filter { model.canDirectEdit && model.selectedIDs.contains($0.id) && $0.visible && $0.movable }) { layer in
+                            if let box = geometry(layer, canvas: canvas) {
+                                let t = draft[layer.id] ?? ArtworkTransform(layer)
+                                Rectangle().stroke(Color.accentColor, lineWidth: 1)
+                                    .frame(width: box.size.width, height: box.size.height)
+                                    .rotationEffect(.degrees(t.rotation))
+                                    .position(box.center)
+                                    .contentShape(Rectangle())
+                                    .gesture(DragGesture(minimumDistance: 3).onChanged { value in
+                                        guard !suppressGestureUntilEnd else { return }
+                                        beginGesture()
+                                        updateGesture(initial.mapValues { $0.moved(value.translation, canvas: canvas) })
+                                    }.onEnded { _ in finishGesture() })
+                                    .accessibilityLabel("Move \(layer.name)")
+                                if layer.id == model.selectedID {
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        .font(.system(size: 12, weight: .semibold)).padding(7)
+                                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
+                                        .position(handle(CGSize(width: box.size.width/2, height: box.size.height/2),
+                                                         center: box.center, rotation: t.rotation))
+                                        .accessibilityLabel("Scale selected layer")
+                                        .onTapGesture { keyboardMode = .scale; canvasFocused = true }
+                                        .gesture(DragGesture().onChanged { value in
+                                            guard !suppressGestureUntilEnd else { return }
+                                            keyboardMode = .scale; beginGesture()
+                                            let independent = NSEvent.modifierFlags.contains(.option)
+                                            updateGesture(initial.mapValues { $0.scaled(value.translation, canvas: canvas, independent: independent) })
+                                        }.onEnded { _ in finishGesture() })
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 12, weight: .semibold)).padding(7)
+                                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
+                                        .position(handle(CGSize(width: 0, height: -box.size.height/2 - 22),
+                                                         center: box.center, rotation: t.rotation))
+                                        .accessibilityLabel("Rotate selected layer")
+                                        .onTapGesture { keyboardMode = .rotate; canvasFocused = true }
+                                        .gesture(DragGesture().onChanged { value in
+                                            guard !suppressGestureUntilEnd else { return }
+                                            keyboardMode = .rotate; beginGesture()
+                                            updateGesture(initial.mapValues { $0.rotated(Double(value.translation.width) / 2) })
+                                        }.onEnded { _ in finishGesture() })
+                                }
+                            }
+                        }
+                    }
+                    .frame(width: canvas.width, height: canvas.height)
+                    .contentShape(Rectangle())
+                    .simultaneousGesture(SpatialTapGesture().onEnded { value in
+                        canvasFocused = true; keyboardMode = .move
+                        if let id = hit(value.location, canvas: canvas) {
+                            model.selectLayer(id, extending: NSEvent.modifierFlags.contains(.command),
+                                              range: NSEvent.modifierFlags.contains(.shift))
+                        }
+                    })
+                    .focusable().focused($canvasFocused)
+                    .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { event in
+                        arrow(event.key, modifiers: event.modifiers)
+                    }
+                    .onKeyPress(keys: [.escape]) { _ in
+                        guard !draft.isEmpty || !initial.isEmpty else { return .ignored }
+                        cancelGesture()
+                        suppressGestureUntilEnd = true
+                        return .handled
+                    }
+                    .id("artwork-canvas")
+                    .padding(36).frame(minWidth: viewport.size.width, minHeight: viewport.size.height)
                 }
-            }.background(Color(nsColor:.underPageBackgroundColor))
+                .onChange(of: fitRequest) { _, _ in
+                    scroll.scrollTo("artwork-canvas", anchor: .center)
+                }
+                .gesture(MagnifyGesture().onChanged { value in
+                    if pinchStart == nil { pinchStart = zoom }
+                    zoom = min(8, max(0.25, (pinchStart ?? zoom) * value.magnification))
+                }.onEnded { _ in pinchStart = nil })
+                }
+            }.background(Color(nsColor: .underPageBackgroundColor))
             Divider()
             HStack {
                 if model.isRendering { ProgressView().controlSize(.small); Text("Rendering…") }
                 else { Text("Preview \(model.previewDimensions.width) × \(model.previewDimensions.height)") }
                 Spacer()
-                Text(model.selectedLayer?.movable == true ? "Drag to move · handles to scale and rotate" : "Select a layer to edit")
-            }.font(.caption).foregroundStyle(.secondary).padding(.horizontal,20).padding(.vertical,9)
+                Text(model.canDirectEdit
+                    ? "Drag to move · Option scales axes separately · arrows move 1 px, Shift 10 px"
+                    : "This graph combines sources. Edit placement in Layers or Nodes.")
+            }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 20).padding(.vertical, 9)
         }
-        .onChange(of:model.selectedID) { _,_ in
-            if draft != nil { model.cancelTransformPreview() }
-            initial=nil;draft=nil
-        }
-        .onDisappear { if draft != nil { model.cancelTransformPreview() }; initial=nil;draft=nil }
+        .onChange(of: model.selectedID) { _, _ in cancelGesture() }
+        .onDisappear { cancelGesture() }
     }
 }
