@@ -43,29 +43,80 @@ final class ProjectModel: ObservableObject {
         let valid: Bool
     }
     @Published private(set) var inspectorDrafts: [String: InspectorDraft] = [:]
+    private var activeInspector: (id: String, transaction: UInt64, durableJSON: String)?
     func stageInspector(_ id: String, values: [String: String], patch: [String: Any], valid: Bool) {
         if patch.isEmpty && valid { inspectorDrafts.removeValue(forKey: id) }
         else { inspectorDrafts[id] = InspectorDraft(values: values, patch: patch, valid: valid) }
+        if let session {
+            do {
+                if let activeInspector, activeInspector.id != id { _ = applyInspector(activeInspector.id) }
+                if !valid || patch.isEmpty {
+                    if let activeInspector, activeInspector.id == id {
+                        try NativeCommandService.finish(session, id: activeInspector.transaction, commit: false)
+                        self.activeInspector = nil
+                        geometryResolver.invalidate()
+                        editor = try EditorState(json: session.editorStateJson())
+                        refreshPreview(documentChanged: false)
+                    }
+                } else {
+                    let prior = activeInspector
+                    let durableJSON = try prior?.durableJSON ?? session.exportJson()
+                    let transaction = try prior?.transaction ?? NativeCommandService.begin(session)
+                    self.activeInspector = (id, transaction, durableJSON)
+                    try NativeCommandService.update(session, id: transaction,
+                        commands: [["type": "patch_layer", "id": id, "patch": patch]])
+                    if patch["src"] != nil { geometryResolver.invalidate() }
+                    editor = try EditorState(json: session.editorStateJson())
+                    refreshPreview(documentChanged: false)
+                }
+            } catch {
+                if let activeInspector, activeInspector.id == id {
+                    try? NativeCommandService.finish(session, id: activeInspector.transaction, commit: false)
+                    self.activeInspector = nil
+                    geometryResolver.invalidate()
+                    if let state = try? EditorState(json: session.editorStateJson()) { editor = state }
+                    refreshPreview(documentChanged: false)
+                }
+                inspectorDrafts[id] = InspectorDraft(values: values, patch: patch, valid: false)
+                message = displayMessage(error)
+            }
+        }
         filePanelGeneration += 1
         updateModified()
         persistRecovery()
     }
     func discardInspector(_ id: String) {
+        if let session, let activeInspector, activeInspector.id == id {
+            try? NativeCommandService.finish(session, id: activeInspector.transaction, commit: false)
+            self.activeInspector = nil
+            geometryResolver.invalidate()
+            if let state = try? EditorState(json: session.editorStateJson()) { editor = state }
+            refreshPreview(documentChanged: false)
+        }
         inspectorDrafts.removeValue(forKey: id)
         filePanelGeneration += 1
         updateModified()
         persistRecovery()
     }
     private func updateModified() {
-        isModified = !inspectorDrafts.isEmpty || ((try? session?.exportJson()) != savedJSON)
+        isModified = !inspectorDrafts.isEmpty || ((activeInspector?.durableJSON ?? (try? session?.exportJson())) != savedJSON)
     }
     @discardableResult func applyInspector(_ id: String) -> Bool {
         guard let draft = inspectorDrafts[id] else { return true }
         guard draft.valid else { message = "Check the values in the layer inspector before saving."; return false }
-        guard command(["type": "edit_layer", "id": id, "patch": draft.patch]) else { return false }
+        if let activeInspector, activeInspector.id == id, let session {
+            self.activeInspector = nil
+            guard perform({ try NativeCommandService.finish(session, id: activeInspector.transaction, commit: true) }) else {
+                self.activeInspector = activeInspector
+                return false
+            }
+        } else if !draft.patch.isEmpty {
+            guard command(["type": "edit_layer", "id": id, "patch": draft.patch]) else { return false }
+        }
         inspectorDrafts.removeValue(forKey: id)
         filePanelGeneration += 1
         updateModified()
+        persistRecovery()
         return true
     }
     private func applyInspectors() -> Bool {
@@ -87,12 +138,23 @@ final class ProjectModel: ObservableObject {
             .appendingPathComponent("Artifact Workspace/recovery.artifact")
     }
     @Published var summary: SessionSummary?
-    @Published var selectedID: String?
+    @Published var renameRequestID: String?
+    @Published var isTextEditing = false
+    @Published var selectedIDs: Set<String> = []
+    @Published var selectedID: String? {
+        didSet {
+            if let selectedID, !selectedIDs.contains(selectedID) { selectedIDs = [selectedID] }
+            if selectedID == nil { selectedIDs = [] }
+        }
+    }
+    private var selectionAnchor: String?
+    private let geometryResolver = LayerGeometryResolver()
     @Published var fileName = "No project open"
     @Published var message: String?
     @Published var isModified = false
     @Published var preview: NSImage?
     @Published private(set) var canvasAspect = "1:1"
+    @Published private(set) var hasGraph = false
     @Published var isRendering = false
     @Published var renderMessage: String?
     static let previewSize: UInt32 = 1000
@@ -150,12 +212,18 @@ final class ProjectModel: ObservableObject {
         guard let session, let source = try? session.exportJson(), let aspect = aspect(in: source) else { return }
         canvasAspect = aspect
     }
+    private func syncGraph() {
+        guard let session, let source = try? session.exportJson(),
+              let package = try? JSONSerialization.jsonObject(with: Data(source.utf8)) as? [String: Any],
+              let document = package["document"] as? [String: Any] else { hasGraph = false; return }
+        hasGraph = document["graph"] is [String: Any]
+    }
 
     private func refreshPreview(documentChanged: Bool = true) {
+        renderRevision += 1
         if documentChanged {
             documentRevision += 1
             filePanelGeneration += 1
-            renderRevision += 1
             exportTask?.cancel()
             isExporting = false
             exportMessage = nil
@@ -349,6 +417,7 @@ final class ProjectModel: ObservableObject {
             let nextSummary = try JSONDecoder().decode(SessionSummary.self, from: Data(candidate.summaryJson().utf8))
             let nextJSON = try candidate.exportJson()
             session = candidate
+            activeInspector = nil
             inspectorDrafts.removeAll()
             summary = nextSummary
             editor = try EditorState(json: candidate.editorStateJson())
@@ -356,8 +425,11 @@ final class ProjectModel: ObservableObject {
             remember(url)
             savedJSON = nextJSON
             canvasAspect = aspect(in: nextJSON) ?? "1:1"
+            syncGraph()
+            selectedIDs = []
             selectedID = nextSummary.layers.first(where: { ($0.scanlines ?? 0) > 0 })?.id
                 ?? nextSummary.layers.first?.id
+            selectionAnchor = selectedID
             fileName = url.lastPathComponent
             isModified = false
             message = opened.notice
@@ -389,7 +461,12 @@ final class ProjectModel: ObservableObject {
     }
 
     func undo() {
-        if !inspectorDrafts.isEmpty { inspectorDrafts.removeAll(); updateModified(); filePanelGeneration += 1; documentRevision += 1; return }
+        if !inspectorDrafts.isEmpty {
+            if let activeInspector { discardInspector(activeInspector.id) }
+            inspectorDrafts.removeAll(); updateModified(); persistRecovery()
+            filePanelGeneration += 1
+            return
+        }
         guard let session else { return }; perform(mayChangeAspect: true) { _ = try session.undo() }
     }
     func redo() { guard let session else { return }; perform(mayChangeAspect: true) { _ = try session.redo() } }
@@ -406,8 +483,10 @@ final class ProjectModel: ObservableObject {
                 }
                 summary = try JSONDecoder().decode(SessionSummary.self, from: Data(session.summaryJson().utf8))
                 editor = try EditorState(json: session.editorStateJson())
+                syncGraph()
                 if mayChangeAspect { syncAspect() }
                 if !editor.layers.contains(where: { $0.id == selectedID }) { selectedID = editor.orderedLayers.last?.id }
+                selectedIDs = selectedIDs.filter { id in editor.layers.contains { $0.id == id } }
                 inspectorDrafts = inspectorDrafts.filter { id, _ in editor.layers.contains { $0.id == id } }
                 updateModified()
                 persistRecovery()
@@ -422,9 +501,128 @@ final class ProjectModel: ObservableObject {
     }
 
     var selectedLayer: EditorLayer? { editor.layers.first { $0.id == selectedID } }
+    var canDirectEdit: Bool { !hasGraph || editor.canReorder }
+
+    func inspectorOriginal(_ id: String) -> EditorLayer? {
+        if let activeInspector, activeInspector.id == id,
+           let root = try? JSONSerialization.jsonObject(with: Data(activeInspector.durableJSON.utf8)) as? [String: Any],
+           let document = root["document"] as? [String: Any],
+           let layers = document["layers"] as? [[String: Any]],
+           let layer = layers.first(where: { $0["id"] as? String == id }) {
+            return EditorLayer(raw: layer)
+        }
+        return editor.layers.first { $0.id == id }
+    }
+
+    func selectLayer(_ id: String, extending: Bool = false, range: Bool = false) {
+        guard editor.layers.contains(where: { $0.id == id }) else { return }
+        if let activeInspector, activeInspector.id != id { _ = applyInspector(activeInspector.id) }
+        let order = editor.orderedLayers.map(\.id)
+        if range, let anchor = selectionAnchor, let a = order.firstIndex(of: anchor), let b = order.firstIndex(of: id) {
+            selectedIDs = Set(order[min(a,b)...max(a,b)])
+        } else if extending {
+            if selectedIDs.contains(id) && selectedIDs.count > 1 { selectedIDs.remove(id) }
+            else { selectedIDs.insert(id) }
+            selectionAnchor = id
+        } else {
+            selectedIDs = [id]
+            selectionAnchor = id
+        }
+        selectedID = selectedIDs.contains(id) ? id : selectedIDs.first
+    }
+
+    func syncPrimarySelection() {
+        if let current = selectedID, selectedIDs.contains(current) { return }
+        selectedID = editor.orderedLayers.reversed().first(where: { selectedIDs.contains($0.id) })?.id
+        selectionAnchor = selectedID
+    }
+    func requestRename(_ id: String) {
+        selectLayer(id)
+        renameRequestID = id
+    }
+
+    func localBounds(for layer: EditorLayer) -> CGRect {
+        guard let session else { return .null }
+        do {
+            if geometryResolver.needsUpdate(for: documentRevision) {
+                try geometryResolver.update(documentJSON: session.exportJson(), revision: documentRevision)
+            }
+            return try geometryResolver.localBounds(layer.raw, width: Int(previewDimensions.width), height: Int(previewDimensions.height))
+        } catch { return .null }
+    }
+
+    @discardableResult func transaction(_ commands: [[String: Any]]) -> Bool {
+        guard let session, !commands.isEmpty else { return false }
+        if let activeInspector, !applyInspector(activeInspector.id) { return false }
+        return perform { try NativeCommandService.commit(session, commands: commands) }
+    }
+
+    func setSelectionProperties(_ patch: [String: Any]) {
+        let ids = editor.orderedLayers.map(\.id).filter { selectedIDs.contains($0) }
+        if ids.count > 1 { _ = transaction([["type": "patch_layers", "ids": ids, "patch": patch]]) }
+        else if let id = ids.first { _ = command(["type": "edit_layer", "id": id, "patch": patch]) }
+    }
+
+    func reorderSelection(before targetID: String) {
+        guard editor.canReorder, !selectedIDs.contains(targetID) else { return }
+        let current = editor.orderedLayers.map(\.id)
+        guard current.contains(targetID) else { return }
+        let moving = current.filter { selectedIDs.contains($0) }
+        guard !moving.isEmpty else { return }
+        var desired = current.filter { !selectedIDs.contains($0) }
+        guard let target = desired.firstIndex(of: targetID) else { return }
+        desired.insert(contentsOf: moving, at: target)
+        reorder(to: desired)
+    }
+
+    func moveSelection(_ delta: Int) {
+        guard editor.canReorder, delta != 0 else { return }
+        var desired = editor.orderedLayers.map(\.id)
+        let indices = (delta > 0 ? Array(desired.indices.reversed()) : Array(desired.indices))
+        for index in indices where selectedIDs.contains(desired[index]) {
+            let next = index + (delta > 0 ? 1 : -1)
+            if desired.indices.contains(next), !selectedIDs.contains(desired[next]) { desired.swapAt(index, next) }
+        }
+        reorder(to: desired)
+    }
+
+    private func reorder(to ids: [String]) {
+        guard ids != editor.orderedLayers.map(\.id) else { return }
+        _ = transaction([["type": "reorder_layers", "ids": ids]])
+    }
+
+    func createArea() {
+        let ids = editor.orderedLayers.map(\.id).filter { selectedIDs.contains($0) }
+        guard !ids.isEmpty else { return }
+        let area: [String: Any] = ["id": "area-" + UUID().uuidString.lowercased(), "name": "Area", "color": "#637aa4",
+                                   "nodeIds": ids, "collapsed": false]
+        var commands: [[String: Any]] = []
+        if !hasGraph { commands.append(["type": "bootstrap_graph"]) }
+        commands.append(["type": "graph", "action": ["kind": "add_area", "area": area]])
+        _ = transaction(commands)
+    }
+    func assignSelection(to areaID: String) {
+        let existing = editor.areas.first(where: { $0.id == areaID })?.nodeIDs ?? []
+        let ids = Array(Set(existing).union(selectedIDs)).sorted { a, b in
+            let order = editor.orderedLayers.map(\.id)
+            return (order.firstIndex(of: a) ?? Int.max) < (order.firstIndex(of: b) ?? Int.max)
+        }
+        _ = transaction([["type": "graph", "action": ["kind": "assign_area", "id": areaID, "node_ids": ids]]])
+    }
+    func removeSelectionFromAreas() {
+        let commands: [[String: Any]] = editor.areas.filter { !$0.nodeIDs.filter(selectedIDs.contains).isEmpty }.map { area in
+            ["type": "graph", "action": ["kind": "assign_area", "id": area.id,
+                                        "node_ids": area.nodeIDs.filter { !selectedIDs.contains($0) }]]
+        }
+        _ = transaction(commands)
+    }
+    func setAreaCollapsed(_ id: String, _ collapsed: Bool) {
+        _ = transaction([["type": "graph", "action": ["kind": "patch_area", "id": id, "patch": ["collapsed": collapsed]]]])
+    }
 
     @discardableResult func command(_ command: [String: Any], select: String? = nil) -> Bool {
         guard let session else { return false }
+        if let activeInspector, !applyInspector(activeInspector.id) { return false }
         return perform(mayChangeAspect: command["type"] as? String == "patch_global") {
             let bytes = try JSONSerialization.data(withJSONObject: command, options: [.sortedKeys, .withoutEscapingSlashes])
             _ = try session.execute(commandJson: String(decoding: bytes, as: UTF8.self))
@@ -449,12 +647,59 @@ final class ProjectModel: ObservableObject {
             } catch { /* A superseded pointer draft has no durable state. */ }
         }
     }
+    func previewTransforms(_ patches: [String: [String: Double]]) {
+        guard let session, !patches.isEmpty else { return }
+        hasTransientPreview = true
+        renderRevision += 1
+        let revision = renderRevision
+        renderTask?.cancel()
+        let dimensions = previewDimensions.fit(maxSide: 500)
+        let render = renderImage
+        renderTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(16))
+                let source = try session.renderPlanJson(width: dimensions.width, height: dimensions.height)
+                guard var plan = try JSONSerialization.jsonObject(with: Data(source.utf8)) as? [String: Any],
+                      var layers = plan["layers"] as? [[String: Any]] else { return }
+                for index in layers.indices {
+                    guard let id = layers[index]["id"] as? String, let patch = patches[id] else { continue }
+                    for (key, value) in patch { layers[index][key] = value }
+                }
+                plan["layers"] = layers
+                if var nodes = plan["nodes"] as? [[String: Any]] {
+                    for index in nodes.indices {
+                        if let id = nodes[index]["id"] as? String, let patch = patches[id],
+                           var config = nodes[index]["config"] as? [String: Any] {
+                            for (key, value) in patch { config[key] = value }
+                            nodes[index]["config"] = config
+                        }
+                        // A pointer draft must not hit a settled graph cache.
+                        nodes[index]["cacheKey"] = "draft-\(revision)-\(index)"
+                    }
+                    plan["nodes"] = nodes
+                }
+                let bytes = try JSONSerialization.data(withJSONObject: plan, options: [.withoutEscapingSlashes])
+                let image = try await render(String(decoding: bytes, as: UTF8.self))
+                guard let self, !Task.isCancelled, self.renderRevision == revision else { return }
+                self.isRendering = false
+                self.preview = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+            } catch { /* Superseded local pointer draft. */ }
+        }
+    }
+    func commitTransforms(_ patches: [String: [String: Double]]) {
+        let commands = editor.orderedLayers.map(\.id).compactMap { id -> [String: Any]? in
+            guard let patch = patches[id] else { return nil }
+            return ["type": "patch_layer", "id": id, "patch": patch]
+        }
+        if commands.isEmpty { cancelTransformPreview(); return }
+        _ = transaction(commands)
+        if hasTransientPreview { refreshPreview(documentChanged: false) }
+    }
     func cancelTransformPreview() {
         if hasTransientPreview { refreshPreview(documentChanged: false) }
     }
     func editProperties(_ patch: [String: Any]) {
-        guard let selectedID else { return }
-        command(["type": "edit_layer", "id": selectedID, "patch": patch])
+        setSelectionProperties(patch)
     }
     func addLayer(_ kind: String, src: String? = nil) {
         let id = "layer-" + UUID().uuidString.lowercased()
@@ -467,6 +712,16 @@ final class ProjectModel: ObservableObject {
         guard let selectedID else { return }
         let id = "layer-" + UUID().uuidString.lowercased()
         command(["type": "duplicate_layer", "id": selectedID, "newId": id], select: id)
+    }
+    func duplicateSelection() {
+        let ids = editor.orderedLayers.map(\.id).filter { selectedIDs.contains($0) }
+        let commands: [[String: Any]] = ids.map { ["type": "duplicate_layer", "id": $0,
+                                                  "new_id": "layer-" + UUID().uuidString.lowercased()] }
+        if !commands.isEmpty { _ = transaction(commands) }
+    }
+    func deleteSelection() {
+        let ids = editor.orderedLayers.map(\.id).filter { selectedIDs.contains($0) }
+        _ = transaction(ids.map { ["type": "remove_layer", "id": $0] })
     }
     func deleteSelected() { guard let selectedID else { return }; command(["type": "delete_layer", "id": selectedID]) }
     func moveSelected(_ delta: Int) { guard let selectedID else { return }; command(["type": "move_layer", "id": selectedID, "delta": delta]) }
@@ -540,9 +795,11 @@ final class ProjectModel: ObservableObject {
             guard let self else { return }
             do {
                 session = try NativeSession.open(source: newProject())
+                activeInspector = nil
                 inspectorDrafts.removeAll()
                 summary = try JSONDecoder().decode(SessionSummary.self, from: Data(session!.summaryJson().utf8))
                 editor = try EditorState(json: session!.editorStateJson())
+                syncGraph()
                 currentURL = nil; savedJSON = ""; fileName = "Untitled.artifact"; selectedID = nil; canvasAspect = "1:1"
                 isModified = true; message = nil; preview = nil; persistRecovery(); refreshPreview()
             } catch { message = displayMessage(error) }
@@ -564,7 +821,7 @@ final class ProjectModel: ObservableObject {
                 let drafts: [[String: Any]] = inspectorDrafts.map { id, draft in
                     ["id": id, "values": draft.values, "patch": draft.patch, "valid": draft.valid]
                 }
-                try ProjectFileService.writeRecovery(session.exportJson(), drafts: drafts, to: url)
+                try ProjectFileService.writeRecovery(activeInspector?.durableJSON ?? session.exportJson(), drafts: drafts, to: url)
                 recoveryAvailable = true
             } else {
                 try ProjectFileService.clearRecovery(at: url)
@@ -635,7 +892,7 @@ final class ProjectModel: ObservableObject {
     @discardableResult func saveCopy(to url: URL) -> Bool {
         guard let session else { return false }
         do {
-            try ProjectFileService.write(session.exportJson(), to: url)
+            try ProjectFileService.write(activeInspector?.durableJSON ?? session.exportJson(), to: url)
             message = nil
             return true
         } catch { message = displayMessage(error); return false }

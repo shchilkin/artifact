@@ -3,8 +3,8 @@
     "Cargo.lock": "730ab039c28d64203aac9322c11260b0fc8f5ce677a5334462dfe57af78496f7",
     "Cargo.toml": "d9786a5cf7ffa340158f73c46bd865227ad887c7f8087a119aac8e9bb554c729",
     "crates/artifact-core/Cargo.toml": "0e83c574b9a4ad4e1ed2ce69aa52183f9d9d6af40ad04cf7ea9e9e0528471d82",
-    "crates/artifact-core/src/command.rs": "400a14d27cf88e7fbca8d7a5d741ef7c5ef0a073e2c97bc645dfe8753ceefc29",
-    "crates/artifact-core/src/editor.rs": "eb14a0e54052a7d5098d840291cdee1d690c2acd142fdba806d629e6c47f8111",
+    "crates/artifact-core/src/command.rs": "6ec8e059c800a6a8d4c93db58cd940134aa6f88cd2efdb269a70049804dcbe0b",
+    "crates/artifact-core/src/editor.rs": "b29aa1e6f49247eea1bcfd27dc8f5fb3d32c0bd9d8d645001422340602008b30",
     "crates/artifact-core/src/graph.rs": "c469d9fc87418a4ee0eec6e8f532b89901ac42d4197db62a34a9b6c244b6df81",
     "crates/artifact-core/src/image.rs": "a9221f36d700acb337173819a895f8f4a0ff75ea434338557a88560a883d130a",
     "crates/artifact-core/src/lib.rs": "60c23db5c7d0edf6831b115a50efd893d002ec428064312018335c6feee32bed",
@@ -16,12 +16,12 @@
     "rust-toolchain.toml": "444141cad75b3ff0428cdff7040e288b46177ef15aacb50be74287aa8f1798ca",
     "scripts/core-pilot/build-plan.mjs": "78add83694b11130cbdc1276b2992cbe4191fd63c3d7b5ed226522ca3bb0117d",
     "scripts/core-pilot/build-wasm-canonical.mjs": "dca3ca3e905510f84c5e8c20f3ff99d0df64872e9a41d000607155b169359792",
-    "scripts/core-pilot/build.mjs": "43cb907cdd68324e55861863cc9f4a588698c79837857a7605b453cf640c9a33"
+    "scripts/core-pilot/build.mjs": "338eedd77a2e4a0118081cbe4dcb326563b2ee066512dc65ba981527de6226b6"
   },
   "runtime": {
     "artifact_wasm.d.ts": "a31ccfc3b7ee3b0887d6c72123b692ee27daff20845508ff2fcd4e770ae77a4d",
     "artifact_wasm.js": "8fb94b8171b91b1de7458fdd2ec3e377e95c86c9296029a6929a8b1a876c382c",
-    "artifact_wasm_bg.wasm": "58eab5d5be53005fd2df09da2012b5efa196e77788bd304c06f0458bd5e56d60",
+    "artifact_wasm_bg.wasm": "441ba377cbc7291760d37bc62693623d6352c903c23ec28d345b8680f70295d4",
     "artifact_wasm_bg.wasm.d.ts": "2dcc1f85d8ca681e365abf6e72835a5d79c427b28053b139fda421f5e112f606"
   }
 }

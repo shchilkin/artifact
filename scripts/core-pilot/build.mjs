@@ -98,6 +98,7 @@ if (stages.macos) {
     'apps/macos/Sources/NativePilotEffectModule.swift',
     'apps/macos/Sources/NativeRenderRegistry.swift',
     'apps/macos/Sources/NativeExportService.swift',
+    'apps/macos/Sources/LayerGeometry.swift',
     'apps/macos/Sources/PilotRenderer.swift',
   ];
   run('xcrun', ['swiftc', ...common, 'apps/macos/Conformance.swift', '-o', path.join(build, 'conformance')]);
@@ -136,6 +137,21 @@ if (stages.macos) {
     'apps/macos/PreviewResponseCheck.swift',
     '-o',
     path.join(build, 'preview-response-check'),
+  ]);
+  run('xcrun', [
+    'swiftc',
+    ...common,
+    ...rendererSources,
+    'apps/macos/Sources/ProjectFileService.swift',
+    'apps/macos/Sources/NativeCommandService.swift',
+    'apps/macos/Sources/FontImport.swift',
+    'apps/macos/Sources/ProjectModel.swift',
+    'apps/macos/Sources/EditorState.swift',
+    'apps/macos/Sources/ArtworkTransform.swift',
+    'apps/macos/Sources/ImageImport.swift',
+    'apps/macos/LayerInteractionCheck.swift',
+    '-o',
+    path.join(build, 'layer-interaction-check'),
   ]);
   run('xcrun', [
     'swiftc',

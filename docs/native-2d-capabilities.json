@@ -659,7 +659,8 @@
       "web": "implemented",
       "native": "partial",
       "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
-      "acceptance": "planned"
+      "contractEvidence": "apps/macos/LayerInteractionCheck.swift; native selection model verified, real GUI multi-select/area workflow pending",
+      "acceptance": "model-verified; GUI pending"
     },
     {
       "id": "interaction.layers.inspector",
@@ -667,7 +668,8 @@
       "web": "implemented",
       "native": "partial",
       "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
-      "acceptance": "planned"
+      "contractEvidence": "apps/macos/LayerInteractionCheck.swift; live transaction, invalid/cancel, recovery, Save Copy and one-step Undo verified",
+      "acceptance": "model-and-render-verified; GUI pending"
     },
     {
       "id": "interaction.layers.reorder",
@@ -675,7 +677,8 @@
       "web": "implemented",
       "native": "partial",
       "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
-      "acceptance": "planned"
+      "contractEvidence": "crates/artifact-core/tests/commands.rs; apps/macos/LayerInteractionCheck.swift; typed stack/linear order and lock barriers verified",
+      "acceptance": "model-verified; GUI drag/drop pending"
     },
     {
       "id": "interaction.layers.directCanvas",
@@ -683,7 +686,8 @@
       "web": "implemented",
       "native": "partial",
       "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
-      "acceptance": "planned"
+      "contractEvidence": "apps/macos/LayerInteractionCheck.swift; shared CoreText/image bounds and transform math verified; nonlinear graph and tile handles intentionally unavailable",
+      "acceptance": "model-and-render-verified; GUI gestures pending"
     },
     {
       "id": "interaction.nodes.connect",
