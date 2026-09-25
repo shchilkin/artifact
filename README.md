@@ -296,3 +296,9 @@ See [workspace scope](docs/web-macos-editor-workspace.md).
 
 The separate Web pilot is an adapter/renderer test harness. Historical Viber
 setup and evidence remain in [the pilot record](docs/web-macos-viber-pilot.md).
+
+## Component releases
+
+Core, Web and macOS have independent versions and release dates. See
+[component release operations](docs/component-releases.md) for metadata, exact
+embedded core identities, compatibility checks and manual release actions.

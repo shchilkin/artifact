@@ -22,6 +22,7 @@ Before changing state ownership, rendering, node editor behavior, thumbnails, pr
 - `docs/editor-design-system.md`
 - `docs/improvement-plan.md`
 - `docs/roadmap.md`
+- `docs/component-releases.md` — independent core/Web/macOS versions, exact build identities and release gates.
 - `docs/version-planning.md`
 - `docs/production-readiness.md`
 

@@ -15,7 +15,7 @@
     "rust-toolchain.toml": "444141cad75b3ff0428cdff7040e288b46177ef15aacb50be74287aa8f1798ca",
     "scripts/core-pilot/build-plan.mjs": "78add83694b11130cbdc1276b2992cbe4191fd63c3d7b5ed226522ca3bb0117d",
     "scripts/core-pilot/build-wasm-canonical.mjs": "dca3ca3e905510f84c5e8c20f3ff99d0df64872e9a41d000607155b169359792",
-    "scripts/core-pilot/build.mjs": "7942208b269f2b3cafd693620f01d8a1e4e1e183335b9b207b96880f1327a2a3"
+    "scripts/core-pilot/build.mjs": "2eb30d3ca2f1a0604bd3cb26b2f144fc082cd905491898f8c98500244c614ac1"
   },
   "runtime": {
     "artifact_wasm.d.ts": "59d1478e366b8f026f15af7767b4f4856164b1a9c50cb1812114a0d3096f228a",

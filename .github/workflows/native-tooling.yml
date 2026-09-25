@@ -1,6 +1,11 @@
 name: Shared core and native tooling
 
 on:
+  workflow_call:
+    inputs:
+      release-component:
+        type: string
+        required: true
   pull_request:
   push:
     branches: [development, main]
@@ -29,6 +34,8 @@ jobs:
         run: |
           node scripts/core-pilot/doctor.mjs wasm
           npm run test:core-tooling
+          npm run test:release
+          npm run release:verify -- --metadata-only
       - name: Rebuild checked-in WASM from pinned inputs
         run: |
           npm run build:core-pilot -- wasm
@@ -36,6 +43,9 @@ jobs:
       - name: Rust, WASM and Web checks
         run: |
           npm run check:core-web
+      - name: Web integration checks for pull requests
+        if: github.event_name != 'workflow_dispatch'
+        run: |
           npm run check
           npm run build:ci
 
@@ -62,8 +72,10 @@ jobs:
       - name: Execute native model and renderer checks on P01 synthetic fixture
         run: npm run check:core-native
       - name: Verify app identity and ad hoc signature
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.release-component == 'macos')
         run: |
           test "$(plutil -extract ArtifactBuildSHA raw -o - apps/macos/.build/Artifact.app/Contents/Info.plist)" = "$(git rev-parse HEAD)"
+          node scripts/release/verify-build.mjs macos --require-clean
           codesign --verify --deep --strict apps/macos/.build/Artifact.app
           ditto -c -k --sequesterRsrc --keepParent apps/macos/.build/Artifact.app apps/macos/.build/Artifact-macOS.zip
           mkdir -p apps/macos/.build/extracted
@@ -71,6 +83,7 @@ jobs:
           test -x apps/macos/.build/extracted/Artifact.app/Contents/MacOS/ArtifactCorePilot
           codesign --verify --deep --strict apps/macos/.build/extracted/Artifact.app
       - uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.release-component == 'macos')
         with:
           name: Artifact-macOS-${{ github.sha }}
           path: apps/macos/.build/Artifact-macOS.zip

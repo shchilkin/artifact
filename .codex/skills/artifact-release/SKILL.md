@@ -1,61 +1,54 @@
 ---
 name: artifact-release
-description: Use when preparing, validating, tagging, publishing, or documenting an Artifact release. Enforces the repository release template and release gate before any tag or GitHub Release is created.
+description: Prepare, verify, draft or publish Artifact core, Web or macOS releases. Enforces component version sources, compatibility checks and release notes before publication.
 ---
 
 # Artifact Release
 
-Use this skill for every Artifact release task, including release prep, version
-bump, release notes, tag creation, GitHub Release publication, or post-release
-status updates.
+Read `AGENTS.md`, `docs/component-releases.md`, `docs/release-template.md`,
+`docs/production-readiness.md`, `docs/version-planning.md`, `docs/roadmap.md`
+and the selected component plan before release work. Read
+`docs/native-builds.md` for core/Mac artifacts and `docs/deployment.md` for Web
+deployment. Run repository commands from the root.
 
-## Required Reads
+## Preparation
 
-Before changing release state, read:
+1. Establish the component (`core`, `web`, `macos`), approved version and scope.
+   For tooling-only work, preserve current versions; example numbers are not
+   authorization to choose or bump a release.
+2. Follow version sources and synchronized adapter/lock metadata in
+   `docs/component-releases.md`. Mac has a separate build number. Root package
+   metadata is not an app version; document schema is a separate contract.
+3. Prepare `docs/version-plans/<component>/vX.Y.md` with completed acceptance
+   criteria and `Status: release-ready`. Fill
+   `docs/releases/<component>/vX.Y.Z.md` from `docs/release-template.md`, with
+   validation, manual QA, compatibility boundaries and accepted risks. Record
+   the component tag in roadmap/readiness. Keep public notes free of internal
+   checklists. Preserve historical `vX.Y.Z` files/tags.
+4. Run `npm run release:verify -- --metadata-only`, `npm run test:release`,
+   then `npm run release:verify -- --component <component> --version X.Y.Z`.
+   Metadata verification is not the build/test gate. Do not mark unexecuted
+   checks passed or create release facts to make the verifier green.
+5. Run common Rust/WASM/Swift document compatibility checks plus the selected
+   application gate from `docs/component-releases.md`. Keep the exact source
+   commit and embedded-core content/runtime identity with build evidence.
+   Record relevant performance checks or why they are not required.
 
-- `AGENTS.md`
-- `docs/release-template.md`
-- `docs/production-readiness.md`
-- `docs/roadmap.md`
-- the active `docs/version-plans/vX.Y.md`
+## Publication boundaries
 
-## Hard Rule
+Use the manual component `Release` workflow's `verify` action before mutation.
+Tag/draft creation, publication, and Web deployment are separately authorized
+actions. Existing session authorization applies; do not request it again.
 
-Never tag or publish an Artifact release from free-form notes. Create or update
-`docs/releases/vX.Y.Z.md` from `docs/release-template.md` first. If the template
-cannot be filled, stop and report the missing release facts.
+- `tag-and-create-draft` creates a new `<component>/vX.Y.Z` tag and draft.
+- `create-draft` requires an existing tag at the exact checked commit.
+- `publish-draft` requires that tag, a draft with verified notes and required
+  assets, and passed gates.
+- `deploy-production` is Web only and preserves its exact-SHA Web/API flow.
 
-## Workflow
-
-1. Confirm the intended version and release scope.
-2. Instantiate `docs/release-template.md` into `docs/releases/vX.Y.Z.md`.
-3. Fill highlights, scope boundaries, validation, manual QA, accepted risks, and
-   release checklist.
-4. Update package metadata for public version releases:
-   - `package.json`
-   - `apps/web/package.json`
-   - `package-lock.json`
-5. Update `docs/roadmap.md`, `docs/production-readiness.md`, and the version
-   plan status.
-6. Run the release gate:
-   - `npm run check`
-   - `npm run build`
-   - `npm run test:browser`
-7. If release scope touched node-editor performance-sensitive paths, run
-   `npm run perf:node-editor`; otherwise record why it was not required.
-8. Commit only after the template-backed release notes and validation status are
-   complete.
-9. Create the tag only after the release commit exists and the worktree is
-   clean.
-10. Publish the GitHub Release using `docs/releases/vX.Y.Z.md` as the body.
-
-## Refusal Conditions
-
-Do not tag or publish when:
-
-- release notes do not use the template;
-- validation commands are missing or failed;
-- accepted risks are known but not documented;
-- package metadata and tag version disagree;
-- roadmap/version-plan status still presents the release as active future work;
-- worktree is dirty after the intended release commit.
+Writes require a clean release commit on `main` and the protected
+`production-release` environment. Never move existing tags, publish npm/crates
+packages or deploy core/Mac as a side effect. A core release does not update
+clients or establish full native parity. If notes, evidence, identity, metadata
+or approvals required for the requested action are missing, complete available
+preparation and report the specific missing facts before publication.

@@ -1,5 +1,11 @@
 # Artifact Codebase Overview and Roadmap
 
+Release tooling transition: core, Web and macOS now have independent version
+sources and namespaced release workflows. See
+[component releases](./component-releases.md) for the verified P06 base,
+compatibility gates and remaining first-release decisions. This does not
+complete the native parity roadmap or choose the next release numbers.
+
 For the step-by-step implementation plan, see [`improvement-plan.md`](./improvement-plan.md).
 
 Related architecture docs:
