@@ -107,6 +107,27 @@ permitted on locked layers. Unsupported graph utilities still block the legacy
 typed structural add/delete path with a capability error; #264 owns graph
 algorithms.
 
+`reorder_layers` is the explicit native Layers permutation command:
+`{"type":"reorder_layers","ids":["layer-c","layer-a","layer-b"]}`.
+The IDs must contain every current layer exactly once. On a stack document it
+reorders layers without creating a graph. On a complete, layer-only linear
+graph it uses the chain's effective output order for no-op and lock checks,
+rewires only changed adjacencies, and retains surviving edges' IDs and unknown
+fields. Graph metadata and unknown fields remain untouched. A branching,
+disconnected, or utility-node graph is rejected atomically; the client should
+edit its connections in Nodes. Locked layers retain their effective slots and
+unlocked layers cannot cross a locked slot. The older `move_layer` behavior is
+unchanged.
+
+`bootstrap_graph` is an explicit user transition from Layers to Nodes:
+`{"type":"bootstrap_graph"}`. It creates the same initial linear edge chain,
+node positions, and empty graph collections as Web `inferLinearGraph` only
+when `graph` is absent or null. An existing graph is a no-op. To create the
+first area, send `bootstrap_graph` and then `graph` `add_area` updates in the
+same transaction; commit gives one Undo that restores the original absent or
+explicit-null graph exactly. Both commands use the existing
+`update_transaction_json` envelope and ordinary command size limit.
+
 `crates/artifact-core/src/properties.rs` is the per-kind validation seam for
 new source/effect properties. Graph-rule modules can validate their candidate
 and call `record_graph_change` to enter the same transaction journal. Neither
