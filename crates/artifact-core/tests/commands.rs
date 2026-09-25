@@ -1,5 +1,27 @@
 use artifact_core::DocumentSession;
+use base64::{Engine, engine::general_purpose::STANDARD};
 use serde_json::{Value, json};
+
+fn large_png_source() -> String {
+    format!(
+        "data:image/png;base64,{}",
+        STANDARD.encode(include_bytes!(
+            "../../../apps/web/public/girl_image_landing.png"
+        ))
+    )
+}
+fn large_jpeg_source() -> String {
+    let small = include_bytes!("fixtures/cold-image.jpg");
+    let mut image = Vec::with_capacity(small.len() + 18 * 65_537);
+    image.extend_from_slice(&small[..2]);
+    for _ in 0..18 {
+        image.extend_from_slice(&[0xff, 0xfe]); // JPEG comment marker.
+        image.extend_from_slice(&u16::MAX.to_be_bytes());
+        image.extend(std::iter::repeat_n(b'x', 65_533));
+    }
+    image.extend_from_slice(&small[2..]);
+    format!("data:image/jpeg;base64,{}", STANDARD.encode(image))
+}
 
 fn source() -> String {
     json!({"artifactPackage":"project","manifest":{"kind":"artifact-project-package","version":1,"documentSchemaVersion":3},
@@ -41,6 +63,73 @@ fn end(s: &mut DocumentSession, method: &str, id: u64) -> Value {
 }
 fn doc(s: &DocumentSession) -> Value {
     serde_json::from_str::<Value>(&s.export_json()).unwrap()["document"].clone()
+}
+
+#[test]
+fn cold_png_add_and_jpeg_patch_share_one_undoable_transaction() {
+    let png = large_png_source();
+    let jpeg = large_jpeg_source();
+    assert!(png.len() > 1024 * 1024 && jpeg.len() > 1024 * 1024);
+    let mut s = DocumentSession::open(&source()).unwrap();
+    let original = s.export_json();
+    let id = begin(&mut s);
+    let added = update(
+        &mut s,
+        id,
+        json!([{"type":"add_layer","kind":"image","new_id":"cold-image","src":png}]),
+    );
+    assert_eq!(added["ok"], true, "{added}");
+    let patched = update(
+        &mut s,
+        id,
+        json!([{"type":"patch_layer","id":"b","patch":{"src":jpeg}}]),
+    );
+    assert_eq!(patched["ok"], true, "{patched}");
+    assert_eq!(end(&mut s, "commit", id)["revision"], 1);
+    assert_eq!(doc(&s)["layers"].as_array().unwrap().len(), 3);
+    assert_eq!(doc(&s)["layers"][1]["src"], json!(jpeg));
+    assert!(s.undo());
+    assert_eq!(s.export_json(), original);
+    assert!(s.redo());
+    assert_eq!(doc(&s)["layers"].as_array().unwrap().len(), 3);
+    assert_eq!(doc(&s)["layers"][1]["src"], json!(jpeg));
+}
+
+#[test]
+fn cold_image_envelope_keeps_kind_value_batch_and_rollback_guards() {
+    let png = large_png_source();
+    let mut package: Value = serde_json::from_str(&source()).unwrap();
+    package["document"]["layers"][1]["locked"] = json!(true);
+    let mut s = DocumentSession::open(&package.to_string()).unwrap();
+    let original = s.export_json();
+    let id = begin(&mut s);
+    // Locked inspector property edits remain permitted, as with a small source.
+    assert_eq!(
+        update(
+            &mut s,
+            id,
+            json!([{"type":"patch_layer","id":"b","patch":{"src":png}}])
+        )["ok"],
+        true
+    );
+    let prior = s.export_json();
+    for commands in [
+        json!([{"type":"patch_layer","id":"a","patch":{"src":png}}]),
+        json!([{"type":"patch_layer","id":"b","patch":{"src":png,"fit":"cover"}}]),
+        json!([{"type":"patch_layer","id":"b","patch":{"src":png}},
+               {"type":"patch_global","patch":{"seed":2}}]),
+        json!([{"type":"add_layer","kind":"text","new_id":"wrong","src":png}]),
+        json!([{"type":"patch_layer","id":"b","patch":{"src":format!("data:image/png;base64,{}", "A".repeat(1_100_000))}}]),
+        json!([{"type":"patch_layer","id":"b","patch":{"src":format!("data:image/jpeg;base64,{}", STANDARD.encode([&[0xff, 0xd8][..], &vec![0u8; 1_100_000], &[0xff, 0xd9][..]].concat()))}}]),
+        json!([{"type":"patch_layer","id":"b","patch":{"src":format!("data:image/jpeg;base64,{}", STANDARD.encode(vec![0u8; 17 * 1024 * 1024]))}}]),
+    ] {
+        let denied = update(&mut s, id, commands);
+        assert_eq!(denied["ok"], false, "{denied}");
+        assert_eq!(s.export_json(), prior);
+    }
+    assert_eq!(end(&mut s, "cancel", id)["changed"], true);
+    assert_eq!(s.export_json(), original);
+    assert_eq!(s.revision(), 0);
 }
 
 #[test]

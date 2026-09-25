@@ -5,7 +5,17 @@ import { initSync, WebSession } from '../generated/artifact_wasm.js';
 import { beginTransaction, cancelTransaction, commitTransaction, updateTransaction } from './transactions';
 
 const wasmPath = fileURLToPath(new URL('../generated/artifact_wasm_bg.wasm', import.meta.url));
+const pngPath = fileURLToPath(new URL('../../../apps/web/public/girl_image_landing.png', import.meta.url));
+const jpegPath = fileURLToPath(new URL('../../../crates/artifact-core/tests/fixtures/cold-image.jpg', import.meta.url));
 beforeAll(() => initSync({ module: readFileSync(wasmPath) }));
+
+function coldImageSources() {
+  const png = `data:image/png;base64,${readFileSync(pngPath).toString('base64')}`;
+  const small = readFileSync(jpegPath);
+  const comment = Buffer.concat([Buffer.from([0xff, 0xfe, 0xff, 0xff]), Buffer.alloc(65_533, 0x78)]);
+  const jpeg = `data:image/jpeg;base64,${Buffer.concat([small.subarray(0, 2), ...Array(18).fill(comment), small.subarray(2)]).toString('base64')}`;
+  return { png, jpeg };
+}
 
 function open() {
   return new WebSession(
@@ -24,6 +34,45 @@ function open() {
 }
 
 describe('real WASM shared transactions', () => {
+  it('accepts cold PNG add and JPEG source patch with one Undo, while guarding oversized batches', () => {
+    const session = open();
+    const { png, jpeg } = coldImageSources();
+    expect(png.length).toBeGreaterThan(1024 * 1024);
+    expect(jpeg.length).toBeGreaterThan(1024 * 1024);
+    try {
+      const original = JSON.parse(session.export_json());
+      const transactionId = beginTransaction(session, 0).transactionId!;
+      expect(
+        updateTransaction(session, transactionId, [{ type: 'add_layer', kind: 'image', new_id: 'cold', src: png }]).ok,
+      ).toBe(true);
+      expect(
+        updateTransaction(session, transactionId, [{ type: 'patch_layer', id: 'cold', patch: { locked: true } }]).ok,
+      ).toBe(true);
+      const beforeRejected = session.export_json();
+      expect(
+        updateTransaction(session, transactionId, [{ type: 'patch_layer', id: 'title', patch: { src: jpeg } }]).error
+          ?.code,
+      ).toBe('COMMAND_REJECTED');
+      expect(
+        updateTransaction(session, transactionId, [
+          { type: 'patch_layer', id: 'cold', patch: { src: jpeg } },
+          { type: 'patch_global', patch: { seed: 2 } },
+        ]).error?.code,
+      ).toBe('INVALID_ENVELOPE');
+      expect(session.export_json()).toBe(beforeRejected);
+      expect(
+        updateTransaction(session, transactionId, [{ type: 'patch_layer', id: 'cold', patch: { src: jpeg } }]).ok,
+      ).toBe(true);
+      expect(commitTransaction(session, transactionId).revision).toBe(1);
+      expect(JSON.parse(session.export_json()).document.layers[1].src).toBe(jpeg);
+      expect(session.undo()).toBe(true);
+      expect(JSON.parse(session.export_json())).toEqual(original);
+      expect(session.redo()).toBe(true);
+      expect(JSON.parse(session.export_json()).document.layers[1].src).toBe(jpeg);
+    } finally {
+      session.free();
+    }
+  });
   it('imports a font and changes its layer reference as one undoable action', () => {
     const session = open();
     try {

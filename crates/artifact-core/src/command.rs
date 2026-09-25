@@ -208,14 +208,30 @@ fn parse_update(request: &str) -> Result<UpdateRequest, CommandError> {
                 Command::BridgeStructure { .. }
                     | Command::EditAssets { .. }
                     | Command::ReplaceDocument { .. }
-            ))
+            ) && !cold_image_command(&parsed.commands[0]))
     {
         return Err(CommandError::new(
             "INVALID_ENVELOPE",
-            "Large envelope requires one cold structure, asset, or document command",
+            "Large envelope requires one cold structure, asset, document, or image-source command",
         ));
     }
     Ok(parsed)
+}
+fn cold_image_command(command: &Command) -> bool {
+    match command {
+        Command::PatchLayer { patch, .. } => {
+            patch.len() == 1 && patch.get("src").is_some_and(cold_image_source)
+        }
+        Command::AddLayer { kind, src, .. } => {
+            kind == "image" && src.as_ref().is_some_and(cold_image_source)
+        }
+        _ => false,
+    }
+}
+fn cold_image_source(value: &Value) -> bool {
+    value
+        .as_str()
+        .is_some_and(|src| src.starts_with("data:image/"))
 }
 fn version(version: u32) -> Result<(), CommandError> {
     if version == COMMAND_VERSION {
