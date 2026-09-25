@@ -62,6 +62,26 @@ export type SharedCommand =
   | { type: 'move_layer'; id: string; delta: -1 | 1 }
   | { type: 'graph'; action: SharedGraphAction }
   | {
+      type: 'edit_assets';
+      collection: 'fontAssets' | 'modelAssets' | 'envAssets';
+      upsert?: (Record<string, unknown> & { id: string })[];
+      removeIds?: string[];
+      replace?: (Record<string, unknown> & { id: string })[];
+    }
+  | {
+      type: 'replace_document';
+      document: {
+        schemaVersion?: number;
+        global: unknown;
+        layers: unknown[];
+        export: unknown;
+        graph?: unknown;
+        fontAssets?: unknown[];
+        modelAssets?: unknown[];
+        envAssets?: unknown[];
+      };
+    }
+  | {
       type: 'bridge_structure';
       capability: 'web:structure';
       layers: unknown[];
@@ -94,6 +114,8 @@ export interface SharedChanges {
   export: string[];
   graph: boolean;
   order: boolean;
+  assets: ('fontAssets' | 'modelAssets' | 'envAssets')[];
+  document: boolean;
 }
 
 export interface SharedResult {
