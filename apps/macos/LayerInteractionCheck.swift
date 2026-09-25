@@ -40,6 +40,15 @@ import Foundation
         CGContext(data: nil, width: width, height: 1, bitsPerComponent: 8, bytesPerRow: width * 4,
             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!.makeImage()!
     }
+    static func close(_ actual: CGPoint, _ expected: CGPoint, _ message: String, tolerance: CGFloat = 0.001) {
+        check(hypot(actual.x - expected.x, actual.y - expected.y) < tolerance, message)
+    }
+    static func rotationHandle(_ transform: ArtworkTransform, bounds: CGRect, canvas: CGSize,
+                               artwork: CGSize) -> CGPoint {
+        let top = transform.point(CGPoint(x: bounds.midX, y: bounds.minY), canvas: canvas, artwork: artwork)
+        let angle = transform.rotation * .pi / 180
+        return CGPoint(x: top.x + 22 * sin(angle), y: top.y - 22 * cos(angle))
+    }
     @MainActor static func main() async throws {
         guard CommandLine.arguments.count == 3 else { fatalError("layer-interaction-check INPUT OUTPUT-DIRECTORY") }
         let sourceURL = URL(fileURLWithPath: CommandLine.arguments[1])
@@ -79,6 +88,96 @@ import Foundation
         check(abs(uniform.scaleX / uniform.scaleY - 0.5) < 0.0000001, "Uniform scaling changed image aspect")
         let independent = transform.scaled(CGSize(width: 30, height: 0), canvas: CGSize(width: 500, height: 400), independent: true)
         check(independent.scaleY == 1 && independent.scaleX > 0.5, "Option scaling did not isolate the axis")
+        let raster = CGSize(width: 1000, height: 1000)
+        let view = CGSize(width: 1000, height: 1000)
+        let base = ArtworkTransform(EditorLayer(raw: ["id":"pointer", "kind":"image", "x":0.3,
+                                                 "y":0.25, "scaleX":1, "scaleY":1, "rotation":0]))
+        for side: CGFloat in [100, 400] {
+            let rect = CGRect(x: 0, y: 0, width: side, height: side)
+            let fixed = base.point(rect.origin, canvas: view, artwork: raster)
+            let corner = base.point(CGPoint(x: rect.maxX, y: rect.maxY), canvas: view, artwork: raster)
+            let drag = CGSize(width: 100, height: 100)
+            let factors = base.scaleFactorsForHandle(drag, bounds: rect, canvas: view,
+                                                      artwork: raster, independent: false)!
+            let resized = base.scaledAroundOppositeCorner(factors, bounds: rect, canvas: view,
+                                                           artwork: raster, independent: false)
+            close(resized.point(rect.origin, canvas: view, artwork: raster), fixed,
+                  "Opposite corner moved during \(side) px resize")
+            close(resized.point(CGPoint(x: rect.maxX, y: rect.maxY), canvas: view, artwork: raster),
+                  CGPoint(x: corner.x + drag.width, y: corner.y + drag.height),
+                  "\(side) px layer handle did not follow its pointer")
+        }
+        let nonSquare = CGRect(x: -35, y: -20, width: 200, height: 100)
+        let drag = CGSize(width: 100, height: 0)
+        let independentFactors = base.scaleFactorsForHandle(drag, bounds: nonSquare, canvas: view,
+                                                             artwork: raster, independent: true)!
+        let resizedIndependent = base.scaledAroundOppositeCorner(independentFactors, bounds: nonSquare,
+                                                                  canvas: view, artwork: raster, independent: true)
+        let originalCorner = base.point(CGPoint(x: nonSquare.maxX, y: nonSquare.maxY), canvas: view, artwork: raster)
+        close(resizedIndependent.point(CGPoint(x: nonSquare.maxX, y: nonSquare.maxY), canvas: view, artwork: raster),
+              CGPoint(x: originalCorner.x + 100, y: originalCorner.y),
+              "Option resize handle missed horizontal pointer on non-square layer")
+        close(resizedIndependent.point(nonSquare.origin, canvas: view, artwork: raster),
+              base.point(nonSquare.origin, canvas: view, artwork: raster),
+              "Option resize moved the opposite corner")
+        let rotated = ArtworkTransform(EditorLayer(raw: ["id":"rotated-pointer", "kind":"text", "x":0.5,
+                                                    "y":0.4, "scaleX":0.8, "scaleY":1.2, "rotation":30]))
+        let angle = Double.pi / 6
+        let rotatedDrag = CGSize(width: 60 * cos(angle) - 30 * sin(angle),
+                                 height: 60 * sin(angle) + 30 * cos(angle))
+        let rotatedFactors = rotated.scaleFactorsForHandle(rotatedDrag, bounds: nonSquare, canvas: view,
+                                                            artwork: raster, independent: true)!
+        let resizedRotated = rotated.scaledAroundOppositeCorner(rotatedFactors, bounds: nonSquare,
+                                                                 canvas: view, artwork: raster, independent: true)
+        let rotatedCorner = rotated.point(CGPoint(x: nonSquare.maxX, y: nonSquare.maxY), canvas: view, artwork: raster)
+        close(resizedRotated.point(CGPoint(x: nonSquare.maxX, y: nonSquare.maxY), canvas: view, artwork: raster),
+              CGPoint(x: rotatedCorner.x + rotatedDrag.width, y: rotatedCorner.y + rotatedDrag.height),
+              "Rotated layer resize handle did not follow pointer")
+        close(resizedRotated.point(nonSquare.origin, canvas: view, artwork: raster),
+              rotated.point(nonSquare.origin, canvas: view, artwork: raster),
+              "Rotated resize moved its opposite corner")
+        let zoomedRaster = CGSize(width: 1200, height: 900)
+        let zoomedView = CGSize(width: 600, height: 450)
+        let zoomedCorner = base.point(CGPoint(x: nonSquare.maxX, y: nonSquare.maxY),
+                                      canvas: zoomedView, artwork: zoomedRaster)
+        let zoomedDrag = CGSize(width: 50, height: 25)
+        let zoomedFactors = base.scaleFactorsForHandle(zoomedDrag, bounds: nonSquare, canvas: zoomedView,
+                                                       artwork: zoomedRaster, independent: false)!
+        let zoomed = base.scaledAroundOppositeCorner(zoomedFactors, bounds: nonSquare, canvas: zoomedView,
+                                                     artwork: zoomedRaster, independent: false)
+        close(zoomed.point(CGPoint(x: nonSquare.maxX, y: nonSquare.maxY), canvas: zoomedView,
+                           artwork: zoomedRaster),
+              CGPoint(x: zoomedCorner.x + zoomedDrag.width, y: zoomedCorner.y + zoomedDrag.height),
+              "Zoomed non-square artwork resize handle missed pointer")
+        let limited = ArtworkTransform(EditorLayer(raw: ["id":"limit", "kind":"image", "x":0.3,
+                                                    "y":0.3, "scaleX":0.5, "scaleY":1, "rotation":0]))
+            .scaledAroundOppositeCorner((20, 20), bounds: nonSquare, canvas: view, artwork: raster,
+                                        independent: false)
+        check(limited.scaleX == 5 && limited.scaleY == 10,
+              "Uniform pointer resize changed aspect ratio at scale limits")
+        let turnBase = ArtworkTransform(EditorLayer(raw: ["id":"turn", "kind":"image", "x":0.5,
+                                                     "y":0.5, "scaleX":1, "scaleY":1, "rotation":90]))
+        let turnCenter = turnBase.point(CGPoint(x: nonSquare.midX, y: nonSquare.midY), canvas: view, artwork: raster)
+        let turnStart = rotationHandle(turnBase, bounds: nonSquare, canvas: view, artwork: raster)
+        let verticalDrag = CGSize(width: 0, height: 60)
+        let turnDelta = turnBase.rotationDeltaForHandle(verticalDrag, bounds: nonSquare, canvas: view,
+                                                        artwork: raster)!
+        check(abs(turnDelta) > 1, "Vertical pointer arc did not rotate the handle")
+        let turned = turnBase.rotatedAroundBoundsCenter(turnDelta, bounds: nonSquare,
+                                                        canvas: view, artwork: raster, snap: false)
+        close(turned.point(CGPoint(x: nonSquare.midX, y: nonSquare.midY), canvas: view, artwork: raster),
+              turnCenter, "Rotation moved renderer-derived center")
+        let turnEnd = rotationHandle(turned, bounds: nonSquare, canvas: view, artwork: raster)
+        let target = CGPoint(x: turnStart.x + verticalDrag.width, y: turnStart.y + verticalDrag.height)
+        check(abs(hypot(turnEnd.x - turnCenter.x, turnEnd.y - turnCenter.y) -
+                  hypot(turnStart.x - turnCenter.x, turnStart.y - turnCenter.y)) < 0.001 &&
+              abs(atan2(turnEnd.y - turnCenter.y, turnEnd.x - turnCenter.x) -
+                  atan2(target.y - turnCenter.y, target.x - turnCenter.x)) < 0.001,
+              "Rotation handle did not follow pointer angle")
+        let snapped = turnBase.rotatedAroundBoundsCenter(turnDelta, bounds: nonSquare,
+                                                         canvas: view, artwork: raster, snap: true)
+        check(snapped.rotation.truncatingRemainder(dividingBy: 15) == 0,
+              "Shift rotation did not snap to 15-degree increments")
         let nudge = transform.nudged(dx: 1, dy: 10, artwork: NativeCanvasDimensions.base("4:5"))
         check(abs(nudge.x - 0.5 - 1.0 / 1080) < 0.0000001 && abs(nudge.y - 0.5 - 10.0 / 1350) < 0.0000001,
               "Arrow nudge did not use canonical artwork pixels")
