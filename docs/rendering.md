@@ -1,5 +1,8 @@
 # Rendering Architecture
 
+Native 2D graph execution and Web fixture evidence are documented in
+[native-2d-graph-render.md](native-2d-graph-render.md).
+
 The [P06 native 2D render foundation](./native-2d-render-foundation.md) now
 uses an aspect-aware shared-core plan, retained decoded resources and separate
 Swift source/effect modules. It records pixel/alpha conventions, revision-safe

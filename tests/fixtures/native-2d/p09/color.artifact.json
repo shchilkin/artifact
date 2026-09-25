@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 3,
+  "global": {
+    "bg": "transparent",
+    "seed": 606,
+    "aspect": "1:1"
+  },
+  "layers": [
+    {
+      "id": "utility-art",
+      "name": "utility-art",
+      "visible": true,
+      "locked": false,
+      "kind": "image",
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABACAYAAADlNHIOAAAAtElEQVR4nO3RwQnCAAAEwVTi20pSseWkCEuwAh8B4cCdxz4PDuZ4P89Du+YH6s0P1JsfqDc/UG9+oN78QL35gXrzA/VuDx6v69L3AABoBwBAOwAA2gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A4AgHYAALQD8O8A+m3zA/XmB+rND9SbH6g3P1BvfqDe/EC9+YF6H1W+/AKp38+wAAAAAElFTkSuQmCC",
+      "fit": "contain",
+      "x": 0.5,
+      "y": 0.5,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "opacity": 100,
+      "blendMode": "normal"
+    }
+  ],
+  "export": {
+    "format": "png",
+    "scale": 1,
+    "target": "cover"
+  },
+  "graph": {
+    "edges": [
+      {
+        "id": "edge-utility-art-utility-color-in",
+        "fromId": "utility-art",
+        "fromPort": "out",
+        "toId": "utility-color",
+        "toPort": "in"
+      },
+      {
+        "id": "edge-utility-color-utility-transform-in",
+        "fromId": "utility-color",
+        "fromPort": "out",
+        "toId": "utility-transform",
+        "toPort": "in"
+      },
+      {
+        "id": "edge-utility-transform-utility-shadow-in",
+        "fromId": "utility-transform",
+        "fromPort": "out",
+        "toId": "utility-shadow",
+        "toPort": "in"
+      },
+      {
+        "id": "p09-utility-color-export",
+        "fromId": "utility-color",
+        "fromPort": "out",
+        "toId": "__export__",
+        "toPort": "in"
+      }
+    ],
+    "positions": {
+      "utility-art": {
+        "x": 0,
+        "y": 80
+      },
+      "utility-color": {
+        "x": 520,
+        "y": 80
+      },
+      "utility-transform": {
+        "x": 1040,
+        "y": 80
+      },
+      "utility-shadow": {
+        "x": 1560,
+        "y": 80
+      },
+      "__export__": {
+        "x": 2080,
+        "y": 80
+      }
+    },
+    "mergeNodes": [],
+    "colorNodes": [
+      {
+        "id": "utility-color",
+        "name": "Color",
+        "contrast": 108,
+        "brightness": 100,
+        "saturation": 120,
+        "hue": 15
+      }
+    ],
+    "repeatNodes": [],
+    "maskNodes": [],
+    "transformNodes": [
+      {
+        "id": "utility-transform",
+        "name": "Transform",
+        "x": 12,
+        "y": -8,
+        "scaleX": 110,
+        "scaleY": 110,
+        "uniformScale": true,
+        "rotation": 12,
+        "pivotMode": "visible",
+        "opacity": 100
+      }
+    ],
+    "grimeShadowNodes": [
+      {
+        "id": "utility-shadow",
+        "name": "Grime Shadow",
+        "x": 10,
+        "y": 12,
+        "layers": 3,
+        "blur": 6,
+        "spread": 5,
+        "grime": 20,
+        "jitter": 3,
+        "opacity": 70,
+        "color": "#101020",
+        "seedOffset": 0,
+        "shadowOnly": false
+      }
+    ],
+    "areas": []
+  }
+}

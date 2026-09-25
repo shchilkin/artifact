@@ -15,6 +15,7 @@ export class WebSession {
     constructor(source: string);
     redo(): boolean;
     render_plan_json(width: number, height: number): string;
+    render_target_plan_json(width: number, height: number, target_id: string): string;
     revision(): bigint;
     set_image(layer_id: string, patch_json: string): boolean;
     set_scanlines(layer_id: string, amount: number): boolean;
@@ -49,6 +50,7 @@ export interface InitOutput {
     readonly websession_new: (a: number, b: number) => [number, number, number];
     readonly websession_redo: (a: number) => number;
     readonly websession_render_plan_json: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly websession_render_target_plan_json: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly websession_revision: (a: number) => bigint;
     readonly websession_set_image: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly websession_set_scanlines: (a: number, b: number, c: number, d: number) => [number, number, number];

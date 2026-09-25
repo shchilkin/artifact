@@ -70,6 +70,16 @@ impl NativeSession {
     pub fn render_plan_json(&self, width: u32, height: u32) -> Result<String, SessionError> {
         Ok(self.lock()?.render_plan_json(width, height)?)
     }
+    pub fn render_target_plan_json(
+        &self,
+        width: u32,
+        height: u32,
+        target_id: String,
+    ) -> Result<String, SessionError> {
+        Ok(self
+            .lock()?
+            .render_target_plan_json(width, height, &target_id)?)
+    }
     pub fn graph_plan_json(&self, target_id: String) -> Result<String, SessionError> {
         Ok(self.lock()?.graph_plan_json(&target_id)?)
     }

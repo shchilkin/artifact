@@ -16,6 +16,7 @@ export const websession_graph_plan_json: (a: number, b: number, c: number) => [n
 export const websession_new: (a: number, b: number) => [number, number, number];
 export const websession_redo: (a: number) => number;
 export const websession_render_plan_json: (a: number, b: number, c: number) => [number, number, number, number];
+export const websession_render_target_plan_json: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
 export const websession_revision: (a: number) => bigint;
 export const websession_set_image: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
 export const websession_set_scanlines: (a: number, b: number, c: number, d: number) => [number, number, number];

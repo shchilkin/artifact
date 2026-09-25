@@ -19,11 +19,16 @@ import Foundation
         else { fatalError("render-check INPUT OUTPUT WIDTH[xHEIGHT] [DIAGNOSTICS]") }
         let source = try String(contentsOfFile: args[1], encoding: .utf8)
         let session = try NativeSession.open(source: source)
-        let plan = try session.renderPlanJson(width: width, height: height)
+        let target = args.dropFirst(4).first(where: { $0.hasPrefix("--target=") }).map { String($0.dropFirst(9)) }
+        let plan = try target.map { try session.renderTargetPlanJson(width: width, height: height, targetId: $0) }
+            ?? session.renderPlanJson(width: width, height: height)
         let start = Date()
-        let diagnostics = args.count > 4 ? URL(fileURLWithPath: args[4]) : nil
+        let diagnostics = args.dropFirst(4).first(where: { !$0.hasPrefix("--target=") }).map { URL(fileURLWithPath: $0) }
         if let diagnostics { try FileManager.default.createDirectory(at: diagnostics, withIntermediateDirectories: true) }
-        let image = try PilotRenderer(planJSON: plan).render(diagnostics: diagnostics)
+        let recipe = try NativeRenderPlan(json: plan)
+        let image = recipe.mode == "graph"
+            ? try NativeGraphExecutor(resources: NativeRenderResources()).render(recipe)
+            : try PilotRenderer(planJSON: plan).render(diagnostics: diagnostics)
         try PilotRenderer.writePNG(image, to: URL(fileURLWithPath: args[2]))
         print("Rendered \(width)×\(height) in \(Date().timeIntervalSince(start)) seconds")
     }

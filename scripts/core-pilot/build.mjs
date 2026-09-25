@@ -97,6 +97,8 @@ if (stages.macos) {
     'apps/macos/Sources/NativeFillModule.swift',
     'apps/macos/Sources/NativePilotEffectModule.swift',
     'apps/macos/Sources/NativeRenderRegistry.swift',
+    'apps/macos/Sources/NativeGraphUtilities.swift',
+    'apps/macos/Sources/NativeGraphExecutor.swift',
     'apps/macos/Sources/NativeExportService.swift',
     'apps/macos/Sources/PilotRenderer.swift',
   ];
@@ -108,6 +110,14 @@ if (stages.macos) {
     'apps/macos/RenderCheck.swift',
     '-o',
     path.join(build, 'render-check'),
+  ]);
+  run('xcrun', [
+    'swiftc',
+    ...common,
+    ...rendererSources,
+    'apps/macos/GraphRenderCheck.swift',
+    '-o',
+    path.join(build, 'graph-render-check'),
   ]);
   run('xcrun', [
     'swiftc',
