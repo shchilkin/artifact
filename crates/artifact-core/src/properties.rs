@@ -32,7 +32,7 @@ fn transform(key: &str, value: &Value) -> Option<bool> {
         _ => None,
     }
 }
-fn text(doc: &Value, key: &str, value: &Value) -> Option<bool> {
+fn text(_doc: &Value, key: &str, value: &Value) -> Option<bool> {
     match key {
         "content" => Some(
             value
@@ -46,20 +46,27 @@ fn text(doc: &Value, key: &str, value: &Value) -> Option<bool> {
                 .as_str()
                 .is_some_and(|s| ["left", "center", "right"].contains(&s)),
         ),
-        "font" => Some(
-            value == "MONO"
-                || doc["fontAssets"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .any(|asset| {
-                        value.as_str()
-                            == asset["id"]
-                                .as_str()
-                                .map(|id| format!("artifact-font://{id}"))
-                                .as_deref()
-                    }),
-        ),
+        "font" => Some(value.as_str().is_some_and(|font| {
+            // Keep this list aligned with apps/web/app/types/typography.ts FONT_REGISTRY.
+            const BUNDLED: &[&str] = &[
+                "MONO",
+                "DISPLAY",
+                "ANTON",
+                "BEBAS",
+                "RUBIK_MONO",
+                "VT323",
+                "SPECIAL",
+                "ARCHIVO_BLACK",
+                "BUNGEE",
+                "STAATLICHES",
+                "SPACE_MONO",
+                "PRESS_START",
+            ];
+            BUNDLED.contains(&font)
+                || font.strip_prefix("artifact-font://").is_some_and(|id| {
+                    !id.is_empty() && id.len() <= 200 && !id.contains('\0') && !id.contains('/')
+                })
+        })),
         _ => transform(key, value),
     }
 }
