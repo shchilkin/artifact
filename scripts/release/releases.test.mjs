@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -9,6 +9,7 @@ import { buildIdentity } from '../core-pilot/build-identity.mjs';
 import { makeManifest } from '../core-pilot/runtime-manifest.mjs';
 import { verifyRelease } from '../verify-release.mjs';
 import { performRelease } from './act.mjs';
+import { archiveContents } from './archive-contents.mjs';
 import { components, readJson, releasePlan, verifyVersions } from './components.mjs';
 import { verifyBuild } from './verify-build.mjs';
 
@@ -41,6 +42,16 @@ function fixture(t) {
 function write(root, file, value) {
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
   writeFileSync(path.join(root, file), typeof value === 'object' ? JSON.stringify(value) : value);
+}
+function macArchive(root, asset, executable = 'verified executable', date = new Date('2020-01-01')) {
+  const stage = path.join(root, `stage-${path.basename(asset)}`);
+  write(stage, 'Artifact.app/Contents/Info.plist', 'plist');
+  write(stage, 'Artifact.app/Contents/MacOS/ArtifactCorePilot', executable);
+  write(stage, 'Artifact.app/Contents/Resources/build-identity.json', '{}');
+  write(stage, 'Artifact.app/Contents/_CodeSignature/CodeResources', 'signature');
+  utimesSync(path.join(stage, 'Artifact.app/Contents/MacOS/ArtifactCorePilot'), date, date);
+  mkdirSync(path.dirname(asset), { recursive: true });
+  execFileSync('zip', ['-q', '-r', asset, 'Artifact.app'], { cwd: stage });
 }
 function editJson(root, file, edit) {
   const value = readJson(root, file);
@@ -183,8 +194,9 @@ test('publication actions use a command recorder: no real tag, release or deploy
     for (const action of ['tag-and-create-draft', 'create-draft', 'publish-draft']) {
       const root = fixture(t);
       const plan = ready(root, component);
-      const asset = component === 'web' ? 'build-identity.json' : 'Artifact-macOS.zip';
-      write(root, `release-artifacts/${asset}`, 'verified artifact fixture');
+      const asset = component === 'web' ? 'build-identity.json' : component === 'macos' ? 'Artifact-macOS.zip' : null;
+      if (component === 'web') write(root, `release-artifacts/${asset}`, 'verified artifact fixture');
+      if (component === 'macos') macArchive(root, path.join(root, 'release-artifacts', asset));
       const commands = [];
       const run = (command, args) => {
         commands.push([command, ...args]);
@@ -199,20 +211,116 @@ test('publication actions use a command recorder: no real tag, release or deploy
                   {
                     tag_name: plan.tag,
                     draft: true,
-                    assets: [{ name: asset }],
+                    assets: asset ? [{ name: asset }] : [],
                     body: readFileSync(path.join(root, plan.notes), 'utf8'),
                   },
                 ]
               : [],
           ]);
+        if (args[0] === 'release' && args[1] === 'download') {
+          const directory = args[args.indexOf('--dir') + 1];
+          writeFileSync(path.join(directory, asset), readFileSync(path.join(root, 'release-artifacts', asset)));
+        }
+        if (command === 'node') return execFileSync('node', args, { encoding: 'utf8' }).trim();
         return '';
       };
       performRelease(root, { component, version: plan.version, action }, run);
-      const mutations = commands.filter(([, first]) => ['tag', 'push', 'release'].includes(first));
+      const mutations = commands.filter(
+        ([command, first, second]) =>
+          (command === 'git' && ['tag', 'push'].includes(first)) ||
+          (command === 'gh' && first === 'release' && ['create', 'upload', 'edit'].includes(second)),
+      );
       assert.equal(mutations.length, action === 'tag-and-create-draft' ? 3 : 1);
       assert.ok(mutations.every((args) => args.some((arg) => arg.includes(plan.tag))));
+      if (action === 'publish-draft' && asset)
+        assert.deepEqual(
+          commands.filter(([, first]) => first === 'release').map(([, , operation]) => operation),
+          ['download', 'edit'],
+        );
+      assert.ok(
+        !commands.some(([command, first, second]) => command === 'gh' && first === 'release' && second === 'upload'),
+      );
       assert.ok(!commands.some(([cmd]) => ['vercel', 'docker', 'npm', 'cargo'].includes(cmd)));
     }
+});
+
+test('client draft publication rejects missing verified assets and mismatched downloaded bytes', (t) => {
+  for (const component of ['web', 'macos']) {
+    const root = fixture(t);
+    const plan = ready(root, component);
+    const asset = component === 'web' ? 'build-identity.json' : 'Artifact-macOS.zip';
+    const commands = [];
+    let draftHasAsset = true;
+    let downloadedFile = null;
+    const run = (command, args) => {
+      commands.push([command, ...args]);
+      if (command === 'git') {
+        if (args[0] === 'symbolic-ref') return 'main';
+        if (args[0] === 'status') return '';
+        if (args[0] === 'show') return readFileSync(path.join(root, plan.notes), 'utf8');
+        return git(true)(args);
+      }
+      if (args[0] === 'api')
+        return JSON.stringify([
+          [
+            {
+              tag_name: plan.tag,
+              draft: true,
+              assets: draftHasAsset ? [{ name: asset }] : [],
+              body: readFileSync(path.join(root, plan.notes), 'utf8'),
+            },
+          ],
+        ]);
+      if (args[0] === 'release' && args[1] === 'download') {
+        const directory = args[args.indexOf('--dir') + 1];
+        cpSync(downloadedFile, path.join(directory, asset));
+      }
+      if (command === 'node') return execFileSync('node', args, { encoding: 'utf8' }).trim();
+      return '';
+    };
+    const publish = () => performRelease(root, { component, version: plan.version, action: 'publish-draft' }, run);
+    assert.throws(publish, /Missing verified/);
+    assert.ok(!commands.some(([, first]) => first === 'release'));
+    if (component === 'web') write(root, `release-artifacts/${asset}`, 'verified artifact bytes');
+    else macArchive(root, path.join(root, 'release-artifacts', asset));
+    draftHasAsset = false;
+    assert.throws(publish, /Draft is missing/);
+    assert.ok(!commands.some(([, first, operation]) => first === 'release' && operation === 'upload'));
+    draftHasAsset = true;
+    downloadedFile = path.join(root, 'wrong', asset);
+    if (component === 'web') write(root, 'wrong/build-identity.json', 'wrong attachment bytes');
+    else macArchive(root, downloadedFile, 'wrong executable');
+    assert.throws(publish, /differs from verified/);
+    assert.ok(!commands.some(([, first, operation]) => first === 'release' && operation === 'edit'));
+    downloadedFile = path.join(root, 'release-artifacts', asset);
+    publish();
+    assert.equal(commands.filter(([, first, operation]) => first === 'release' && operation === 'edit').length, 1);
+    assert.ok(!commands.some(([, first, operation]) => first === 'release' && operation === 'upload'));
+  }
+});
+
+test('Mac archive comparison ignores container timestamps but rejects changed app bytes and unsafe entries', async (t) => {
+  const root = fixture(t);
+  const first = path.join(root, 'first.zip');
+  const second = path.join(root, 'second.zip');
+  macArchive(root, first, 'same executable', new Date('2020-01-01'));
+  macArchive(root, second, 'same executable', new Date('2025-01-01'));
+  assert.deepEqual(await archiveContents(first), await archiveContents(second));
+  macArchive(root, second, 'different executable', new Date('2025-01-01'));
+  assert.notDeepEqual(await archiveContents(first), await archiveContents(second));
+  const unsafe = path.join(root, 'unsafe.zip');
+  write(root, 'unsafe-stage/escape', 'outside app');
+  execFileSync('zip', ['-q', unsafe, 'escape'], { cwd: path.join(root, 'unsafe-stage') });
+  await assert.rejects(archiveContents(unsafe), /outside Artifact.app/);
+  const linkStage = path.join(root, 'link-stage');
+  write(linkStage, 'Artifact.app/Contents/Info.plist', 'plist');
+  write(linkStage, 'Artifact.app/Contents/MacOS/ArtifactCorePilot', 'binary');
+  write(linkStage, 'Artifact.app/Contents/Resources/build-identity.json', '{}');
+  write(linkStage, 'Artifact.app/Contents/_CodeSignature/CodeResources', 'signature');
+  symlinkSync('../../../../outside', path.join(linkStage, 'Artifact.app/Contents/Resources/link'));
+  const linkArchive = path.join(root, 'link.zip');
+  execFileSync('zip', ['-q', '-y', '-r', linkArchive, 'Artifact.app'], { cwd: linkStage });
+  await assert.rejects(archiveContents(linkArchive), /Symlink escapes Artifact.app/);
 });
 
 test('publication refuses non-main, dirty worktree, missing draft and API failures before writes', (t) => {
@@ -268,7 +376,15 @@ test('workflow gates route Web-only, macOS-only and core releases without produc
     workflow,
     /deploy-production:\n[\s\S]*?if: inputs.component == 'web' && inputs.action == 'deploy-production'/,
   );
-  assert.match(native, /inputs.release-component == 'macos'/);
+  const archiveCondition =
+    "if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.release-component == 'macos')";
+  assert.equal(native.split(archiveCondition).length - 1, 2);
+  assert.match(workflow, /name: Download verified macOS archive\n\s+if: inputs.component == 'macos'/);
+  assert.match(workflow, /name: Download Web build identity\n\s+if: inputs.component == 'web'/);
+  assert.match(
+    workflow,
+    /release:\n[\s\S]*?runs-on: ubuntu-latest[\s\S]*?node-version: 22\n\s+cache: npm\n\s+- run: npm ci[\s\S]*?run: node scripts\/release\/act\.mjs/,
+  );
   assert.match(native, /npm run check:core-web/);
   assert.match(native, /npm run check:core-native/);
   const gate = workflow.match(/test "\$METADATA" = success[\s\S]*?fi\n/)[0].replace(/^          /gm, '');

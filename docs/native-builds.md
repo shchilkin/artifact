@@ -131,8 +131,9 @@ that all those capabilities render on native Mac today.
 The new `native-tooling.yml` runs for pull requests to any base (including a
 stacked draft), and on pushes to `development` or `main`. Its Ubuntu job
 rebuilds WASM, checks generated freshness, Rust tests/clippy and Web build;
-its Apple Silicon job builds and **executes** native checks and preserves the
-identifiable app as a CI artifact. The workflow has read-only repository
+its Apple Silicon job builds and **executes** native checks. It archives the
+identifiable app for PR diagnostics and selected Mac releases, not ordinary
+pushes. The workflow has read-only repository
 permissions and no deployment, release, notarization or updater step. A
 passing model/render job is not GUI workflow proof or measured performance;
 those remain separate epic gates.

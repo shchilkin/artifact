@@ -130,19 +130,21 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Configure Git
         if: inputs.action == 'tag-and-create-draft'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Download verified macOS archive
-        if: inputs.component == 'macos' && inputs.action != 'publish-draft'
+        if: inputs.component == 'macos'
         uses: actions/download-artifact@v4
         with:
           name: Artifact-macOS-${{ github.sha }}
           path: release-artifacts
       - name: Download Web build identity
-        if: inputs.component == 'web' && inputs.action != 'publish-draft'
+        if: inputs.component == 'web'
         uses: actions/download-artifact@v4
         with:
           name: Web-identity-${{ github.sha }}

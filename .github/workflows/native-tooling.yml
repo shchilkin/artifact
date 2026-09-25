@@ -72,7 +72,7 @@ jobs:
       - name: Execute native model and renderer checks on P01 synthetic fixture
         run: npm run check:core-native
       - name: Verify app identity and ad hoc signature
-        if: github.event_name != 'workflow_dispatch' || inputs.release-component == 'macos'
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.release-component == 'macos')
         run: |
           test "$(plutil -extract ArtifactBuildSHA raw -o - apps/macos/.build/Artifact.app/Contents/Info.plist)" = "$(git rev-parse HEAD)"
           node scripts/release/verify-build.mjs macos --require-clean
@@ -83,7 +83,7 @@ jobs:
           test -x apps/macos/.build/extracted/Artifact.app/Contents/MacOS/ArtifactCorePilot
           codesign --verify --deep --strict apps/macos/.build/extracted/Artifact.app
       - uses: actions/upload-artifact@v4
-        if: github.event_name != 'workflow_dispatch' || inputs.release-component == 'macos'
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.release-component == 'macos')
         with:
           name: Artifact-macOS-${{ github.sha }}
           path: apps/macos/.build/Artifact-macOS.zip

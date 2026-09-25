@@ -101,7 +101,7 @@ and plans; mutation actions never use it. Unknown arguments fail. The manual
 | `verify` | Check a new candidate, run compatibility and selected client gates; no writes |
 | `tag-and-create-draft` | After gates and approval, create a new component tag and draft |
 | `create-draft` | Require an existing component tag at the checked commit, create draft |
-| `publish-draft` | Require that exact tag, existing draft, verified body and required assets; publish |
+| `publish-draft` | Require that exact tag, existing draft and verified body/assets; compare the attached client asset with this run's gated build, then publish |
 | `deploy-production` | Web only: preserve exact-SHA Web/API deployment and promotion order |
 
 A verify run expects an unused tag. To prepare a draft from an already existing
@@ -111,6 +111,15 @@ environment approval. Existing tags are never overwritten or moved. Drafts
 attach the verified Mac zip or Web build identity. Core uses GitHub's tagged
 source archive; there is no npm/crates publishing. No component claims GitHub's
 global “latest” release, which would mix three independent histories.
+Publishing a client draft downloads its existing attachment without modifying
+it. Web identity bytes must match this run's gated build. For Mac, the workflow
+compares every ZIP entry's path, type, mode and uncompressed content without
+extracting the draft archive. The current-run app's signature and extracted
+bundle were verified in the Mac gate; matching entries include its signature
+and embedded build identity. ZIP container timestamps may differ. A missing
+or different attachment blocks publication. If a separate Mac build produces
+different app bytes, prepare a new draft through
+the separately approved workflow rather than weakening this check.
 
 ## Compatibility gate and application gates
 
