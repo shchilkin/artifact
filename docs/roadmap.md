@@ -1,5 +1,11 @@
 # Artifact Codebase Overview and Roadmap
 
+Release tooling transition: core, Web and macOS now have independent version
+sources and namespaced release workflows. See
+[component releases](./component-releases.md) for the verified P06 base,
+compatibility gates and remaining first-release decisions. This does not
+complete the native parity roadmap or choose the next release numbers.
+
 For the step-by-step implementation plan, see [`improvement-plan.md`](./improvement-plan.md).
 
 Related architecture docs:
@@ -20,6 +26,32 @@ Related architecture docs:
 
 Current planning status:
 
+- **Web + native macOS architecture direction (2026-09-23):** retain the React
+  web editor and add a native SwiftUI macOS client in this monorepo, with shared
+  Rust editor logic compiled natively and to WASM. iOS, iPadOS, Android, Windows,
+  and Linux clients are outside scope. This is an accepted direction, not a
+  shipped capability or an addition to the v0.49/v0.50 release scope. Renderer
+  selection remains open. The local document-command pilot passes Rust, WASM,
+  and Swift conformance on Viber. The local Web -> Mac -> Web open/edit/save/PNG
+  workflow passes, with minor rendering differences accepted. Broader editor
+  coverage and performance budgets remain open. The native workspace now has
+  layer operations, source/effect inspectors, direct canvas transforms, basic
+  nodes, and file/history workflows. Its automated Rust/Swift/WASM conformance
+  and native model/render checks pass; GUI evidence and file-panel automation
+  limitations are tracked in [the workspace scope](./web-macos-editor-workspace.md).
+  The actual `apps/web` editor consumes supported Rust property commands through
+  WASM while retaining its document/history owner, full renderer, and advanced
+  graph behavior. See [main Web integration](./web-macos-main-web-integration.md).
+  The separate Web pilot is a compatibility test harness. Next parity work is
+  advanced graph nodes/sources/effects and remaining native document workflows;
+  other platforms remain outside scope. See [pilot evidence](./web-macos-viber-pilot.md) and
+  [ADR 0014](./adr/0014-web-and-native-macos-with-shared-rust-core.md).
+- **Native 2D parity backlog (#260):** P01 records the source-inspected scope,
+  owner matrix, portable fixtures and proposed acceptance gates in the
+  [native 2D parity contract](./native-2d-parity-contract.md). Downstream
+  implementation remains dependent on an agreed integrated or stacked
+  foundation base. This backlog does not rename or renumber the active
+  v0.49/v0.50 milestones; any remapping is a separate tracker decision.
 - v0.48.0 was released on 2026-07-27 as the UI Conformance And Legacy Removal
   release. The finite legacy registry has zero unresolved entries, both Product
   Themes share one executable Foundation conformance contract, and the seven

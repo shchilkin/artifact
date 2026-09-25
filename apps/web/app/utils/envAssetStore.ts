@@ -181,10 +181,15 @@ export async function hydrateDocumentEnvironmentAssets(
   const hydratedAssets = Array.from(loadedSrcByEnvironment.values()).filter((asset): asset is StoredEnvironmentAsset =>
     Boolean(asset),
   );
-  const assetsById = new Map([...existingAssets, ...hydratedAssets].map((asset) => [asset.id, asset]));
+  const assetsById = new Map(existingAssets.map((asset) => [asset.id, asset]));
+  for (const asset of hydratedAssets) assetsById.set(asset.id, { ...assetsById.get(asset.id), ...asset });
   const envAssets = Array.from(assetsById.values());
   return changed || envAssets.length !== existingAssets.length
-    ? { ...doc, graph: { ...graph, environmentNodes, scene3dNodes }, ...(envAssets.length > 0 ? { envAssets } : {}) }
+    ? {
+        ...doc,
+        graph: { ...graph, environmentNodes, scene3dNodes },
+        ...(envAssets.length > 0 ? { envAssets } : {}),
+      }
     : doc;
 }
 
@@ -199,12 +204,16 @@ export async function storePortableEnvironmentAssets(
   const saveAsset = options.saveEnvironmentAsset ?? persistEnvironmentAsset;
   if (!doc.envAssets?.length) return doc;
   const refsByDataUrl = new Map<string, string>();
-  for (const asset of doc.envAssets) {
+  const storable = doc.envAssets.filter(
+    (asset) => typeof asset.dataUrl === 'string' && asset.dataUrl.startsWith('data:'),
+  );
+  for (const asset of storable) {
     const stored = await saveAsset(asset);
     refsByDataUrl.set(asset.dataUrl, environmentUriFromId(stored.id));
   }
   const storedDoc = await mapDocumentEnvironmentSources(doc, async (source) => refsByDataUrl.get(source) ?? source);
-  return stripDocumentEnvironmentAssets(storedDoc);
+  const metadataOnly = doc.envAssets.filter((asset) => !storable.includes(asset));
+  return metadataOnly.length ? { ...storedDoc, envAssets: metadataOnly } : stripDocumentEnvironmentAssets(storedDoc);
 }
 
 export function stripDocumentEnvironmentAssets(doc: CanvasDocument): CanvasDocument {

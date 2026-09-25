@@ -280,3 +280,25 @@ apps/
 packages/
   shared/                    # Browser/server-neutral API contract types
 ```
+
+
+## Web + native macOS
+
+The monorepo includes a Rust command core, WASM adapter and SwiftUI Mac editor.
+The main Web editor uses shared Rust commands for supported layer-property
+patches while retaining its existing history, assets, renderer and advanced
+features. See [the integration boundary](docs/web-macos-main-web-integration.md).
+
+The Mac workspace has Layers, Canvas, basic Nodes, a shared inspector, project
+files and PNG export. Its rendering coverage remains limited to square projects,
+text/images/fill/emoji and the seven Viber effects; full Web parity is unfinished.
+See [workspace scope](docs/web-macos-editor-workspace.md).
+
+The separate Web pilot is an adapter/renderer test harness. Historical Viber
+setup and evidence remain in [the pilot record](docs/web-macos-viber-pilot.md).
+
+## Component releases
+
+Core, Web and macOS have independent versions and release dates. See
+[component release operations](docs/component-releases.md) for metadata, exact
+embedded core identities, compatibility checks and manual release actions.

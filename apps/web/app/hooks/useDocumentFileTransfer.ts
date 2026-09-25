@@ -102,17 +102,25 @@ function createPendingDocumentImport(file: File, doc: CanvasDocument): PendingDo
   };
 }
 
-async function readPendingDocumentImport(
-  file: File,
-): Promise<{ pendingImport: PendingDocumentImport | null; error: string | null }> {
+async function readPendingDocumentImport(file: File): Promise<{
+  pendingImport: PendingDocumentImport | null;
+  error: string | null;
+}> {
   const result = await readDocumentFileResult(file);
-  if (!result.doc) return { pendingImport: null, error: result.error ?? 'Could not read document file.' };
-  return { pendingImport: createPendingDocumentImport(file, result.doc), error: null };
+  if (!result.doc)
+    return {
+      pendingImport: null,
+      error: result.error ?? 'Could not read document file.',
+    };
+  return {
+    pendingImport: createPendingDocumentImport(file, result.doc),
+    error: null,
+  };
 }
 
 export function useDocumentFileTransfer(
   docRef: MutableRefObject<CanvasDocument>,
-  onLoadDocument: (doc: CanvasDocument) => void,
+  onLoadDocument: (doc: CanvasDocument) => Promise<CanvasDocument | null>,
 ) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const documentPickerReturnFocusRef = useRef<HTMLElement>(null);
@@ -126,7 +134,9 @@ export function useDocumentFileTransfer(
   const handleSaveDocument = useCallback(() => {
     preparePortableDocument(docRef.current)
       .then((portableDoc) => {
-        const blob = new Blob([serializeArtifactDocument(portableDoc)], { type: ARTIFACT_FILE_MIME });
+        const blob = new Blob([serializeArtifactDocument(portableDoc)], {
+          type: ARTIFACT_FILE_MIME,
+        });
         downloadBlob(blob, createArtifactFileName(docRef.current));
         setDocumentFileError(null);
       })
@@ -180,8 +190,8 @@ export function useDocumentFileTransfer(
         showDocumentFileError(result.error ?? 'Could not read document file.');
         return;
       }
-      onLoadDocument(result.doc);
-      setDocumentFileError(null);
+      if (await onLoadDocument(result.doc)) setDocumentFileError(null);
+      else showDocumentFileError('Could not open document file.');
     },
     [onLoadDocument, showDocumentFileError],
   );
@@ -204,12 +214,16 @@ export function useDocumentFileTransfer(
     setPendingDocumentImport(null);
   }, []);
 
-  const handleConfirmDocumentImport = useCallback(() => {
-    if (!pendingDocumentImport) return;
-    onLoadDocument(pendingDocumentImport.doc);
-    setPendingDocumentImport(null);
-    setDocumentFileError(null);
-  }, [onLoadDocument, pendingDocumentImport]);
+  const handleConfirmDocumentImport = useCallback(async () => {
+    if (!pendingDocumentImport) return false;
+    if (await onLoadDocument(pendingDocumentImport.doc)) {
+      setPendingDocumentImport(null);
+      setDocumentFileError(null);
+      return true;
+    }
+    showDocumentFileError('Could not open document file.');
+    return false;
+  }, [onLoadDocument, pendingDocumentImport, showDocumentFileError]);
 
   return {
     fileInputRef,

@@ -9,7 +9,8 @@
     "apps/backoffice",
     "apps/web",
     "packages/shared",
-    "packages/ui"
+    "packages/ui",
+    "packages/artifact-core-web"
   ],
   "scripts": {
     "favicon": "npm --workspace @artifact/web run favicon",
@@ -31,7 +32,7 @@
     "build:api": "npm --workspace @artifact/api run build",
     "build:ci": "npm --workspace @artifact/web run build:ci",
     "build:shared": "npm --workspace @artifact/shared run build",
-    "check": "npm run format:check && npm run lint && npm run quality:ui-legacy-registry && npm run typecheck:shared && npm run typecheck:ui && npm run typecheck && npm run typecheck:api && npm run typecheck:backoffice && npm run test:deploy && npm run test:ui-legacy-registry && npm run test:ui && npm test && npm run test:api && npm run test:backoffice",
+    "check": "npm run format:check && npm run lint && npm run quality:ui-legacy-registry && npm run typecheck:shared && npm run typecheck:ui && npm run typecheck && npm run typecheck:api && npm run typecheck:backoffice && npm run test:release && npm run release:verify -- --metadata-only && npm run test:deploy && npm run test:ui-legacy-registry && npm run test:ui && npm test && npm run test:api && npm run test:backoffice",
     "check:backoffice": "npm --workspace @artifact/backoffice run check",
     "format": "biome check --write .",
     "format:check": "biome check .",
@@ -39,6 +40,7 @@
     "prepare": "husky",
     "preview": "npm --workspace @artifact/web run preview",
     "quality:ui-legacy-registry": "node scripts/quality/ui-legacy-registry.mjs",
+    "quality:native-2d-contract": "node scripts/quality/native-2d-contract.mjs",
     "release:verify": "node scripts/verify-release.mjs",
     "turbo:build": "turbo run build --filter=@artifact/shared --filter=@artifact/api --filter=@artifact/web",
     "turbo:check": "turbo run build typecheck test --filter=@artifact/shared --filter=@artifact/api --filter=@artifact/web",
@@ -69,7 +71,24 @@
     "test:browser:ui-conformance": "npm run test:browser -- --project=chromium --project=firefox --project=webkit ui-foundation.spec.ts && npm run test:browser:backoffice -- style-guide.spec.ts",
     "test:browser:headed": "npm --workspace @artifact/web run test:browser -- --headed",
     "test:browser:install": "playwright install --with-deps chromium firefox webkit",
-    "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs"
+    "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs",
+    "build:core-pilot": "node scripts/core-pilot/build.mjs",
+    "build:core-wasm-canonical": "node scripts/core-pilot/build-wasm-canonical.mjs",
+    "check:core": "npm run check:core-web && npm run check:core-native",
+    "check:core-web": "node scripts/core-pilot/runtime-manifest.mjs && cargo test --locked --workspace && cargo clippy --locked --workspace --all-targets -- -D warnings && npm run test:core-web && npm run test:core-graph-web",
+    "check:core-native": "node scripts/core-pilot/public-fixture.mjs && node scripts/core-pilot/verify.mjs --fixture test-results/core-pilot/public-p01.artifact --layer p02-scanlines && node scripts/core-pilot/verify-public-native.mjs && node tests/core-commands/verify.mjs && node tests/native-2d-render/verify.mjs",
+    "test:core-tooling": "node --test scripts/core-pilot/tooling.test.mjs",
+    "test:core-pilot": "node scripts/core-pilot/verify.mjs",
+    "dev:core-pilot": "npm --workspace @artifact/core-web run demo",
+    "test:core-render": "node scripts/core-pilot/verify-render.mjs",
+    "test:core-roundtrip": "node scripts/core-pilot/verify-roundtrip.mjs",
+    "test:core-web": "npm --workspace @artifact/core-web run test",
+    "test:core-graph-web": "npm --workspace @artifact/web run test -- sharedGraphCoreParity.test.ts",
+    "test:core-text": "node scripts/core-pilot/verify-text.mjs",
+    "test:core-image": "node scripts/core-pilot/verify-image.mjs",
+    "test:core-preview": "apps/macos/.build/model-check tests/fixtures/core-parity/viber.local/source.artifact test-results/core-pilot/preview/model",
+    "test:core-editor": "node scripts/core-pilot/verify-editor.mjs",
+    "test:release": "node --test scripts/release/*.test.mjs"
   },
   "dependencies": {
     "@react-router/node": "^7.14.2",
@@ -109,11 +128,12 @@
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",
     "vite-plugin-tsconfig-paths": "^1.4.1",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "yauzl": "^2.10.0"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,jsonc,css}": [
-      "biome check --write"
+      "biome check --write --no-errors-on-unmatched"
     ],
     "*.{js,jsx,ts,tsx}": [
       "eslint --fix"

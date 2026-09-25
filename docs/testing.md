@@ -1,5 +1,42 @@
 # Testing
 
+Native P06 render checks are part of `npm run check:core-native` after a native
+build. `tests/native-2d-render/verify.mjs` covers the four output aspects,
+alpha, layered blends, embedded-font bounds and ordinary/subpixel tiling.
+Its [evidence boundary](./native-2d-render-foundation.md) separates those
+harness results from the actual Mac GUI observation and independent main-Web
+export.
+
+The main Web editor's shared-core integration is covered by
+`app/utils/sharedCoreCommands.test.ts`, using actual compiled WASM bytes through
+production document commands. See [the integration boundary](./web-macos-main-web-integration.md).
+The [native 2D parity contract](./native-2d-parity-contract.md) adds a source-linked
+capability inventory and eight redistributable editor documents. Run
+`npm run quality:native-2d-contract` for effect ownership and fixture integrity,
+and `npm run test:browser -- --project=chromium native-2d-contract.spec.ts`
+for main Web file import, embedded font and graph-response evidence. These
+P01 checks do not establish native GUI or pixel parity.
+The native/package conformance harness also remains available. See [Web + native macOS pilot](./web-macos-viber-pilot.md) for its
+binding conformance, verified Viber GUI round trip and remaining coverage.
+`npm run test:core-web` covers the pilot effect-worker lifecycle, cancellation
+and failure paths; real-browser PNG comparisons are recorded in the pilot evidence.
+`npm run test:core-text` compares text edits and undo/redo across Rust, WASM,
+and Swift/UniFFI, checks a sequential WASM -> Swift -> WASM package handoff,
+and verifies native text rendering, including multiline text and exact PNG
+restoration after Undo. It requires built bindings and the private Viber
+fixture; adapter checks do not substitute for GUI acceptance.
+`npm run test:core-preview` runs the native `ProjectModel` with controlled
+out-of-order completions, edit/open cancellation, export failure/retry and a
+real 1000px preview/3000px export. Build native bindings first. Web render-job
+ownership tests are included in `test:core-web` alongside the worker tests.
+
+`npm run test:core-image` checks image replacement and transforms across the
+three adapters, a sequential WASM -> Swift -> WASM handoff, full-package
+preservation and exact native PNG restoration after Undo. It also runs native
+PNG alpha, JPEG EXIF-orientation and invalid-file import checks. Build all
+bindings first; the Viber fixture is private. Web importer rejection/cleanup
+tests run with `test:core-web`; they do not establish real browser decoding.
+
 ## Running tests
 
 ```bash
@@ -399,3 +436,16 @@ npm run test:browser
 - [`docs/state-model.md`](state-model.md) — what state affects render output
 - [`docs/performance.md`](performance.md) — node-editor benchmark workflow
 - [`docs/improvement-plan.md`](improvement-plan.md) — phased quality checklist
+
+`npm run test:core-editor` verifies a 14-command layer/graph sequence across Rust,
+WASM and Swift, exact Undo/Redo states and a Web -> Mac -> Web package handoff.
+`test:core-preview` also verifies native new/add/edit/duplicate/delete/reorder,
+graph changes, save/reopen, saved-state history and PNG export.
+
+Issue #262 adds `npm run test:core-tooling` for doctor and stale-runtime
+failures, `npm run check:core-web` for pinned-source Rust tests/clippy, WASM
+freshness and adapter tests, and `npm run check:core-native` for native model,
+PNG render and Swift/WASM kernel checks derived from P01's public synthetic
+fixture. See [native builds](native-builds.md) for toolchain versions, CI jobs
+and the model/render versus GUI evidence boundary. The older Viber-specific
+pilot scripts remain optional local diagnostics and are not CI inputs.

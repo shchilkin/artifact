@@ -1,5 +1,13 @@
 # CLAUDE.md — Album Cover Utils
 
+Web + native macOS architecture is described in ADR 0014,
+`docs/web-macos-editor-workspace.md` and `docs/web-macos-main-web-integration.md`.
+The real Web editor uses supported shared Rust property commands via WASM;
+its existing document/history owner, renderer and advanced graph remain intact.
+SwiftUI exposes layers, canvas, basic nodes and inspectors. The separate Web
+pilot is a compatibility test harness; its historical evidence is in
+`docs/web-macos-viber-pilot.md`. Native full Web parity is not complete.
+
 ## Project Purpose
 
 Browser-based album cover editor: users compose layered artwork with emojis, images, text, fills, and WebGL post-effects, then export as PNG/JPEG. The app lives at `/app` (React Router route).
@@ -18,6 +26,7 @@ Read these docs before changing state ownership, rendering, node editor behavior
   token, shared primitive, and style-guide route rules.
 - `docs/improvement-plan.md` — ordered implementation plan with phase exit criteria.
 - `docs/roadmap.md` — codebase overview, strengths, risks, and long-term roadmap.
+- `docs/component-releases.md` — independent core/Web/macOS versions, exact build identities and release gates.
 - `docs/version-planning.md` — version split rules: one release thesis, one primary blast radius, explicit non-goals, checkable acceptance criteria, and discovery boundaries.
 - `docs/production-readiness.md` — release gate, manual QA checklist, known risks, and feature intake split.
 - `docs/release-template.md` — mandatory release notes template and checklist. Do not tag or publish releases from free-form notes.

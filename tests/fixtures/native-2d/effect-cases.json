@@ -1,0 +1,799 @@
+{
+  "version": 1,
+  "reference": "Web EFFECT_PRESETS and renderer at the pinned base",
+  "status": "planned acceptance cases; not pixel baselines",
+  "cases": [
+    {
+      "preset": "tint",
+      "owner": 272,
+      "primary": "tintOp",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "hueShift",
+      "owner": 272,
+      "primary": "hueShift",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "posterize",
+      "owner": 272,
+      "primary": "posterize",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "indexedPalette",
+      "owner": 272,
+      "primary": "indexedPalette",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "gradientMap",
+      "owner": 272,
+      "primary": "gradientMap",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "channelMixer",
+      "owner": 272,
+      "primary": "channelMixer",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "duotone",
+      "owner": 272,
+      "primary": "duotone",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "threshold",
+      "owner": 272,
+      "primary": "threshold",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "edgeCrush",
+      "owner": 272,
+      "primary": "edgeCrush",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "silhouetteCrush",
+      "owner": 272,
+      "primary": "silhouetteCrush",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "gradientOverlay",
+      "owner": 272,
+      "primary": "gradMix",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "sepia",
+      "owner": 272,
+      "primary": "sepia",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "infrared",
+      "owner": 272,
+      "primary": "infrared",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "matte",
+      "owner": 272,
+      "primary": "matte",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "solarize",
+      "owner": 272,
+      "primary": "solarize",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "bleachBypass",
+      "owner": 272,
+      "primary": "bleachBypass",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "cyanotype",
+      "owner": 272,
+      "primary": "cyanotype",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "splitTone",
+      "owner": 272,
+      "primary": "splitToneAmt",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "rgbSplit",
+      "owner": 273,
+      "primary": "rgbSplit",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "interlace",
+      "owner": 273,
+      "primary": "interlace",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "dataMosh",
+      "owner": 273,
+      "primary": "dataMosh",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "badStream",
+      "owner": 273,
+      "primary": "badStream",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "macroblocks",
+      "owner": 273,
+      "primary": "badStream",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "detailBlocks",
+      "owner": 273,
+      "primary": "badStreamDetail",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "blockSmear",
+      "owner": 273,
+      "primary": "badStreamSmear",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "chromaBlocks",
+      "owner": 273,
+      "primary": "badStreamChroma",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "blockDropout",
+      "owner": 273,
+      "primary": "badStreamDarkness",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "pixelStretch",
+      "owner": 273,
+      "primary": "pixelStretch",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "morph",
+      "owner": 273,
+      "primary": null,
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "barrel",
+      "owner": 273,
+      "primary": "barrel",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "mirror",
+      "owner": 273,
+      "primary": null,
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "retroResolution",
+      "owner": 273,
+      "primary": "retroResolution",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "pixelate",
+      "owner": 273,
+      "primary": "pixelate",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "vhsTracking",
+      "owner": 273,
+      "primary": "vhsTracking",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "wave",
+      "owner": 273,
+      "primary": "waveAmt",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "ripple",
+      "owner": 273,
+      "primary": "rippleAmt",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "patternRefraction",
+      "owner": 273,
+      "primary": "patternRefraction",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "kaleidoscope",
+      "owner": 273,
+      "primary": "kaleidoscope",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "squeeze",
+      "owner": 273,
+      "primary": null,
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "dotGrain",
+      "owner": 274,
+      "primary": "dotGrain",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "halftone",
+      "owner": 274,
+      "primary": "halftone",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "risoShift",
+      "owner": 274,
+      "primary": "risoShift",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "edgeDetect",
+      "owner": 274,
+      "primary": "edgeDetect",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "hatching",
+      "owner": 274,
+      "primary": "hatching",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "dither",
+      "owner": 274,
+      "primary": "dither",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "overprint",
+      "owner": 274,
+      "primary": "overprint",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "emboss",
+      "owner": 274,
+      "primary": "emboss",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "linocut",
+      "owner": 274,
+      "primary": "linocut",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "speedLines",
+      "owner": 274,
+      "primary": "speedLines",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "rays",
+      "owner": 275,
+      "primary": "rays",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "bloom",
+      "owner": 275,
+      "primary": "bloom",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "filmBurn",
+      "owner": 275,
+      "primary": "filmBurn",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "vignette",
+      "owner": 275,
+      "primary": "vignette",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "blur",
+      "owner": 275,
+      "primary": "blurAmt",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "bokehBlur",
+      "owner": 275,
+      "primary": "bokehBlur",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "gooeyMerge",
+      "owner": 275,
+      "primary": "gooeyMerge",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "neonGlow",
+      "owner": 275,
+      "primary": "neonGlow",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "zoomBlur",
+      "owner": 275,
+      "primary": "zoomBlur",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "fog",
+      "owner": 275,
+      "primary": "fog",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "glitch",
+      "owner": 276,
+      "primary": "glitch",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "grain",
+      "owner": 276,
+      "primary": "grain",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "noiseWarp",
+      "owner": 276,
+      "primary": "noiseWarp",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "vortex",
+      "owner": 276,
+      "primary": "vortex",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "tear",
+      "owner": 276,
+      "primary": "tearAmt",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "scanlines",
+      "owner": 276,
+      "primary": "scanlines",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    },
+    {
+      "preset": "ca",
+      "owner": 276,
+      "primary": "ca",
+      "documentTemplate": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "assertions": [
+        "Web reference control defaults and secondary parameters",
+        "native editable control and one undo action",
+        "transparent and non-square alpha/color comparison",
+        "preview and export agreement"
+      ]
+    }
+  ]
+}

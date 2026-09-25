@@ -1,0 +1,1466 @@
+{
+  "version": 1,
+  "capturedAt": "2026-09-24T14:40:10.553Z",
+  "productSourceRevision": "ca2a1e2b408998436414b2efde69777b65e249f5",
+  "fixtureRevision": "66cb64f379a2af609f2a1a0a93f8d6ad408e65c3",
+  "browser": {
+    "name": "Google Chrome",
+    "version": "153.0.8010.53",
+    "headless": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "deviceScaleFactor": 1
+  },
+  "host": {
+    "chip": "Apple M5 Max",
+    "memoryGiB": 36,
+    "os": "macOS 26.6.2",
+    "build": "25G83"
+  },
+  "pixelDecoder": "@napi-rs/canvas",
+  "evidence": "Observed from the main Web file import and actual export download. Numeric/image hashes are this host and browser baseline, not cross-platform exact-pixel requirements or performance measurements.",
+  "documents": [
+    {
+      "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "fixtureFileSha256": "a761c1de6a843bdec557b0d2a660f40f7c4c561dabafe684c1d491ccd0dd446c",
+      "inputValueSha256": "38f48f25e3fa7fd6d83ec3ab6b0730f71f8674f1529dd5563db7c1f947ea21e7",
+      "imported": {
+        "aspect": "1:1",
+        "layerCount": 2,
+        "layerKinds": ["fill", "text"],
+        "graph": null,
+        "textLayers": [
+          {
+            "id": "font-title",
+            "content": "ARTIFACT 2D",
+            "font": "artifact-font://covered-grace-p01",
+            "x": 0.5,
+            "y": 0.44,
+            "size": 96,
+            "rotation": -4
+          }
+        ],
+        "embeddedFontFaces": [
+          {
+            "family": "Artifact Imported covered grace p01",
+            "status": "loaded"
+          }
+        ],
+        "export": {
+          "format": "png",
+          "scale": 3,
+          "target": "cover"
+        }
+      },
+      "exported": {
+        "filename": "cover-101-3000x3000.png",
+        "width": 3000,
+        "height": 3000,
+        "fileSha256": "90c9985885eca48d8b90f7d1ffd1cbe5fafd8c0addd34a1155ad54d27520939f",
+        "decodedRgbaSha256": "3b62697fdf19ced78d64e9af9272bef6045b5b62085b46a5ff116a67ad618cd9",
+        "alphaPixels": {
+          "transparent": 0,
+          "translucent": 0,
+          "opaque": 9000000
+        },
+        "samples": {
+          "topLeft": [23, 37, 58, 255],
+          "center": [23, 37, 58, 255],
+          "bottomRight": [23, 37, 58, 255]
+        },
+        "textInkBounds": {
+          "threshold": "alpha > 128 and max RGB distance from plate [23,37,58] > 16",
+          "outputPixels": {
+            "x": 189,
+            "y": 1014,
+            "width": 2622,
+            "height": 516
+          },
+          "canonicalBasePixels": {
+            "x": 63,
+            "y": 338,
+            "width": 874,
+            "height": 172
+          }
+        }
+      },
+      "pageErrors": []
+    },
+    {
+      "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "fixtureFileSha256": "e5c2ca43561d4068a437b1728710291360c64fb3de3baf3e1c8b1d7b20f5e270",
+      "inputValueSha256": "9cd4d24ad3b9876c314b4207ab8ebfcee5b8ee0d34f141f79ed9c597cc4813a5",
+      "imported": {
+        "aspect": "4:5",
+        "layerCount": 1,
+        "layerKinds": ["image"],
+        "graph": null,
+        "textLayers": [],
+        "embeddedFontFaces": [],
+        "export": {
+          "format": "png",
+          "scale": 1,
+          "target": "cover"
+        }
+      },
+      "exported": {
+        "filename": "cover-202-1080x1350.png",
+        "width": 1080,
+        "height": 1350,
+        "fileSha256": "bff8b9e79fd0bb026eb40880b82da25b3380380127534a3d736cf4835993d4b4",
+        "decodedRgbaSha256": "ccf2136cb5dd2931a772c0809a29cff7ebe3df31f63b0c6c85be560f3ae9639b",
+        "alphaPixels": {
+          "transparent": 1024512,
+          "translucent": 433488,
+          "opaque": 0
+        },
+        "samples": {
+          "topLeft": [0, 0, 0, 0],
+          "center": [30, 180, 220, 220],
+          "bottomRight": [0, 0, 0, 0]
+        }
+      },
+      "pageErrors": []
+    },
+    {
+      "fixture": "tests/fixtures/native-2d/alpha-jpeg.artifact.json",
+      "fixtureFileSha256": "47cc4cc81c1224728b259dfd9ce96499e4479d7e58c405aca7515a1032a157e5",
+      "inputValueSha256": "f71fd5dd442ab7813a8282c71f5400ea4ee60dd242c38cd1d69e874f36977beb",
+      "imported": {
+        "aspect": "4:5",
+        "layerCount": 1,
+        "layerKinds": ["image"],
+        "graph": null,
+        "textLayers": [],
+        "embeddedFontFaces": [],
+        "export": {
+          "format": "jpeg",
+          "scale": 2,
+          "target": "cover"
+        }
+      },
+      "exported": {
+        "filename": "cover-202-2160x2700.jpeg",
+        "width": 2160,
+        "height": 2700,
+        "fileSha256": "cd917193725d07ddceb344bfb7db6a309563847cddcba4a18d7c39b25650aeaf",
+        "decodedRgbaSha256": "5bc29ea4f6d59de075d1f4fcf772ce001647d42dcd9a338648a3598e9150cd5d",
+        "alphaPixels": {
+          "transparent": 0,
+          "translucent": 0,
+          "opaque": 5832000
+        },
+        "samples": {
+          "topLeft": [0, 0, 0, 255],
+          "center": [26, 154, 189, 255],
+          "bottomRight": [0, 0, 0, 255]
+        }
+      },
+      "pageErrors": []
+    },
+    {
+      "fixture": "tests/fixtures/native-2d/blend-modes.artifact.json",
+      "fixtureFileSha256": "a44eb66e5811e35c4a9cacc021769a16899e933cc8f4a9dcaa4afb36a8a02204",
+      "inputValueSha256": "7a82fa130b01056a8dfec1b6eec4ada66918216080f7826f8ee1782c4786853c",
+      "imported": {
+        "aspect": "1:1",
+        "layerCount": 5,
+        "layerKinds": ["fill", "fill", "fill", "fill", "fill"],
+        "graph": null,
+        "textLayers": [],
+        "embeddedFontFaces": [],
+        "export": {
+          "format": "png",
+          "scale": 1,
+          "target": "cover"
+        }
+      },
+      "exported": {
+        "filename": "cover-707-1000x1000.png",
+        "width": 1000,
+        "height": 1000,
+        "fileSha256": "bfb4ab5a371c98360bb0db656dc8b2404ca88014ca5840638ad76b579ffa2679",
+        "decodedRgbaSha256": "5a35f3f3a5fa2ca29363885cd6a4baa7b8307c115742317503cd8499ccebf714",
+        "alphaPixels": {
+          "transparent": 0,
+          "translucent": 0,
+          "opaque": 1000000
+        },
+        "samples": {
+          "topLeft": [113, 128, 185, 255],
+          "center": [113, 128, 185, 255],
+          "bottomRight": [113, 128, 185, 255]
+        }
+      },
+      "pageErrors": []
+    },
+    {
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "fixtureFileSha256": "0f1a3c689d21e726e9db147b27fe12b5c5dbf49f63fe98b5385c6cb9234547a0",
+      "inputValueSha256": "591e2fe9d4503a12715b5c106e5e8bcbb3a1d3b8abfafa19f06de6395d10feed",
+      "imported": {
+        "aspect": "16:9",
+        "layerCount": 3,
+        "layerKinds": ["fill", "image", "image"],
+        "graph": {
+          "edges": [
+            {
+              "id": "edge-branch-art-branch-repeat-in",
+              "fromId": "branch-art",
+              "fromPort": "out",
+              "toId": "branch-repeat",
+              "toPort": "in"
+            },
+            {
+              "id": "edge-branch-repeat-branch-mask-in",
+              "fromId": "branch-repeat",
+              "fromPort": "out",
+              "toId": "branch-mask",
+              "toPort": "in"
+            },
+            {
+              "id": "edge-branch-matte-branch-mask-mask",
+              "fromId": "branch-matte",
+              "fromPort": "out",
+              "toId": "branch-mask",
+              "toPort": "mask"
+            },
+            {
+              "id": "edge-branch-ground-branch-merge-a",
+              "fromId": "branch-ground",
+              "fromPort": "out",
+              "toId": "branch-merge",
+              "toPort": "a"
+            },
+            {
+              "id": "edge-branch-mask-branch-merge-b",
+              "fromId": "branch-mask",
+              "fromPort": "out",
+              "toId": "branch-merge",
+              "toPort": "b"
+            },
+            {
+              "id": "edge-branch-merge-__export__-in",
+              "fromId": "branch-merge",
+              "fromPort": "out",
+              "toId": "__export__",
+              "toPort": "in"
+            }
+          ],
+          "utilityCounts": {
+            "mergeNodes": 1,
+            "colorNodes": 0,
+            "repeatNodes": 1,
+            "maskNodes": 1,
+            "transformNodes": 0,
+            "grimeShadowNodes": 0
+          },
+          "areas": [
+            {
+              "id": "branch-area",
+              "name": "Composite",
+              "nodeIds": ["branch-repeat", "branch-mask", "branch-merge"],
+              "color": "#79e3c5"
+            }
+          ],
+          "positionedNodeCount": 7
+        },
+        "textLayers": [],
+        "embeddedFontFaces": [],
+        "export": {
+          "format": "png",
+          "scale": 1,
+          "target": "cover"
+        }
+      },
+      "exported": {
+        "filename": "cover-303-1920x1080.png",
+        "width": 1920,
+        "height": 1080,
+        "fileSha256": "538d07086c169058abd12d75dc4641eeeb9035adfb6dc60a7b08cd1f1ae1257c",
+        "decodedRgbaSha256": "dff592ef90d0bccb77b8bba88e777cc302bf63fc39f5573c6cb784a9b242ed8b",
+        "alphaPixels": {
+          "transparent": 0,
+          "translucent": 0,
+          "opaque": 2073600
+        },
+        "samples": {
+          "topLeft": [22, 39, 61, 255],
+          "center": [22, 39, 61, 255],
+          "bottomRight": [22, 39, 61, 255]
+        }
+      },
+      "pageErrors": []
+    },
+    {
+      "fixture": "tests/fixtures/native-2d/source-families.artifact.json",
+      "fixtureFileSha256": "44a6e6b507efa6eacaa779336d50ab813991fe864a7da46016b579c6b15440b5",
+      "inputValueSha256": "7ccf47f9230d0750d5c7c10ed8e14a2b7130b70bdc839600b04a419dc03dcf97",
+      "imported": {
+        "aspect": "4:5",
+        "layerCount": 4,
+        "layerKinds": ["noise", "array", "lineField", "emoji"],
+        "graph": null,
+        "textLayers": [],
+        "embeddedFontFaces": [],
+        "export": {
+          "format": "png",
+          "scale": 1,
+          "target": "cover"
+        }
+      },
+      "exported": {
+        "filename": "cover-505-1080x1350.png",
+        "width": 1080,
+        "height": 1350,
+        "fileSha256": "9cf1286a76b3bf38d76dee4fb5e4359f15349ff65b2a7924aaf11f2bd759b152",
+        "decodedRgbaSha256": "91a2bba1337aecd612c8380e65795fb8ef51fe47ed5bc5f2575c17921686ee93",
+        "alphaPixels": {
+          "transparent": 234532,
+          "translucent": 813894,
+          "opaque": 409574
+        },
+        "samples": {
+          "topLeft": [106, 140, 246, 60],
+          "center": [114, 133, 244, 94],
+          "bottomRight": [200, 163, 150, 255]
+        }
+      },
+      "pageErrors": []
+    },
+    {
+      "fixture": "tests/fixtures/native-2d/graph-utilities.artifact.json",
+      "fixtureFileSha256": "9886a65a0e3d6643528423a1ff3a9c6b68de2873446309741f9413feae2950f9",
+      "inputValueSha256": "f327de2f097e105b5216787801cbd71b7baa960b597183bf2c36316802c274e1",
+      "imported": {
+        "aspect": "1:1",
+        "layerCount": 1,
+        "layerKinds": ["image"],
+        "graph": {
+          "edges": [
+            {
+              "id": "edge-utility-art-utility-color-in",
+              "fromId": "utility-art",
+              "fromPort": "out",
+              "toId": "utility-color",
+              "toPort": "in"
+            },
+            {
+              "id": "edge-utility-color-utility-transform-in",
+              "fromId": "utility-color",
+              "fromPort": "out",
+              "toId": "utility-transform",
+              "toPort": "in"
+            },
+            {
+              "id": "edge-utility-transform-utility-shadow-in",
+              "fromId": "utility-transform",
+              "fromPort": "out",
+              "toId": "utility-shadow",
+              "toPort": "in"
+            },
+            {
+              "id": "edge-utility-shadow-__export__-in",
+              "fromId": "utility-shadow",
+              "fromPort": "out",
+              "toId": "__export__",
+              "toPort": "in"
+            }
+          ],
+          "utilityCounts": {
+            "mergeNodes": 0,
+            "colorNodes": 1,
+            "repeatNodes": 0,
+            "maskNodes": 0,
+            "transformNodes": 1,
+            "grimeShadowNodes": 1
+          },
+          "areas": [],
+          "positionedNodeCount": 5
+        },
+        "textLayers": [],
+        "embeddedFontFaces": [],
+        "export": {
+          "format": "png",
+          "scale": 1,
+          "target": "cover"
+        }
+      },
+      "exported": {
+        "filename": "cover-606-1000x1000.png",
+        "width": 1000,
+        "height": 1000,
+        "fileSha256": "585974e384365a1711db8d82e16ccb0e18a9d9ad642b8a3030a5c3c7509e9cc8",
+        "decodedRgbaSha256": "a84fe27ff6e6481ceed516f761072a7890f5721a8265c962fe918c82028b6101",
+        "alphaPixels": {
+          "transparent": 511725,
+          "translucent": 485309,
+          "opaque": 2966
+        },
+        "samples": {
+          "topLeft": [0, 0, 0, 0],
+          "center": [24, 158, 227, 252],
+          "bottomRight": [0, 0, 0, 0]
+        }
+      },
+      "pageErrors": []
+    },
+    {
+      "fixture": "tests/fixtures/native-2d/hundred-node.artifact.json",
+      "fixtureFileSha256": "4f79d510c67a2279e6c33d718eac2311866ca73bab4aa62fcd69202babf13808",
+      "inputValueSha256": "ad50c4e174ae1c12cea566e69076cdb99a0625051346b6e7485408f919619d6d",
+      "imported": {
+        "aspect": "9:16",
+        "layerCount": 100,
+        "layerKinds": [
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill",
+          "fill"
+        ],
+        "graph": {
+          "edges": [
+            {
+              "id": "edge-stress-001-stress-002-bg",
+              "fromId": "stress-001",
+              "fromPort": "out",
+              "toId": "stress-002",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-002-stress-003-bg",
+              "fromId": "stress-002",
+              "fromPort": "out",
+              "toId": "stress-003",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-003-stress-004-bg",
+              "fromId": "stress-003",
+              "fromPort": "out",
+              "toId": "stress-004",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-004-stress-005-bg",
+              "fromId": "stress-004",
+              "fromPort": "out",
+              "toId": "stress-005",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-005-stress-006-bg",
+              "fromId": "stress-005",
+              "fromPort": "out",
+              "toId": "stress-006",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-006-stress-007-bg",
+              "fromId": "stress-006",
+              "fromPort": "out",
+              "toId": "stress-007",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-007-stress-008-bg",
+              "fromId": "stress-007",
+              "fromPort": "out",
+              "toId": "stress-008",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-008-stress-009-bg",
+              "fromId": "stress-008",
+              "fromPort": "out",
+              "toId": "stress-009",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-009-stress-010-bg",
+              "fromId": "stress-009",
+              "fromPort": "out",
+              "toId": "stress-010",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-010-stress-011-bg",
+              "fromId": "stress-010",
+              "fromPort": "out",
+              "toId": "stress-011",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-011-stress-012-bg",
+              "fromId": "stress-011",
+              "fromPort": "out",
+              "toId": "stress-012",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-012-stress-013-bg",
+              "fromId": "stress-012",
+              "fromPort": "out",
+              "toId": "stress-013",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-013-stress-014-bg",
+              "fromId": "stress-013",
+              "fromPort": "out",
+              "toId": "stress-014",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-014-stress-015-bg",
+              "fromId": "stress-014",
+              "fromPort": "out",
+              "toId": "stress-015",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-015-stress-016-bg",
+              "fromId": "stress-015",
+              "fromPort": "out",
+              "toId": "stress-016",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-016-stress-017-bg",
+              "fromId": "stress-016",
+              "fromPort": "out",
+              "toId": "stress-017",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-017-stress-018-bg",
+              "fromId": "stress-017",
+              "fromPort": "out",
+              "toId": "stress-018",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-018-stress-019-bg",
+              "fromId": "stress-018",
+              "fromPort": "out",
+              "toId": "stress-019",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-019-stress-020-bg",
+              "fromId": "stress-019",
+              "fromPort": "out",
+              "toId": "stress-020",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-020-stress-021-bg",
+              "fromId": "stress-020",
+              "fromPort": "out",
+              "toId": "stress-021",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-021-stress-022-bg",
+              "fromId": "stress-021",
+              "fromPort": "out",
+              "toId": "stress-022",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-022-stress-023-bg",
+              "fromId": "stress-022",
+              "fromPort": "out",
+              "toId": "stress-023",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-023-stress-024-bg",
+              "fromId": "stress-023",
+              "fromPort": "out",
+              "toId": "stress-024",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-024-stress-025-bg",
+              "fromId": "stress-024",
+              "fromPort": "out",
+              "toId": "stress-025",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-025-stress-026-bg",
+              "fromId": "stress-025",
+              "fromPort": "out",
+              "toId": "stress-026",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-026-stress-027-bg",
+              "fromId": "stress-026",
+              "fromPort": "out",
+              "toId": "stress-027",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-027-stress-028-bg",
+              "fromId": "stress-027",
+              "fromPort": "out",
+              "toId": "stress-028",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-028-stress-029-bg",
+              "fromId": "stress-028",
+              "fromPort": "out",
+              "toId": "stress-029",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-029-stress-030-bg",
+              "fromId": "stress-029",
+              "fromPort": "out",
+              "toId": "stress-030",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-030-stress-031-bg",
+              "fromId": "stress-030",
+              "fromPort": "out",
+              "toId": "stress-031",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-031-stress-032-bg",
+              "fromId": "stress-031",
+              "fromPort": "out",
+              "toId": "stress-032",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-032-stress-033-bg",
+              "fromId": "stress-032",
+              "fromPort": "out",
+              "toId": "stress-033",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-033-stress-034-bg",
+              "fromId": "stress-033",
+              "fromPort": "out",
+              "toId": "stress-034",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-034-stress-035-bg",
+              "fromId": "stress-034",
+              "fromPort": "out",
+              "toId": "stress-035",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-035-stress-036-bg",
+              "fromId": "stress-035",
+              "fromPort": "out",
+              "toId": "stress-036",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-036-stress-037-bg",
+              "fromId": "stress-036",
+              "fromPort": "out",
+              "toId": "stress-037",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-037-stress-038-bg",
+              "fromId": "stress-037",
+              "fromPort": "out",
+              "toId": "stress-038",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-038-stress-039-bg",
+              "fromId": "stress-038",
+              "fromPort": "out",
+              "toId": "stress-039",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-039-stress-040-bg",
+              "fromId": "stress-039",
+              "fromPort": "out",
+              "toId": "stress-040",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-040-stress-041-bg",
+              "fromId": "stress-040",
+              "fromPort": "out",
+              "toId": "stress-041",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-041-stress-042-bg",
+              "fromId": "stress-041",
+              "fromPort": "out",
+              "toId": "stress-042",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-042-stress-043-bg",
+              "fromId": "stress-042",
+              "fromPort": "out",
+              "toId": "stress-043",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-043-stress-044-bg",
+              "fromId": "stress-043",
+              "fromPort": "out",
+              "toId": "stress-044",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-044-stress-045-bg",
+              "fromId": "stress-044",
+              "fromPort": "out",
+              "toId": "stress-045",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-045-stress-046-bg",
+              "fromId": "stress-045",
+              "fromPort": "out",
+              "toId": "stress-046",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-046-stress-047-bg",
+              "fromId": "stress-046",
+              "fromPort": "out",
+              "toId": "stress-047",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-047-stress-048-bg",
+              "fromId": "stress-047",
+              "fromPort": "out",
+              "toId": "stress-048",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-048-stress-049-bg",
+              "fromId": "stress-048",
+              "fromPort": "out",
+              "toId": "stress-049",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-049-stress-050-bg",
+              "fromId": "stress-049",
+              "fromPort": "out",
+              "toId": "stress-050",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-050-stress-051-bg",
+              "fromId": "stress-050",
+              "fromPort": "out",
+              "toId": "stress-051",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-051-stress-052-bg",
+              "fromId": "stress-051",
+              "fromPort": "out",
+              "toId": "stress-052",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-052-stress-053-bg",
+              "fromId": "stress-052",
+              "fromPort": "out",
+              "toId": "stress-053",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-053-stress-054-bg",
+              "fromId": "stress-053",
+              "fromPort": "out",
+              "toId": "stress-054",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-054-stress-055-bg",
+              "fromId": "stress-054",
+              "fromPort": "out",
+              "toId": "stress-055",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-055-stress-056-bg",
+              "fromId": "stress-055",
+              "fromPort": "out",
+              "toId": "stress-056",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-056-stress-057-bg",
+              "fromId": "stress-056",
+              "fromPort": "out",
+              "toId": "stress-057",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-057-stress-058-bg",
+              "fromId": "stress-057",
+              "fromPort": "out",
+              "toId": "stress-058",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-058-stress-059-bg",
+              "fromId": "stress-058",
+              "fromPort": "out",
+              "toId": "stress-059",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-059-stress-060-bg",
+              "fromId": "stress-059",
+              "fromPort": "out",
+              "toId": "stress-060",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-060-stress-061-bg",
+              "fromId": "stress-060",
+              "fromPort": "out",
+              "toId": "stress-061",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-061-stress-062-bg",
+              "fromId": "stress-061",
+              "fromPort": "out",
+              "toId": "stress-062",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-062-stress-063-bg",
+              "fromId": "stress-062",
+              "fromPort": "out",
+              "toId": "stress-063",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-063-stress-064-bg",
+              "fromId": "stress-063",
+              "fromPort": "out",
+              "toId": "stress-064",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-064-stress-065-bg",
+              "fromId": "stress-064",
+              "fromPort": "out",
+              "toId": "stress-065",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-065-stress-066-bg",
+              "fromId": "stress-065",
+              "fromPort": "out",
+              "toId": "stress-066",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-066-stress-067-bg",
+              "fromId": "stress-066",
+              "fromPort": "out",
+              "toId": "stress-067",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-067-stress-068-bg",
+              "fromId": "stress-067",
+              "fromPort": "out",
+              "toId": "stress-068",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-068-stress-069-bg",
+              "fromId": "stress-068",
+              "fromPort": "out",
+              "toId": "stress-069",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-069-stress-070-bg",
+              "fromId": "stress-069",
+              "fromPort": "out",
+              "toId": "stress-070",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-070-stress-071-bg",
+              "fromId": "stress-070",
+              "fromPort": "out",
+              "toId": "stress-071",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-071-stress-072-bg",
+              "fromId": "stress-071",
+              "fromPort": "out",
+              "toId": "stress-072",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-072-stress-073-bg",
+              "fromId": "stress-072",
+              "fromPort": "out",
+              "toId": "stress-073",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-073-stress-074-bg",
+              "fromId": "stress-073",
+              "fromPort": "out",
+              "toId": "stress-074",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-074-stress-075-bg",
+              "fromId": "stress-074",
+              "fromPort": "out",
+              "toId": "stress-075",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-075-stress-076-bg",
+              "fromId": "stress-075",
+              "fromPort": "out",
+              "toId": "stress-076",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-076-stress-077-bg",
+              "fromId": "stress-076",
+              "fromPort": "out",
+              "toId": "stress-077",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-077-stress-078-bg",
+              "fromId": "stress-077",
+              "fromPort": "out",
+              "toId": "stress-078",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-078-stress-079-bg",
+              "fromId": "stress-078",
+              "fromPort": "out",
+              "toId": "stress-079",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-079-stress-080-bg",
+              "fromId": "stress-079",
+              "fromPort": "out",
+              "toId": "stress-080",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-080-stress-081-bg",
+              "fromId": "stress-080",
+              "fromPort": "out",
+              "toId": "stress-081",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-081-stress-082-bg",
+              "fromId": "stress-081",
+              "fromPort": "out",
+              "toId": "stress-082",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-082-stress-083-bg",
+              "fromId": "stress-082",
+              "fromPort": "out",
+              "toId": "stress-083",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-083-stress-084-bg",
+              "fromId": "stress-083",
+              "fromPort": "out",
+              "toId": "stress-084",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-084-stress-085-bg",
+              "fromId": "stress-084",
+              "fromPort": "out",
+              "toId": "stress-085",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-085-stress-086-bg",
+              "fromId": "stress-085",
+              "fromPort": "out",
+              "toId": "stress-086",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-086-stress-087-bg",
+              "fromId": "stress-086",
+              "fromPort": "out",
+              "toId": "stress-087",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-087-stress-088-bg",
+              "fromId": "stress-087",
+              "fromPort": "out",
+              "toId": "stress-088",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-088-stress-089-bg",
+              "fromId": "stress-088",
+              "fromPort": "out",
+              "toId": "stress-089",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-089-stress-090-bg",
+              "fromId": "stress-089",
+              "fromPort": "out",
+              "toId": "stress-090",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-090-stress-091-bg",
+              "fromId": "stress-090",
+              "fromPort": "out",
+              "toId": "stress-091",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-091-stress-092-bg",
+              "fromId": "stress-091",
+              "fromPort": "out",
+              "toId": "stress-092",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-092-stress-093-bg",
+              "fromId": "stress-092",
+              "fromPort": "out",
+              "toId": "stress-093",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-093-stress-094-bg",
+              "fromId": "stress-093",
+              "fromPort": "out",
+              "toId": "stress-094",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-094-stress-095-bg",
+              "fromId": "stress-094",
+              "fromPort": "out",
+              "toId": "stress-095",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-095-stress-096-bg",
+              "fromId": "stress-095",
+              "fromPort": "out",
+              "toId": "stress-096",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-096-stress-097-bg",
+              "fromId": "stress-096",
+              "fromPort": "out",
+              "toId": "stress-097",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-097-stress-098-bg",
+              "fromId": "stress-097",
+              "fromPort": "out",
+              "toId": "stress-098",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-098-stress-099-bg",
+              "fromId": "stress-098",
+              "fromPort": "out",
+              "toId": "stress-099",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-099-stress-100-bg",
+              "fromId": "stress-099",
+              "fromPort": "out",
+              "toId": "stress-100",
+              "toPort": "bg"
+            },
+            {
+              "id": "edge-stress-100-__export__-in",
+              "fromId": "stress-100",
+              "fromPort": "out",
+              "toId": "__export__",
+              "toPort": "in"
+            }
+          ],
+          "utilityCounts": {
+            "mergeNodes": 0,
+            "colorNodes": 0,
+            "repeatNodes": 0,
+            "maskNodes": 0,
+            "transformNodes": 0,
+            "grimeShadowNodes": 0
+          },
+          "areas": [],
+          "positionedNodeCount": 101
+        },
+        "textLayers": [],
+        "embeddedFontFaces": [],
+        "export": {
+          "format": "png",
+          "scale": 1,
+          "target": "cover"
+        }
+      },
+      "exported": {
+        "filename": "cover-404-1080x1920.png",
+        "width": 1080,
+        "height": 1920,
+        "fileSha256": "c62d5127f6ebfa48e15dd029ad5f72b19d8a1a7b8206179607768e9ee12f53d5",
+        "decodedRgbaSha256": "a134210ce664cf16d29b3cda9d5ed9e7e11f80cb605a1da2ce86621fa69632a3",
+        "alphaPixels": {
+          "transparent": 0,
+          "translucent": 0,
+          "opaque": 2073600
+        },
+        "samples": {
+          "topLeft": [124, 51, 85, 255],
+          "center": [124, 51, 85, 255],
+          "bottomRight": [124, 51, 85, 255]
+        }
+      },
+      "pageErrors": []
+    }
+  ],
+  "variants": [
+    {
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "fixtureFileSha256": "0f1a3c689d21e726e9db147b27fe12b5c5dbf49f63fe98b5385c6cb9234547a0",
+      "variant": "repeat-count-1",
+      "inputValueSha256": "9ca1b16c4adf63b1ac799b4401c86704b0567362d98f4c84509b203e02842421",
+      "imported": {
+        "aspect": "16:9",
+        "layerCount": 3,
+        "layerKinds": ["fill", "image", "image"],
+        "graph": {
+          "edges": [
+            {
+              "id": "edge-branch-art-branch-repeat-in",
+              "fromId": "branch-art",
+              "fromPort": "out",
+              "toId": "branch-repeat",
+              "toPort": "in"
+            },
+            {
+              "id": "edge-branch-repeat-branch-mask-in",
+              "fromId": "branch-repeat",
+              "fromPort": "out",
+              "toId": "branch-mask",
+              "toPort": "in"
+            },
+            {
+              "id": "edge-branch-matte-branch-mask-mask",
+              "fromId": "branch-matte",
+              "fromPort": "out",
+              "toId": "branch-mask",
+              "toPort": "mask"
+            },
+            {
+              "id": "edge-branch-ground-branch-merge-a",
+              "fromId": "branch-ground",
+              "fromPort": "out",
+              "toId": "branch-merge",
+              "toPort": "a"
+            },
+            {
+              "id": "edge-branch-mask-branch-merge-b",
+              "fromId": "branch-mask",
+              "fromPort": "out",
+              "toId": "branch-merge",
+              "toPort": "b"
+            },
+            {
+              "id": "edge-branch-merge-__export__-in",
+              "fromId": "branch-merge",
+              "fromPort": "out",
+              "toId": "__export__",
+              "toPort": "in"
+            }
+          ],
+          "utilityCounts": {
+            "mergeNodes": 1,
+            "colorNodes": 0,
+            "repeatNodes": 1,
+            "maskNodes": 1,
+            "transformNodes": 0,
+            "grimeShadowNodes": 0
+          },
+          "areas": [
+            {
+              "id": "branch-area",
+              "name": "Composite",
+              "nodeIds": ["branch-repeat", "branch-mask", "branch-merge"],
+              "color": "#79e3c5"
+            }
+          ],
+          "positionedNodeCount": 7
+        },
+        "textLayers": [],
+        "embeddedFontFaces": [],
+        "export": {
+          "format": "png",
+          "scale": 1,
+          "target": "cover"
+        }
+      },
+      "exported": {
+        "filename": "cover-303-1920x1080.png",
+        "width": 1920,
+        "height": 1080,
+        "fileSha256": "468cecd8a9b2e6083567d51cc2dd385a3426a8cbaf8717fc68d06a180067707c",
+        "decodedRgbaSha256": "bbb0da5b2cb7e7773c175c6e82d01907f592d42b23810df0848060b19136e9c1",
+        "alphaPixels": {
+          "transparent": 0,
+          "translucent": 0,
+          "opaque": 2073600
+        },
+        "samples": {
+          "topLeft": [22, 39, 61, 255],
+          "center": [22, 39, 61, 255],
+          "bottomRight": [22, 39, 61, 255]
+        }
+      },
+      "pageErrors": []
+    },
+    {
+      "fixture": "tests/fixtures/native-2d/branch-merge-mask-repeat.artifact.json",
+      "fixtureFileSha256": "0f1a3c689d21e726e9db147b27fe12b5c5dbf49f63fe98b5385c6cb9234547a0",
+      "variant": "mask-inverted",
+      "inputValueSha256": "f287310a3e0a349d7cecde88d88435542f066d42196d9a604476bc2b905af57e",
+      "imported": {
+        "aspect": "16:9",
+        "layerCount": 3,
+        "layerKinds": ["fill", "image", "image"],
+        "graph": {
+          "edges": [
+            {
+              "id": "edge-branch-art-branch-repeat-in",
+              "fromId": "branch-art",
+              "fromPort": "out",
+              "toId": "branch-repeat",
+              "toPort": "in"
+            },
+            {
+              "id": "edge-branch-repeat-branch-mask-in",
+              "fromId": "branch-repeat",
+              "fromPort": "out",
+              "toId": "branch-mask",
+              "toPort": "in"
+            },
+            {
+              "id": "edge-branch-matte-branch-mask-mask",
+              "fromId": "branch-matte",
+              "fromPort": "out",
+              "toId": "branch-mask",
+              "toPort": "mask"
+            },
+            {
+              "id": "edge-branch-ground-branch-merge-a",
+              "fromId": "branch-ground",
+              "fromPort": "out",
+              "toId": "branch-merge",
+              "toPort": "a"
+            },
+            {
+              "id": "edge-branch-mask-branch-merge-b",
+              "fromId": "branch-mask",
+              "fromPort": "out",
+              "toId": "branch-merge",
+              "toPort": "b"
+            },
+            {
+              "id": "edge-branch-merge-__export__-in",
+              "fromId": "branch-merge",
+              "fromPort": "out",
+              "toId": "__export__",
+              "toPort": "in"
+            }
+          ],
+          "utilityCounts": {
+            "mergeNodes": 1,
+            "colorNodes": 0,
+            "repeatNodes": 1,
+            "maskNodes": 1,
+            "transformNodes": 0,
+            "grimeShadowNodes": 0
+          },
+          "areas": [
+            {
+              "id": "branch-area",
+              "name": "Composite",
+              "nodeIds": ["branch-repeat", "branch-mask", "branch-merge"],
+              "color": "#79e3c5"
+            }
+          ],
+          "positionedNodeCount": 7
+        },
+        "textLayers": [],
+        "embeddedFontFaces": [],
+        "export": {
+          "format": "png",
+          "scale": 1,
+          "target": "cover"
+        }
+      },
+      "exported": {
+        "filename": "cover-303-1920x1080.png",
+        "width": 1920,
+        "height": 1080,
+        "fileSha256": "1365701be901d59673a34db98cbf44b407ffeb072177a06a0e4c80b30c448afc",
+        "decodedRgbaSha256": "fa042d735834ab9702c332f025f860b8c20c2267ca47b59594f7b605cc48fede",
+        "alphaPixels": {
+          "transparent": 0,
+          "translucent": 0,
+          "opaque": 2073600
+        },
+        "samples": {
+          "topLeft": [22, 39, 61, 255],
+          "center": [22, 39, 61, 255],
+          "bottomRight": [22, 39, 61, 255]
+        }
+      },
+      "pageErrors": []
+    }
+  ],
+  "observations": {
+    "transparentJpeg": "Transparent input corner decodes as RGBA [0,0,0,255] in the downloaded JPEG. Preserve this observed browser baseline; any revised flattening policy needs a separate explicit decision.",
+    "font": "Ink bounds are measured from the exported image using the stated plate-distance threshold, not inferred from text length or a new native renderer.",
+    "graph": "Both repeat-count-1 and mask-inverted variants change decoded output pixels relative to the same Web baseline."
+  }
+}

@@ -6,6 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
+    "includes": ["**", "!packages/artifact-core-web/generated/**"],
     "ignoreUnknown": true
   },
   "formatter": {
