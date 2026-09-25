@@ -159,6 +159,9 @@ Results add `changes.assets` (names of changed collections) and
 metadata). Existing layer/global/export/graph/order details remain in the
 same result. No new FFI method is needed: send these commands through the
 existing `update_transaction_json` method on WebSession or NativeSession.
+`summary_json` also exposes `undoCount` and `redoCount` from the core history
+stacks. Clients should read these counts rather than infer them from command
+replies, because byte-budget eviction can shorten the stacks.
 
 The shared transaction validator accepts the Web image `fit: "tile"` choice
 and does not impose an extra length cap on text content or layer names. Normal
