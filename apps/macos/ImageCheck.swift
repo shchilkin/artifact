@@ -40,9 +40,14 @@ import UniformTypeIdentifiers
         let data = Data(base64Encoded: String(png.split(separator: ",")[1]))!
         let decoded = CGImageSourceCreateImageAtIndex(CGImageSourceCreateWithData(data as CFData, nil)!, 0, nil)!
         require(pixels(decoded) == pixels(transparent), "PNG transparency changed")
+        let tiff = NSBitmapImageRep(cgImage: transparent).representation(using: .tiff, properties: [:])!
+        let clipboardPNG = try await ImageImport.shared.readClipboard(tiff)
+        let clipboardBytes = Data(base64Encoded: String(clipboardPNG.split(separator: ",")[1]))!
+        let clipboardImage = CGImageSourceCreateImageAtIndex(CGImageSourceCreateWithData(clipboardBytes as CFData, nil)!, 0, nil)!
+        require(pixels(clipboardImage) == pixels(transparent), "TIFF clipboard alpha changed")
         let invalid = out.appendingPathComponent("invalid.png")
         try Data("not an image".utf8).write(to: invalid)
         do { _ = try await ImageImport.shared.read(invalid); fatalError("Invalid file accepted") } catch {}
-        print("PASS: native PNG alpha preservation, JPEG EXIF normalization, invalid image rejection")
+        print("PASS: native PNG/TIFF clipboard alpha preservation, JPEG EXIF normalization, invalid image rejection")
     }
 }

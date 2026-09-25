@@ -11,10 +11,22 @@ actor ImageImport {
             throw RenderFailure(message: "Choose a PNG or JPEG up to 8 MiB.")
         }
         let data = try Data(contentsOf: url)
+        return try read(data)
+    }
+
+    func read(_ data: Data) throws -> String {
+        try normalized(data, allowTIFF: false)
+    }
+
+    func readClipboard(_ data: Data) throws -> String {
+        try normalized(data, allowTIFF: true)
+    }
+
+    private func normalized(_ data: Data, allowTIFF: Bool) throws -> String {
         guard data.count <= 8 * 1024 * 1024,
               let source = CGImageSourceCreateWithData(data as CFData, nil),
               let type = CGImageSourceGetType(source),
-              [UTType.png.identifier, UTType.jpeg.identifier].contains(type as String),
+              ([UTType.png.identifier, UTType.jpeg.identifier] + (allowTIFF ? [UTType.tiff.identifier] : [])).contains(type as String),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int,
               let height = properties[kCGImagePropertyPixelHeight] as? Int,

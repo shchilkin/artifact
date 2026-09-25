@@ -16,6 +16,7 @@ function run(exe, args) {
   assert.equal(result.status, 0, `${exe} must pass`);
 }
 run(path.join(root, 'apps/macos/.build/model-check'), [fixture, path.join(output, 'model')]);
+run(path.join(root, 'apps/macos/.build/file-export-check'), [fixture, path.join(output, 'files-export')]);
 const png = path.join(output, 'public-p01.png');
 run(path.join(root, 'apps/macos/.build/render-check'), [fixture, png, '1000']);
 assert.deepEqual(Array.from(readFileSync(png).subarray(0, 8)), [137, 80, 78, 71, 13, 10, 26, 10]);

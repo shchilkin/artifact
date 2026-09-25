@@ -33,6 +33,27 @@ fn native_plan_accepts_four_aspects_blends_and_tiled_image_without_mutating_docu
     }
 }
 #[test]
+fn chromatic_aberration_plan_uses_web_540px_reference_without_mutating_saved_value() {
+    for (aspect, width, height, preview_width, preview_height) in [
+        ("1:1", 1000, 1000, 500, 500),
+        ("4:5", 1080, 1350, 400, 500),
+        ("9:16", 1080, 1920, 281, 500),
+        ("16:9", 1920, 1080, 500, 281),
+    ] {
+        let mut p = package();
+        p["document"]["global"]["aspect"] = json!(aspect);
+        p["document"]["layers"] = json!([{"id":"ca","kind":"effect","ca":7.5}]);
+        p["document"]["graph"] = Value::Null;
+        let session = DocumentSession::open(&p.to_string()).unwrap();
+        let saved = session.export_json();
+        for (w, h) in [(width, height), (preview_width, preview_height)] {
+            let plan: Value = serde_json::from_str(&session.render_plan_json(w, h).unwrap()).unwrap();
+            assert_eq!(plan["layers"][0]["ca"], json!((7.5_f64 * f64::from(w) / 540.0).round()));
+            assert_eq!(session.export_json(), saved);
+        }
+    }
+}
+#[test]
 fn native_plan_rejects_non_string_blend_modes() {
     let mut p = package();
     for invalid in [json!(42), json!({"mode":"overlay"}), json!(true), json!([])] {
@@ -179,7 +200,7 @@ fn zero_effect_is_identity_and_seeded_grain_is_reproducible() {
 }
 
 #[test]
-fn preview_scales_pixel_effect_without_mutating_export_or_document() {
+fn render_plan_scales_pixel_effect_from_web_reference_without_mutating_document() {
     let mut p = package();
     p["document"]["graph"] = Value::Null;
     p["document"]["layers"] = json!([{"id":"ca","kind":"effect","ca":27}]);
@@ -189,7 +210,7 @@ fn preview_scales_pixel_effect_without_mutating_export_or_document() {
         serde_json::from_str(&session.render_plan_json(1000, 1000).unwrap()).unwrap();
     let export: Value =
         serde_json::from_str(&session.render_plan_json(3000, 3000).unwrap()).unwrap();
-    assert_eq!(preview["layers"][0]["ca"].as_f64(), Some(9.0));
-    assert_eq!(export["layers"][0]["ca"], 27);
+    assert_eq!(preview["layers"][0]["ca"].as_f64(), Some(50.0));
+    assert_eq!(export["layers"][0]["ca"].as_f64(), Some(150.0));
     assert_eq!(session.export_json(), before);
 }

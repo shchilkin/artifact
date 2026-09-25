@@ -65,6 +65,13 @@ dimensions, seed, layer parameters, upstream graph dependencies and view state
 must enter future per-target cache signatures. The revision is a presentation
 guard, not a substitute for that dependency key.
 
+P07 supersedes the pilot export behavior above with base-size rendering and
+nearest-neighbor 1–3× output for all four aspects; see
+[native files and export](./native-files-export.md). It also corrects the
+transient chromatic-aberration plan from the old 3000-pixel reference to Web's
+540-pixel effect reference. P06 timing measurements below remain measurements
+of the earlier path, not P07 export performance.
+
 A pointer transform uses a transient 500-pixel draft. Committing the original
 values cancels that draft and schedules the settled preview even though the
 core document revision, undo history and dirty state do not change. A late

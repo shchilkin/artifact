@@ -733,16 +733,18 @@
       "id": "assets.embeddedFont",
       "owner": 267,
       "web": "implemented",
-      "native": "partial",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "contractEvidence": "apps/macos/FileExportCheck.swift; import and undo through shared asset transaction",
       "acceptance": "planned"
     },
     {
       "id": "assets.importedImage",
       "owner": 267,
       "web": "implemented",
-      "native": "partial",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "contractEvidence": "apps/macos/ImageCheck.swift; PNG/TIFF alpha and JPEG EXIF import",
       "acceptance": "planned"
     },
     {
@@ -751,6 +753,7 @@
       "web": "implemented",
       "native": "partial",
       "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "contractEvidence": "apps/macos/FileExportCheck.swift; current package and graph-free legacy roundtrip; older graph migration requires Web",
       "acceptance": "planned"
     },
     {
@@ -837,40 +840,45 @@
       "id": "export.png",
       "owner": 267,
       "web": "implemented",
-      "native": "partial",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "contractEvidence": "apps/macos/FileExportCheck.swift; all aspects/scales and alpha",
       "acceptance": "planned"
     },
     {
       "id": "export.jpeg",
       "owner": 267,
       "web": "implemented",
-      "native": "missing",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/alpha-jpeg.artifact.json",
+      "contractEvidence": "apps/macos/FileExportCheck.swift; all aspects/scales and opaque black alpha policy",
       "acceptance": "planned"
     },
     {
       "id": "export.scale.1",
       "owner": 267,
       "web": "implemented",
-      "native": "missing",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/alpha-nonsquare.artifact.json",
+      "contractEvidence": "apps/macos/FileExportCheck.swift; base render then nearest-neighbor scale",
       "acceptance": "planned"
     },
     {
       "id": "export.scale.2",
       "owner": 267,
       "web": "implemented",
-      "native": "missing",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/alpha-jpeg.artifact.json",
+      "contractEvidence": "apps/macos/FileExportCheck.swift; base render then nearest-neighbor scale",
       "acceptance": "planned"
     },
     {
       "id": "export.scale.3",
       "owner": 267,
       "web": "implemented",
-      "native": "partial",
+      "native": "implemented",
       "fixture": "tests/fixtures/native-2d/text-font.artifact.json",
+      "contractEvidence": "apps/macos/FileExportCheck.swift; base render then nearest-neighbor scale",
       "acceptance": "planned"
     },
     {

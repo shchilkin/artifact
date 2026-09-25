@@ -38,7 +38,7 @@ import Foundation
         let directory = URL(fileURLWithPath: CommandLine.arguments[2])
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let previews = Pending<CGImage>(), exports = Pending<Data>()
-        let model = ProjectModel(renderImage: { try await previews.run($0) }, renderPNGData: { try await exports.run($0) })
+        let model = ProjectModel(renderImage: { try await previews.run($0) }, renderExportData: { plan, _, _ in try await exports.run(plan) })
         model.load(source)
         try await wait { previews.requests.count == 1 }
         try check(try size(previews.plans[0]) == 1000)
@@ -53,7 +53,7 @@ import Foundation
         try Data("existing destination".utf8).write(to: cancelled)
         model.exportPNG(to: cancelled)
         try await wait { exports.requests.count == 1 }
-        try check(try size(exports.plans[0]) == 3000)
+        try check(try size(exports.plans[0]) == 1000)
         model.editScanlines(43)
         try await wait { previews.requests.count == 3 }
         exports.requests[0].resume(returning: Data("stale PNG".utf8))
@@ -85,7 +85,7 @@ import Foundation
         // A no-op pointer commit must settle a displayed or pending draft to
         // full quality without changing the document revision or dirty state.
         let draftPreviews = Pending<CGImage>()
-        let draftModel = ProjectModel(renderImage: { try await draftPreviews.run($0) }, renderPNGData: { _ in Data() })
+        let draftModel = ProjectModel(renderImage: { try await draftPreviews.run($0) }, renderExportData: { _, _, _ in Data() })
         draftModel.load(source)
         draftModel.selectedID = draftModel.summary?.layers.first(where: { $0.kind == "text" })?.id
         try check(draftModel.selectedID != nil)
@@ -166,6 +166,16 @@ import Foundation
         workspace.selectedID = title
         workspace.editProperties(["content":"Changed"])
         try check(workspace.isModified)
+        let savedCopy = directory.appendingPathComponent("native-workspace-copy.artifact")
+        try check(workspace.saveCopy(to: savedCopy))
+        try check(workspace.isModified && workspace.fileName == saved.lastPathComponent,
+                  "Save Copy replaced the active project")
+        let copyModel = ProjectModel(persist: false)
+        copyModel.load(savedCopy)
+        try check(copyModel.editor.layers.first { $0.id == title }?.string("content") == "Changed")
+        let impossible = directory.appendingPathComponent("missing-parent/failure.artifact")
+        try check(!workspace.saveCopy(to: impossible) && workspace.isModified,
+                  "Write failure cleared unsaved changes")
         workspace.undo()
         try check(!workspace.isModified, "Undo to saved document remained dirty")
         let reopened = ProjectModel(persist:false)
@@ -176,7 +186,7 @@ import Foundation
         try await wait { !reopened.isExporting }
         try check(reopened.exportMessage == nil)
         print("PASS: native new/add/edit/duplicate/delete/reorder/graph/save/reopen/export and saved-state history")
-        print("PASS: native 1000px preview, 3000px independent export, stale preview/export rejection, edit/open cancellation, failure and retry")
+        print("PASS: native 1000px preview, base-size independent export, stale preview/export rejection, edit/open cancellation, failure and retry")
         print("PASS: no-op pointer commit settles displayed and late 500px drafts without dirtying the document")
     }
 }
