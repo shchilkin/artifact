@@ -8,6 +8,7 @@ struct ArtworkCanvas: View {
     @State private var zoom = 1.0
     @State private var pinchStart: Double?
     @State private var initial: [String: ArtworkTransform] = [:]
+    @State private var initialBounds: [String: CGRect] = [:]
     @State private var draft: [String: ArtworkTransform] = [:]
     @State private var keyboardMode: CanvasHandle = .move
     @State private var suppressGestureUntilEnd = false
@@ -57,10 +58,34 @@ struct ArtworkCanvas: View {
     private func beginGesture() {
         canvasFocused = true
         if initial.isEmpty {
-            initial = Dictionary(uniqueKeysWithValues: model.editor.orderedLayers
-                .filter { model.selectedIDs.contains($0.id) && $0.movable }
-                .map { ($0.id, ArtworkTransform($0)) })
+            let selected = model.editor.orderedLayers.filter { model.selectedIDs.contains($0.id) && $0.movable }
+            initial = Dictionary(uniqueKeysWithValues: selected.map { ($0.id, ArtworkTransform($0)) })
+            initialBounds = Dictionary(uniqueKeysWithValues: selected.map { ($0.id, model.localBounds(for: $0)) })
         }
+    }
+    private func scaleGesture(_ translation: CGSize, canvas: CGSize, independent: Bool) {
+        guard let id = model.selectedID, let source = initial[id], let bounds = initialBounds[id] else { return }
+        let dimensions = model.previewDimensions
+        let artwork = CGSize(width: CGFloat(dimensions.width), height: CGFloat(dimensions.height))
+        guard let factors = source.scaleFactorsForHandle(translation, bounds: bounds, canvas: canvas,
+                                                         artwork: artwork, independent: independent) else { return }
+        updateGesture(Dictionary(uniqueKeysWithValues: initial.compactMap { id, transform in
+            guard let bounds = initialBounds[id], !bounds.isNull, !bounds.isEmpty else { return nil }
+            return (id, transform.scaledAroundOppositeCorner(factors, bounds: bounds, canvas: canvas,
+                                                              artwork: artwork, independent: independent))
+        }))
+    }
+    private func rotateGesture(_ translation: CGSize, canvas: CGSize, snap: Bool) {
+        guard let id = model.selectedID, let source = initial[id], let bounds = initialBounds[id] else { return }
+        let dimensions = model.previewDimensions
+        let artwork = CGSize(width: CGFloat(dimensions.width), height: CGFloat(dimensions.height))
+        guard let delta = source.rotationDeltaForHandle(translation, bounds: bounds, canvas: canvas,
+                                                         artwork: artwork) else { return }
+        updateGesture(Dictionary(uniqueKeysWithValues: initial.compactMap { id, transform in
+            guard let bounds = initialBounds[id], !bounds.isNull, !bounds.isEmpty else { return nil }
+            return (id, transform.rotatedAroundBoundsCenter(delta, bounds: bounds, canvas: canvas,
+                                                             artwork: artwork, snap: snap))
+        }))
     }
     private func updateGesture(_ next: [String: ArtworkTransform]) {
         draft = next
@@ -69,11 +94,11 @@ struct ArtworkCanvas: View {
     private func finishGesture() {
         if suppressGestureUntilEnd { suppressGestureUntilEnd = false; return }
         if !draft.isEmpty { model.commitTransforms(draft.mapValues(\.patch)) }
-        initial = [:]; draft = [:]
+        initial = [:]; initialBounds = [:]; draft = [:]
     }
     private func cancelGesture() {
         if !draft.isEmpty { model.cancelTransformPreview() }
-        initial = [:]; draft = [:]
+        initial = [:]; initialBounds = [:]; draft = [:]
     }
 
     private func arrow(_ key: KeyEquivalent, modifiers: EventModifiers) -> KeyPress.Result {
@@ -158,8 +183,8 @@ struct ArtworkCanvas: View {
                                         .gesture(DragGesture().onChanged { value in
                                             guard !suppressGestureUntilEnd else { return }
                                             keyboardMode = .scale; beginGesture()
-                                            let independent = NSEvent.modifierFlags.contains(.option)
-                                            updateGesture(initial.mapValues { $0.scaled(value.translation, canvas: canvas, independent: independent) })
+                                            scaleGesture(value.translation, canvas: canvas,
+                                                         independent: NSEvent.modifierFlags.contains(.option))
                                         }.onEnded { _ in finishGesture() })
                                     Image(systemName: "arrow.clockwise")
                                         .font(.system(size: 12, weight: .semibold)).padding(7)
@@ -171,7 +196,8 @@ struct ArtworkCanvas: View {
                                         .gesture(DragGesture().onChanged { value in
                                             guard !suppressGestureUntilEnd else { return }
                                             keyboardMode = .rotate; beginGesture()
-                                            updateGesture(initial.mapValues { $0.rotated(Double(value.translation.width) / 2) })
+                                            rotateGesture(value.translation, canvas: canvas,
+                                                          snap: NSEvent.modifierFlags.contains(.shift))
                                         }.onEnded { _ in finishGesture() })
                                 }
                             }

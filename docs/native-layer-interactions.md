@@ -23,8 +23,9 @@ updates the session's transaction draft and starts a new preview without
 advancing the durable revision. Focus/selection change or Save/Export commits
 the gesture once. Invalid input cancels the last valid transient state but
 keeps the entered value for correction; Cancel restores the committed value.
-Save Copy and recovery write the committed package plus a hash-linked draft
-sidecar, never the transaction's temporary pixels. Panel generation changes on
+Recovery writes the committed package plus a hash-linked draft sidecar; Save Copy
+writes only the committed package and leaves the active draft intact. Neither
+serializes the transaction's temporary pixels. Panel generation changes on
 draft edits so an already-open file panel cannot write a later state.
 
 `LayerGeometry.swift` is the drawing/interaction seam: the renderer and canvas
