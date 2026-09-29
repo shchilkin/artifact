@@ -118,12 +118,18 @@ Current planning status:
   #238, is the current dependency frontier after the v0.48 publication gate.
   See
   [`version-plans/v0.49.md`](./version-plans/v0.49.md).
-- v0.50 is the rescheduled AI-Assisted Creation release: authenticated
+- v0.50 is the planned Editor UX release: a stable editor layout with a
+  layout-shift budget, measured input-to-preview latency, one inspector layout
+  for Layers and Nodes, explicit render and destructive-action states, and a
+  graph-derived Layers tree that represents custom node graphs. See
+  [`version-plans/v0.50.md`](./version-plans/v0.50.md) and
+  [`layers-graph-tree.md`](./layers-graph-tree.md).
+- v0.51 is the rescheduled AI-Assisted Creation release: authenticated
   full-screen Chat, editable Creative Directions and Compositions, durable Runs,
   revision-bound Change Sets, adaptive image generation, and an explicitly
   invoked Context Assistant for Layers and Nodes. AI feature work remains
-  paused until the v0.49 application-shell gate closes. See
-  [`version-plans/v0.50.md`](./version-plans/v0.50.md) and
+  paused until the v0.50 Editor UX gate closes. See
+  [`version-plans/v0.51.md`](./version-plans/v0.51.md) and
   [`ai-assisted-creation.md`](./ai-assisted-creation.md).
 - v0.41.3 was released on 2026-07-21 as the isolated model-drop graph stability
   patch. Validation of v0.41.2 recovery found that dropping a GLB/GLTF in Nodes
@@ -202,7 +208,7 @@ Current planning status:
   storage/render risks are recorded without pulling product work into the
   release.
 - Deferred product and infrastructure tracks below remain candidates after the
-  active sequence through v0.50 unless promoted through a separate version
+  active sequence through v0.51 unless promoted through a separate version
   plan.
 - The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
   should not be treated as hidden scope for landing work, Showcase / How-to
@@ -407,7 +413,7 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Future candidates outside the active v0.45-v0.50 sequence:
+Future candidates outside the active v0.45-v0.51 sequence:
 
 - **3D Scene Polish, Palettes, And Dither Variants** — build on the v0.36 model
   foundation with named old-game palettes, richer deterministic dither
@@ -965,7 +971,7 @@ v0.44 completed the non-editor Artifact product surfaces, v0.45 completed the
 editor shell, Layers organization, and Add Library, and v0.46 completed the
 property-inspector migration. Editor migration remains sequenced through
 v0.47-v0.48; v0.49 then owns application-shell and loading boundaries before
-new AI-assisted creation resumes in v0.50.
+the v0.50 Editor UX release and new AI-assisted creation resumes in v0.51.
 Earlier version plans are release history, not active target buckets. Their
 detailed acceptance criteria and validation notes live under
 `docs/version-plans/` and `docs/releases/`.
@@ -1010,7 +1016,7 @@ Current shipped baseline:
 
 ### Future Candidate Tracks
 
-The accepted v0.45-v0.50 sequence remains the active release path. The ideas
+The accepted v0.45-v0.51 sequence remains the active release path. The ideas
 below are future candidates only and require a dedicated version plan before
 implementation is called release scope:
 
@@ -1413,7 +1419,9 @@ Recommended order:
 1. Establish the v0.49 route ownership, loading matrix, and budgets in #238.
 2. Narrow application shells, CSS ownership, hydration, and dependency
    boundaries against that approved contract.
-3. Resume new AI-assisted creation in v0.50 only after the v0.49 gate.
+3. Make the editor stable, responsive, and honest in v0.50, including a
+   graph-derived Layers tree.
+4. Resume new AI-assisted creation in v0.51 only after the v0.50 gate.
 
 ## Non-goals for now
 
