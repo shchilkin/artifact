@@ -110,6 +110,12 @@ CI should run:
   v0.50 Layers graph tree lands.
 - Accepted release risk: React Router 7.18 prints v8 future-flag warnings during
   the build without changing runtime behavior.
+- Release PR #298 (`d1d99f6`), post-merge CI `36596345931`, and exact-SHA
+  staging `36597734650` passed. Promotion PR #299 merged production commit
+  `604604171203254a48941565ba9da0f4fa1f3718` into `main`.
+- Release run `36605844860` created tag `v0.48.1`; production run
+  `36612285404` deployed and verified it; publish run `36617779359` published
+  the release on 2026-09-29.
 
 ### v0.48.0 Release Prep And Evidence
 
