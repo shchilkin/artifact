@@ -111,7 +111,7 @@ Current planning status:
   [`editor-design-system.md`](./editor-design-system.md),
   [`version-plans/v0.42.md`](./version-plans/v0.42.md), and
   [`releases/v0.42.0.md`](./releases/v0.42.0.md).
-- v0.49 is the active Application Shell And Loading Boundaries release:
+- v0.49 is the next Web release, Application Shell And Loading Boundaries:
   production route ownership, minimal React Router shells, route-owned CSS,
   useful SPA hydration and static public prerendering, truthful vendor/renderer
   boundaries, and enforced JavaScript/CSS budgets. Its first delivery issue,
@@ -125,6 +125,11 @@ Current planning status:
   paused until the v0.49 application-shell gate closes. See
   [`version-plans/v0.50.md`](./version-plans/v0.50.md) and
   [`ai-assisted-creation.md`](./ai-assisted-creation.md).
+- The native macOS client (epic #260, draft PRs #283–#293) is paused as of
+  2026-09-29. Web comes first: v0.49, then measured editor performance work,
+  then offline support through the Web application, then v0.50. Native
+  branches are kept but not merged. See
+  [`adr/0015-pause-native-macos-client-and-improve-web-first.md`](./adr/0015-pause-native-macos-client-and-improve-web-first.md).
 - v0.41.3 was released on 2026-07-21 as the isolated model-drop graph stability
   patch. Validation of v0.41.2 recovery found that dropping a GLB/GLTF in Nodes
   could discard the pointer location and rebuild existing graph positions and
