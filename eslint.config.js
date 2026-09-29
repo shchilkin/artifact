@@ -15,6 +15,7 @@ export default defineConfig([
     'apps/backoffice/.react-router',
     'api',
     '.claude',
+    '.worktrees',
     'test-results',
     'playwright-report',
   ]),
