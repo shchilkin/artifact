@@ -79,6 +79,38 @@ CI should run:
 
 ## Manual QA
 
+### v0.48.1 Release Prep And Evidence
+
+- Package metadata is bumped to `0.48.1` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.48.1.md` is prepared from the release template without a
+  visible internal checklist.
+- PR #296 keeps custom node graphs intact when layers are added or reordered
+  from Layers: stack graphs are rebuilt as before, custom graphs receive the new
+  layer before export, and stack reorder is disabled with a note pointing to
+  Nodes. `docs/state-model.md` records the rule.
+- Dependencies are updated within their current majors (React Router 7.18.4,
+  Vitest 4.1.11, Express 4.22.3 with `qs` 6.16, and patched transitive
+  packages), and the unused Puppeteer dependency is removed. `npm audit`
+  reports 0 vulnerabilities after a clean `npm ci`, down from 27.
+- `npm run release:verify -- --version 0.48.1`, `npm run check`, and
+  `npm run build` passed locally on 2026-09-29 from a clean worktree. The check
+  includes 20 UI Foundation tests, 719 Web tests, 261 passing API tests with 5
+  skipped, 11 Backoffice tests, 26 deployment tests, and 3 legacy-registry
+  contract tests, plus formatting, lint, and all type checks.
+- The complete browser release gate scheduled 554 scenarios across Artifact
+  Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, and Backoffice
+  desktop/mobile Chromium: 503 passed without retry and 51 were intentional
+  skips.
+- `npm run perf:node-editor` is not required because this patch changes no
+  graph traversal, renderer path, render signature, thumbnail queue, pointer
+  geometry, or node-editor interaction hot path.
+- Accepted release risk: custom graphs cannot be reordered from Layers until the
+  v0.50 Layers graph tree lands.
+- Accepted release risk: React Router 7.18 prints v8 future-flag warnings during
+  the build without changing runtime behavior.
+
 ### v0.48.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.48.0` in `package.json`,

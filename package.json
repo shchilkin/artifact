@@ -1,7 +1,7 @@
 {
   "name": "album-cover-utils",
   "private": true,
-  "version": "0.48.0",
+  "version": "0.48.1",
   "type": "module",
   "packageManager": "npm@11.12.1",
   "workspaces": [
@@ -72,14 +72,14 @@
     "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs"
   },
   "dependencies": {
-    "@react-router/node": "^7.14.2",
+    "@react-router/node": "^7.18.4",
     "@xstate/react": "^6.1.0",
     "@xyflow/react": "^12.10.2",
     "framer-motion": "^12.38.0",
     "pixi.js": "^7.4.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-router": "^7.14.2",
+    "react-router": "^7.18.4",
     "three": "^0.184.0",
     "xstate": "^5.31.1"
   },
@@ -88,13 +88,13 @@
     "@eslint/js": "^10.0.1",
     "@napi-rs/canvas": "^1.0.0",
     "@playwright/test": "^1.60.0",
-    "@react-router/dev": "^7.14.2",
-    "@react-router/serve": "^7.14.2",
+    "@react-router/dev": "^7.18.4",
+    "@react-router/serve": "^7.18.4",
     "@tailwindcss/vite": "^4.2.4",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
@@ -102,14 +102,13 @@
     "globals": "^17.5.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.4",
-    "puppeteer": "^24.43.0",
     "tailwindcss": "^4.2.4",
     "turbo": "^2.8.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",
     "vite-plugin-tsconfig-paths": "^1.4.1",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.11"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,jsonc,css}": [
