@@ -91,6 +91,11 @@ Rules:
   folders in the layer panel, but they still do not affect graph traversal or
   render order.
 - Graph edits should be undoable.
+- Layers actions may rebuild the graph only while it is a layer stack graph
+  (`isLayerStackGraph`: no utility nodes and exactly the linear layer chain to
+  export). For any custom graph, adding a layer from Layers inserts it before
+  export without touching other edges or positions, and layer-stack reorder is
+  disabled; composition order is edited in Nodes.
 - Graph traversal for preview/export must go through `renderGraphTarget`.
 - Graph edits should not be hidden in UI-only state.
 - Graph-only merge, color, repeat, and output nodes do not have a durable lock
