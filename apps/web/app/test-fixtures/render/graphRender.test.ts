@@ -278,7 +278,10 @@ describe('renderDocument graph mode', () => {
 
   it('renders layer reorder results through the synced graph export path', async () => {
     const doc = graphDocument({
-      edges: [{ id: 'e-red-export', fromId: 'red-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      edges: [
+        { id: 'e-red-blue', fromId: 'red-fill', fromPort: 'out', toId: 'blue-fill', toPort: 'bg' },
+        { id: 'e-blue-export', fromId: 'blue-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
       positions: {},
       mergeNodes: [],
       colorNodes: [],

@@ -23,6 +23,7 @@ import {
   bootstrapDocumentGraph,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
+  isLayerStackGraph,
   removeGraphAreaInDocument,
   removeLayerFromDocument,
   removeNodesFromAllGraphAreasInDocument,
@@ -93,6 +94,23 @@ function makeGraph(): CanvasGraph {
   };
 }
 
+function makeBranchedGraph(): CanvasGraph {
+  return {
+    edges: [
+      { id: 'e-fill-merge', fromId: 'fill-a', fromPort: 'out', toId: 'merge-a', toPort: 'a' },
+      { id: 'e-text-merge', fromId: 'text-a', fromPort: 'out', toId: 'merge-a', toPort: 'b' },
+      { id: 'e-merge-export', fromId: 'merge-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ],
+    positions: {
+      'fill-a': { x: 0, y: 0 },
+      'text-a': { x: 0, y: 240 },
+      'merge-a': { x: 320, y: 120 },
+      [EXPORT_NODE_ID]: { x: 640, y: 120 },
+    },
+    mergeNodes: [makeGraphMergeNode({ id: 'merge-a' })],
+  };
+}
+
 function makeEdgeId(fromId: string, toId: string, index: number) {
   return `edge-${index}-${fromId}-${toId}`;
 }
@@ -160,8 +178,8 @@ describe('documentCommands', () => {
     expect(next.graph?.positions).toHaveProperty(EXPORT_NODE_ID);
   });
 
-  it('adds a layer and places it in an existing graph', () => {
-    const doc = makeDoc(makeGraph());
+  it('appends a layer to the stack path of a linear layer graph', () => {
+    const doc = bootstrapDocumentGraph(makeDoc());
     const layer = makeTextLayer({ id: 'text-b' });
     const next = addLayerToDocument(doc, layer);
 
@@ -172,10 +190,40 @@ describe('documentCommands', () => {
       { id: 'e-text-a-text-b', fromId: 'text-a', fromPort: 'out', toId: 'text-b', toPort: 'bg' },
       { id: `e-text-b-${EXPORT_NODE_ID}`, fromId: 'text-b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ]);
-    expect(next.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
-    expect(next.graph?.colorNodes.map((node) => node.id)).toEqual(['color-a']);
-    expect(next.graph?.repeatNodes?.map((node) => node.id)).toEqual(['repeat-a']);
     expect(doc.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a']);
+  });
+
+  it('inserts a layer before export without rewiring a custom graph', () => {
+    const doc = makeDoc(makeBranchedGraph());
+    const layer = makeTextLayer({ id: 'text-b' });
+    const next = addLayerToDocument(doc, layer);
+
+    expect(next.layers.map((item) => item.id)).toEqual(['fill-a', 'text-a', 'text-b']);
+    expect(next.graph?.edges).toEqual([
+      { id: 'e-fill-merge', fromId: 'fill-a', fromPort: 'out', toId: 'merge-a', toPort: 'a' },
+      { id: 'e-text-merge', fromId: 'text-a', fromPort: 'out', toId: 'merge-a', toPort: 'b' },
+      { id: 'e-merge-a-text-b', fromId: 'merge-a', fromPort: 'out', toId: 'text-b', toPort: 'bg' },
+      { id: `e-text-b-${EXPORT_NODE_ID}`, fromId: 'text-b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
+    const before = doc.graph!.positions;
+    const after = next.graph!.positions;
+    expect(after['fill-a']).toEqual(before['fill-a']);
+    expect(after['text-a']).toEqual(before['text-a']);
+    expect(after['merge-a']).toEqual(before['merge-a']);
+    expect(after['text-b']).toEqual(before[EXPORT_NODE_ID]);
+    expect(after[EXPORT_NODE_ID]!.x).toBeGreaterThan(after['text-b']!.x);
+    expect(after[EXPORT_NODE_ID]!.y).toBe(before[EXPORT_NODE_ID]!.y);
+    expect(next.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
+  });
+
+  it('connects a layer to export when a custom graph has no output edge', () => {
+    const graph = { ...makeBranchedGraph(), edges: makeBranchedGraph().edges.slice(0, 2) };
+    const next = addLayerToDocument(makeDoc(graph), makeFillLayer({ id: 'fill-b' }));
+
+    expect(next.graph?.edges).toEqual([
+      ...graph.edges,
+      { id: `e-fill-b-${EXPORT_NODE_ID}`, fromId: 'fill-b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
   });
 
   it('connects the first layer created from layers view directly to export', () => {
@@ -611,43 +659,14 @@ describe('documentCommands', () => {
     expect(next).toBe(doc);
   });
 
-  it('reorders layers in custom graphs by syncing the stack export path', () => {
-    const doc = makeDoc(makeGraph());
-    const reordered = [doc.layers[1]!, doc.layers[0]!];
-    const next = reorderDocumentLayers(doc, reordered);
-
-    expectReorderedTextBeforeFill(next);
-    expect(next.graph?.positions[EXPORT_NODE_ID]?.x).toBeGreaterThan(next.graph?.positions['fill-a']?.x ?? 0);
-    expect(next.graph?.mergeNodes.map((node) => node.id)).toEqual(['merge-a']);
-    expect(next.graph?.colorNodes.map((node) => node.id)).toEqual(['color-a']);
-    expect(next.graph?.repeatNodes?.map((node) => node.id)).toEqual(['repeat-a']);
-  });
-
-  it('drops stale layer and export edges when syncing custom graphs to the layer stack', () => {
-    const graph: CanvasGraph = {
-      ...makeGraph(),
-      edges: [
-        { id: 'e-merge-color', fromId: 'merge-a', fromPort: 'out', toId: 'color-a', toPort: 'in' },
-        { id: 'e-color-repeat', fromId: 'color-a', fromPort: 'out', toId: 'repeat-a', toPort: 'in' },
-        { id: 'e-fill-merge', fromId: 'fill-a', fromPort: 'out', toId: 'merge-a', toPort: 'a' },
-        { id: 'e-text-export', fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-        { id: 'e-repeat-export', fromId: 'repeat-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-      ],
-    };
-    const doc = makeDoc(graph);
+  it('does not reorder layers in a custom graph', () => {
+    const doc = makeDoc(makeBranchedGraph());
     const next = reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!]);
 
-    expect(next.graph?.edges).toEqual([
-      { id: 'e-merge-color', fromId: 'merge-a', fromPort: 'out', toId: 'color-a', toPort: 'in' },
-      { id: 'e-color-repeat', fromId: 'color-a', fromPort: 'out', toId: 'repeat-a', toPort: 'in' },
-      { id: 'e-text-a-fill-a', fromId: 'text-a', fromPort: 'out', toId: 'fill-a', toPort: 'bg' },
-      { id: 'e-fill-a-__export__', fromId: 'fill-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-    ]);
-    expect(next.graph?.edges.some((edge) => edge.id === 'e-fill-merge')).toBe(false);
-    expect(next.graph?.edges.some((edge) => edge.id === 'e-repeat-export')).toBe(false);
+    expect(next).toBe(doc);
   });
 
-  it('preserves material side-input edges when syncing custom graphs to the layer stack', () => {
+  it('does not reorder layers when material nodes feed side inputs', () => {
     const graph: CanvasGraph = {
       ...makeGraph(),
       edges: [
@@ -657,38 +676,15 @@ describe('documentCommands', () => {
       ],
     };
     const doc = makeDoc(graph);
-    const next = reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!]);
 
-    expect(next.graph?.edges).toContainEqual({
-      id: 'e-material-fill',
-      fromId: 'material-a',
-      fromPort: 'out',
-      toId: 'fill-a',
-      toPort: 'material',
-    });
-    expect(next.graph?.materialNodes?.map((node) => node.id)).toEqual(['material-a']);
+    expect(reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!])).toBe(doc);
   });
 
-  it('preserves material texture-map input edges when syncing custom graphs to the layer stack', () => {
-    const graph: CanvasGraph = {
-      ...makeGraph(),
-      edges: [
-        { id: 'e-fill-material-albedo', fromId: 'fill-a', fromPort: 'out', toId: 'material-a', toPort: 'albedo' },
-        { id: 'e-fill-text', fromId: 'fill-a', fromPort: 'out', toId: 'text-a', toPort: 'bg' },
-        { id: 'e-text-export', fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-      ],
-    };
-    const doc = makeDoc(graph);
-    const next = reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!]);
-
-    expect(next.graph?.edges).toContainEqual({
-      id: 'e-fill-material-albedo',
-      fromId: 'fill-a',
-      fromPort: 'out',
-      toId: 'material-a',
-      toPort: 'albedo',
-    });
-    expect(next.graph?.materialNodes?.map((node) => node.id)).toEqual(['material-a']);
+  it('reports whether a document graph follows the layer stack', () => {
+    expect(isLayerStackGraph(makeDoc())).toBe(true);
+    expect(isLayerStackGraph(bootstrapDocumentGraph(makeDoc()))).toBe(true);
+    expect(isLayerStackGraph(makeDoc(makeBranchedGraph()))).toBe(false);
+    expect(isLayerStackGraph(makeDoc(makeGraph()))).toBe(false);
   });
 
   it('adds material nodes directly to primitive material inputs', () => {

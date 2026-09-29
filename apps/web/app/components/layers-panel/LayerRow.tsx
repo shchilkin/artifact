@@ -24,6 +24,8 @@ export interface LayerRowProps {
   dragOverPosition: LayerDropPosition | null;
   editing: boolean;
   nested?: boolean;
+  /** Stack order is owned by a custom node graph, so rows cannot be dragged. */
+  reorderDisabled?: boolean;
   onSelect: (id: string, event: LayerSelectionModifiers) => void;
   onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLElement>) => void;
   onStartEditing: (id: string) => void;
@@ -131,26 +133,42 @@ function startLayerDrag(event: ReactDragEvent<HTMLElement>, layer: Layer, onDrag
   onDragStart(layer.id);
 }
 
-function handleLayerRowDragStart(event: ReactDragEvent<HTMLElement>, layer: Layer, onDragStart: (id: string) => void) {
-  if (layer.locked || shouldCancelLayerRowDrag(event.target)) {
+function handleLayerRowDragStart(
+  event: ReactDragEvent<HTMLElement>,
+  layer: Layer,
+  onDragStart: (id: string) => void,
+  reorderDisabled: boolean,
+) {
+  if (layer.locked || reorderDisabled || shouldCancelLayerRowDrag(event.target)) {
     event.preventDefault();
     return;
   }
   startLayerDrag(event, layer, onDragStart);
 }
 
-function LayerDragHandle({ layer, onDragStart }: Pick<LayerRowProps, 'layer' | 'onDragStart'>) {
+function layerDragTitle(layer: Layer, reorderDisabled: boolean) {
+  if (layer.locked) return 'Unlock to reorder';
+  if (reorderDisabled) return 'Order follows the node graph. Reorder in Nodes.';
+  return 'Drag to reorder';
+}
+
+function LayerDragHandle({
+  layer,
+  reorderDisabled = false,
+  onDragStart,
+}: Pick<LayerRowProps, 'layer' | 'reorderDisabled' | 'onDragStart'>) {
+  const canDrag = !layer.locked && !reorderDisabled;
   return (
     <button
       type="button"
       className="layer-row-drag-handle text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0"
-      draggable={!layer.locked}
-      disabled={layer.locked}
+      draggable={canDrag}
+      disabled={!canDrag}
       aria-label={`Drag layer ${layer.name}`}
-      title={layer.locked ? 'Unlock to reorder' : 'Drag to reorder'}
+      title={layerDragTitle(layer, reorderDisabled)}
       onDragStart={(event) => {
         event.stopPropagation();
-        if (layer.locked) {
+        if (!canDrag) {
           event.preventDefault();
           return;
         }
@@ -337,6 +355,7 @@ export const LayerRow = memo(function LayerRow({
   dragOverPosition,
   editing,
   nested = false,
+  reorderDisabled = false,
   onSelect,
   onOpenContextMenu,
   onStartEditing,
@@ -355,7 +374,7 @@ export const LayerRow = memo(function LayerRow({
 
   return (
     <EditorRowFrame
-      draggable={!layer.locked}
+      draggable={!layer.locked && !reorderDisabled}
       role="listitem"
       selected={selected}
       isHidden={!layer.visible}
@@ -366,7 +385,7 @@ export const LayerRow = memo(function LayerRow({
       data-layer-id={layer.id}
       data-layer-visible={layer.visible ? 'true' : 'false'}
       data-layer-locked={layer.locked ? 'true' : 'false'}
-      onDragStart={(event) => handleLayerRowDragStart(event, layer, onDragStart)}
+      onDragStart={(event) => handleLayerRowDragStart(event, layer, onDragStart, reorderDisabled)}
       onDragOver={(event) => {
         event.preventDefault();
         onDragOverLayer(layer.id, getDropPosition(event));
@@ -390,7 +409,7 @@ export const LayerRow = memo(function LayerRow({
           selected={selected}
           onSelect={(event) => onSelect(layer.id, event)}
         />
-        <LayerDragHandle layer={layer} onDragStart={onDragStart} />
+        <LayerDragHandle layer={layer} reorderDisabled={reorderDisabled} onDragStart={onDragStart} />
         <LayerKindBadge layer={layer} />
       </EditorRowLeading>
       <EditorRowPrimary>

@@ -55,6 +55,7 @@ import {
   addTransformNode,
   EXPORT_NODE_ID,
   GRAPH_AREA_COLORS,
+  graphUtilityNodeCollections,
   inferLinearGraph,
   nextDropPosition,
   removeColorNode,
@@ -225,9 +226,66 @@ function syncGraphToLayerStackOrder(graph: CanvasGraph, layers: Layer[]): Canvas
   };
 }
 
+function layerInputPort(layer: Layer): GraphEdge['toPort'] {
+  return layer.kind === 'effect' ? 'in' : 'bg';
+}
+
+function edgeKey(edge: Pick<GraphEdge, 'fromId' | 'fromPort' | 'toId' | 'toPort'>) {
+  return `${edge.fromId}:${edge.fromPort}->${edge.toId}:${edge.toPort}`;
+}
+
+/**
+ * True when the graph is exactly the layer stack wired to export, so Layers
+ * actions can rebuild it without losing any user-authored topology.
+ */
+export function isLayerStackGraph(doc: CanvasDocument): boolean {
+  const graph = doc.graph;
+  if (!graph) return true;
+  if (graphUtilityNodeCollections(graph).some((nodes) => nodes.length > 0)) return false;
+  const expected = doc.layers.length > 0 ? inferLinearGraph(doc.layers).edges : [];
+  if (graph.edges.length !== expected.length) return false;
+  const actual = new Set(graph.edges.map(edgeKey));
+  return expected.every((edge) => actual.has(edgeKey(edge)));
+}
+
+/** Put a new layer between the current export input and export, leaving the rest of the graph untouched. */
+function insertLayerBeforeExport(graph: CanvasGraph, layer: Layer): CanvasGraph {
+  const exportEdge = graph.edges.find((edge) => edge.toId === EXPORT_NODE_ID && edge.toPort === 'in');
+  const exportPosition = graph.positions[EXPORT_NODE_ID] ?? nextDropPosition(graph);
+  const withLayer = addLayerToGraph(graph, layer.id, exportPosition);
+  const edges = graph.edges.filter((edge) => edge !== exportEdge);
+  if (exportEdge) {
+    edges.push({
+      id: `e-${exportEdge.fromId}-${layer.id}`,
+      fromId: exportEdge.fromId,
+      fromPort: exportEdge.fromPort,
+      toId: layer.id,
+      toPort: layerInputPort(layer),
+    });
+  }
+  edges.push({
+    id: `e-${layer.id}-${EXPORT_NODE_ID}`,
+    fromId: layer.id,
+    fromPort: 'out',
+    toId: EXPORT_NODE_ID,
+    toPort: 'in',
+  });
+  return {
+    ...withLayer,
+    edges,
+    positions: {
+      ...withLayer.positions,
+      [EXPORT_NODE_ID]: { x: nextDropPosition(withLayer).x, y: exportPosition.y },
+    },
+  };
+}
+
 export function addLayerToDocument(doc: CanvasDocument, layer: Layer): CanvasDocument {
   if (!doc.graph) return { ...doc, layers: [...doc.layers, layer] };
   const layers = [...doc.layers, layer];
+  if (!isLayerStackGraph(doc)) {
+    return { ...doc, layers, graph: insertLayerBeforeExport(doc.graph, layer) };
+  }
   return {
     ...doc,
     layers,
@@ -910,6 +968,8 @@ export function updateEnvironmentNodeInDocument(
 
 export function reorderDocumentLayers(doc: CanvasDocument, layers: Layer[]): CanvasDocument {
   if (!canReorderDocumentLayers(doc.layers, layers)) return doc;
+  // Custom graphs define composition order through edges; a stack reorder would discard them.
+  if (!isLayerStackGraph(doc)) return doc;
   if (doc.graph) {
     return { ...doc, layers, graph: syncGraphToLayerStackOrder(doc.graph, layers) };
   }
