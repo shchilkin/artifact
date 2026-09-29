@@ -2783,26 +2783,19 @@ test('layer drag reorder uses the final drop row even after stale dragover state
   await expectVisibleLayerRowIds(page, ['reorder-middle', 'reorder-top', 'reorder-bottom']);
 });
 
-test('layer drag reorder makes a custom graph follow the layer stack', async ({ page }) => {
+test('layer drag reorder keeps a custom graph and points to Nodes', async ({ page }) => {
   await gotoDocument(page, customGraphLayerReorderDocument);
   await expectLayerCanvasToHavePixels(page);
 
   await expectStoredGraphEdges(page, ['custom-bottom-fill->__export__']);
+  await expect(page.getByText('Layer order follows the node graph. Reorder in Nodes.')).toBeVisible();
 
   const source = page.locator('.layer-row').filter({ hasText: 'Custom top' }).first();
-  const target = page.locator('.layer-row').filter({ hasText: 'Custom bottom' }).first();
   await expect(source).toBeVisible({ timeout: 15_000 });
-  await expect(target).toBeVisible({ timeout: 15_000 });
+  await expect(source).toHaveAttribute('draggable', 'false');
+  await expect(page.getByRole('button', { name: 'Drag layer Custom top' })).toBeDisabled();
 
-  await dragLayerRowOverText(page, 'Custom top', 'Custom bottom');
-  await dropLayerRowOnText(page, 'Custom bottom');
-
-  await expectStoredGraphLayerOrder(page, {
-    layerIds: ['custom-top-fill', 'custom-bottom-fill'],
-    graphEdges: ['custom-top-fill->custom-bottom-fill', 'custom-bottom-fill->__export__'],
-    leftNodeId: 'custom-top-fill',
-    rightNodeId: 'custom-bottom-fill',
-  });
+  await expectStoredGraphEdges(page, ['custom-bottom-fill->__export__']);
   await expectLayerCanvasToHavePixels(page);
 });
 

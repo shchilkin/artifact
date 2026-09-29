@@ -11,6 +11,7 @@ import type {
   LayerKind,
 } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
+import { isLayerStackGraph } from '../../utils/documentCommands';
 import { getLayerAreaMap } from '../../utils/layerAreas';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
@@ -127,6 +128,7 @@ export function LayerPanel({
     onSelectLayer,
   });
 
+  const reorderDisabled = !isLayerStackGraph(doc);
   const { dragOverTarget, handleDragStart, handleDragOverLayer, handleDrop, handleCancelDrag } = useLayerDragReorder({
     displayLayers,
     areasByLayerId,
@@ -240,6 +242,11 @@ export function LayerPanel({
         aria-label="Layer stack"
       >
         <LayerPanelEmptyState visible={displayLayers.length === 0} />
+        {reorderDisabled && displayLayers.length > 1 ? (
+          <p className="layer-panel-graph-order-note px-3 py-2 text-[11px] text-dim border-b border-border">
+            Layer order follows the node graph. Reorder in Nodes.
+          </p>
+        ) : null}
         <LayerSelectionActions
           selectedActionLayerIds={selectedActionLayerIds}
           graphAreas={graphAreas}
@@ -259,6 +266,7 @@ export function LayerPanel({
             selectedActionLayerIds={selectedActionLayerIds}
             dragOverTarget={dragOverTarget}
             editingId={editingId}
+            reorderDisabled={reorderDisabled}
             onToggleAreaCollapsed={handleToggleAreaCollapsed}
             onStartAreaEditing={setEditingAreaId}
             onFinishAreaRename={handleFinishAreaRename}
@@ -441,6 +449,7 @@ function LayerDisplayEntry({
   selectedActionLayerIds,
   dragOverTarget,
   editingId,
+  reorderDisabled,
   onToggleAreaCollapsed,
   onStartAreaEditing,
   onFinishAreaRename,
@@ -465,6 +474,7 @@ function LayerDisplayEntry({
   selectedActionLayerIds: string[];
   dragOverTarget: { id: string; position: 'before' | 'after' } | null;
   editingId: string | null;
+  reorderDisabled: boolean;
   onToggleAreaCollapsed: (areaId: string) => void;
   onStartAreaEditing: (id: string | null) => void;
   onFinishAreaRename: (id: string, name: string | null) => void;
@@ -522,6 +532,7 @@ function LayerDisplayEntry({
       selected={selectedActionLayerIds.includes(item.layer.id)}
       dragOverPosition={dragOverTarget?.id === item.layer.id ? dragOverTarget.position : null}
       editing={editingId === item.layer.id}
+      reorderDisabled={reorderDisabled}
       onSelect={onSelectLayer}
       onOpenContextMenu={onOpenLayerContextMenu}
       onStartEditing={onStartEditing}
