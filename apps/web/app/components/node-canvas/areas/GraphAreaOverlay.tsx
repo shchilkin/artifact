@@ -1,5 +1,5 @@
 import type { Node as RFNode } from '@xyflow/react';
-import { useMemo } from 'react';
+import { type CSSProperties, useMemo } from 'react';
 
 import type { CanvasGraph, GraphArea } from '../../../types/config';
 import { getGraphAreaBounds } from './areaBounds';
@@ -28,13 +28,15 @@ export function GraphAreaOverlay({ graph, nodes, selectedAreaId, onSelectArea, o
           data-canvas-chrome-surface="graph-area"
           data-canvas-chrome-state={selectedAreaId === area.id ? 'selected' : area.collapsed ? 'collapsed' : 'default'}
           data-canvas-area-segment={`${segmentIndex + 1}/${segmentCount}`}
-          style={{
-            left: x,
-            top: y,
-            width,
-            height,
-            '--node-area-color': area.color,
-          }}
+          style={
+            {
+              left: x,
+              top: y,
+              width,
+              height,
+              '--node-area-color': area.color,
+            } as CSSProperties
+          }
         >
           <div className="node-area-label">
             <button
@@ -91,7 +93,7 @@ export function GraphAreaEmptyStateOverlay({
           className={`node-area-empty${selectedAreaId === area.id ? ' node-area-empty-selected' : ''}`}
           data-canvas-chrome-surface="graph-area"
           data-canvas-chrome-state="empty"
-          style={{ '--node-area-color': area.color }}
+          style={{ '--node-area-color': area.color } as CSSProperties}
         >
           <button
             type="button"

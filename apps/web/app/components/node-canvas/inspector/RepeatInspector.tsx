@@ -107,7 +107,7 @@ export function RepeatInspector({
 }
 
 function repeatInspectorCopy(pattern: GraphRepeatNode['pattern']) {
-  return REPEAT_COPY[pattern] ?? REPEAT_COPY.stack;
+  return pattern === 'radial' || pattern === 'grid' ? REPEAT_COPY[pattern] : REPEAT_COPY.stack;
 }
 
 const REPEAT_COPY = {

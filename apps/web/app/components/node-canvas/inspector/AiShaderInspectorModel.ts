@@ -11,7 +11,7 @@ export interface AiShaderInspectorViewModelInput {
   promptTooLong: boolean;
   sourceConnected: boolean;
   compileFailed: boolean;
-  compileMessage?: string;
+  compileMessage?: string | null;
   generationMessage: string | null;
   fallbackAvailable: boolean;
   blocked: boolean;
@@ -74,7 +74,7 @@ const sourceMissingStatus: AiShaderInspectorStatus = {
   tone: 'info',
 };
 
-function compileFailureStatus(message?: string): AiShaderInspectorStatus {
+function compileFailureStatus(message?: string | null): AiShaderInspectorStatus {
   return {
     title: 'Could not prepare this result',
     message: message ?? 'Create a new version or adjust the prompt.',

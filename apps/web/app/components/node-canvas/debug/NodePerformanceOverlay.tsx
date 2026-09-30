@@ -1,6 +1,8 @@
 import {
+  type Dispatch,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
+  type SetStateAction,
   useCallback,
   useEffect,
   useMemo,

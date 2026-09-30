@@ -876,7 +876,7 @@ function AddLibraryDetailContent({
   );
 }
 
-function AddLibraryTags({ tags }: { tags: string[] | undefined }) {
+function AddLibraryTags({ tags }: { tags: readonly string[] | undefined }) {
   if (!tags?.length) return null;
   return (
     <span className="add-library-tags" aria-label="Use cases">

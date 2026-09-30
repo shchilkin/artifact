@@ -363,7 +363,7 @@ function LayerStyleForLayer({
   children,
   onChange,
 }: {
-  layer: Layer;
+  layer: Extract<Layer, { opacity: number; blendMode: string }>;
   openSection: LayerControlSection;
   setOpenSection: SetOpenSection;
   children?: ReactNode;
@@ -1261,9 +1261,9 @@ export function LayerControls({
       modelFileInputRef={modelFileInputRef}
       onLoadModelFile={onLoadModelFile}
     />
-  ) : (
+  ) : layer.kind === 'effect' ? (
     <EffectInspector layer={layer} onChange={(patch) => onChange(patch as Partial<Layer>)} detached={detached} />
-  );
+  ) : null;
 
   return <InspectorStateProvider value={{ dirty, locked: layer.locked }}>{content}</InspectorStateProvider>;
 }

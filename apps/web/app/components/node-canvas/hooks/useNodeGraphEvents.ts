@@ -26,7 +26,7 @@ export interface UseNodeGraphEventsOptions {
 }
 
 export interface UseNodeGraphEventsResult {
-  isValidConnection: (connection: Connection) => boolean;
+  isValidConnection: (connection: Connection | RFEdge) => boolean;
   onConnect: (connection: Connection) => void;
   onEdgesDelete: (deleted: RFEdge[]) => void;
   onEdgeClick: (e: React.MouseEvent, edge: RFEdge) => void;
@@ -46,7 +46,7 @@ export function useNodeGraphEvents({
   onGraphChange,
 }: UseNodeGraphEventsOptions): UseNodeGraphEventsResult {
   const isValidConnection = useCallback(
-    (connection: Connection) => isGraphConnectionAllowed(connection, graphRef.current, layers),
+    (connection: Connection | RFEdge) => isGraphConnectionAllowed(connection, graphRef.current, layers),
     [graphRef, layers],
   );
 
@@ -103,7 +103,7 @@ export function useNodeGraphEvents({
   };
 }
 
-function isGraphConnectionAllowed(connection: Connection, graph: CanvasGraph, layers: Layer[]) {
+function isGraphConnectionAllowed(connection: Connection | RFEdge, graph: CanvasGraph, layers: Layer[]) {
   const endpoints = graphConnectionEndpoints(connection);
   if (!endpoints) return false;
   if (endpoints.source === endpoints.target) return false;
@@ -112,13 +112,13 @@ function isGraphConnectionAllowed(connection: Connection, graph: CanvasGraph, la
   return !wouldCreateCycle(graph, endpoints.source, endpoints.target);
 }
 
-function graphConnectionEndpoints(connection: Connection) {
+function graphConnectionEndpoints(connection: Connection | RFEdge) {
   if (!connection.source) return null;
   if (!connection.target) return null;
   return { source: connection.source, target: connection.target };
 }
 
-export function isGraphPortConnectionAllowed(connection: Connection, graph: CanvasGraph, layers: Layer[]) {
+export function isGraphPortConnectionAllowed(connection: Connection | RFEdge, graph: CanvasGraph, layers: Layer[]) {
   const targetPort = connection.targetHandle ?? 'in';
   const sourceIsMaterial = (graph.materialNodes ?? []).some((node) => node.id === connection.source);
   const sourceIsShader = (graph.shaderNodes ?? []).some((node) => node.id === connection.source);

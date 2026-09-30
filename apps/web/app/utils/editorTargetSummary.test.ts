@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeEffectPresetLayer, makeFillLayer, makeTextLayer } from '../types/config';
+import { type CanvasGraph, makeEffectPresetLayer, makeFillLayer, makeTextLayer } from '../types/config';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from './editorTargetSummary';
 import { EXPORT_NODE_ID } from './nodeGraph';
 
@@ -43,12 +43,12 @@ describe('editor target summaries', () => {
 
   it('marks node targets that feed the graph output', () => {
     const layer = makeFillLayer({ id: 'fill', name: 'background' });
-    const graph = {
+    const graph: CanvasGraph = {
       edges: [{ id: 'e-fill-export', fromId: 'fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
       mergeNodes: [],
       colorNodes: [],
-    } as const;
+    };
 
     const summary = buildLayerTargetSummary(layer, { surface: 'nodes', graph, layers: [layer] });
 
@@ -61,12 +61,12 @@ describe('editor target summaries', () => {
 
   it('warns when a selected node is outside the graph output path', () => {
     const layer = makeFillLayer({ id: 'orphan', name: 'orphan fill' });
-    const graph = {
+    const graph: CanvasGraph = {
       edges: [{ id: 'e-other-export', fromId: 'other', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
       mergeNodes: [],
       colorNodes: [],
-    } as const;
+    };
 
     expect(buildLayerTargetSummary(layer, { surface: 'nodes', graph }).badges).toContainEqual({
       label: 'Not in output',
@@ -76,13 +76,13 @@ describe('editor target summaries', () => {
 
   it('includes graph area membership in layer target breadcrumbs', () => {
     const layer = makeFillLayer({ id: 'fill', name: 'background' });
-    const graph = {
+    const graph: CanvasGraph = {
       edges: [],
       positions: {},
       mergeNodes: [],
       colorNodes: [],
       areas: [{ id: 'area-a', name: 'Print Stack', color: '#ff735f', nodeIds: ['fill'] }],
-    } as const;
+    };
 
     const summary = buildLayerTargetSummary(layer, { surface: 'layers', graph, layers: [layer] });
 
@@ -106,12 +106,12 @@ describe('editor target summaries', () => {
 
   it('warns when an effect node has no upstream input', () => {
     const layer = makeEffectPresetLayer('grain', { id: 'grain', name: 'loose grain' });
-    const graph = {
+    const graph: CanvasGraph = {
       edges: [],
       positions: {},
       mergeNodes: [],
       colorNodes: [],
-    } as const;
+    };
 
     const summary = buildLayerTargetSummary(layer, { surface: 'nodes', graph });
 
@@ -123,12 +123,12 @@ describe('editor target summaries', () => {
   });
 
   it('deduplicates no-input status for utility graph targets', () => {
-    const graph = {
+    const graph: CanvasGraph = {
       edges: [],
       positions: {},
       mergeNodes: [{ id: 'merge-a', name: 'Merge A', blendMode: 'source-over', opacity: 100 }],
       colorNodes: [],
-    } as const;
+    };
 
     const summary = buildGraphTargetSummary({ kind: 'merge', node: graph.mergeNodes[0] }, { surface: 'nodes', graph });
 
@@ -149,12 +149,12 @@ describe('editor target summaries', () => {
   });
 
   it('shows output connection state for export target', () => {
-    const graph = {
+    const graph: CanvasGraph = {
       edges: [],
       positions: {},
       mergeNodes: [],
       colorNodes: [],
-    } as const;
+    };
 
     expect(buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph }).badges).toContainEqual({
       label: 'No input',
@@ -163,12 +163,12 @@ describe('editor target summaries', () => {
   });
 
   it('explains output targets without a graph input', () => {
-    const graph = {
+    const graph: CanvasGraph = {
       edges: [],
       positions: {},
       mergeNodes: [],
       colorNodes: [],
-    } as const;
+    };
 
     expect(buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph }).notes).toContainEqual({
       text: 'Connect a source, effect, or utility branch to the output before export.',

@@ -396,7 +396,13 @@ function generatedMaterialEnvironmentMap(texture: THREE.Texture | null | undefin
   return texture?.userData.artifactGeneratedMaterialEnvMap === true;
 }
 
-function materialBaseEnvironmentIntensity(material: THREE.Material & { envMapIntensity?: number }) {
+type EnvironmentMappedMaterial = THREE.Material & { envMapIntensity?: number; envMap?: THREE.Texture | null };
+
+function isEnvironmentMappedMaterial(material: THREE.Material): material is EnvironmentMappedMaterial {
+  return 'envMapIntensity' in material;
+}
+
+function materialBaseEnvironmentIntensity(material: EnvironmentMappedMaterial) {
   const stored = material.userData.artifactBaseEnvMapIntensity;
   if (typeof stored === 'number' && Number.isFinite(stored)) return stored;
   const base = Number.isFinite(material.envMapIntensity) ? (material.envMapIntensity ?? 1) : 1;
@@ -414,7 +420,7 @@ export function applySceneEnvironmentIntensity(
     if (!isThreeMesh(object)) return;
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     materials.forEach((material) => {
-      if (material && 'envMapIntensity' in material) {
+      if (material && isEnvironmentMappedMaterial(material)) {
         material.envMapIntensity = materialBaseEnvironmentIntensity(material) * intensity;
         if (useSceneEnvironment && 'envMap' in material && generatedMaterialEnvironmentMap(material.envMap)) {
           material.envMap.dispose();

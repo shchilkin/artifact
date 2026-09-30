@@ -4,7 +4,8 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["vite/client", "@react-router/dev"],
+    "types": ["node", "vite/client"],
+    "rootDirs": [".", "./.react-router/types"],
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -14,7 +15,6 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./app/*"]
     },

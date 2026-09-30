@@ -7,6 +7,7 @@ import type {
   FillLayer,
   ImageLayer,
   Layer,
+  SourceLayer,
   TextLayer,
 } from '../../../types/config';
 import { DEFAULT_EFFECT_LAYER_PROPS } from '../../../types/config';
@@ -1203,7 +1204,7 @@ function sourceLayerLayout(layer: Layer, options: RenderOptions) {
     : (options.sourceLayout ?? 'document');
 }
 
-async function renderSourceLayerToCanvas(context: LayerRenderContext<Layer>) {
+async function renderSourceLayerToCanvas(context: LayerRenderContext<SourceLayer>) {
   const { ctx, W, H, layer, seed, scale, options, current } = context;
   await drawSourceLayer(
     ctx,

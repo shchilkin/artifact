@@ -70,7 +70,7 @@ function BetterAuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 function AccountPanel({ onAuthenticated, onClose }: { onAuthenticated: () => Promise<void>; onClose: () => void }) {
-  const dialogRef = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const [mode, setMode] = useState<AccountMode>('sign-in');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);

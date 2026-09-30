@@ -118,7 +118,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
 
   const docRef = useRef(doc);
   const selectedLayerIdRef = useRef(selectedLayerId);
-  const histDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const histDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const preChangeRef = useRef<HistoryEntry | null>(null);
 
   useLayoutEffect(() => {

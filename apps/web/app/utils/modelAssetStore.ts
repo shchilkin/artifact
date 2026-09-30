@@ -1,4 +1,4 @@
-import type { CanvasDocument, PortableModelAsset } from '../types/config';
+import type { CanvasDocument, ModelLayer, PortableModelAsset } from '../types/config';
 import { mapDocumentModelSources } from './documentSourceMapping';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
 import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';

@@ -8,6 +8,8 @@ import {
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
+  SOURCE_TYPES,
+  type SourceType,
 } from '../../types/config';
 import { makeArrayPresetLayer } from '../../utils/arrayPresets';
 import { renderEffectThumb } from '../../utils/effectInfo';
@@ -351,7 +353,13 @@ function makeLayerPreviewLayers(layerKind: string): CanvasDocument['layers'] {
       }),
     ],
   };
-  return builders[layerKind]?.() ?? [makeSourceLayer(layerKind, { id: `add-preview-${layerKind}` })];
+  const build = builders[layerKind];
+  if (build) return build();
+  return isSourceType(layerKind) ? [makeSourceLayer(layerKind, { id: `add-preview-${layerKind}` })] : [];
+}
+
+function isSourceType(kind: string): kind is SourceType {
+  return (SOURCE_TYPES as readonly string[]).includes(kind);
 }
 
 function loadPreviewImage(src: string): Promise<HTMLImageElement> {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AI_SHADER_PROMPT_MAX_LENGTH } from '../types/aiGeneration';
 import {
   type CanvasDocument,
+  type CanvasGraph,
   DEFAULT_DOCUMENT,
   DOCUMENT_SCHEMA_VERSION,
   makeEffectLayer,
@@ -835,15 +836,20 @@ describe('document serialization helpers', () => {
     });
     expect(isBlankDocument(blank)).toBe(true);
     expect(
-      isBlankDocument({ ...blank, graph: { edges: [], positions: { __export__: { x: 0, y: 80 } }, mergeNodes: [] } }),
+      isBlankDocument({
+        ...blank,
+        graph: { edges: [], positions: { __export__: { x: 0, y: 80 } }, mergeNodes: [], colorNodes: [] },
+      }),
     ).toBe(true);
   });
 
   it('serializes artifact files as readable JSON that imports through normalization', () => {
+    // Legacy graph shape without colorNodes: normalization must fill the missing collections.
+    const legacyGraph: Omit<CanvasGraph, 'colorNodes'> = { edges: [], positions: {}, mergeNodes: [] };
     const serialized = serializeArtifactDocument({
       ...doc,
       global: { ...doc.global, aspect: '4:5' },
-      graph: { edges: [], positions: {}, mergeNodes: [] } as CanvasDocument['graph'],
+      graph: legacyGraph as CanvasGraph,
     });
     const parsed = parseArtifactDocument(serialized);
 

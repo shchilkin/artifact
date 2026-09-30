@@ -168,9 +168,9 @@ export function splitEffectPatchIntoPresetLayers(
 export function shouldSplitEffectLayer(layer: Partial<EffectLayer>): boolean {
   if (LEGACY_COMBINED_PRESETS.has(String(layer.preset))) return true;
   const activeRules = SPLIT_RULES.filter((rule) => hasActiveValue(layer, rule.active));
-  if (!isFocusedPreset(layer.preset)) return activeRules.length > 0;
+  const preset = layer.preset;
+  if (!isFocusedPreset(preset)) return activeRules.length > 0;
   return activeRules.some(
-    (rule) =>
-      rule.preset !== layer.preset && !(CODEC_BLOCK_PRESETS.has(layer.preset) && CODEC_BLOCK_PRESETS.has(rule.preset)),
+    (rule) => rule.preset !== preset && !(CODEC_BLOCK_PRESETS.has(preset) && CODEC_BLOCK_PRESETS.has(rule.preset)),
   );
 }

@@ -51,9 +51,7 @@ export function useAiGenerationAccess() {
     state.key === requestKey ? state : { key: requestKey, status: 'checking', access: null, error: null };
 
   return {
-    status: currentState.status,
-    access: currentState.access,
-    error: currentState.error,
+    ...currentState,
     authConfigured: configured,
     openSignIn,
     getBearerToken,

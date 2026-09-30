@@ -12,7 +12,7 @@ export function Panel({ as: Component = 'section', className, ...props }: PanelP
   return <Component className={cn('artifact-panel', className)} {...props} />;
 }
 
-interface PanelHeaderProps extends HTMLAttributes<HTMLDivElement> {
+interface PanelHeaderProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   eyebrow?: string;
   title: ReactNode;
   action?: ReactNode;

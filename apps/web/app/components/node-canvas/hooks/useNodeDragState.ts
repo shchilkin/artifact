@@ -3,6 +3,7 @@ import {
   applyNodeChanges,
   type EdgeChange,
   type NodeChange,
+  type NodePositionChange,
   type Edge as RFEdge,
   type Node as RFNode,
 } from '@xyflow/react';
@@ -329,7 +330,7 @@ function graphAfterNodeDragCommit({
 }
 
 function positionNodeChanges(changes: NodeChange[]) {
-  return changes.filter((change) => change.type === 'position' && change.position);
+  return changes.filter((change): change is NodePositionChange => change.type === 'position' && !!change.position);
 }
 
 function snapSingleMovingNode(nodes: RFNode[], movingId: string) {
@@ -360,7 +361,7 @@ function applyDragNodeChanges(
 
 function applyPositionGuides(
   nodes: RFNode[],
-  positions: NodeChange[],
+  positions: NodePositionChange[],
   dragging: boolean,
   setAlignmentGuides: (guides: NodeAlignmentGuide[]) => void,
 ) {

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasGraph } from '../types/config';
-import { makeEmojiLayer, makeFillLayer, makeGraphMergeNode, makeGraphShaderNode, makeTextLayer } from '../types/config';
+import {
+  makeEmojiLayer,
+  makeFillLayer,
+  makeGraphMergeNode,
+  makeGraphRepeatNode,
+  makeGraphShaderNode,
+  makeGraphTransformNode,
+  makeTextLayer,
+} from '../types/config';
 import {
   addColorNode,
   addGraphArea,
@@ -192,10 +200,10 @@ describe('graph mutations', () => {
       edges: [{ id: 'e-repeat-export', fromId: 'repeat-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['repeat-1'] }],
     });
-    const repeatNode = {
+    const repeatNode = makeGraphRepeatNode({
       id: 'repeat-1',
       name: 'Repeater',
-      pattern: 'grid' as const,
+      pattern: 'grid',
       count: 4,
       rows: 3,
       gap: 120,
@@ -205,7 +213,7 @@ describe('graph mutations', () => {
       rotation: 0,
       opacity: 100,
       blendMode: 'source-over',
-    };
+    });
 
     const withNode = addRepeatNode(graph, repeatNode, { x: 160, y: 90 });
     const updated = updateRepeatNode(withNode, 'repeat-1', { count: 8 });
@@ -315,7 +323,7 @@ describe('graph mutations', () => {
       ],
       areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['transform-1'] }],
     });
-    const transformNode = {
+    const transformNode = makeGraphTransformNode({
       id: 'transform-1',
       name: 'Transform',
       x: 0,
@@ -324,7 +332,7 @@ describe('graph mutations', () => {
       scaleY: 100,
       rotation: 0,
       opacity: 100,
-    };
+    });
 
     const withNode = addTransformNode(graph, transformNode, { x: 200, y: 140 });
     const updated = updateTransformNode(withNode, 'transform-1', { rotation: 45, x: 12 });
@@ -483,6 +491,7 @@ describe('resolveUpstreamRenderLayers', () => {
       ],
       positions: {},
       mergeNodes: [{ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 }],
+      colorNodes: [],
     };
 
     expect(resolveUpstreamRenderLayers('merge-1', graph, [fill, text, emoji]).map((layer) => layer.id)).toEqual([
@@ -572,6 +581,7 @@ describe('resolveRenderOrder', () => {
       ],
       positions: {},
       mergeNodes: [],
+      colorNodes: [],
     };
 
     expect(
@@ -590,6 +600,7 @@ describe('splitEdgeWithNode', () => {
       edges: [{ id: 'e-fill-text', fromId: fill.id, fromPort: 'out', toId: text.id, toPort: 'bg' }],
       positions: {},
       mergeNodes: [],
+      colorNodes: [],
     };
 
     const next = splitEdgeWithNode(graph, 'e-fill-text', 'fx-1', 'in');

@@ -24,15 +24,6 @@ export type ShaderGenerationMachineEvent =
   | { type: 'UNEXPECTED_FAILED'; message: string; offerFallback?: boolean }
   | { type: 'RESET' };
 
-const markMessage = assign({
-  message: ({ event }: { event: ShaderGenerationMachineEvent }) => ('message' in event ? event.message : null),
-  source: null,
-  model: undefined,
-  fallbackAvailable: ({ event }: { event: ShaderGenerationMachineEvent }) =>
-    (event.type === 'VALIDATION_FAILED' || event.type === 'REPAIR_FAILED' || event.type === 'UNEXPECTED_FAILED') &&
-    event.offerFallback === true,
-});
-
 export const shaderGenerationMachine = setup({
   types: {
     context: {} as ShaderGenerationMachineContext,
@@ -65,7 +56,14 @@ export const shaderGenerationMachine = setup({
       model: undefined,
       fallbackAvailable: false,
     }),
-    markMessage,
+    markMessage: assign({
+      message: ({ event }: { event: ShaderGenerationMachineEvent }) => ('message' in event ? event.message : null),
+      source: null,
+      model: undefined,
+      fallbackAvailable: ({ event }: { event: ShaderGenerationMachineEvent }) =>
+        (event.type === 'VALIDATION_FAILED' || event.type === 'REPAIR_FAILED' || event.type === 'UNEXPECTED_FAILED') &&
+        event.offerFallback === true,
+    }),
     markSuccess: assign({
       message: ({ event }) => (event.type === 'VALIDATION_PASSED' ? event.message : null),
       source: ({ event }) => (event.type === 'VALIDATION_PASSED' ? event.source : null),
