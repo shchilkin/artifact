@@ -194,6 +194,42 @@ Deferred candidates: `/docs/reference/:nodeId` (a finite node set that could be
 enumerated later) and `/showcase` (its wall loads projects at runtime, so only a
 static shell could be prerendered).
 
+How it is wired (#241):
+
+- `apps/web/react-router.config.ts` reads `delivery.prerender` from
+  `route-loading-contract.json`, so the contract is the only list of
+  prerendered paths. `ssr` stays `false`; there is no runtime SSR service.
+- `react-router build` writes `build/client/index.html` and
+  `build/client/<path>/index.html` for each prerendered path, plus
+  `build/client/__spa-fallback.html` for everything else.
+- The SPA fallback document contains the root `HydrateFallback`: the Artifact
+  mark and a `role="status"` loading label. It fades in after a short delay so
+  fast loads never flash it, and holds still for reduced motion.
+- `vercel.json` rewrites each prerendered path to its `index.html` and every
+  other path to `/__spa-fallback.html`; static files win before rewrites.
+  `vite preview` mirrors this through the `artifact-static-host-preview` plugin
+  in `apps/web/vite.config.ts`, so production-preview browser tests see the same
+  routing. `scripts/deploy/deployment-config.test.mjs` keeps `vercel.json` in
+  step with the contract.
+- Each route's `meta` comes from `pageMeta()` (`apps/web/app/utils/pageMeta.ts`),
+  which sets the title, description, `og:title`, `og:description`, `og:url`,
+  and Twitter title/description together. Static share fields (image, card
+  type) stay in the root document head.
+- Browser-only work stays out of build-time rendering: renderer, PixiJS, auth
+  session, storage, and service-worker registration run in effects or lazy
+  imports, never during render.
+- Unknown paths hydrate the fallback markup first and then show the 404
+  recovery page, so the root `ErrorBoundary` never causes a hydration mismatch.
+- The root marks `<html data-hydrated="true">` once React owns the document.
+  Browser tests wait for it after navigation, because prerendered controls are
+  visible before they are interactive.
+
+Evidence: `tests/browser/v049-prerender.spec.ts` (production preview) checks
+the prerendered HTML and metadata, the fallback document, pages without
+JavaScript, hydration without mismatch, the visible loading shell, client
+navigation across prerendered and fallback routes, editor entry and refresh,
+dynamic docs paths, and unknown-path recovery.
+
 ## Findings at v0.48.1
 
 1. **React Flow shipped on every route.** The manual `codeSplitting` groups in
@@ -213,8 +249,11 @@ static shell could be prerendered).
    45 KiB raw (9.1 KiB gzip) and surface styles load with their route; see
    [CSS ownership](#css-ownership).
 5. **The root imported the document model for one constant.** Resolved in #239.
-6. **No hydration fallback.** Production logs React Router's `HydrateFallback`
-   hint; the SPA shows nothing useful until JavaScript runs. Owner: #241.
+6. **No hydration fallback.** Production logged React Router's `HydrateFallback`
+   hint and the SPA showed nothing useful until JavaScript ran. Resolved in
+   #241: the root `HydrateFallback` renders an accessible loading shell into
+   `__spa-fallback.html`, and the approved static public paths are prerendered
+   with per-route metadata; see [Delivery](#delivery).
 7. **Nodes and 3D are lazy** and stay that way.
 8. **The style guide loads the node canvas** for its specimens. Owned exception.
 9. **The Three.js chunk-size warning is not an initial-load problem.** Three.js

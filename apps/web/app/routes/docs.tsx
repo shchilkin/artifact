@@ -1,14 +1,14 @@
 import './styles/docs.css';
 import { Link, type MetaFunction } from 'react-router';
+import { pageMeta } from '../utils/pageMeta';
 import { DocsShell } from './docs.shared';
 
-export const meta: MetaFunction = () => [
-  { title: 'Docs | Artifact' },
-  {
-    name: 'description',
-    content: 'Start from Artifact editor docs, node and effect reference, recipes, and the project style guide.',
-  },
-];
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'Docs | Artifact',
+    description: 'Start from Artifact editor docs, node and effect reference, recipes, and the project style guide.',
+    path: '/docs',
+  });
 
 const DOC_SECTIONS = [
   {

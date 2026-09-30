@@ -5,6 +5,7 @@ import { Link, type MetaFunction } from 'react-router';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SearchField } from '../components/ui/SearchField';
 import { EFFECT_FAMILY_GUIDE } from '../utils/effectDocs';
+import { pageMeta } from '../utils/pageMeta';
 import {
   ALL_NODES,
   BLEND_GUIDE,
@@ -18,13 +19,13 @@ import {
 } from './docs.nodes';
 import { DocsSection, DocsShell } from './docs.shared';
 
-export const meta: MetaFunction = () => [
-  { title: 'Reference | Artifact Docs' },
-  {
-    name: 'description',
-    content: 'Artifact reference for nodes, effects, graph utilities, blend modes, project files, and troubleshooting.',
-  },
-];
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'Reference | Artifact Docs',
+    description:
+      'Artifact reference for nodes, effects, graph utilities, blend modes, project files, and troubleshooting.',
+    path: '/docs/reference',
+  });
 
 const REFERENCE_FILTERS = ['all', 'content', 'source', 'effect'] as const;
 type ReferenceFilter = (typeof REFERENCE_FILTERS)[number];

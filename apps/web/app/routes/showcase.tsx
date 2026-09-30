@@ -9,15 +9,15 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ASPECT_SIZES, type AspectRatio, type CanvasDocument } from '../types/config';
 import { CURATED_EXAMPLES } from '../utils/curatedExamples';
 import { generateThumbnail } from '../utils/generateThumbnail';
+import { pageMeta } from '../utils/pageMeta';
 import { RANDOM_FORMULA_IDS, type RandomFormulaId, randomDocumentForFormula } from '../utils/randomConfig';
 
-export const meta: MetaFunction = () => [
-  { title: 'Showcase | Made in Artifact' },
-  {
-    name: 'description',
-    content: 'Browse an infinite wall of artwork made in Artifact.',
-  },
-];
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'Showcase | Made in Artifact',
+    description: 'Browse an infinite wall of artwork made in Artifact.',
+    path: '/showcase',
+  });
 
 interface RandomFormulaProfile {
   title: string;

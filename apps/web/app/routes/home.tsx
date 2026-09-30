@@ -15,6 +15,7 @@ import {
   makeTextLayer,
 } from '../types/config';
 import { HERO_FRAMES } from '../utils/heroConfigs';
+import { pageMeta } from '../utils/pageMeta';
 
 const SEED = 31415;
 const CANVAS_PX = 540;
@@ -136,14 +137,13 @@ function buildDoc(stepIndex: number): CanvasDocument {
   };
 }
 
-export const meta: MetaFunction = () => [
-  { title: 'Artifact | Local-first Cover Art Editor' },
-  {
-    name: 'description',
-    content:
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'Artifact | Local-first Cover Art Editor',
+    description:
       'Artifact is a local-first creative editor for cover art, posters, type, texture, effects, nodes, local projects, and clean raster export.',
-  },
-];
+    path: '/',
+  });
 
 function nearestHomeStepIndex(refs: Array<HTMLElement | null>, viewportHeight: number) {
   if (!refs.length) return null;

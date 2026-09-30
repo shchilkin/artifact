@@ -7,20 +7,20 @@
       "routeId": "routes/home",
       "js": {
         "total": {
-          "raw": 406951,
-          "gzip": 133519
+          "raw": 407692,
+          "gzip": 133981
         },
         "assets": [
           {
             "name": "entry.client.js",
             "raw": 182552,
-            "gzip": 57062,
+            "gzip": 57064,
             "families": ["react", "react-router"]
           },
           {
             "name": "jsx-runtime.js",
-            "raw": 131774,
-            "gzip": 43087,
+            "raw": 131921,
+            "gzip": 43124,
             "families": ["react", "react-router"]
           },
           {
@@ -35,18 +35,13 @@
           },
           {
             "name": "home.js",
-            "raw": 15454,
-            "gzip": 5692
+            "raw": 15492,
+            "gzip": 5709
           },
           {
             "name": "root.js",
-            "raw": 6392,
-            "gzip": 2279
-          },
-          {
-            "name": "SiteNav.js",
-            "raw": 5315,
-            "gzip": 1648
+            "raw": 6585,
+            "gzip": 2494
           },
           {
             "name": "effectLayerMigration.js",
@@ -56,8 +51,13 @@
           {
             "name": "react-dom.js",
             "raw": 3547,
-            "gzip": 1338,
+            "gzip": 1339,
             "families": ["react"]
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 3272,
+            "gzip": 1185
           },
           {
             "name": "typography.js",
@@ -66,13 +66,13 @@
           },
           {
             "name": "commands.js",
-            "raw": 1277,
-            "gzip": 626
+            "raw": 3323,
+            "gzip": 1087
           },
           {
             "name": "PublicPageLayout.js",
-            "raw": 1217,
-            "gzip": 538
+            "raw": 1263,
+            "gzip": 561
           },
           {
             "name": "apiBaseUrl.js",
@@ -88,19 +88,24 @@
             "name": "reduced-motion.js",
             "raw": 271,
             "gzip": 199
+          },
+          {
+            "name": "pageMeta.js",
+            "raw": 314,
+            "gzip": 169
           }
         ]
       },
       "css": {
         "total": {
-          "raw": 59401,
-          "gzip": 12732
+          "raw": 60660,
+          "gzip": 12940
         },
         "assets": [
           {
             "name": "root.css",
-            "raw": 45746,
-            "gzip": 9289
+            "raw": 47005,
+            "gzip": 9497
           },
           {
             "name": "home.css",
@@ -119,20 +124,20 @@
       "routeId": "routes/docs",
       "js": {
         "total": {
-          "raw": 369982,
-          "gzip": 121375
+          "raw": 370725,
+          "gzip": 121833
         },
         "assets": [
           {
             "name": "entry.client.js",
             "raw": 182552,
-            "gzip": 57062,
+            "gzip": 57064,
             "families": ["react", "react-router"]
           },
           {
             "name": "jsx-runtime.js",
-            "raw": 131774,
-            "gzip": 43087,
+            "raw": 131921,
+            "gzip": 43124,
             "families": ["react", "react-router"]
           },
           {
@@ -142,19 +147,19 @@
           },
           {
             "name": "root.js",
-            "raw": 6392,
-            "gzip": 2279
-          },
-          {
-            "name": "SiteNav.js",
-            "raw": 5315,
-            "gzip": 1648
+            "raw": 6585,
+            "gzip": 2494
           },
           {
             "name": "react-dom.js",
             "raw": 3547,
-            "gzip": 1338,
+            "gzip": 1339,
             "families": ["react"]
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 3272,
+            "gzip": 1185
           },
           {
             "name": "typography.js",
@@ -162,9 +167,14 @@
             "gzip": 1096
           },
           {
+            "name": "commands.js",
+            "raw": 3323,
+            "gzip": 1087
+          },
+          {
             "name": "docs.js",
-            "raw": 2362,
-            "gzip": 1017
+            "raw": 2402,
+            "gzip": 1030
           },
           {
             "name": "docs.shared.js",
@@ -172,14 +182,9 @@
             "gzip": 776
           },
           {
-            "name": "commands.js",
-            "raw": 1277,
-            "gzip": 626
-          },
-          {
             "name": "PublicPageLayout.js",
-            "raw": 1217,
-            "gzip": 538
+            "raw": 1263,
+            "gzip": 561
           },
           {
             "name": "apiBaseUrl.js",
@@ -195,19 +200,24 @@
             "name": "ProductPageHeader.js",
             "raw": 673,
             "gzip": 304
+          },
+          {
+            "name": "pageMeta.js",
+            "raw": 314,
+            "gzip": 169
           }
         ]
       },
       "css": {
         "total": {
-          "raw": 76861,
-          "gzip": 14739
+          "raw": 78120,
+          "gzip": 14947
         },
         "assets": [
           {
             "name": "root.css",
-            "raw": 45746,
-            "gzip": 9289
+            "raw": 47005,
+            "gzip": 9497
           },
           {
             "name": "docs.css",
@@ -226,20 +236,20 @@
       "routeId": "routes/reset-password",
       "js": {
         "total": {
-          "raw": 370519,
-          "gzip": 121719
+          "raw": 371272,
+          "gzip": 122185
         },
         "assets": [
           {
             "name": "entry.client.js",
             "raw": 182552,
-            "gzip": 57062,
+            "gzip": 57064,
             "families": ["react", "react-router"]
           },
           {
             "name": "jsx-runtime.js",
-            "raw": 131774,
-            "gzip": 43087,
+            "raw": 131921,
+            "gzip": 43124,
             "families": ["react", "react-router"]
           },
           {
@@ -249,24 +259,24 @@
           },
           {
             "name": "root.js",
-            "raw": 6392,
-            "gzip": 2279
-          },
-          {
-            "name": "SiteNav.js",
-            "raw": 5315,
-            "gzip": 1648
+            "raw": 6585,
+            "gzip": 2494
           },
           {
             "name": "react-dom.js",
             "raw": 3547,
-            "gzip": 1338,
+            "gzip": 1339,
             "families": ["react"]
           },
           {
             "name": "reset-password.js",
-            "raw": 2808,
-            "gzip": 1200
+            "raw": 2858,
+            "gzip": 1217
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 3272,
+            "gzip": 1185
           },
           {
             "name": "typography.js",
@@ -274,24 +284,24 @@
             "gzip": 1096
           },
           {
-            "name": "fields.js",
-            "raw": 1520,
-            "gzip": 669
+            "name": "commands.js",
+            "raw": 3323,
+            "gzip": 1087
           },
           {
-            "name": "commands.js",
-            "raw": 1277,
-            "gzip": 626
+            "name": "fields.js",
+            "raw": 1520,
+            "gzip": 672
           },
           {
             "name": "feedback.js",
             "raw": 1180,
-            "gzip": 572
+            "gzip": 573
           },
           {
             "name": "PublicPageLayout.js",
-            "raw": 1217,
-            "gzip": 538
+            "raw": 1263,
+            "gzip": 561
           },
           {
             "name": "apiBaseUrl.js",
@@ -302,19 +312,24 @@
             "name": "appBuildInfo.js",
             "raw": 628,
             "gzip": 378
+          },
+          {
+            "name": "pageMeta.js",
+            "raw": 314,
+            "gzip": 169
           }
         ]
       },
       "css": {
         "total": {
-          "raw": 49881,
-          "gzip": 10681
+          "raw": 51140,
+          "gzip": 10889
         },
         "assets": [
           {
             "name": "root.css",
-            "raw": 45746,
-            "gzip": 9289
+            "raw": 47005,
+            "gzip": 9497
           },
           {
             "name": "reset-password.css",
@@ -333,26 +348,26 @@
       "routeId": "routes/projects",
       "js": {
         "total": {
-          "raw": 682354,
-          "gzip": 223283
+          "raw": 683106,
+          "gzip": 223740
         },
         "assets": [
           {
             "name": "entry.client.js",
             "raw": 182552,
-            "gzip": 57062,
+            "gzip": 57064,
             "families": ["react", "react-router"]
           },
           {
             "name": "jsx-runtime.js",
-            "raw": 131774,
-            "gzip": 43087,
+            "raw": 131921,
+            "gzip": 43124,
             "families": ["react", "react-router"]
           },
           {
             "name": "renderer.js",
             "raw": 111884,
-            "gzip": 36218,
+            "gzip": 36214,
             "families": ["renderer"]
           },
           {
@@ -362,13 +377,13 @@
           },
           {
             "name": "useProjects.js",
-            "raw": 52783,
-            "gzip": 16169
+            "raw": 52788,
+            "gzip": 16161
           },
           {
             "name": "dialog.js",
             "raw": 32238,
-            "gzip": 11054
+            "gzip": 11057
           },
           {
             "name": "authClient.js",
@@ -387,18 +402,13 @@
           },
           {
             "name": "root.js",
-            "raw": 6392,
-            "gzip": 2279
-          },
-          {
-            "name": "SiteNav.js",
-            "raw": 5315,
-            "gzip": 1648
+            "raw": 6585,
+            "gzip": 2494
           },
           {
             "name": "modelAssetStore.js",
             "raw": 5080,
-            "gzip": 1604
+            "gzip": 1605
           },
           {
             "name": "effectLayerMigration.js",
@@ -407,19 +417,24 @@
           },
           {
             "name": "projects.js",
-            "raw": 3637,
-            "gzip": 1478
+            "raw": 3681,
+            "gzip": 1498
           },
           {
             "name": "react-dom.js",
             "raw": 3547,
-            "gzip": 1338,
+            "gzip": 1339,
             "families": ["react"]
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 3272,
+            "gzip": 1185
           },
           {
             "name": "assetStore.js",
             "raw": 3021,
-            "gzip": 1176
+            "gzip": 1174
           },
           {
             "name": "typography.js",
@@ -427,29 +442,29 @@
             "gzip": 1096
           },
           {
+            "name": "commands.js",
+            "raw": 3323,
+            "gzip": 1087
+          },
+          {
             "name": "generateThumbnail.js",
             "raw": 1213,
-            "gzip": 727
+            "gzip": 725
           },
           {
             "name": "fields.js",
             "raw": 1520,
-            "gzip": 669
-          },
-          {
-            "name": "commands.js",
-            "raw": 1277,
-            "gzip": 626
+            "gzip": 672
           },
           {
             "name": "feedback.js",
             "raw": 1180,
-            "gzip": 572
+            "gzip": 573
           },
           {
             "name": "PublicPageLayout.js",
-            "raw": 1217,
-            "gzip": 538
+            "raw": 1263,
+            "gzip": 561
           },
           {
             "name": "apiBaseUrl.js",
@@ -470,19 +485,24 @@
             "name": "EmptyState.js",
             "raw": 640,
             "gzip": 295
+          },
+          {
+            "name": "pageMeta.js",
+            "raw": 314,
+            "gzip": 169
           }
         ]
       },
       "css": {
         "total": {
-          "raw": 86786,
-          "gzip": 17201
+          "raw": 88045,
+          "gzip": 17409
         },
         "assets": [
           {
             "name": "root.css",
-            "raw": 45746,
-            "gzip": 9289
+            "raw": 47005,
+            "gzip": 9497
           },
           {
             "name": "projects.css",
@@ -516,37 +536,37 @@
       "routeId": "routes/editor",
       "js": {
         "total": {
-          "raw": 1037402,
-          "gzip": 328654
+          "raw": 1038064,
+          "gzip": 329067
         },
         "assets": [
           {
             "name": "tabs.js",
             "raw": 211351,
-            "gzip": 60478
+            "gzip": 60475
           },
           {
             "name": "entry.client.js",
             "raw": 182552,
-            "gzip": 57062,
+            "gzip": 57064,
             "families": ["react", "react-router"]
           },
           {
             "name": "jsx-runtime.js",
-            "raw": 131774,
-            "gzip": 43087,
+            "raw": 131921,
+            "gzip": 43124,
             "families": ["react", "react-router"]
           },
           {
             "name": "renderer.js",
             "raw": 111884,
-            "gzip": 36218,
+            "gzip": 36214,
             "families": ["renderer"]
           },
           {
             "name": "editor.js",
             "raw": 103215,
-            "gzip": 31429,
+            "gzip": 31432,
             "families": ["motion"]
           },
           {
@@ -556,13 +576,13 @@
           },
           {
             "name": "useProjects.js",
-            "raw": 52783,
-            "gzip": 16169
+            "raw": 52788,
+            "gzip": 16161
           },
           {
             "name": "dialog.js",
             "raw": 32238,
-            "gzip": 11054
+            "gzip": 11057
           },
           {
             "name": "authClient.js",
@@ -587,18 +607,18 @@
           {
             "name": "randomConfig.js",
             "raw": 7058,
-            "gzip": 3083,
+            "gzip": 3082,
             "families": ["motion"]
           },
           {
             "name": "useAddLibraryMobileSheet.js",
             "raw": 8058,
-            "gzip": 3069
+            "gzip": 3070
           },
           {
             "name": "root.js",
-            "raw": 6392,
-            "gzip": 2279
+            "raw": 6585,
+            "gzip": 2494
           },
           {
             "name": "constants.js",
@@ -606,14 +626,9 @@
             "gzip": 1763
           },
           {
-            "name": "SiteNav.js",
-            "raw": 5315,
-            "gzip": 1648
-          },
-          {
             "name": "modelAssetStore.js",
             "raw": 5080,
-            "gzip": 1604
+            "gzip": 1605
           },
           {
             "name": "effectLayerMigration.js",
@@ -628,18 +643,23 @@
           {
             "name": "SearchField.js",
             "raw": 3292,
-            "gzip": 1411
+            "gzip": 1410
           },
           {
             "name": "react-dom.js",
             "raw": 3547,
-            "gzip": 1338,
+            "gzip": 1339,
             "families": ["react"]
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 3272,
+            "gzip": 1185
           },
           {
             "name": "assetStore.js",
             "raw": 3021,
-            "gzip": 1176
+            "gzip": 1174
           },
           {
             "name": "typography.js",
@@ -647,24 +667,24 @@
             "gzip": 1096
           },
           {
+            "name": "commands.js",
+            "raw": 3323,
+            "gzip": 1087
+          },
+          {
             "name": "generateThumbnail.js",
             "raw": 1213,
-            "gzip": 727
+            "gzip": 725
           },
           {
             "name": "fields.js",
             "raw": 1520,
-            "gzip": 669
-          },
-          {
-            "name": "commands.js",
-            "raw": 1277,
-            "gzip": 626
+            "gzip": 672
           },
           {
             "name": "feedback.js",
             "raw": 1180,
-            "gzip": 572
+            "gzip": 573
           },
           {
             "name": "apiBaseUrl.js",
@@ -685,13 +705,18 @@
             "name": "PrimitiveViewportState.js",
             "raw": 413,
             "gzip": 248
+          },
+          {
+            "name": "pageMeta.js",
+            "raw": 314,
+            "gzip": 169
           }
         ]
       },
       "css": {
         "total": {
-          "raw": 173516,
-          "gzip": 29644
+          "raw": 174775,
+          "gzip": 29852
         },
         "assets": [
           {
@@ -701,8 +726,8 @@
           },
           {
             "name": "root.css",
-            "raw": 45746,
-            "gzip": 9289
+            "raw": 47005,
+            "gzip": 9497
           },
           {
             "name": "tabs.css",
@@ -731,37 +756,37 @@
       "routeId": "routes/docs.style-guide",
       "js": {
         "total": {
-          "raw": 1193066,
-          "gzip": 370367
+          "raw": 1193776,
+          "gzip": 370828
         },
         "assets": [
           {
             "name": "node-canvas.js",
             "raw": 280208,
-            "gzip": 85626,
+            "gzip": 85636,
             "families": ["node-canvas", "react-flow"]
           },
           {
             "name": "tabs.js",
             "raw": 211351,
-            "gzip": 60478
+            "gzip": 60475
           },
           {
             "name": "entry.client.js",
             "raw": 182552,
-            "gzip": 57062,
+            "gzip": 57064,
             "families": ["react", "react-router"]
           },
           {
             "name": "jsx-runtime.js",
-            "raw": 131774,
-            "gzip": 43087,
+            "raw": 131921,
+            "gzip": 43124,
             "families": ["react", "react-router"]
           },
           {
             "name": "renderer.js",
             "raw": 111884,
-            "gzip": 36218,
+            "gzip": 36214,
             "families": ["renderer"]
           },
           {
@@ -771,13 +796,13 @@
           },
           {
             "name": "docs.style-guide.js",
-            "raw": 71004,
-            "gzip": 16594
+            "raw": 71011,
+            "gzip": 16603
           },
           {
             "name": "dialog.js",
             "raw": 32238,
-            "gzip": 11054
+            "gzip": 11057
           },
           {
             "name": "authClient.js",
@@ -796,18 +821,13 @@
           },
           {
             "name": "root.js",
-            "raw": 6392,
-            "gzip": 2279
+            "raw": 6585,
+            "gzip": 2494
           },
           {
             "name": "constants.js",
             "raw": 4117,
             "gzip": 1763
-          },
-          {
-            "name": "SiteNav.js",
-            "raw": 5315,
-            "gzip": 1648
           },
           {
             "name": "effectLayerMigration.js",
@@ -822,18 +842,23 @@
           {
             "name": "SearchField.js",
             "raw": 3292,
-            "gzip": 1411
+            "gzip": 1410
           },
           {
             "name": "react-dom.js",
             "raw": 3547,
-            "gzip": 1338,
+            "gzip": 1339,
             "families": ["react"]
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 3272,
+            "gzip": 1185
           },
           {
             "name": "assetStore.js",
             "raw": 3021,
-            "gzip": 1176
+            "gzip": 1174
           },
           {
             "name": "typography.js",
@@ -841,24 +866,24 @@
             "gzip": 1096
           },
           {
-            "name": "fields.js",
-            "raw": 1520,
-            "gzip": 669
+            "name": "commands.js",
+            "raw": 3323,
+            "gzip": 1087
           },
           {
-            "name": "commands.js",
-            "raw": 1277,
-            "gzip": 626
+            "name": "fields.js",
+            "raw": 1520,
+            "gzip": 672
           },
           {
             "name": "feedback.js",
             "raw": 1180,
-            "gzip": 572
+            "gzip": 573
           },
           {
             "name": "PublicPageLayout.js",
-            "raw": 1217,
-            "gzip": 538
+            "raw": 1263,
+            "gzip": 561
           },
           {
             "name": "apiBaseUrl.js",
@@ -874,13 +899,18 @@
             "name": "EmptyState.js",
             "raw": 640,
             "gzip": 295
+          },
+          {
+            "name": "pageMeta.js",
+            "raw": 314,
+            "gzip": 169
           }
         ]
       },
       "css": {
         "total": {
-          "raw": 309293,
-          "gzip": 50026
+          "raw": 310552,
+          "gzip": 50234
         },
         "assets": [
           {
@@ -895,8 +925,8 @@
           },
           {
             "name": "root.css",
-            "raw": 45746,
-            "gzip": 9289
+            "raw": 47005,
+            "gzip": 9497
           },
           {
             "name": "tabs.css",
@@ -930,32 +960,32 @@
       "routeId": "routes/showcase",
       "js": {
         "total": {
-          "raw": 702462,
-          "gzip": 228676
+          "raw": 703211,
+          "gzip": 229160
         },
         "assets": [
           {
             "name": "entry.client.js",
             "raw": 182552,
-            "gzip": 57062,
+            "gzip": 57064,
             "families": ["react", "react-router"]
           },
           {
             "name": "showcase.js",
-            "raw": 143334,
-            "gzip": 46434,
+            "raw": 143380,
+            "gzip": 46479,
             "families": ["motion"]
           },
           {
             "name": "jsx-runtime.js",
-            "raw": 131774,
-            "gzip": 43087,
+            "raw": 131921,
+            "gzip": 43124,
             "families": ["react", "react-router"]
           },
           {
             "name": "renderer.js",
             "raw": 111884,
-            "gzip": 36218,
+            "gzip": 36214,
             "families": ["renderer"]
           },
           {
@@ -981,18 +1011,13 @@
           {
             "name": "randomConfig.js",
             "raw": 7058,
-            "gzip": 3083,
+            "gzip": 3082,
             "families": ["motion"]
           },
           {
             "name": "root.js",
-            "raw": 6392,
-            "gzip": 2279
-          },
-          {
-            "name": "SiteNav.js",
-            "raw": 5315,
-            "gzip": 1648
+            "raw": 6585,
+            "gzip": 2494
           },
           {
             "name": "noisePresets.js",
@@ -1002,8 +1027,13 @@
           {
             "name": "react-dom.js",
             "raw": 3547,
-            "gzip": 1338,
+            "gzip": 1339,
             "families": ["react"]
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 3272,
+            "gzip": 1185
           },
           {
             "name": "typography.js",
@@ -1011,24 +1041,24 @@
             "gzip": 1096
           },
           {
-            "name": "generateThumbnail.js",
-            "raw": 1213,
-            "gzip": 727
+            "name": "commands.js",
+            "raw": 3323,
+            "gzip": 1087
           },
           {
-            "name": "commands.js",
-            "raw": 1277,
-            "gzip": 626
+            "name": "generateThumbnail.js",
+            "raw": 1213,
+            "gzip": 725
           },
           {
             "name": "feedback.js",
             "raw": 1180,
-            "gzip": 572
+            "gzip": 573
           },
           {
             "name": "PublicPageLayout.js",
-            "raw": 1217,
-            "gzip": 538
+            "raw": 1263,
+            "gzip": 561
           },
           {
             "name": "apiBaseUrl.js",
@@ -1054,19 +1084,24 @@
             "name": "reduced-motion.js",
             "raw": 271,
             "gzip": 199
+          },
+          {
+            "name": "pageMeta.js",
+            "raw": 314,
+            "gzip": 169
           }
         ]
       },
       "css": {
         "total": {
-          "raw": 64200,
-          "gzip": 13507
+          "raw": 65459,
+          "gzip": 13715
         },
         "assets": [
           {
             "name": "root.css",
-            "raw": 45746,
-            "gzip": 9289
+            "raw": 47005,
+            "gzip": 9497
           },
           {
             "name": "showcase.css",
@@ -1093,32 +1128,32 @@
       "initial": {
         "js": {
           "total": {
-            "raw": 1022281,
-            "gzip": 317880
+            "raw": 1023363,
+            "gzip": 318365
           },
           "assets": [
             {
               "name": "lib.js",
               "raw": 465260,
-              "gzip": 137600,
+              "gzip": 137599,
               "families": ["pixi"]
             },
             {
               "name": "entry.client.js",
               "raw": 182552,
-              "gzip": 57062,
+              "gzip": 57064,
               "families": ["react", "react-router"]
             },
             {
               "name": "jsx-runtime.js",
-              "raw": 131774,
-              "gzip": 43087,
+              "raw": 131921,
+              "gzip": 43124,
               "families": ["react", "react-router"]
             },
             {
               "name": "renderer.js",
               "raw": 111884,
-              "gzip": 36218,
+              "gzip": 36214,
               "families": ["renderer"]
             },
             {
@@ -1133,8 +1168,8 @@
             },
             {
               "name": "home.js",
-              "raw": 15454,
-              "gzip": 5692
+              "raw": 15492,
+              "gzip": 5709
             },
             {
               "name": "effectPixelTransform.worker.js",
@@ -1145,23 +1180,18 @@
             {
               "name": "pixiFilters.js",
               "raw": 10936,
-              "gzip": 3119,
+              "gzip": 3118,
               "families": ["renderer"]
             },
             {
               "name": "root.js",
-              "raw": 6392,
-              "gzip": 2279
+              "raw": 6585,
+              "gzip": 2494
             },
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
-            },
-            {
-              "name": "SiteNav.js",
-              "raw": 5315,
-              "gzip": 1648
+              "raw": 11788,
+              "gzip": 1684
             },
             {
               "name": "effectLayerMigration.js",
@@ -1171,13 +1201,23 @@
             {
               "name": "react-dom.js",
               "raw": 3547,
-              "gzip": 1338,
+              "gzip": 1339,
               "families": ["react"]
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 3272,
+              "gzip": 1185
             },
             {
               "name": "typography.js",
               "raw": 2729,
               "gzip": 1096
+            },
+            {
+              "name": "commands.js",
+              "raw": 3323,
+              "gzip": 1087
             },
             {
               "name": "gpuRender.js",
@@ -1186,14 +1226,9 @@
               "families": ["renderer"]
             },
             {
-              "name": "commands.js",
-              "raw": 1277,
-              "gzip": 626
-            },
-            {
               "name": "PublicPageLayout.js",
-              "raw": 1217,
-              "gzip": 538
+              "raw": 1263,
+              "gzip": 561
             },
             {
               "name": "apiBaseUrl.js",
@@ -1209,19 +1244,24 @@
               "name": "reduced-motion.js",
               "raw": 271,
               "gzip": 199
+            },
+            {
+              "name": "pageMeta.js",
+              "raw": 314,
+              "gzip": 169
             }
           ]
         },
         "css": {
           "total": {
-            "raw": 59401,
-            "gzip": 12732
+            "raw": 60660,
+            "gzip": 12940
           },
           "assets": [
             {
               "name": "root.css",
-              "raw": 45746,
-              "gzip": 9289
+              "raw": 47005,
+              "gzip": 9497
             },
             {
               "name": "home.css",
@@ -1239,20 +1279,20 @@
       "afterRender": {
         "js": {
           "total": {
-            "raw": 615330,
-            "gzip": 184361
+            "raw": 615671,
+            "gzip": 184384
           },
           "assets": [
             {
               "name": "lib.js",
               "raw": 465260,
-              "gzip": 137600,
+              "gzip": 137599,
               "families": ["pixi"]
             },
             {
               "name": "renderer.js",
               "raw": 111884,
-              "gzip": 36218,
+              "gzip": 36214,
               "families": ["renderer"]
             },
             {
@@ -1264,13 +1304,13 @@
             {
               "name": "pixiFilters.js",
               "raw": 10936,
-              "gzip": 3119,
+              "gzip": 3118,
               "families": ["renderer"]
             },
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
+              "raw": 11788,
+              "gzip": 1684
             },
             {
               "name": "gpuRender.js",
@@ -1294,20 +1334,20 @@
       "initial": {
         "js": {
           "total": {
-            "raw": 381429,
-            "gzip": 123030
+            "raw": 382513,
+            "gzip": 123517
           },
           "assets": [
             {
               "name": "entry.client.js",
               "raw": 182552,
-              "gzip": 57062,
+              "gzip": 57064,
               "families": ["react", "react-router"]
             },
             {
               "name": "jsx-runtime.js",
-              "raw": 131774,
-              "gzip": 43087,
+              "raw": 131921,
+              "gzip": 43124,
               "families": ["react", "react-router"]
             },
             {
@@ -1317,24 +1357,24 @@
             },
             {
               "name": "root.js",
-              "raw": 6392,
-              "gzip": 2279
+              "raw": 6585,
+              "gzip": 2494
             },
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
-            },
-            {
-              "name": "SiteNav.js",
-              "raw": 5315,
-              "gzip": 1648
+              "raw": 11788,
+              "gzip": 1684
             },
             {
               "name": "react-dom.js",
               "raw": 3547,
-              "gzip": 1338,
+              "gzip": 1339,
               "families": ["react"]
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 3272,
+              "gzip": 1185
             },
             {
               "name": "typography.js",
@@ -1342,9 +1382,14 @@
               "gzip": 1096
             },
             {
+              "name": "commands.js",
+              "raw": 3323,
+              "gzip": 1087
+            },
+            {
               "name": "docs.js",
-              "raw": 2362,
-              "gzip": 1017
+              "raw": 2402,
+              "gzip": 1030
             },
             {
               "name": "docs.shared.js",
@@ -1352,14 +1397,9 @@
               "gzip": 776
             },
             {
-              "name": "commands.js",
-              "raw": 1277,
-              "gzip": 626
-            },
-            {
               "name": "PublicPageLayout.js",
-              "raw": 1217,
-              "gzip": 538
+              "raw": 1263,
+              "gzip": 561
             },
             {
               "name": "apiBaseUrl.js",
@@ -1375,19 +1415,24 @@
               "name": "ProductPageHeader.js",
               "raw": 673,
               "gzip": 304
+            },
+            {
+              "name": "pageMeta.js",
+              "raw": 314,
+              "gzip": 169
             }
           ]
         },
         "css": {
           "total": {
-            "raw": 76861,
-            "gzip": 14739
+            "raw": 78120,
+            "gzip": 14947
           },
           "assets": [
             {
               "name": "root.css",
-              "raw": 45746,
-              "gzip": 9289
+              "raw": 47005,
+              "gzip": 9497
             },
             {
               "name": "docs.css",
@@ -1405,14 +1450,14 @@
       "afterRender": {
         "js": {
           "total": {
-            "raw": 11447,
-            "gzip": 1655
+            "raw": 11788,
+            "gzip": 1684
           },
           "assets": [
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
+              "raw": 11788,
+              "gzip": 1684
             }
           ]
         },
@@ -1430,20 +1475,20 @@
       "initial": {
         "js": {
           "total": {
-            "raw": 381966,
-            "gzip": 123374
+            "raw": 383060,
+            "gzip": 123869
           },
           "assets": [
             {
               "name": "entry.client.js",
               "raw": 182552,
-              "gzip": 57062,
+              "gzip": 57064,
               "families": ["react", "react-router"]
             },
             {
               "name": "jsx-runtime.js",
-              "raw": 131774,
-              "gzip": 43087,
+              "raw": 131921,
+              "gzip": 43124,
               "families": ["react", "react-router"]
             },
             {
@@ -1453,29 +1498,29 @@
             },
             {
               "name": "root.js",
-              "raw": 6392,
-              "gzip": 2279
+              "raw": 6585,
+              "gzip": 2494
             },
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
-            },
-            {
-              "name": "SiteNav.js",
-              "raw": 5315,
-              "gzip": 1648
+              "raw": 11788,
+              "gzip": 1684
             },
             {
               "name": "react-dom.js",
               "raw": 3547,
-              "gzip": 1338,
+              "gzip": 1339,
               "families": ["react"]
             },
             {
               "name": "reset-password.js",
-              "raw": 2808,
-              "gzip": 1200
+              "raw": 2858,
+              "gzip": 1217
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 3272,
+              "gzip": 1185
             },
             {
               "name": "typography.js",
@@ -1483,24 +1528,24 @@
               "gzip": 1096
             },
             {
-              "name": "fields.js",
-              "raw": 1520,
-              "gzip": 669
+              "name": "commands.js",
+              "raw": 3323,
+              "gzip": 1087
             },
             {
-              "name": "commands.js",
-              "raw": 1277,
-              "gzip": 626
+              "name": "fields.js",
+              "raw": 1520,
+              "gzip": 672
             },
             {
               "name": "feedback.js",
               "raw": 1180,
-              "gzip": 572
+              "gzip": 573
             },
             {
               "name": "PublicPageLayout.js",
-              "raw": 1217,
-              "gzip": 538
+              "raw": 1263,
+              "gzip": 561
             },
             {
               "name": "apiBaseUrl.js",
@@ -1511,19 +1556,24 @@
               "name": "appBuildInfo.js",
               "raw": 628,
               "gzip": 378
+            },
+            {
+              "name": "pageMeta.js",
+              "raw": 314,
+              "gzip": 169
             }
           ]
         },
         "css": {
           "total": {
-            "raw": 49881,
-            "gzip": 10681
+            "raw": 51140,
+            "gzip": 10889
           },
           "assets": [
             {
               "name": "root.css",
-              "raw": 45746,
-              "gzip": 9289
+              "raw": 47005,
+              "gzip": 9497
             },
             {
               "name": "reset-password.css",
@@ -1541,14 +1591,14 @@
       "afterRender": {
         "js": {
           "total": {
-            "raw": 11447,
-            "gzip": 1655
+            "raw": 11788,
+            "gzip": 1684
           },
           "assets": [
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
+              "raw": 11788,
+              "gzip": 1684
             }
           ]
         },
@@ -1566,26 +1616,26 @@
       "initial": {
         "js": {
           "total": {
-            "raw": 693801,
-            "gzip": 224938
+            "raw": 694894,
+            "gzip": 225424
           },
           "assets": [
             {
               "name": "entry.client.js",
               "raw": 182552,
-              "gzip": 57062,
+              "gzip": 57064,
               "families": ["react", "react-router"]
             },
             {
               "name": "jsx-runtime.js",
-              "raw": 131774,
-              "gzip": 43087,
+              "raw": 131921,
+              "gzip": 43124,
               "families": ["react", "react-router"]
             },
             {
               "name": "renderer.js",
               "raw": 111884,
-              "gzip": 36218,
+              "gzip": 36214,
               "families": ["renderer"]
             },
             {
@@ -1595,13 +1645,13 @@
             },
             {
               "name": "useProjects.js",
-              "raw": 52783,
-              "gzip": 16169
+              "raw": 52788,
+              "gzip": 16161
             },
             {
               "name": "dialog.js",
               "raw": 32238,
-              "gzip": 11054
+              "gzip": 11057
             },
             {
               "name": "authClient.js",
@@ -1620,23 +1670,18 @@
             },
             {
               "name": "root.js",
-              "raw": 6392,
-              "gzip": 2279
+              "raw": 6585,
+              "gzip": 2494
             },
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
-            },
-            {
-              "name": "SiteNav.js",
-              "raw": 5315,
-              "gzip": 1648
+              "raw": 11788,
+              "gzip": 1684
             },
             {
               "name": "modelAssetStore.js",
               "raw": 5080,
-              "gzip": 1604
+              "gzip": 1605
             },
             {
               "name": "effectLayerMigration.js",
@@ -1645,19 +1690,24 @@
             },
             {
               "name": "projects.js",
-              "raw": 3637,
-              "gzip": 1478
+              "raw": 3681,
+              "gzip": 1498
             },
             {
               "name": "react-dom.js",
               "raw": 3547,
-              "gzip": 1338,
+              "gzip": 1339,
               "families": ["react"]
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 3272,
+              "gzip": 1185
             },
             {
               "name": "assetStore.js",
               "raw": 3021,
-              "gzip": 1176
+              "gzip": 1174
             },
             {
               "name": "typography.js",
@@ -1665,29 +1715,29 @@
               "gzip": 1096
             },
             {
+              "name": "commands.js",
+              "raw": 3323,
+              "gzip": 1087
+            },
+            {
               "name": "generateThumbnail.js",
               "raw": 1213,
-              "gzip": 727
+              "gzip": 725
             },
             {
               "name": "fields.js",
               "raw": 1520,
-              "gzip": 669
-            },
-            {
-              "name": "commands.js",
-              "raw": 1277,
-              "gzip": 626
+              "gzip": 672
             },
             {
               "name": "feedback.js",
               "raw": 1180,
-              "gzip": 572
+              "gzip": 573
             },
             {
               "name": "PublicPageLayout.js",
-              "raw": 1217,
-              "gzip": 538
+              "raw": 1263,
+              "gzip": 561
             },
             {
               "name": "apiBaseUrl.js",
@@ -1708,19 +1758,24 @@
               "name": "EmptyState.js",
               "raw": 640,
               "gzip": 295
+            },
+            {
+              "name": "pageMeta.js",
+              "raw": 314,
+              "gzip": 169
             }
           ]
         },
         "css": {
           "total": {
-            "raw": 86786,
-            "gzip": 17201
+            "raw": 88045,
+            "gzip": 17409
           },
           "assets": [
             {
               "name": "root.css",
-              "raw": 45746,
-              "gzip": 9289
+              "raw": 47005,
+              "gzip": 9497
             },
             {
               "name": "projects.css",
@@ -1753,14 +1808,14 @@
       "afterRender": {
         "js": {
           "total": {
-            "raw": 11447,
-            "gzip": 1655
+            "raw": 11788,
+            "gzip": 1684
           },
           "assets": [
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
+              "raw": 11788,
+              "gzip": 1684
             }
           ]
         },
@@ -1778,37 +1833,37 @@
       "initial": {
         "js": {
           "total": {
-            "raw": 1048849,
-            "gzip": 330309
+            "raw": 1049852,
+            "gzip": 330751
           },
           "assets": [
             {
               "name": "tabs.js",
               "raw": 211351,
-              "gzip": 60478
+              "gzip": 60475
             },
             {
               "name": "entry.client.js",
               "raw": 182552,
-              "gzip": 57062,
+              "gzip": 57064,
               "families": ["react", "react-router"]
             },
             {
               "name": "jsx-runtime.js",
-              "raw": 131774,
-              "gzip": 43087,
+              "raw": 131921,
+              "gzip": 43124,
               "families": ["react", "react-router"]
             },
             {
               "name": "renderer.js",
               "raw": 111884,
-              "gzip": 36218,
+              "gzip": 36214,
               "families": ["renderer"]
             },
             {
               "name": "editor.js",
               "raw": 103215,
-              "gzip": 31429,
+              "gzip": 31432,
               "families": ["motion"]
             },
             {
@@ -1818,13 +1873,13 @@
             },
             {
               "name": "useProjects.js",
-              "raw": 52783,
-              "gzip": 16169
+              "raw": 52788,
+              "gzip": 16161
             },
             {
               "name": "dialog.js",
               "raw": 32238,
-              "gzip": 11054
+              "gzip": 11057
             },
             {
               "name": "authClient.js",
@@ -1849,18 +1904,18 @@
             {
               "name": "randomConfig.js",
               "raw": 7058,
-              "gzip": 3083,
+              "gzip": 3082,
               "families": ["motion"]
             },
             {
               "name": "useAddLibraryMobileSheet.js",
               "raw": 8058,
-              "gzip": 3069
+              "gzip": 3070
             },
             {
               "name": "root.js",
-              "raw": 6392,
-              "gzip": 2279
+              "raw": 6585,
+              "gzip": 2494
             },
             {
               "name": "constants.js",
@@ -1869,18 +1924,13 @@
             },
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
-            },
-            {
-              "name": "SiteNav.js",
-              "raw": 5315,
-              "gzip": 1648
+              "raw": 11788,
+              "gzip": 1684
             },
             {
               "name": "modelAssetStore.js",
               "raw": 5080,
-              "gzip": 1604
+              "gzip": 1605
             },
             {
               "name": "effectLayerMigration.js",
@@ -1895,18 +1945,23 @@
             {
               "name": "SearchField.js",
               "raw": 3292,
-              "gzip": 1411
+              "gzip": 1410
             },
             {
               "name": "react-dom.js",
               "raw": 3547,
-              "gzip": 1338,
+              "gzip": 1339,
               "families": ["react"]
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 3272,
+              "gzip": 1185
             },
             {
               "name": "assetStore.js",
               "raw": 3021,
-              "gzip": 1176
+              "gzip": 1174
             },
             {
               "name": "typography.js",
@@ -1914,24 +1969,24 @@
               "gzip": 1096
             },
             {
+              "name": "commands.js",
+              "raw": 3323,
+              "gzip": 1087
+            },
+            {
               "name": "generateThumbnail.js",
               "raw": 1213,
-              "gzip": 727
+              "gzip": 725
             },
             {
               "name": "fields.js",
               "raw": 1520,
-              "gzip": 669
-            },
-            {
-              "name": "commands.js",
-              "raw": 1277,
-              "gzip": 626
+              "gzip": 672
             },
             {
               "name": "feedback.js",
               "raw": 1180,
-              "gzip": 572
+              "gzip": 573
             },
             {
               "name": "apiBaseUrl.js",
@@ -1952,13 +2007,18 @@
               "name": "PrimitiveViewportState.js",
               "raw": 413,
               "gzip": 248
+            },
+            {
+              "name": "pageMeta.js",
+              "raw": 314,
+              "gzip": 169
             }
           ]
         },
         "css": {
           "total": {
-            "raw": 173516,
-            "gzip": 29644
+            "raw": 174775,
+            "gzip": 29852
           },
           "assets": [
             {
@@ -1968,8 +2028,8 @@
             },
             {
               "name": "root.css",
-              "raw": 45746,
-              "gzip": 9289
+              "raw": 47005,
+              "gzip": 9497
             },
             {
               "name": "tabs.css",
@@ -1997,14 +2057,14 @@
       "afterRender": {
         "js": {
           "total": {
-            "raw": 11447,
-            "gzip": 1655
+            "raw": 11788,
+            "gzip": 1684
           },
           "assets": [
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
+              "raw": 11788,
+              "gzip": 1684
             }
           ]
         },
@@ -2022,37 +2082,37 @@
       "initial": {
         "js": {
           "total": {
-            "raw": 1048849,
-            "gzip": 330309
+            "raw": 1049852,
+            "gzip": 330751
           },
           "assets": [
             {
               "name": "tabs.js",
               "raw": 211351,
-              "gzip": 60478
+              "gzip": 60475
             },
             {
               "name": "entry.client.js",
               "raw": 182552,
-              "gzip": 57062,
+              "gzip": 57064,
               "families": ["react", "react-router"]
             },
             {
               "name": "jsx-runtime.js",
-              "raw": 131774,
-              "gzip": 43087,
+              "raw": 131921,
+              "gzip": 43124,
               "families": ["react", "react-router"]
             },
             {
               "name": "renderer.js",
               "raw": 111884,
-              "gzip": 36218,
+              "gzip": 36214,
               "families": ["renderer"]
             },
             {
               "name": "editor.js",
               "raw": 103215,
-              "gzip": 31429,
+              "gzip": 31432,
               "families": ["motion"]
             },
             {
@@ -2062,13 +2122,13 @@
             },
             {
               "name": "useProjects.js",
-              "raw": 52783,
-              "gzip": 16169
+              "raw": 52788,
+              "gzip": 16161
             },
             {
               "name": "dialog.js",
               "raw": 32238,
-              "gzip": 11054
+              "gzip": 11057
             },
             {
               "name": "authClient.js",
@@ -2093,18 +2153,18 @@
             {
               "name": "randomConfig.js",
               "raw": 7058,
-              "gzip": 3083,
+              "gzip": 3082,
               "families": ["motion"]
             },
             {
               "name": "useAddLibraryMobileSheet.js",
               "raw": 8058,
-              "gzip": 3069
+              "gzip": 3070
             },
             {
               "name": "root.js",
-              "raw": 6392,
-              "gzip": 2279
+              "raw": 6585,
+              "gzip": 2494
             },
             {
               "name": "constants.js",
@@ -2113,18 +2173,13 @@
             },
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
-            },
-            {
-              "name": "SiteNav.js",
-              "raw": 5315,
-              "gzip": 1648
+              "raw": 11788,
+              "gzip": 1684
             },
             {
               "name": "modelAssetStore.js",
               "raw": 5080,
-              "gzip": 1604
+              "gzip": 1605
             },
             {
               "name": "effectLayerMigration.js",
@@ -2139,18 +2194,23 @@
             {
               "name": "SearchField.js",
               "raw": 3292,
-              "gzip": 1411
+              "gzip": 1410
             },
             {
               "name": "react-dom.js",
               "raw": 3547,
-              "gzip": 1338,
+              "gzip": 1339,
               "families": ["react"]
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 3272,
+              "gzip": 1185
             },
             {
               "name": "assetStore.js",
               "raw": 3021,
-              "gzip": 1176
+              "gzip": 1174
             },
             {
               "name": "typography.js",
@@ -2158,24 +2218,24 @@
               "gzip": 1096
             },
             {
+              "name": "commands.js",
+              "raw": 3323,
+              "gzip": 1087
+            },
+            {
               "name": "generateThumbnail.js",
               "raw": 1213,
-              "gzip": 727
+              "gzip": 725
             },
             {
               "name": "fields.js",
               "raw": 1520,
-              "gzip": 669
-            },
-            {
-              "name": "commands.js",
-              "raw": 1277,
-              "gzip": 626
+              "gzip": 672
             },
             {
               "name": "feedback.js",
               "raw": 1180,
-              "gzip": 572
+              "gzip": 573
             },
             {
               "name": "apiBaseUrl.js",
@@ -2196,13 +2256,18 @@
               "name": "PrimitiveViewportState.js",
               "raw": 413,
               "gzip": 248
+            },
+            {
+              "name": "pageMeta.js",
+              "raw": 314,
+              "gzip": 169
             }
           ]
         },
         "css": {
           "total": {
-            "raw": 173516,
-            "gzip": 29644
+            "raw": 174775,
+            "gzip": 29852
           },
           "assets": [
             {
@@ -2212,8 +2277,8 @@
             },
             {
               "name": "root.css",
-              "raw": 45746,
-              "gzip": 9289
+              "raw": 47005,
+              "gzip": 9497
             },
             {
               "name": "tabs.css",
@@ -2241,14 +2306,14 @@
       "afterRender": {
         "js": {
           "total": {
-            "raw": 11447,
-            "gzip": 1655
+            "raw": 11788,
+            "gzip": 1684
           },
           "assets": [
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
+              "raw": 11788,
+              "gzip": 1684
             }
           ]
         },
@@ -2264,19 +2329,19 @@
         "js": {
           "total": {
             "raw": 413531,
-            "gzip": 122280
+            "gzip": 122285
           },
           "assets": [
             {
               "name": "node-canvas.js",
               "raw": 280208,
-              "gzip": 85626,
+              "gzip": 85636,
               "families": ["node-canvas", "react-flow"]
             },
             {
               "name": "node-canvas.js",
               "raw": 133323,
-              "gzip": 36654,
+              "gzip": 36649,
               "families": ["node-canvas"]
             }
           ]
@@ -2306,37 +2371,37 @@
       "initial": {
         "js": {
           "total": {
-            "raw": 1204513,
-            "gzip": 372022
+            "raw": 1205564,
+            "gzip": 372512
           },
           "assets": [
             {
               "name": "node-canvas.js",
               "raw": 280208,
-              "gzip": 85626,
+              "gzip": 85636,
               "families": ["node-canvas", "react-flow"]
             },
             {
               "name": "tabs.js",
               "raw": 211351,
-              "gzip": 60478
+              "gzip": 60475
             },
             {
               "name": "entry.client.js",
               "raw": 182552,
-              "gzip": 57062,
+              "gzip": 57064,
               "families": ["react", "react-router"]
             },
             {
               "name": "jsx-runtime.js",
-              "raw": 131774,
-              "gzip": 43087,
+              "raw": 131921,
+              "gzip": 43124,
               "families": ["react", "react-router"]
             },
             {
               "name": "renderer.js",
               "raw": 111884,
-              "gzip": 36218,
+              "gzip": 36214,
               "families": ["renderer"]
             },
             {
@@ -2346,13 +2411,13 @@
             },
             {
               "name": "docs.style-guide.js",
-              "raw": 71004,
-              "gzip": 16594
+              "raw": 71011,
+              "gzip": 16603
             },
             {
               "name": "dialog.js",
               "raw": 32238,
-              "gzip": 11054
+              "gzip": 11057
             },
             {
               "name": "authClient.js",
@@ -2371,8 +2436,8 @@
             },
             {
               "name": "root.js",
-              "raw": 6392,
-              "gzip": 2279
+              "raw": 6585,
+              "gzip": 2494
             },
             {
               "name": "constants.js",
@@ -2381,13 +2446,8 @@
             },
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
-            },
-            {
-              "name": "SiteNav.js",
-              "raw": 5315,
-              "gzip": 1648
+              "raw": 11788,
+              "gzip": 1684
             },
             {
               "name": "effectLayerMigration.js",
@@ -2402,18 +2462,23 @@
             {
               "name": "SearchField.js",
               "raw": 3292,
-              "gzip": 1411
+              "gzip": 1410
             },
             {
               "name": "react-dom.js",
               "raw": 3547,
-              "gzip": 1338,
+              "gzip": 1339,
               "families": ["react"]
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 3272,
+              "gzip": 1185
             },
             {
               "name": "assetStore.js",
               "raw": 3021,
-              "gzip": 1176
+              "gzip": 1174
             },
             {
               "name": "typography.js",
@@ -2421,24 +2486,24 @@
               "gzip": 1096
             },
             {
-              "name": "fields.js",
-              "raw": 1520,
-              "gzip": 669
+              "name": "commands.js",
+              "raw": 3323,
+              "gzip": 1087
             },
             {
-              "name": "commands.js",
-              "raw": 1277,
-              "gzip": 626
+              "name": "fields.js",
+              "raw": 1520,
+              "gzip": 672
             },
             {
               "name": "feedback.js",
               "raw": 1180,
-              "gzip": 572
+              "gzip": 573
             },
             {
               "name": "PublicPageLayout.js",
-              "raw": 1217,
-              "gzip": 538
+              "raw": 1263,
+              "gzip": 561
             },
             {
               "name": "apiBaseUrl.js",
@@ -2454,13 +2519,18 @@
               "name": "EmptyState.js",
               "raw": 640,
               "gzip": 295
+            },
+            {
+              "name": "pageMeta.js",
+              "raw": 314,
+              "gzip": 169
             }
           ]
         },
         "css": {
           "total": {
-            "raw": 309293,
-            "gzip": 50026
+            "raw": 310552,
+            "gzip": 50234
           },
           "assets": [
             {
@@ -2475,8 +2545,8 @@
             },
             {
               "name": "root.css",
-              "raw": 45746,
-              "gzip": 9289
+              "raw": 47005,
+              "gzip": 9497
             },
             {
               "name": "tabs.css",
@@ -2509,14 +2579,14 @@
       "afterRender": {
         "js": {
           "total": {
-            "raw": 11447,
-            "gzip": 1655
+            "raw": 11788,
+            "gzip": 1684
           },
           "assets": [
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
+              "raw": 11788,
+              "gzip": 1684
             }
           ]
         },
@@ -2534,37 +2604,37 @@
       "initial": {
         "js": {
           "total": {
-            "raw": 1048849,
-            "gzip": 330309
+            "raw": 1049852,
+            "gzip": 330751
           },
           "assets": [
             {
               "name": "tabs.js",
               "raw": 211351,
-              "gzip": 60478
+              "gzip": 60475
             },
             {
               "name": "entry.client.js",
               "raw": 182552,
-              "gzip": 57062,
+              "gzip": 57064,
               "families": ["react", "react-router"]
             },
             {
               "name": "jsx-runtime.js",
-              "raw": 131774,
-              "gzip": 43087,
+              "raw": 131921,
+              "gzip": 43124,
               "families": ["react", "react-router"]
             },
             {
               "name": "renderer.js",
               "raw": 111884,
-              "gzip": 36218,
+              "gzip": 36214,
               "families": ["renderer"]
             },
             {
               "name": "editor.js",
               "raw": 103215,
-              "gzip": 31429,
+              "gzip": 31432,
               "families": ["motion"]
             },
             {
@@ -2574,13 +2644,13 @@
             },
             {
               "name": "useProjects.js",
-              "raw": 52783,
-              "gzip": 16169
+              "raw": 52788,
+              "gzip": 16161
             },
             {
               "name": "dialog.js",
               "raw": 32238,
-              "gzip": 11054
+              "gzip": 11057
             },
             {
               "name": "authClient.js",
@@ -2605,18 +2675,18 @@
             {
               "name": "randomConfig.js",
               "raw": 7058,
-              "gzip": 3083,
+              "gzip": 3082,
               "families": ["motion"]
             },
             {
               "name": "useAddLibraryMobileSheet.js",
               "raw": 8058,
-              "gzip": 3069
+              "gzip": 3070
             },
             {
               "name": "root.js",
-              "raw": 6392,
-              "gzip": 2279
+              "raw": 6585,
+              "gzip": 2494
             },
             {
               "name": "constants.js",
@@ -2625,18 +2695,13 @@
             },
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
-            },
-            {
-              "name": "SiteNav.js",
-              "raw": 5315,
-              "gzip": 1648
+              "raw": 11788,
+              "gzip": 1684
             },
             {
               "name": "modelAssetStore.js",
               "raw": 5080,
-              "gzip": 1604
+              "gzip": 1605
             },
             {
               "name": "effectLayerMigration.js",
@@ -2651,18 +2716,23 @@
             {
               "name": "SearchField.js",
               "raw": 3292,
-              "gzip": 1411
+              "gzip": 1410
             },
             {
               "name": "react-dom.js",
               "raw": 3547,
-              "gzip": 1338,
+              "gzip": 1339,
               "families": ["react"]
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 3272,
+              "gzip": 1185
             },
             {
               "name": "assetStore.js",
               "raw": 3021,
-              "gzip": 1176
+              "gzip": 1174
             },
             {
               "name": "typography.js",
@@ -2670,24 +2740,24 @@
               "gzip": 1096
             },
             {
+              "name": "commands.js",
+              "raw": 3323,
+              "gzip": 1087
+            },
+            {
               "name": "generateThumbnail.js",
               "raw": 1213,
-              "gzip": 727
+              "gzip": 725
             },
             {
               "name": "fields.js",
               "raw": 1520,
-              "gzip": 669
-            },
-            {
-              "name": "commands.js",
-              "raw": 1277,
-              "gzip": 626
+              "gzip": 672
             },
             {
               "name": "feedback.js",
               "raw": 1180,
-              "gzip": 572
+              "gzip": 573
             },
             {
               "name": "apiBaseUrl.js",
@@ -2708,13 +2778,18 @@
               "name": "PrimitiveViewportState.js",
               "raw": 413,
               "gzip": 248
+            },
+            {
+              "name": "pageMeta.js",
+              "raw": 314,
+              "gzip": 169
             }
           ]
         },
         "css": {
           "total": {
-            "raw": 173516,
-            "gzip": 29644
+            "raw": 174775,
+            "gzip": 29852
           },
           "assets": [
             {
@@ -2724,8 +2799,8 @@
             },
             {
               "name": "root.css",
-              "raw": 45746,
-              "gzip": 9289
+              "raw": 47005,
+              "gzip": 9497
             },
             {
               "name": "tabs.css",
@@ -2753,14 +2828,14 @@
       "afterRender": {
         "js": {
           "total": {
-            "raw": 11447,
-            "gzip": 1655
+            "raw": 11788,
+            "gzip": 1684
           },
           "assets": [
             {
               "name": "manifest.js",
-              "raw": 11447,
-              "gzip": 1655
+              "raw": 11788,
+              "gzip": 1684
             }
           ]
         },

@@ -66,6 +66,12 @@ const releaseSegments = [
     args: ['--project=chromium', 'v049-css-ownership.spec.ts'],
     serverMode: 'preview',
   },
+  {
+    label: 'Chromium production prerender and SPA fallback',
+    script: 'test:browser',
+    args: ['--project=chromium', 'v049-prerender.spec.ts', 'v049-shell.spec.ts'],
+    serverMode: 'preview',
+  },
   { label: 'Mobile Chromium and WebKit', script: 'test:browser:mobile', args: [], serverMode: 'dev' },
   { label: 'Backoffice UI', script: 'test:browser:backoffice', args: [], serverMode: 'preview' },
 ];

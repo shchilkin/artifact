@@ -47,6 +47,7 @@ import { PortRow } from '../components/node-canvas/inspector/PortRow';
 import { NodeFrame } from '../components/node-canvas/nodes/NodeFrame';
 import { NodeShell } from '../components/node-canvas/nodes/NodeShell';
 import { NodePropertiesPanel } from '../components/node-canvas/panel/NodePropertiesPanel';
+import { pageMeta } from '../utils/pageMeta';
 import '@xyflow/react/dist/style.css';
 import '../components/node-canvas/node-canvas.css';
 import { Button, IconButton, Input } from '@artifact/ui';
@@ -95,13 +96,12 @@ import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
 import { EXPORT_NODE_ID } from '../utils/nodeGraph';
 import './docs.style-guide.css';
 
-export const meta: MetaFunction = () => [
-  { title: 'Artifact editor style guide' },
-  {
-    name: 'description',
-    content: 'Internal style guide for Artifact editor primitives, tokens, and reusable UI states.',
-  },
-];
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'Artifact editor style guide',
+    description: 'Internal style guide for Artifact editor primitives, tokens, and reusable UI states.',
+    path: '/docs/style-guide',
+  });
 
 const layers: Layer[] = [
   {

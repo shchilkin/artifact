@@ -1,6 +1,12 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
-import { clickEditorControl, expectNoBrowserIssues, setupBrowserTestPage, switchToNodeView } from './helpers';
+import {
+  clickEditorControl,
+  expectNoBrowserIssues,
+  setupBrowserTestPage,
+  supportsWebGl,
+  switchToNodeView,
+} from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await setupBrowserTestPage(page);
@@ -9,7 +15,10 @@ test.beforeEach(async ({ page }) => {
 test('Projects panel shows work state first and keeps storage diagnostics collapsed', async ({ page }) => {
   await page.goto('/app?new=blank');
 
-  await expect(page.getByLabel('Local workspace warning')).toHaveCount(0);
+  // A browser without WebGL (Firefox on CI) is told once that 3D previews fall back; nothing else warns.
+  const workspaceWarning = page.getByLabel('Local workspace warning');
+  if (await supportsWebGl(page)) await expect(workspaceWarning).toHaveCount(0);
+  else await expect(workspaceWarning).toHaveText('3D previews will use fallback rendering');
 
   const projects = await openProjectsPanel(page);
   await expectSaveFormToAlign(projects);

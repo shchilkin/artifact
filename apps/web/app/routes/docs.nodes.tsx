@@ -19,6 +19,7 @@ import {
   makeTextLayer,
 } from '../types/config';
 import { EFFECT_DOCS } from '../utils/effectDocs';
+import { pageMeta } from '../utils/pageMeta';
 import { renderDocument } from '../utils/renderer';
 import {
   MASKED_TYPE_LINES_GRAPH_RECIPE,
@@ -1137,13 +1138,12 @@ function NodePosterControlInput({
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
-export const meta: MetaFunction = () => [
-  { title: 'Docs | Artifact' },
-  {
-    name: 'description',
-    content: 'Artifact docs for editor workflows, node types, applications, effects, files, and export.',
-  },
-];
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'Learn | Artifact Docs',
+    description: 'Artifact docs for editor workflows, node types, applications, effects, files, and export.',
+    path: '/docs/nodes',
+  });
 
 function buildDocsSearchItems(): SearchItem[] {
   return [
