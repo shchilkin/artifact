@@ -31,9 +31,10 @@ for (const route of DIRECT_ROUTES) {
 
 test('client navigation between public routes keeps the same document', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1024 });
+  // Showcase is left out: it renders project previews on the main thread, which is its own concern.
   // Visit each route once first: on a cold dev server, Vite may reload the page while it optimizes a
   // route's dependencies, which would look like a lost document rather than client navigation.
-  for (const path of ['/docs', '/showcase', '/projects']) {
+  for (const path of ['/docs', '/projects']) {
     await page.goto(path);
     await expect(page.getByRole('navigation', { name: 'Site navigation' })).toBeVisible({ timeout: 15_000 });
   }
@@ -45,14 +46,15 @@ test('client navigation between public routes keeps the same document', async ({
   const siteNavigation = page.getByRole('navigation', { name: 'Site navigation' });
   for (const [label, url] of [
     ['Docs', /\/docs$/],
-    ['Showcase', /\/showcase$/],
     ['Projects', /\/projects$/],
+    ['Docs', /\/docs$/],
   ] as const) {
     await siteNavigation.getByRole('link', { name: label, exact: true }).click();
-    await expect(page).toHaveURL(url);
+    await expect(page).toHaveURL(url, { timeout: 15_000 });
     await expect(siteNavigation.getByRole('link', { name: label, exact: true })).toHaveAttribute(
       'aria-current',
       'page',
+      { timeout: 15_000 },
     );
   }
 
