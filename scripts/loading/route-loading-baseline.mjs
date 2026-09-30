@@ -5,9 +5,9 @@
 //
 //   node scripts/loading/route-loading-baseline.mjs            # manifest + browser
 //   node scripts/loading/route-loading-baseline.mjs --manifest-only
-//   node scripts/loading/route-loading-baseline.mjs --out docs/loading/route-loading-current.json
+//   node scripts/loading/route-loading-baseline.mjs --out apps/web/build/route-loading.json
 //
-// Requires a web build first; `npm run loading:current` builds with client source
+// Requires a web build first; `npm run loading:gate` builds with client source
 // maps so every asset can be attributed to dependency families (React, React Flow,
 // PixiJS, Three.js, renderer, ...) without trusting chunk file names. Sizes ignore
 // the source-map comment, so they match a production build. The browser pass
@@ -21,7 +21,13 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { chunkFamilies, initialRouteFiles, stripSourceMapComment, summarizeAssets } from './assets.mjs';
+import {
+  chunkFamilies,
+  initialRouteFiles,
+  normalizeAssetName,
+  stripSourceMapComment,
+  summarizeAssets,
+} from './assets.mjs';
 
 const ROOT = process.cwd();
 const WEB = path.join(ROOT, 'apps/web');
@@ -123,6 +129,18 @@ function manifestBaseline() {
   return states;
 }
 
+// Root route static imports (hash-free, with families) and the entry imports they share.
+function rootGraph() {
+  const manifest = readRouteManifest();
+  return {
+    entryImports: manifest.entry.imports.map(normalizeAssetName),
+    imports: (manifest.routes.root.imports ?? []).map((file) => ({
+      name: normalizeAssetName(file),
+      families: assetSize(file).families ?? [],
+    })),
+  };
+}
+
 function freePort() {
   return new Promise((resolve, reject) => {
     const probe = createServer();
@@ -220,6 +238,7 @@ const result = {
   generatedBy: 'scripts/loading/route-loading-baseline.mjs',
   units: 'bytes; gzip is level 9 over the built file',
   manifest: manifestBaseline(),
+  rootGraph: rootGraph(),
   ...(manifestOnly ? {} : { browser: await browserBaseline() }),
 };
 

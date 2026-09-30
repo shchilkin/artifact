@@ -12,6 +12,7 @@ Run these before cutting a public release:
 npm run release:verify
 npm run check
 npm run build
+npm run loading:gate
 npm run test:browser:release
 ```
 
@@ -25,6 +26,13 @@ CI should run:
   production readiness notes, or release workflow files change.
 - `npm run check`
 - `npm run build:ci`
+- `npm run loading:gate` in the Playwright container whenever the browser jobs
+  run (and when `scripts/loading/` or `docs/loading/` change). It builds the web
+  app with client source maps, measures every route-loading state in Chromium,
+  and fails on any budget, prohibited-family, or root-graph violation of
+  `docs/loading/route-loading-contract.json`; the measurement is uploaded as the
+  `route-loading` artifact. See `docs/loading/route-loading-matrix.md` for how an
+  intentional budget or boundary change is reviewed.
 - `npm run test:browser` in a browser-capable job with Chromium, Firefox, and
   WebKit installed. The suite includes desktop projects plus focused mobile
   Chromium/WebKit smoke.

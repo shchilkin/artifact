@@ -85,6 +85,9 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
 
+      - name: Route loading gate
+        run: npm run loading:gate
+
       - name: Full release browser gate
         run: npm run test:browser:release
 

@@ -178,10 +178,13 @@ describe('deployment configuration', () => {
     assert.match(workflow, /browser-backoffice:\n[\s\S]*?name: browser \(backoffice\)/);
     assert.match(
       workflow,
-      /container-gate:\n[\s\S]*?needs: \[quality, browser-changes, browser, browser-backoffice, container-changes\]/,
+      /container-gate:\n[\s\S]*?needs: \[quality, browser-changes, browser, browser-backoffice, route-loading, container-changes\]/,
     );
     assert.match(workflow, /BACKOFFICE_BROWSER_RESULT: \$\{\{ needs\.browser-backoffice\.result \}\}/);
     assert.match(workflow, /Required Backoffice browser result was/);
+    assert.match(workflow, /route-loading:\n[\s\S]*?name: route loading\n[\s\S]*?run: npm run loading:gate/);
+    assert.match(workflow, /ROUTE_LOADING_RESULT: \$\{\{ needs\.route-loading\.result \}\}/);
+    assert.match(workflow, /Required route loading gate result was/);
     assert.match(workflow, /should_build: \$\{\{ steps\.gate\.outputs\.should_build \}\}/);
     assert.match(
       workflow,
