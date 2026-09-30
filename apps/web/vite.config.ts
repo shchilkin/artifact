@@ -49,42 +49,10 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   build: {
-    // App chunks are kept below the default warning threshold. Three.js is
-    // isolated as a vendor chunk and sits just over 500 kB minified.
+    // No manual vendor groups: chunks follow the real import graph, so React Flow, PixiJS, and Three.js
+    // load only with the surfaces that need them. The Three.js chunk still exceeds this limit, but it
+    // loads only on 3D activation (see docs/loading/route-loading-matrix.md).
     chunkSizeWarningLimit: 600,
-    rolldownOptions: {
-      output: {
-        codeSplitting: {
-          groups: [
-            {
-              name: 'three-vendor',
-              test: /node_modules[\\/]three[\\/]/,
-              priority: 35,
-            },
-            {
-              name: 'pixi-vendor',
-              test: /node_modules[\\/](pixi\.js|@pixi)[\\/]/,
-              priority: 30,
-            },
-            {
-              name: 'flow-vendor',
-              test: /node_modules[\\/](@xyflow|d3-)/,
-              priority: 25,
-            },
-            {
-              name: 'motion-vendor',
-              test: /node_modules[\\/]framer-motion[\\/]/,
-              priority: 20,
-            },
-            {
-              name: 'react-vendor',
-              test: /node_modules[\\/](react|react-dom|react-router|@react-router)[\\/]/,
-              priority: 15,
-            },
-          ],
-        },
-      },
-    },
   },
   optimizeDeps: {
     // Dependencies reached only through lazy imports are otherwise discovered mid-session, which makes

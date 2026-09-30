@@ -14,7 +14,6 @@ import {
   makeTextLayer,
 } from '../types/config';
 import { HERO_FRAMES } from '../utils/heroConfigs';
-import { renderDocument } from '../utils/renderer';
 
 const SEED = 31415;
 const CANVAS_PX = 540;
@@ -27,6 +26,10 @@ const HOME_STEP_KEY_DELTA: Record<string, number> = {
   PageUp: -1,
 };
 const HOME_EDITABLE_KEY_TARGETS = new Set(['INPUT', 'TEXTAREA']);
+
+// The hero artwork renders through the canonical renderer, which pulls in PixiJS. Load it after the page
+// has rendered so the home route's first paint does not wait for the WebGL stack.
+const loadRenderer = () => import('../utils/renderer');
 
 interface Step {
   title: string;
@@ -182,6 +185,7 @@ async function renderHomeHeroStep({
   token: number;
 }) {
   try {
+    const { renderDocument } = await loadRenderer();
     const out = await renderDocument(buildDoc(effectiveStep), CANVAS_PX, CANVAS_PX, imageCache);
     if (renderTokenRef.current !== token) return;
     swapHomeHeroCanvas(out, canvasARef, canvasBRef, frontIdxRef);
@@ -355,6 +359,7 @@ export default function Home() {
     Promise.all(
       HERO_FRAMES.map(async ({ doc }) => {
         try {
+          const { renderDocument } = await loadRenderer();
           const out = await renderDocument(doc, THUMB, THUMB, emptyCache);
           return out.toDataURL('image/jpeg', 0.75);
         } catch {

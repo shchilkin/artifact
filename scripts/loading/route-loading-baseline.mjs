@@ -5,19 +5,23 @@
 //
 //   node scripts/loading/route-loading-baseline.mjs            # manifest + browser
 //   node scripts/loading/route-loading-baseline.mjs --manifest-only
-//   node scripts/loading/route-loading-baseline.mjs --out docs/loading/route-loading-baseline.json
+//   node scripts/loading/route-loading-baseline.mjs --out docs/loading/route-loading-current.json
 //
-// Requires `npm run build` first. The browser pass serves apps/web/build/client
+// Requires a web build first; `npm run loading:current` builds with client source
+// maps so every asset can be attributed to dependency families (React, React Flow,
+// PixiJS, Three.js, renderer, ...) without trusting chunk file names. Sizes ignore
+// the source-map comment, so they match a production build. The browser pass
+// serves apps/web/build/client
 // with `vite preview` (SPA fallback, like the production rewrite) and blocks the
 // service worker so every state is measured as a first visit. A free port is
 // chosen per run.
 
 import { spawn } from 'node:child_process';
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { initialRouteFiles, summarizeAssets } from './assets.mjs';
+import { chunkFamilies, initialRouteFiles, stripSourceMapComment, summarizeAssets } from './assets.mjs';
 
 const ROOT = process.cwd();
 const WEB = path.join(ROOT, 'apps/web');
@@ -50,24 +54,26 @@ const BLANK_DOCUMENT = {
 // Browser states. `activate` runs after the initial load settles; requests made
 // after that point are recorded as activation-only dependencies.
 const BROWSER_STATES = [
-  { state: 'home', url: '/' },
-  { state: 'docs', url: '/docs' },
-  { state: 'account-recovery', url: '/reset-password' },
-  { state: 'projects', url: '/projects' },
-  { state: 'editor-layers-blank', url: '/app', doc: BLANK_DOCUMENT },
+  { state: 'home', url: '/', routeId: 'routes/home' },
+  { state: 'docs', url: '/docs', routeId: 'routes/docs' },
+  { state: 'account-recovery', url: '/reset-password', routeId: 'routes/reset-password' },
+  { state: 'projects', url: '/projects', routeId: 'routes/projects' },
+  { state: 'editor-layers-blank', url: '/app', routeId: 'routes/editor', doc: BLANK_DOCUMENT },
   {
     state: 'editor-nodes',
     url: '/app',
+    routeId: 'routes/editor',
     doc: BLANK_DOCUMENT,
     activate: async (page) => {
       await page.getByRole('tab', { name: 'Switch to nodes view' }).click();
       await page.locator('.react-flow__node').first().waitFor({ timeout: 20_000 });
     },
   },
-  { state: 'style-guide', url: '/docs/style-guide' },
+  { state: 'style-guide', url: '/docs/style-guide', routeId: 'routes/docs.style-guide' },
   {
     state: 'first-3d-activation',
     url: '/app',
+    routeId: 'routes/editor',
     doc: BLANK_DOCUMENT,
     activate: async (page) => {
       await page.getByRole('button', { name: 'Add layer' }).click();
@@ -85,8 +91,13 @@ const sizeCache = new Map();
 function assetSize(file) {
   const clean = file.split('#')[0].split('?')[0];
   if (sizeCache.has(clean)) return sizeCache.get(clean);
-  const bytes = readFileSync(path.join(CLIENT, clean));
+  const builtPath = path.join(CLIENT, clean);
+  const bytes = Buffer.from(stripSourceMapComment(readFileSync(builtPath, 'utf8')));
   const size = { raw: bytes.length, gzip: gzipSync(bytes, { level: 9 }).length };
+  if (existsSync(`${builtPath}.map`)) {
+    const families = chunkFamilies(JSON.parse(readFileSync(`${builtPath}.map`, 'utf8')));
+    if (families.length) size.families = families;
+  }
   sizeCache.set(clean, size);
   return size;
 }
@@ -139,7 +150,7 @@ async function waitForBuild(origin, child, timeoutMs = 30_000) {
   throw new Error(`Preview server did not serve the build at ${origin}`);
 }
 
-async function measureState(browser, origin, spec) {
+async function measureState(browser, origin, spec, manifest) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block' });
   if (spec.doc) {
     await context.addInitScript((doc) => localStorage.setItem('doc', JSON.stringify(doc)), spec.doc);
@@ -166,9 +177,14 @@ async function measureState(browser, origin, spec) {
     css: summarize(files.filter((f) => f.endsWith('.css'))),
   });
   const initialFiles = new Set(phases.initial);
+  // Files the route needs before it renders, per the route manifest. Anything else requested during the
+  // first visit came from a dynamic import after the route rendered.
+  const { js, css } = initialRouteFiles(manifest, spec.routeId);
+  const staticFiles = new Set([...js, ...css].map((file) => file.split('#')[0]));
   return {
     url: spec.url,
     initial: split(phases.initial),
+    afterRender: split(phases.initial.filter((f) => !staticFiles.has(f))),
     ...(spec.activate ? { activation: split(phases.activation.filter((f) => !initialFiles.has(f))) } : {}),
   };
 }
@@ -184,10 +200,11 @@ async function browserBaseline() {
   );
   try {
     await waitForBuild(origin, server);
+    const manifest = readRouteManifest();
     const browser = await chromium.launch();
     const states = {};
     for (const spec of BROWSER_STATES) {
-      states[spec.state] = await measureState(browser, origin, spec);
+      states[spec.state] = await measureState(browser, origin, spec, manifest);
     }
     await browser.close();
     return states;

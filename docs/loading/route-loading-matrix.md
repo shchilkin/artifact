@@ -1,73 +1,95 @@
 # Route Loading Matrix
 
 Normative loading contract for
-[v0.49 Application Shell And Loading Boundaries](../version-plans/v0.49.md)
-(issue #238). The machine-readable contract is
-[`route-loading-contract.json`](./route-loading-contract.json); the measured
-baseline is [`route-loading-baseline.json`](./route-loading-baseline.json).
+[v0.49 Application Shell And Loading Boundaries](../version-plans/v0.49.md).
+The machine-readable contract is
+[`route-loading-contract.json`](./route-loading-contract.json). Measurements:
 
-## Reproducing the baseline
+- [`route-loading-baseline-v0.48.1.json`](./route-loading-baseline-v0.48.1.json):
+  the v0.48.1 reference, recorded before any v0.49 change.
+- [`route-loading-current.json`](./route-loading-current.json): the latest
+  measurement. Every change that affects loading regenerates it.
+
+## Measuring
 
 ```bash
-npm run build
-npm run loading:baseline
+npm run loading:current
+npm run test:loading
 ```
 
-`scripts/loading/route-loading-baseline.mjs` reads the React Router route
-manifest from `apps/web/build/client`, then serves that build with
-`vite preview` (SPA fallback, like the production rewrite) and records every
+`loading:current` builds the web app with client source maps and runs
+`scripts/loading/route-loading-baseline.mjs`. The script reads the React Router
+route manifest from `apps/web/build/client`, serves the build with
+`vite preview` (SPA fallback, like the production rewrite), and records every
 same-origin JS and CSS request in Chromium with the service worker blocked, so
-each state is a first visit. Asset names are stored without content hashes and
-sizes are gzip level 9 of the built file, so two runs over the same source
-produce identical output. `npm run test:loading` checks that the contract covers
-every state and agrees with the checked-in baseline.
+each state is a first visit. It records:
+
+- `initial`: everything requested on the first visit.
+- `afterRender`: the part of `initial` that the route did not need to render;
+  these files arrive through dynamic imports after the first render.
+- `activation`: what a user action adds (open Nodes, add a 3D layer).
+
+Asset names are stored without content hashes. Sizes are gzip level 9 of the
+built file without its source-map comment, so they match a production build.
+Each asset lists the dependency families found in its source map. Rules use
+those families, not chunk file names: file names follow whichever module
+Rolldown saw first, so a name like `lib.js` or `jsx-runtime.js` says nothing
+about ownership.
+
+`npm run test:loading` (part of `npm run check`) checks the contract against
+`route-loading-current.json`: budgets, prohibited families before render, and
+allowed families after render or on activation.
+
+## Families
+
+| Family | Sources |
+| --- | --- |
+| react | `react`, `react-dom`, `scheduler` |
+| react-router | `react-router`, `@react-router/*` |
+| motion | `framer-motion`, `motion-dom`, `motion-utils` |
+| react-flow | `@xyflow/*`, `d3-*` |
+| pixi | `pixi.js`, `@pixi/*` |
+| three | `three` |
+| renderer | `app/utils/render/`, `renderer.ts`, `pixiFilters`, `gpuRender` |
+| node-canvas | `app/components/node-canvas/` except the shared `inspector/`, `constants.ts`, `helpers.ts`, and `nodes/NoPan.tsx` |
 
 ## Matrix
 
-Sizes are gzip KiB. Baseline is v0.48.1; budget is the v0.49 exit target.
+Sizes are gzip KiB of JavaScript. "Before render" is `initial` minus
+`afterRender`.
 
-| State | URL | Owning shell | Delivery | Baseline JS / CSS | Budget JS / CSS |
-| --- | --- | --- | --- | --- | --- |
-| Home | `/` | public | prerender | 423.6 / 38.4 | 170 / 24 |
-| Home hero activation | `/` after first paint | home route | — | (included above) | +185 / +0 |
-| Docs | `/docs` | public | prerender | 240.4 / 38.4 | 170 / 24 |
-| Account recovery | `/reset-password` | public | SPA fallback | 239.6 / 38.4 | 170 / 24 |
-| Projects | `/projects` | account | SPA fallback | 312.8 / 41.1 | 230 / 26 |
-| Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 / 44.2 | 370 / 50 |
-| Editor, Nodes activation | Nodes tab | NodeCanvas | — | +65.4 / +12.8 | +135 / +20 |
-| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 / 60.4 | 360 / 65 |
-| First 3D activation | add Primitive layer | primitive scene renderer | — | +206.7 / +0 | +215 / +5 |
+| State | URL | Owning shell | Delivery | v0.48.1 | Current | Budget |
+| --- | --- | --- | --- | --- | --- | --- |
+| Home, before render | `/` | public | prerender | 423.6 | 130.3 | 170 |
+| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +179.8 | +185 |
+| Docs | `/docs` | public | prerender | 240.4 | 118.5 | 170 |
+| Account recovery | `/reset-password` | public | SPA fallback | 239.6 | 118.8 | 170 |
+| Projects | `/projects` | account | SPA fallback | 312.8 | 217.9 | 230 |
+| Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 | 320.8 | 370 |
+| Nodes activation | Nodes tab | NodeCanvas | — | +65.4 | +119.4 | +135 |
+| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 361.5 | 370 |
+| First 3D activation | add Primitive | primitive scene renderer | — | +206.7 | +182.5 | +215 |
 
-Allowed initial chunks are named groups plus each route's own module:
+The Nodes activation grew because React Flow now loads with the node canvas
+instead of on every route. The style guide budget is 370 rather than the
+first-draft 360: its live node-canvas specimens need React Flow, so that
+dependency cannot leave the route.
 
-| Group | Chunks | Used by |
+| State | Prohibited before render | Allowed later or owned exceptions |
 | --- | --- | --- |
-| framework | `entry.client`, `rolldown-runtime`, `manifest`, `root` | every state |
-| publicShell | `SiteNav`, `PublicPageLayout`, `ProductPageHeader`, `authClient`, `apiBaseUrl`, `appBuildInfo`, `dialog`, `fields`, `feedback`, `utils` | every state |
-| projectData | `apiClient`, `useProjects`, `assetStore`, `modelAssetStore`, `generateThumbnail`, `effectLayerMigration`, `EmptyState`, `config` | projects, editor, style guide |
-| editorCore | editor `tabs` chunk, `SearchField`, `constants`, `noisePresets`, `randomConfig`, `starterDocuments`, `useAddLibraryMobileSheet`, `PrimitiveViewportState`, `renderer`, Framer Motion | editor, style guide |
+| Home | react-flow, pixi, three, renderer, node-canvas | After render: pixi, renderer. Exceptions: motion (home animations), `config.js` (step content is built with document factories) |
+| Docs, account recovery | react-flow, pixi, three, renderer, motion, node-canvas | — |
+| Projects | react-flow, pixi, three, motion, node-canvas | renderer: project thumbnails |
+| Editor, blank Layers | react-flow, pixi, three, node-canvas | motion, renderer; pixi once the document needs the WebGL pass |
+| Nodes activation | — | react-flow, node-canvas |
+| Style guide | pixi, three | node-canvas, react-flow, renderer: live specimens |
+| First 3D activation | — | three |
 
-No initial load may request `three-vendor.js`, `node-canvas.js`,
-`primitiveScene.js`, or `primitiveRenderer.js`. `npm run test:loading` fails if a
-chunk measured on an initial load is neither allowed, prohibited, nor an owned
-exception, so a new eager dependency has to be classified here.
-
-| State | Prohibited on initial load | Owned exceptions |
-| --- | --- | --- |
-| Home | React Flow, PixiJS and its helpers, renderer, `effectLayerMigration.js`, `config.js`, editor `tabs.js` | Framer Motion: the home route animates its own sections |
-| Docs, account recovery | React Flow, PixiJS, renderer, Framer Motion, `config.js`, editor `tabs.js` | — |
-| Projects | React Flow, PixiJS, Framer Motion, editor `tabs.js` | renderer: project thumbnails |
-| Editor, blank Layers | React Flow, PixiJS | PixiJS once the open document needs the WebGL pass |
-| Style guide | PixiJS, Three.js | node-canvas and React Flow: live node-canvas specimens |
-
-Activation-only dependencies:
-
-- **Home hero**: renderer, PixiJS, `pixiFilters.js`, `gpuRender.js`,
-  `effectLayerMigration.js`, and the pixel-transform worker, requested after the
-  first paint.
-- **Nodes**: `flow-vendor.js` and the `node-canvas` chunks.
-- **3D**: `three-vendor.js`, `primitiveScene.js`, `primitiveRenderer.js`, and
-  `canvasRendering.js`.
+CSS budgets (home, docs, recovery 24; Projects 26; editor 50; style guide 65;
+Nodes activation +20; 3D +5) are recorded in the contract but not enforced until
+#240 splits the global stylesheet by route owner; that issue turns on
+`enforcement.cssBudgets`. Current CSS: 35.6 KiB on public routes, 38.7 on
+Projects, 41.8 in the editor, 60.0 on the style guide.
 
 ## Root shell
 
@@ -86,6 +108,7 @@ unchanged: public, docs, account recovery, showcase, and Projects routes render
 boundary loads `PublicPageLayout` only when it has to show a recovery page and
 shows the recovery content immediately while it loads.
 
+## Delivery
 
 Prerendered in v0.49: `/`, `/docs`, `/docs/nodes`, `/docs/recipes`,
 `/docs/reference`. Live previews on `/` and `/docs/nodes` still render on the
@@ -100,37 +123,28 @@ static shell could be prerendered).
 
 ## Findings at v0.48.1
 
-1. **React Flow ships on every route.** The manual `codeSplitting` groups in
+1. **React Flow shipped on every route.** The manual `codeSplitting` groups in
    `apps/web/vite.config.ts` put the `react` package inside `flow-vendor`, so
-   `entry.client` imports `flow-vendor.js` (58.0 KiB) and `flow-vendor.css`
-   (2.5 KiB) everywhere, although the node canvas itself is lazy. Owner: #242.
-2. **Framer Motion ships on every route** (39.2 KiB) because the shared
-   `SiteNav` imports it. Home and the editor also import it directly.
-   Resolved in #239: `SiteNav` uses CSS entrance animations that respect reduced
-   motion, and the root no longer imports it.
-3. **The home hero renders through the full renderer at load.** `home.tsx`
-   statically imports `renderer.js` (35.3 KiB), which then requests PixiJS
-   (134.4 KiB) during the first visit. Owner: #242.
+   `entry.client` imported React Flow everywhere. Resolved in #242: the manual
+   groups are removed and React Flow loads only with the node canvas and the
+   style guide.
+2. **Framer Motion shipped on every route** because the shared `SiteNav`
+   imported it. Resolved in #239: `SiteNav` uses CSS entrance animations that
+   respect reduced motion.
+3. **The home hero rendered through the full renderer at load**, requesting
+   PixiJS during the first visit. Resolved in #242: `home.tsx` imports the
+   renderer dynamically, so the renderer and PixiJS arrive after the first
+   render.
 4. **Global CSS holds every product surface.** `root.css` is 252 KiB raw
-   (35.5 KiB gzip). `app/index.css` alone is 200 KB of source and includes docs,
-   layers, Add Library, home, projects, editor, AI, and account rules, all loaded
-   on every route. Owner: #240.
-5. **The root imports the document model for one constant.** `root.tsx` imports
-   `GOOGLE_FONT_STYLESHEET_URL` from `types/config.ts`, pulling a 7.5 KiB
-   `config.js` chunk into every route. Resolved in #239: the root imports it from
-   `types/typography.ts`, and the account dialog loads on demand.
-6. **No hydration fallback.** Production logs React Router's
-   `HydrateFallback` hint; the SPA shows nothing useful until JavaScript runs.
-   Owner: #241.
-7. **Nodes and 3D are already lazy.** `node-canvas` and `three-vendor` load only
-   on activation and must stay that way.
-8. **The style guide imports node-canvas statically** for its specimens. This is
-   an owned exception, not a defect.
-9. **The Three.js chunk-size warning is not an initial-load problem.**
-   `three-vendor.js` (about 800 KB raw) loads only on 3D activation, so the build
-   warning alone does not justify work.
-10. **Chunk names are misleading.** The 59 KiB editor chunk is named `tabs.js`
-    after one shared UI module, and `flow-vendor` contains React. Owner: #242.
+   (35.5 KiB gzip) and loads on every route. Owner: #240.
+5. **The root imported the document model for one constant.** Resolved in #239.
+6. **No hydration fallback.** Production logs React Router's `HydrateFallback`
+   hint; the SPA shows nothing useful until JavaScript runs. Owner: #241.
+7. **Nodes and 3D are lazy** and stay that way.
+8. **The style guide loads the node canvas** for its specimens. Owned exception.
+9. **The Three.js chunk-size warning is not an initial-load problem.** Three.js
+   loads only on 3D activation.
+10. **Chunk names were misleading** (`flow-vendor` held React). Resolved in
+    #242: rules now use source-map families; chunk names are not trusted.
 11. **The service worker cache name is stale** (`artifact-v0.33.0-shell`) and
-    precaches only `/` and `/app`. It does not affect first-visit loading; it is
-    recorded here for the later offline work.
+    precaches only `/` and `/app`. Recorded for the later offline work.
