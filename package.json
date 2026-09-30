@@ -70,8 +70,8 @@
     "test:browser:headed": "npm --workspace @artifact/web run test:browser -- --headed",
     "test:browser:install": "playwright install --with-deps chromium firefox webkit",
     "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs",
-    "loading:baseline": "node scripts/loading/route-loading-baseline.mjs --out docs/loading/route-loading-baseline.json",
-    "test:loading": "node --test scripts/loading/*.test.mjs"
+    "test:loading": "node --test scripts/loading/*.test.mjs",
+    "loading:current": "npm --workspace @artifact/web run build -- --sourcemapClient && node scripts/loading/route-loading-baseline.mjs --out docs/loading/route-loading-current.json"
   },
   "dependencies": {
     "@react-router/node": "^7.18.4",

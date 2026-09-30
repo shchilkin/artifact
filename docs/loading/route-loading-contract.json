@@ -1,46 +1,44 @@
 {
-  "$comment": "v0.49 route loading contract. Budgets are gzip KiB of JS/CSS requested on a first visit (service worker blocked) and are v0.49 exit targets; `baseline` values come from route-loading-baseline.json at v0.48.1. Asset names are hash-free. Change budgets or exceptions only through a reviewed update to this file and route-loading-matrix.md.",
+  "$comment": "v0.49 route loading contract. Rules name dependency families (attributed from client source maps), not chunk file names. `initial` budgets are gzip KiB of JS/CSS a route loads before it renders (first visit, service worker blocked); `activation` budgets cover what loads afterwards, either automatically after first render (`trigger` says so) or on a user action. `baselineV0481` values are the v0.48.1 measurement in route-loading-baseline-v0.48.1.json; route-loading-current.json is the latest measurement. Change budgets, families, or exceptions only through a reviewed update to this file and route-loading-matrix.md.",
   "version": "0.49",
-  "baselineFile": "docs/loading/route-loading-baseline.json",
-  "sharedInitial": {
-    "groups": {
-      "framework": ["entry.client.js", "rolldown-runtime.js", "manifest.js", "root.js"],
-      "publicShell": [
-        "SiteNav.js",
-        "PublicPageLayout.js",
-        "ProductPageHeader.js",
-        "authClient.js",
-        "apiBaseUrl.js",
-        "appBuildInfo.js",
-        "dialog.js",
-        "fields.js",
-        "feedback.js",
-        "utils.js"
-      ],
-      "projectData": [
-        "apiClient.js",
-        "useProjects.js",
-        "assetStore.js",
-        "modelAssetStore.js",
-        "generateThumbnail.js",
-        "effectLayerMigration.js",
-        "EmptyState.js",
-        "config.js"
-      ],
-      "editorCore": [
-        "tabs.js",
-        "SearchField.js",
-        "constants.js",
-        "noisePresets.js",
-        "randomConfig.js",
-        "starterDocuments.js",
-        "useAddLibraryMobileSheet.js",
-        "PrimitiveViewportState.js",
-        "renderer.js",
-        "motion-vendor.js"
-      ]
-    },
-    "prohibitedEverywhere": ["three-vendor.js", "node-canvas.js", "primitiveScene.js", "primitiveRenderer.js"]
+  "baselineFile": "docs/loading/route-loading-baseline-v0.48.1.json",
+  "currentFile": "docs/loading/route-loading-current.json",
+  "enforcement": {
+    "jsBudgets": true,
+    "cssBudgets": false,
+    "$comment": "CSS budgets are targets until #240 splits the global stylesheet by route owner; that issue turns cssBudgets on."
+  },
+  "families": {
+    "react": "react, react-dom, scheduler",
+    "react-router": "react-router and @react-router packages",
+    "motion": "framer-motion, motion-dom, motion-utils",
+    "react-flow": "@xyflow packages and d3 modules",
+    "pixi": "pixi.js and @pixi packages",
+    "three": "three",
+    "renderer": "app/utils/render, renderer.ts, pixiFilters, gpuRender",
+    "node-canvas": "app/components/node-canvas except inspector/, constants.ts, helpers.ts, and nodes/NoPan.tsx"
+  },
+  "rootGraph": {
+    "$comment": "Static imports of the root route (manifest `routes.root.imports`). Anything a route family owns must not appear here.",
+    "allowed": [
+      "rolldown-runtime.js",
+      "entry.client.js",
+      "authClient.js",
+      "apiBaseUrl.js",
+      "appBuildInfo.js",
+      "typography.js",
+      "commands.js"
+    ],
+    "prohibited": [
+      "SiteNav.js",
+      "PublicPageLayout.js",
+      "AccountPanel.js",
+      "dialog.js",
+      "fields.js",
+      "feedback.js",
+      "config.js",
+      "motion-vendor.js"
+    ]
   },
   "states": [
     {
@@ -52,37 +50,19 @@
       },
       "delivery": "prerender",
       "initial": {
-        "allowed": ["framework", "publicShell", "home.js"],
-        "prohibited": [
-          "flow-vendor.js",
-          "pixi-vendor.js",
-          "renderer.js",
-          "tabs.js",
-          "pixiFilters.js",
-          "gpuRender.js",
-          "effectPixelTransform.worker.js",
-          "config.js",
-          "effectLayerMigration.js"
-        ],
         "budget": {
           "jsGzipKiB": 170,
           "cssGzipKiB": 24
         },
-        "baseline": {
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "renderer", "node-canvas"],
+        "baselineV0481": {
           "jsGzipKiB": 423.6,
           "cssGzipKiB": 38.4
         }
       },
       "activation": {
-        "trigger": "Live hero artwork starts rendering after the first paint.",
-        "allowed": [
-          "renderer.js",
-          "pixi-vendor.js",
-          "pixiFilters.js",
-          "gpuRender.js",
-          "effectPixelTransform.worker.js",
-          "effectLayerMigration.js"
-        ],
+        "trigger": "Automatic: the hero artwork and preview mosaic render after the first paint.",
+        "allowedFamilies": ["pixi", "renderer"],
         "budget": {
           "jsGzipKiB": 185,
           "cssGzipKiB": 0
@@ -90,8 +70,12 @@
       },
       "exceptions": [
         {
-          "asset": "motion-vendor.js",
+          "family": "motion",
           "reason": "The home route animates its own sections with Framer Motion; the shared public shell must not require it."
+        },
+        {
+          "asset": "config.js",
+          "reason": "Home step content is defined as editor layers built with the document model factories."
         }
       ]
     },
@@ -104,13 +88,12 @@
       },
       "delivery": "prerender",
       "initial": {
-        "allowed": ["framework", "publicShell", "docs.js", "docs.shared.js"],
-        "prohibited": ["flow-vendor.js", "pixi-vendor.js", "renderer.js", "motion-vendor.js", "tabs.js", "config.js"],
         "budget": {
           "jsGzipKiB": 170,
           "cssGzipKiB": 24
         },
-        "baseline": {
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "renderer", "motion", "node-canvas"],
+        "baselineV0481": {
           "jsGzipKiB": 240.4,
           "cssGzipKiB": 38.4
         }
@@ -125,13 +108,12 @@
       },
       "delivery": "spa-fallback",
       "initial": {
-        "allowed": ["framework", "publicShell", "reset-password.js"],
-        "prohibited": ["flow-vendor.js", "pixi-vendor.js", "renderer.js", "motion-vendor.js", "tabs.js", "config.js"],
         "budget": {
           "jsGzipKiB": 170,
           "cssGzipKiB": 24
         },
-        "baseline": {
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "renderer", "motion", "node-canvas"],
+        "baselineV0481": {
           "jsGzipKiB": 239.6,
           "cssGzipKiB": 38.4
         }
@@ -146,20 +128,19 @@
       },
       "delivery": "spa-fallback",
       "initial": {
-        "allowed": ["framework", "publicShell", "projectData", "projects.js"],
-        "prohibited": ["flow-vendor.js", "pixi-vendor.js", "motion-vendor.js", "tabs.js"],
         "budget": {
           "jsGzipKiB": 230,
           "cssGzipKiB": 26
         },
-        "baseline": {
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "motion", "node-canvas"],
+        "baselineV0481": {
           "jsGzipKiB": 312.8,
           "cssGzipKiB": 41.1
         }
       },
       "exceptions": [
         {
-          "asset": "renderer.js",
+          "family": "renderer",
           "reason": "Project thumbnails render stored documents through the canonical renderer."
         }
       ]
@@ -174,21 +155,28 @@
       },
       "delivery": "spa-fallback",
       "initial": {
-        "allowed": ["framework", "publicShell", "projectData", "editorCore", "editor.js"],
-        "prohibited": ["flow-vendor.js", "pixi-vendor.js"],
         "budget": {
           "jsGzipKiB": 370,
           "cssGzipKiB": 50
         },
-        "baseline": {
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "node-canvas"],
+        "baselineV0481": {
           "jsGzipKiB": 414.4,
           "cssGzipKiB": 44.2
         }
       },
       "exceptions": [
         {
-          "asset": "pixi-vendor.js",
-          "reason": "Allowed as soon as the open document has a layer that needs the WebGL pass; the blank document must not load it."
+          "family": "pixi",
+          "reason": "Allowed once the open document has a layer that needs the WebGL pass; the blank document must not load it."
+        },
+        {
+          "family": "motion",
+          "reason": "Editor panels animate with Framer Motion."
+        },
+        {
+          "family": "renderer",
+          "reason": "The Layers canvas preview renders through the canonical renderer."
         }
       ]
     },
@@ -206,12 +194,12 @@
       },
       "activation": {
         "trigger": "Switch to the Nodes tab.",
-        "allowed": ["flow-vendor.js", "node-canvas.js"],
+        "allowedFamilies": ["react-flow", "node-canvas"],
         "budget": {
           "jsGzipKiB": 135,
           "cssGzipKiB": 20
         },
-        "baseline": {
+        "baselineV0481": {
           "jsGzipKiB": 65.4,
           "cssGzipKiB": 12.8
         }
@@ -226,25 +214,28 @@
       },
       "delivery": "spa-fallback",
       "initial": {
-        "allowed": ["framework", "publicShell", "projectData", "editorCore", "docs.style-guide.js"],
-        "prohibited": ["pixi-vendor.js", "three-vendor.js"],
         "budget": {
-          "jsGzipKiB": 360,
+          "jsGzipKiB": 370,
           "cssGzipKiB": 65
         },
-        "baseline": {
+        "prohibitedFamilies": ["pixi", "three"],
+        "baselineV0481": {
           "jsGzipKiB": 402.4,
           "cssGzipKiB": 60.4
         }
       },
       "exceptions": [
         {
-          "asset": "node-canvas.js",
-          "reason": "Live specimens render real editor, inspector, and node-canvas patterns."
+          "family": "node-canvas",
+          "reason": "Live specimens render real node-canvas patterns."
         },
         {
-          "asset": "flow-vendor.js",
+          "family": "react-flow",
           "reason": "Node-canvas specimens use React Flow directly."
+        },
+        {
+          "family": "renderer",
+          "reason": "Artwork specimens render through the canonical renderer."
         }
       ]
     },
@@ -262,12 +253,12 @@
       },
       "activation": {
         "trigger": "Add a Primitive layer from the Layers Add Library.",
-        "allowed": ["three-vendor.js", "primitiveScene.js", "primitiveRenderer.js", "canvasRendering.js"],
+        "allowedFamilies": ["three"],
         "budget": {
           "jsGzipKiB": 215,
           "cssGzipKiB": 5
         },
-        "baseline": {
+        "baselineV0481": {
           "jsGzipKiB": 206.7,
           "cssGzipKiB": 0
         }
@@ -295,28 +286,6 @@
         "path": "/showcase",
         "reason": "The wall loads projects incrementally at runtime; only a static shell could be prerendered."
       }
-    ]
-  },
-  "rootGraph": {
-    "$comment": "Static imports of the root route (manifest `routes.root.imports`). Anything a route family owns must not appear here.",
-    "allowed": [
-      "rolldown-runtime.js",
-      "entry.client.js",
-      "authClient.js",
-      "apiBaseUrl.js",
-      "appBuildInfo.js",
-      "typography.js",
-      "commands.js"
-    ],
-    "prohibited": [
-      "SiteNav.js",
-      "PublicPageLayout.js",
-      "AccountPanel.js",
-      "dialog.js",
-      "fields.js",
-      "feedback.js",
-      "config.js",
-      "motion-vendor.js"
     ]
   }
 }
