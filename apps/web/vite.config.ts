@@ -1,9 +1,10 @@
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { reactRouter } from '@react-router/dev/vite';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import tsconfigPaths from 'vite-plugin-tsconfig-paths';
 
 function readGitValue(command: string, fallback: string) {
@@ -35,9 +36,31 @@ const appCommit =
   process.env.GITHUB_SHA?.slice(0, 12) ??
   readGitValue('git rev-parse --short=12 HEAD', 'unknown');
 
+/**
+ * `vite preview` mirrors the static host (vercel.json): prerendered paths serve their own `index.html`, and
+ * every other page request gets the SPA fallback document instead of the prerendered home page.
+ */
+function staticHostPreview(): Plugin {
+  return {
+    name: 'artifact-static-host-preview',
+    configurePreviewServer(server) {
+      const outDir = path.resolve(server.config.root, server.config.build.outDir);
+      server.middlewares.use((req, _res, next) => {
+        const [pathname, query = ''] = (req.url ?? '/').split('?');
+        const isPageRequest = (req.method === 'GET' || req.method === 'HEAD') && !path.extname(pathname);
+        if (!isPageRequest) return next();
+        const prerendered = path.posix.join(pathname, 'index.html');
+        const target = existsSync(path.join(outDir, prerendered)) ? prerendered : '/__spa-fallback.html';
+        req.url = query ? `${target}?${query}` : target;
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   envDir: '../..',
-  plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  plugins: [tailwindcss(), reactRouter(), tsconfigPaths(), staticHostPreview()],
   define: {
     __ARTIFACT_APP_VERSION__: JSON.stringify(appVersion),
     __ARTIFACT_COMMIT_HASH__: JSON.stringify(appCommit),

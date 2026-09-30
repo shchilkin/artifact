@@ -528,6 +528,85 @@ input[type="range"] {
   }
 }
 
+.app-hydrate-fallback {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-4);
+  background: var(--surface-app);
+  color: var(--text-primary);
+  /* Fast loads never show the shell; slower ones fade it in. */
+  animation: app-hydrate-fallback-enter 240ms var(--ease-out) 160ms both;
+}
+
+.app-hydrate-fallback__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.app-hydrate-fallback__wordmark {
+  font-family: var(--display);
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.app-hydrate-fallback__label {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.app-hydrate-fallback__bar {
+  position: relative;
+  width: 160px;
+  height: 2px;
+  overflow: hidden;
+  background: var(--line-default);
+}
+
+.app-hydrate-fallback__bar::after {
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: var(--accent-primary);
+  content: "";
+  animation: app-hydrate-fallback-progress 1.2s var(--ease-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-hydrate-fallback,
+  .app-hydrate-fallback__bar::after {
+    animation: none;
+  }
+
+  .app-hydrate-fallback__bar::after {
+    width: 100%;
+    opacity: 0.6;
+  }
+}
+
+@keyframes app-hydrate-fallback-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes app-hydrate-fallback-progress {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(250%);
+  }
+}
+
 @keyframes site-nav-enter {
   from {
     opacity: 0;

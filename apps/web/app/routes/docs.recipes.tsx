@@ -1,17 +1,17 @@
 import './styles/docs.recipes.css';
 import type { MetaFunction } from 'react-router';
+import { pageMeta } from '../utils/pageMeta';
 
 import { DocsLink, RECIPE_STARTERS, starterHref } from './docs.nodes';
 import { DocsSection, DocsShell } from './docs.shared';
 
-export const meta: MetaFunction = () => [
-  { title: 'Recipes | Artifact Docs' },
-  {
-    name: 'description',
-    content:
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'Recipes | Artifact Docs',
+    description:
       'Artifact recipe docs for layer starts, graph starts, masks, line fields, repeated tokens, and export-ready posters.',
-  },
-];
+    path: '/docs/recipes',
+  });
 
 const FEATURED_RECIPE_IDS = new Set([
   'recipe-masked-type-lines-graph',
