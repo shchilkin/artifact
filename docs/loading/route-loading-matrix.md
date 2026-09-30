@@ -7,20 +7,24 @@ The machine-readable contract is
 
 - [`route-loading-baseline-v0.48.1.json`](./route-loading-baseline-v0.48.1.json):
   the v0.48.1 reference, recorded before any v0.49 change.
-- [`route-loading-current.json`](./route-loading-current.json): the latest
-  measurement. Every change that affects loading regenerates it.
+- The current measurement is produced by the gate on every build and is not
+  checked in; CI uploads it as the `route-loading` artifact.
 
 ## Measuring
 
 ```bash
-npm run loading:current
-npm run test:loading
+npm run loading:gate
 ```
 
-`loading:current` builds the web app with client source maps and runs
-`scripts/loading/route-loading-baseline.mjs`. The script reads the React Router
-route manifest from `apps/web/build/client`, serves the build with
-`vite preview` (SPA fallback, like the production rewrite), and records every
+`loading:gate` (`scripts/loading/gate.mjs`) builds the web app with client
+source maps, measures it with `scripts/loading/route-loading-baseline.mjs`, and
+checks the result against `route-loading-contract.json`. It exits non-zero on
+any violation. It needs Chromium (Playwright) and nothing else: no API, no
+database, no long-lived service. A run takes under a minute.
+
+The measurement reads the React Router route manifest from
+`apps/web/build/client`, serves the build with `vite preview` (prerendered
+paths and the SPA fallback, like the production host), and records every
 same-origin JS and CSS request in Chromium with the service worker blocked, so
 each state is a first visit. It records:
 
@@ -28,17 +32,59 @@ each state is a first visit. It records:
 - `afterRender`: the part of `initial` that the route did not need to render;
   these files arrive through dynamic imports after the first render.
 - `activation`: what a user action adds (open Nodes, add a 3D layer).
+- `rootGraph`: the root route's static imports from the manifest, with the
+  entry imports they share.
 
 Asset names are stored without content hashes. Sizes are gzip level 9 of the
 built file without its source-map comment, so they match a production build.
 Each asset lists the dependency families found in its source map. Rules use
 those families, not chunk file names: file names follow whichever module
 Rolldown saw first, so a name like `lib.js` or `jsx-runtime.js` says nothing
-about ownership.
+about ownership. The root graph is the one exception: its allowed and
+prohibited lists name root-owned modules, and framework chunks shared with
+`entry.client` are implied.
 
-`npm run test:loading` (part of `npm run check`) checks the contract against
-`route-loading-current.json`: budgets, prohibited families before render, and
-allowed families after render or on activation.
+The gate checks, per state and with the rule's owning contract field in every
+failure message:
+
+- JS and CSS loaded before render against `initial.budget` (a `sameAs` state
+  uses the named state's rules);
+- no `initial.prohibitedFamilies` before render, naming the chunk that carries
+  the family;
+- families that load after render or on activation are in
+  `activation.allowedFamilies`, and their size is within `activation.budget`;
+- every root import is in `rootGraph.allowed` or shared with the entry, none is
+  in `rootGraph.prohibited`, and the root graph carries no family that a public
+  route prohibits.
+
+Example failure:
+
+```text
+docs (/docs) before render: prohibited family renderer in renderer.js [states[docs].initial.prohibitedFamilies]
+```
+
+Options: `-- --skip-build` reuses an existing source-mapped build;
+`-- --measurement <file>` checks an existing measurement. With
+`GITHUB_STEP_SUMMARY` set, the budget table and violations go to the job
+summary.
+
+`npm run test:loading` (part of `npm run check`) validates the contract itself
+(every representative state, owner, delivery mode, budget, and known family;
+v0.48.1 reference numbers) and unit-tests the checker. It does not need a
+build.
+
+Where it runs: the `route loading` CI job on every pull request that touches the
+app, and `.github/workflows/release.yml` before the release browser gate.
+
+### Changing a budget or boundary
+
+A failing gate is fixed in code unless the change is intended. An intended
+change is one reviewed update to `route-loading-contract.json` and this file in
+the same pull request: change only the budget, family, allowed root import, or
+exception the failure names, give its reason (exceptions carry a `reason`), and
+update the matrix tables below with the gate's numbers. Never raise unrelated
+budgets or widen `allowedFamilies` to silence a failure; each rule is checked
+on its own, so other states keep failing until their own cause is fixed.
 
 ## Families
 
@@ -56,19 +102,21 @@ allowed families after render or on activation.
 ## Matrix
 
 Sizes are gzip KiB of JavaScript. "Before render" is `initial` minus
-`afterRender`.
+`afterRender`. "Current" is the `npm run loading:gate` measurement from the
+last reviewed contract change (#243); the gate reports live numbers on every
+run.
 
 | State | URL | Owning shell | Delivery | v0.48.1 | Current | Budget |
 | --- | --- | --- | --- | --- | --- | --- |
-| Home, before render | `/` | public | prerender | 423.6 | 130.4 | 170 |
-| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +180.0 | +185 |
-| Docs | `/docs` | public | prerender | 240.4 | 118.5 | 170 |
-| Account recovery | `/reset-password` | public | SPA fallback | 239.6 | 118.9 | 170 |
-| Projects | `/projects` | account | SPA fallback | 312.8 | 218.0 | 230 |
-| Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 | 321.0 | 370 |
-| Nodes activation | Nodes tab | NodeCanvas | — | +65.4 | +119.4 | +135 |
-| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 361.7 | 370 |
-| First 3D activation | add Primitive | primitive scene renderer | — | +206.7 | +182.5 | +215 |
+| Home, before render | `/` | public | prerender | 423.6 | 131.6 | 170 |
+| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +180.5 | +185 |
+| Docs | `/docs` | public | prerender | 240.4 | 119.7 | 170 |
+| Account recovery | `/reset-password` | public | SPA fallback | 239.6 | 120.0 | 170 |
+| Projects | `/projects` | account | SPA fallback | 312.8 | 220.5 | 230 |
+| Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 | 324.6 | 370 |
+| Nodes activation | Nodes tab | NodeCanvas | — | +65.4 | +120.0 | +135 |
+| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 364.5 | 370 |
+| First 3D activation | add Primitive | primitive scene renderer | — | +206.7 | +182.7 | +215 |
 
 The Nodes activation grew because React Flow now loads with the node canvas
 instead of on every route. The style guide budget is 370 rather than the
@@ -89,13 +137,13 @@ CSS, gzip KiB, enforced since #240 (`enforcement.cssBudgets`):
 
 | State | v0.48.1 | Current | Budget |
 | --- | --- | --- | --- |
-| Home | 38.4 | 12.4 | 24 |
-| Docs | 38.4 | 14.4 | 24 |
-| Account recovery | 38.4 | 10.4 | 24 |
-| Projects | 41.1 | 16.8 | 26 |
-| Editor, blank Layers | 44.2 | 28.9 | 50 |
+| Home | 38.4 | 12.6 | 24 |
+| Docs | 38.4 | 14.6 | 24 |
+| Account recovery | 38.4 | 10.6 | 24 |
+| Projects | 41.1 | 17.0 | 26 |
+| Editor, blank Layers | 44.2 | 29.5 | 50 |
 | Nodes activation | +12.8 | +14.8 | +20 |
-| Style guide | 60.4 | 48.9 | 65 |
+| Style guide | 60.4 | 49.4 | 65 |
 | First 3D activation | +0 | +0 | +5 |
 
 ## CSS ownership
@@ -164,9 +212,11 @@ Nodes tab; and style guide specimens receive their surface styles.
 
 The root route owns only the HTML document, global tokens and theme, the route
 outlet, the session provider, build info, service-worker registration, and route
-recovery. Its static graph may contain `entry.client`, `rolldown-runtime`,
-`authClient`, `apiBaseUrl`, `appBuildInfo`, `typography`, and the UI `commands`
-module used by recovery links. Public navigation (`SiteNav`,
+recovery. Its static graph may contain the framework chunks it shares with
+`entry.client`, `rolldown-runtime`, `authClient`, `useArtifactAuth` (session
+context), `apiBaseUrl`, `appBuildInfo`, `typography`, `pageMeta` (default
+metadata), `LogoGlyph` (hydration fallback mark), `RouteRecovery` (error
+boundary), and the UI `commands` module used by recovery links. Public navigation (`SiteNav`,
 `PublicPageLayout`), the account dialog, form fields, feedback, the document
 model (`config`), and Framer Motion are route-owned or loaded on demand and are
 listed as prohibited in `rootGraph` in the contract.

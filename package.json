@@ -71,7 +71,7 @@
     "test:browser:install": "playwright install --with-deps chromium firefox webkit",
     "perf:node-editor": "node tests/performance/node-editor.benchmark.mjs",
     "test:loading": "node --test scripts/loading/*.test.mjs",
-    "loading:current": "npm --workspace @artifact/web run build -- --sourcemapClient && node scripts/loading/route-loading-baseline.mjs --out docs/loading/route-loading-current.json"
+    "loading:gate": "node scripts/loading/gate.mjs"
   },
   "dependencies": {
     "@react-router/node": "^7.18.4",

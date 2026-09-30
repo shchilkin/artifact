@@ -1,8 +1,7 @@
 {
-  "$comment": "v0.49 route loading contract. Rules name dependency families (attributed from client source maps), not chunk file names. `initial` budgets are gzip KiB of JS/CSS a route loads before it renders (first visit, service worker blocked); `activation` budgets cover what loads afterwards, either automatically after first render (`trigger` says so) or on a user action. `baselineV0481` values are the v0.48.1 measurement in route-loading-baseline-v0.48.1.json; route-loading-current.json is the latest measurement. Change budgets, families, or exceptions only through a reviewed update to this file and route-loading-matrix.md.",
+  "$comment": "v0.49 route loading contract. Rules name dependency families (attributed from client source maps), not chunk file names. `initial` budgets are gzip KiB of JS/CSS a route loads before it renders (first visit, service worker blocked); `activation` budgets cover what loads afterwards, either automatically after first render (`trigger` says so) or on a user action. `baselineV0481` values are the v0.48.1 measurement in route-loading-baseline-v0.48.1.json. `npm run loading:gate` builds and measures the production app and fails on any violation of this file. Change budgets, families, root graph, or exceptions only through one reviewed update to this file and route-loading-matrix.md.",
   "version": "0.49",
   "baselineFile": "docs/loading/route-loading-baseline-v0.48.1.json",
-  "currentFile": "docs/loading/route-loading-current.json",
   "enforcement": {
     "jsBudgets": true,
     "cssBudgets": true,
@@ -19,7 +18,7 @@
     "node-canvas": "app/components/node-canvas except inspector/, constants.ts, helpers.ts, and nodes/NoPan.tsx"
   },
   "rootGraph": {
-    "$comment": "Static imports of the root route (manifest `routes.root.imports`). Anything a route family owns must not appear here.",
+    "$comment": "Static imports of the root route (manifest `routes.root.imports`). Framework chunks shared with `entry.client` (manifest `entry.imports`) are implied; every other import must be listed in `allowed`. Anything a route family owns must not appear here, and the root graph must carry no family a public route prohibits.",
     "allowed": [
       "rolldown-runtime.js",
       "entry.client.js",
@@ -27,7 +26,11 @@
       "apiBaseUrl.js",
       "appBuildInfo.js",
       "typography.js",
-      "commands.js"
+      "commands.js",
+      "useArtifactAuth.js",
+      "LogoGlyph.js",
+      "RouteRecovery.js",
+      "pageMeta.js"
     ],
     "prohibited": [
       "SiteNav.js",
