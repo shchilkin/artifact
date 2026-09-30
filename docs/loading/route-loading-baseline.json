@@ -1,0 +1,2610 @@
+{
+  "version": "0.48.1",
+  "generatedBy": "scripts/loading/route-loading-baseline.mjs",
+  "units": "bytes; gzip is level 9 over the built file",
+  "manifest": {
+    "home": {
+      "routeId": "routes/home",
+      "js": {
+        "total": {
+          "raw": 882361,
+          "gzip": 285745
+        },
+        "assets": [
+          {
+            "name": "entry.client.js",
+            "raw": 305658,
+            "gzip": 96175
+          },
+          {
+            "name": "flow-vendor.js",
+            "raw": 185591,
+            "gzip": 59372
+          },
+          {
+            "name": "motion-vendor.js",
+            "raw": 124379,
+            "gzip": 40120
+          },
+          {
+            "name": "renderer.js",
+            "raw": 111512,
+            "gzip": 36127
+          },
+          {
+            "name": "dialog.js",
+            "raw": 32245,
+            "gzip": 11062
+          },
+          {
+            "name": "authClient.js",
+            "raw": 28915,
+            "gzip": 10824
+          },
+          {
+            "name": "utils.js",
+            "raw": 27255,
+            "gzip": 8593
+          },
+          {
+            "name": "config.js",
+            "raw": 23586,
+            "gzip": 7729
+          },
+          {
+            "name": "home.js",
+            "raw": 15123,
+            "gzip": 5549
+          },
+          {
+            "name": "root.js",
+            "raw": 9820,
+            "gzip": 3360
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 6805,
+            "gzip": 2179
+          },
+          {
+            "name": "effectLayerMigration.js",
+            "raw": 5311,
+            "gzip": 1560
+          },
+          {
+            "name": "fields.js",
+            "raw": 1564,
+            "gzip": 697
+          },
+          {
+            "name": "feedback.js",
+            "raw": 1180,
+            "gzip": 573
+          },
+          {
+            "name": "PublicPageLayout.js",
+            "raw": 1179,
+            "gzip": 513
+          },
+          {
+            "name": "rolldown-runtime.js",
+            "raw": 901,
+            "gzip": 510
+          },
+          {
+            "name": "apiBaseUrl.js",
+            "raw": 709,
+            "gzip": 424
+          },
+          {
+            "name": "appBuildInfo.js",
+            "raw": 628,
+            "gzip": 378
+          }
+        ]
+      },
+      "css": {
+        "total": {
+          "raw": 269065,
+          "gzip": 39307
+        },
+        "assets": [
+          {
+            "name": "root.css",
+            "raw": 252359,
+            "gzip": 36347
+          },
+          {
+            "name": "flow-vendor.css",
+            "raw": 15395,
+            "gzip": 2518
+          },
+          {
+            "name": "dialog.css",
+            "raw": 1311,
+            "gzip": 442
+          }
+        ]
+      }
+    },
+    "docs": {
+      "routeId": "routes/docs",
+      "js": {
+        "total": {
+          "raw": 755466,
+          "gzip": 244638
+        },
+        "assets": [
+          {
+            "name": "entry.client.js",
+            "raw": 305658,
+            "gzip": 96175
+          },
+          {
+            "name": "flow-vendor.js",
+            "raw": 185591,
+            "gzip": 59372
+          },
+          {
+            "name": "motion-vendor.js",
+            "raw": 124379,
+            "gzip": 40120
+          },
+          {
+            "name": "dialog.js",
+            "raw": 32245,
+            "gzip": 11062
+          },
+          {
+            "name": "authClient.js",
+            "raw": 28915,
+            "gzip": 10824
+          },
+          {
+            "name": "utils.js",
+            "raw": 27255,
+            "gzip": 8593
+          },
+          {
+            "name": "config.js",
+            "raw": 23586,
+            "gzip": 7729
+          },
+          {
+            "name": "root.js",
+            "raw": 9820,
+            "gzip": 3360
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 6805,
+            "gzip": 2179
+          },
+          {
+            "name": "docs.js",
+            "raw": 2402,
+            "gzip": 1032
+          },
+          {
+            "name": "docs.shared.js",
+            "raw": 1976,
+            "gzip": 794
+          },
+          {
+            "name": "fields.js",
+            "raw": 1564,
+            "gzip": 697
+          },
+          {
+            "name": "feedback.js",
+            "raw": 1180,
+            "gzip": 573
+          },
+          {
+            "name": "PublicPageLayout.js",
+            "raw": 1179,
+            "gzip": 513
+          },
+          {
+            "name": "rolldown-runtime.js",
+            "raw": 901,
+            "gzip": 510
+          },
+          {
+            "name": "apiBaseUrl.js",
+            "raw": 709,
+            "gzip": 424
+          },
+          {
+            "name": "appBuildInfo.js",
+            "raw": 628,
+            "gzip": 378
+          },
+          {
+            "name": "ProductPageHeader.js",
+            "raw": 673,
+            "gzip": 303
+          }
+        ]
+      },
+      "css": {
+        "total": {
+          "raw": 269065,
+          "gzip": 39307
+        },
+        "assets": [
+          {
+            "name": "root.css",
+            "raw": 252359,
+            "gzip": 36347
+          },
+          {
+            "name": "flow-vendor.css",
+            "raw": 15395,
+            "gzip": 2518
+          },
+          {
+            "name": "dialog.css",
+            "raw": 1311,
+            "gzip": 442
+          }
+        ]
+      }
+    },
+    "account-recovery": {
+      "routeId": "routes/reset-password",
+      "js": {
+        "total": {
+          "raw": 753306,
+          "gzip": 243749
+        },
+        "assets": [
+          {
+            "name": "entry.client.js",
+            "raw": 305658,
+            "gzip": 96175
+          },
+          {
+            "name": "flow-vendor.js",
+            "raw": 185591,
+            "gzip": 59372
+          },
+          {
+            "name": "motion-vendor.js",
+            "raw": 124379,
+            "gzip": 40120
+          },
+          {
+            "name": "dialog.js",
+            "raw": 32245,
+            "gzip": 11062
+          },
+          {
+            "name": "authClient.js",
+            "raw": 28915,
+            "gzip": 10824
+          },
+          {
+            "name": "utils.js",
+            "raw": 27255,
+            "gzip": 8593
+          },
+          {
+            "name": "config.js",
+            "raw": 23586,
+            "gzip": 7729
+          },
+          {
+            "name": "root.js",
+            "raw": 9820,
+            "gzip": 3360
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 6805,
+            "gzip": 2179
+          },
+          {
+            "name": "reset-password.js",
+            "raw": 2891,
+            "gzip": 1240
+          },
+          {
+            "name": "fields.js",
+            "raw": 1564,
+            "gzip": 697
+          },
+          {
+            "name": "feedback.js",
+            "raw": 1180,
+            "gzip": 573
+          },
+          {
+            "name": "PublicPageLayout.js",
+            "raw": 1179,
+            "gzip": 513
+          },
+          {
+            "name": "rolldown-runtime.js",
+            "raw": 901,
+            "gzip": 510
+          },
+          {
+            "name": "apiBaseUrl.js",
+            "raw": 709,
+            "gzip": 424
+          },
+          {
+            "name": "appBuildInfo.js",
+            "raw": 628,
+            "gzip": 378
+          }
+        ]
+      },
+      "css": {
+        "total": {
+          "raw": 269065,
+          "gzip": 39307
+        },
+        "assets": [
+          {
+            "name": "root.css",
+            "raw": 252359,
+            "gzip": 36347
+          },
+          {
+            "name": "flow-vendor.css",
+            "raw": 15395,
+            "gzip": 2518
+          },
+          {
+            "name": "dialog.css",
+            "raw": 1311,
+            "gzip": 442
+          }
+        ]
+      }
+    },
+    "projects": {
+      "routeId": "routes/projects",
+      "js": {
+        "total": {
+          "raw": 984404,
+          "gzip": 318801
+        },
+        "assets": [
+          {
+            "name": "entry.client.js",
+            "raw": 305658,
+            "gzip": 96175
+          },
+          {
+            "name": "flow-vendor.js",
+            "raw": 185591,
+            "gzip": 59372
+          },
+          {
+            "name": "motion-vendor.js",
+            "raw": 124379,
+            "gzip": 40120
+          },
+          {
+            "name": "renderer.js",
+            "raw": 111512,
+            "gzip": 36127
+          },
+          {
+            "name": "apiClient.js",
+            "raw": 50011,
+            "gzip": 16801
+          },
+          {
+            "name": "useProjects.js",
+            "raw": 52808,
+            "gzip": 16176
+          },
+          {
+            "name": "dialog.js",
+            "raw": 32245,
+            "gzip": 11062
+          },
+          {
+            "name": "authClient.js",
+            "raw": 28915,
+            "gzip": 10824
+          },
+          {
+            "name": "utils.js",
+            "raw": 27255,
+            "gzip": 8593
+          },
+          {
+            "name": "config.js",
+            "raw": 23586,
+            "gzip": 7729
+          },
+          {
+            "name": "root.js",
+            "raw": 9820,
+            "gzip": 3360
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 6805,
+            "gzip": 2179
+          },
+          {
+            "name": "modelAssetStore.js",
+            "raw": 5080,
+            "gzip": 1605
+          },
+          {
+            "name": "effectLayerMigration.js",
+            "raw": 5311,
+            "gzip": 1560
+          },
+          {
+            "name": "projects.js",
+            "raw": 3720,
+            "gzip": 1525
+          },
+          {
+            "name": "assetStore.js",
+            "raw": 3021,
+            "gzip": 1174
+          },
+          {
+            "name": "generateThumbnail.js",
+            "raw": 1213,
+            "gzip": 725
+          },
+          {
+            "name": "fields.js",
+            "raw": 1564,
+            "gzip": 697
+          },
+          {
+            "name": "feedback.js",
+            "raw": 1180,
+            "gzip": 573
+          },
+          {
+            "name": "PublicPageLayout.js",
+            "raw": 1179,
+            "gzip": 513
+          },
+          {
+            "name": "rolldown-runtime.js",
+            "raw": 901,
+            "gzip": 510
+          },
+          {
+            "name": "apiBaseUrl.js",
+            "raw": 709,
+            "gzip": 424
+          },
+          {
+            "name": "appBuildInfo.js",
+            "raw": 628,
+            "gzip": 378
+          },
+          {
+            "name": "ProductPageHeader.js",
+            "raw": 673,
+            "gzip": 303
+          },
+          {
+            "name": "EmptyState.js",
+            "raw": 640,
+            "gzip": 296
+          }
+        ]
+      },
+      "css": {
+        "total": {
+          "raw": 282811,
+          "gzip": 42045
+        },
+        "assets": [
+          {
+            "name": "root.css",
+            "raw": 252359,
+            "gzip": 36347
+          },
+          {
+            "name": "flow-vendor.css",
+            "raw": 15395,
+            "gzip": 2518
+          },
+          {
+            "name": "primitives.css",
+            "raw": 8475,
+            "gzip": 1567
+          },
+          {
+            "name": "apiClient.css",
+            "raw": 5271,
+            "gzip": 1171
+          },
+          {
+            "name": "dialog.css",
+            "raw": 1311,
+            "gzip": 442
+          }
+        ]
+      }
+    },
+    "editor": {
+      "routeId": "routes/editor",
+      "js": {
+        "total": {
+          "raw": 1336056,
+          "gzip": 422812
+        },
+        "assets": [
+          {
+            "name": "entry.client.js",
+            "raw": 305658,
+            "gzip": 96175
+          },
+          {
+            "name": "tabs.js",
+            "raw": 211357,
+            "gzip": 60478
+          },
+          {
+            "name": "flow-vendor.js",
+            "raw": 185591,
+            "gzip": 59372
+          },
+          {
+            "name": "motion-vendor.js",
+            "raw": 124379,
+            "gzip": 40120
+          },
+          {
+            "name": "renderer.js",
+            "raw": 111512,
+            "gzip": 36127
+          },
+          {
+            "name": "editor.js",
+            "raw": 99365,
+            "gzip": 29897
+          },
+          {
+            "name": "apiClient.js",
+            "raw": 50011,
+            "gzip": 16801
+          },
+          {
+            "name": "useProjects.js",
+            "raw": 52808,
+            "gzip": 16176
+          },
+          {
+            "name": "dialog.js",
+            "raw": 32245,
+            "gzip": 11062
+          },
+          {
+            "name": "authClient.js",
+            "raw": 28915,
+            "gzip": 10824
+          },
+          {
+            "name": "utils.js",
+            "raw": 27255,
+            "gzip": 8593
+          },
+          {
+            "name": "config.js",
+            "raw": 23586,
+            "gzip": 7729
+          },
+          {
+            "name": "starterDocuments.js",
+            "raw": 18945,
+            "gzip": 4716
+          },
+          {
+            "name": "root.js",
+            "raw": 9820,
+            "gzip": 3360
+          },
+          {
+            "name": "useAddLibraryMobileSheet.js",
+            "raw": 8102,
+            "gzip": 3094
+          },
+          {
+            "name": "randomConfig.js",
+            "raw": 6280,
+            "gzip": 2713
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 6805,
+            "gzip": 2179
+          },
+          {
+            "name": "constants.js",
+            "raw": 4117,
+            "gzip": 1764
+          },
+          {
+            "name": "modelAssetStore.js",
+            "raw": 5080,
+            "gzip": 1605
+          },
+          {
+            "name": "effectLayerMigration.js",
+            "raw": 5311,
+            "gzip": 1560
+          },
+          {
+            "name": "noisePresets.js",
+            "raw": 4126,
+            "gzip": 1492
+          },
+          {
+            "name": "SearchField.js",
+            "raw": 3340,
+            "gzip": 1437
+          },
+          {
+            "name": "assetStore.js",
+            "raw": 3021,
+            "gzip": 1174
+          },
+          {
+            "name": "generateThumbnail.js",
+            "raw": 1213,
+            "gzip": 725
+          },
+          {
+            "name": "fields.js",
+            "raw": 1564,
+            "gzip": 697
+          },
+          {
+            "name": "feedback.js",
+            "raw": 1180,
+            "gzip": 573
+          },
+          {
+            "name": "PublicPageLayout.js",
+            "raw": 1179,
+            "gzip": 513
+          },
+          {
+            "name": "rolldown-runtime.js",
+            "raw": 901,
+            "gzip": 510
+          },
+          {
+            "name": "apiBaseUrl.js",
+            "raw": 709,
+            "gzip": 424
+          },
+          {
+            "name": "appBuildInfo.js",
+            "raw": 628,
+            "gzip": 378
+          },
+          {
+            "name": "EmptyState.js",
+            "raw": 640,
+            "gzip": 296
+          },
+          {
+            "name": "PrimitiveViewportState.js",
+            "raw": 413,
+            "gzip": 248
+          }
+        ]
+      },
+      "css": {
+        "total": {
+          "raw": 298965,
+          "gzip": 45221
+        },
+        "assets": [
+          {
+            "name": "root.css",
+            "raw": 252359,
+            "gzip": 36347
+          },
+          {
+            "name": "tabs.css",
+            "raw": 15522,
+            "gzip": 2922
+          },
+          {
+            "name": "flow-vendor.css",
+            "raw": 15395,
+            "gzip": 2518
+          },
+          {
+            "name": "primitives.css",
+            "raw": 8475,
+            "gzip": 1567
+          },
+          {
+            "name": "apiClient.css",
+            "raw": 5271,
+            "gzip": 1171
+          },
+          {
+            "name": "dialog.css",
+            "raw": 1311,
+            "gzip": 442
+          },
+          {
+            "name": "editor.css",
+            "raw": 632,
+            "gzip": 254
+          }
+        ]
+      }
+    },
+    "style-guide": {
+      "routeId": "routes/docs.style-guide",
+      "js": {
+        "total": {
+          "raw": 1320416,
+          "gzip": 410511
+        },
+        "assets": [
+          {
+            "name": "entry.client.js",
+            "raw": 305658,
+            "gzip": 96175
+          },
+          {
+            "name": "tabs.js",
+            "raw": 211357,
+            "gzip": 60478
+          },
+          {
+            "name": "flow-vendor.js",
+            "raw": 185591,
+            "gzip": 59372
+          },
+          {
+            "name": "motion-vendor.js",
+            "raw": 124379,
+            "gzip": 40120
+          },
+          {
+            "name": "renderer.js",
+            "raw": 111512,
+            "gzip": 36127
+          },
+          {
+            "name": "node-canvas.js",
+            "raw": 105802,
+            "gzip": 30277
+          },
+          {
+            "name": "apiClient.js",
+            "raw": 50011,
+            "gzip": 16801
+          },
+          {
+            "name": "docs.style-guide.js",
+            "raw": 70764,
+            "gzip": 16596
+          },
+          {
+            "name": "dialog.js",
+            "raw": 32245,
+            "gzip": 11062
+          },
+          {
+            "name": "authClient.js",
+            "raw": 28915,
+            "gzip": 10824
+          },
+          {
+            "name": "utils.js",
+            "raw": 27255,
+            "gzip": 8593
+          },
+          {
+            "name": "config.js",
+            "raw": 23586,
+            "gzip": 7729
+          },
+          {
+            "name": "root.js",
+            "raw": 9820,
+            "gzip": 3360
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 6805,
+            "gzip": 2179
+          },
+          {
+            "name": "constants.js",
+            "raw": 4117,
+            "gzip": 1764
+          },
+          {
+            "name": "effectLayerMigration.js",
+            "raw": 5311,
+            "gzip": 1560
+          },
+          {
+            "name": "noisePresets.js",
+            "raw": 4126,
+            "gzip": 1492
+          },
+          {
+            "name": "SearchField.js",
+            "raw": 3340,
+            "gzip": 1437
+          },
+          {
+            "name": "assetStore.js",
+            "raw": 3021,
+            "gzip": 1174
+          },
+          {
+            "name": "fields.js",
+            "raw": 1564,
+            "gzip": 697
+          },
+          {
+            "name": "feedback.js",
+            "raw": 1180,
+            "gzip": 573
+          },
+          {
+            "name": "PublicPageLayout.js",
+            "raw": 1179,
+            "gzip": 513
+          },
+          {
+            "name": "rolldown-runtime.js",
+            "raw": 901,
+            "gzip": 510
+          },
+          {
+            "name": "apiBaseUrl.js",
+            "raw": 709,
+            "gzip": 424
+          },
+          {
+            "name": "appBuildInfo.js",
+            "raw": 628,
+            "gzip": 378
+          },
+          {
+            "name": "EmptyState.js",
+            "raw": 640,
+            "gzip": 296
+          }
+        ]
+      },
+      "css": {
+        "total": {
+          "raw": 405470,
+          "gzip": 61804
+        },
+        "assets": [
+          {
+            "name": "root.css",
+            "raw": 252359,
+            "gzip": 36347
+          },
+          {
+            "name": "node-canvas.css",
+            "raw": 78021,
+            "gzip": 11991
+          },
+          {
+            "name": "docs.css",
+            "raw": 29116,
+            "gzip": 4846
+          },
+          {
+            "name": "tabs.css",
+            "raw": 15522,
+            "gzip": 2922
+          },
+          {
+            "name": "flow-vendor.css",
+            "raw": 15395,
+            "gzip": 2518
+          },
+          {
+            "name": "primitives.css",
+            "raw": 8475,
+            "gzip": 1567
+          },
+          {
+            "name": "apiClient.css",
+            "raw": 5271,
+            "gzip": 1171
+          },
+          {
+            "name": "dialog.css",
+            "raw": 1311,
+            "gzip": 442
+          }
+        ]
+      }
+    },
+    "showcase": {
+      "routeId": "routes/showcase",
+      "js": {
+        "total": {
+          "raw": 917527,
+          "gzip": 297090
+        },
+        "assets": [
+          {
+            "name": "entry.client.js",
+            "raw": 305658,
+            "gzip": 96175
+          },
+          {
+            "name": "flow-vendor.js",
+            "raw": 185591,
+            "gzip": 59372
+          },
+          {
+            "name": "motion-vendor.js",
+            "raw": 124379,
+            "gzip": 40120
+          },
+          {
+            "name": "renderer.js",
+            "raw": 111512,
+            "gzip": 36127
+          },
+          {
+            "name": "dialog.js",
+            "raw": 32245,
+            "gzip": 11062
+          },
+          {
+            "name": "authClient.js",
+            "raw": 28915,
+            "gzip": 10824
+          },
+          {
+            "name": "utils.js",
+            "raw": 27255,
+            "gzip": 8593
+          },
+          {
+            "name": "showcase.js",
+            "raw": 23723,
+            "gzip": 8209
+          },
+          {
+            "name": "config.js",
+            "raw": 23586,
+            "gzip": 7729
+          },
+          {
+            "name": "starterDocuments.js",
+            "raw": 18945,
+            "gzip": 4716
+          },
+          {
+            "name": "root.js",
+            "raw": 9820,
+            "gzip": 3360
+          },
+          {
+            "name": "randomConfig.js",
+            "raw": 6280,
+            "gzip": 2713
+          },
+          {
+            "name": "SiteNav.js",
+            "raw": 6805,
+            "gzip": 2179
+          },
+          {
+            "name": "noisePresets.js",
+            "raw": 4126,
+            "gzip": 1492
+          },
+          {
+            "name": "generateThumbnail.js",
+            "raw": 1213,
+            "gzip": 725
+          },
+          {
+            "name": "fields.js",
+            "raw": 1564,
+            "gzip": 697
+          },
+          {
+            "name": "feedback.js",
+            "raw": 1180,
+            "gzip": 573
+          },
+          {
+            "name": "PublicPageLayout.js",
+            "raw": 1179,
+            "gzip": 513
+          },
+          {
+            "name": "rolldown-runtime.js",
+            "raw": 901,
+            "gzip": 510
+          },
+          {
+            "name": "apiBaseUrl.js",
+            "raw": 709,
+            "gzip": 424
+          },
+          {
+            "name": "appBuildInfo.js",
+            "raw": 628,
+            "gzip": 378
+          },
+          {
+            "name": "ProductPageHeader.js",
+            "raw": 673,
+            "gzip": 303
+          },
+          {
+            "name": "EmptyState.js",
+            "raw": 640,
+            "gzip": 296
+          }
+        ]
+      },
+      "css": {
+        "total": {
+          "raw": 277540,
+          "gzip": 40874
+        },
+        "assets": [
+          {
+            "name": "root.css",
+            "raw": 252359,
+            "gzip": 36347
+          },
+          {
+            "name": "flow-vendor.css",
+            "raw": 15395,
+            "gzip": 2518
+          },
+          {
+            "name": "primitives.css",
+            "raw": 8475,
+            "gzip": 1567
+          },
+          {
+            "name": "dialog.css",
+            "raw": 1311,
+            "gzip": 442
+          }
+        ]
+      }
+    }
+  },
+  "browser": {
+    "home": {
+      "url": "/",
+      "initial": {
+        "js": {
+          "total": {
+            "raw": 1386376,
+            "gzip": 433780
+          },
+          "assets": [
+            {
+              "name": "pixi-vendor.js",
+              "raw": 465260,
+              "gzip": 137600
+            },
+            {
+              "name": "entry.client.js",
+              "raw": 305658,
+              "gzip": 96175
+            },
+            {
+              "name": "flow-vendor.js",
+              "raw": 185591,
+              "gzip": 59372
+            },
+            {
+              "name": "motion-vendor.js",
+              "raw": 124379,
+              "gzip": 40120
+            },
+            {
+              "name": "renderer.js",
+              "raw": 111512,
+              "gzip": 36127
+            },
+            {
+              "name": "dialog.js",
+              "raw": 32245,
+              "gzip": 11062
+            },
+            {
+              "name": "authClient.js",
+              "raw": 28915,
+              "gzip": 10824
+            },
+            {
+              "name": "utils.js",
+              "raw": 27255,
+              "gzip": 8593
+            },
+            {
+              "name": "config.js",
+              "raw": 23586,
+              "gzip": 7729
+            },
+            {
+              "name": "home.js",
+              "raw": 15123,
+              "gzip": 5549
+            },
+            {
+              "name": "effectPixelTransform.worker.js",
+              "raw": 13435,
+              "gzip": 4724
+            },
+            {
+              "name": "root.js",
+              "raw": 9820,
+              "gzip": 3360
+            },
+            {
+              "name": "pixiFilters.js",
+              "raw": 10944,
+              "gzip": 3125
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 6805,
+              "gzip": 2179
+            },
+            {
+              "name": "effectLayerMigration.js",
+              "raw": 5311,
+              "gzip": 1560
+            },
+            {
+              "name": "manifest.js",
+              "raw": 12043,
+              "gzip": 1556
+            },
+            {
+              "name": "gpuRender.js",
+              "raw": 2333,
+              "gzip": 1030
+            },
+            {
+              "name": "fields.js",
+              "raw": 1564,
+              "gzip": 697
+            },
+            {
+              "name": "feedback.js",
+              "raw": 1180,
+              "gzip": 573
+            },
+            {
+              "name": "PublicPageLayout.js",
+              "raw": 1179,
+              "gzip": 513
+            },
+            {
+              "name": "rolldown-runtime.js",
+              "raw": 901,
+              "gzip": 510
+            },
+            {
+              "name": "apiBaseUrl.js",
+              "raw": 709,
+              "gzip": 424
+            },
+            {
+              "name": "appBuildInfo.js",
+              "raw": 628,
+              "gzip": 378
+            }
+          ]
+        },
+        "css": {
+          "total": {
+            "raw": 269065,
+            "gzip": 39307
+          },
+          "assets": [
+            {
+              "name": "root.css",
+              "raw": 252359,
+              "gzip": 36347
+            },
+            {
+              "name": "flow-vendor.css",
+              "raw": 15395,
+              "gzip": 2518
+            },
+            {
+              "name": "dialog.css",
+              "raw": 1311,
+              "gzip": 442
+            }
+          ]
+        }
+      }
+    },
+    "docs": {
+      "url": "/docs",
+      "initial": {
+        "js": {
+          "total": {
+            "raw": 767509,
+            "gzip": 246194
+          },
+          "assets": [
+            {
+              "name": "entry.client.js",
+              "raw": 305658,
+              "gzip": 96175
+            },
+            {
+              "name": "flow-vendor.js",
+              "raw": 185591,
+              "gzip": 59372
+            },
+            {
+              "name": "motion-vendor.js",
+              "raw": 124379,
+              "gzip": 40120
+            },
+            {
+              "name": "dialog.js",
+              "raw": 32245,
+              "gzip": 11062
+            },
+            {
+              "name": "authClient.js",
+              "raw": 28915,
+              "gzip": 10824
+            },
+            {
+              "name": "utils.js",
+              "raw": 27255,
+              "gzip": 8593
+            },
+            {
+              "name": "config.js",
+              "raw": 23586,
+              "gzip": 7729
+            },
+            {
+              "name": "root.js",
+              "raw": 9820,
+              "gzip": 3360
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 6805,
+              "gzip": 2179
+            },
+            {
+              "name": "manifest.js",
+              "raw": 12043,
+              "gzip": 1556
+            },
+            {
+              "name": "docs.js",
+              "raw": 2402,
+              "gzip": 1032
+            },
+            {
+              "name": "docs.shared.js",
+              "raw": 1976,
+              "gzip": 794
+            },
+            {
+              "name": "fields.js",
+              "raw": 1564,
+              "gzip": 697
+            },
+            {
+              "name": "feedback.js",
+              "raw": 1180,
+              "gzip": 573
+            },
+            {
+              "name": "PublicPageLayout.js",
+              "raw": 1179,
+              "gzip": 513
+            },
+            {
+              "name": "rolldown-runtime.js",
+              "raw": 901,
+              "gzip": 510
+            },
+            {
+              "name": "apiBaseUrl.js",
+              "raw": 709,
+              "gzip": 424
+            },
+            {
+              "name": "appBuildInfo.js",
+              "raw": 628,
+              "gzip": 378
+            },
+            {
+              "name": "ProductPageHeader.js",
+              "raw": 673,
+              "gzip": 303
+            }
+          ]
+        },
+        "css": {
+          "total": {
+            "raw": 269065,
+            "gzip": 39307
+          },
+          "assets": [
+            {
+              "name": "root.css",
+              "raw": 252359,
+              "gzip": 36347
+            },
+            {
+              "name": "flow-vendor.css",
+              "raw": 15395,
+              "gzip": 2518
+            },
+            {
+              "name": "dialog.css",
+              "raw": 1311,
+              "gzip": 442
+            }
+          ]
+        }
+      }
+    },
+    "account-recovery": {
+      "url": "/reset-password",
+      "initial": {
+        "js": {
+          "total": {
+            "raw": 765349,
+            "gzip": 245305
+          },
+          "assets": [
+            {
+              "name": "entry.client.js",
+              "raw": 305658,
+              "gzip": 96175
+            },
+            {
+              "name": "flow-vendor.js",
+              "raw": 185591,
+              "gzip": 59372
+            },
+            {
+              "name": "motion-vendor.js",
+              "raw": 124379,
+              "gzip": 40120
+            },
+            {
+              "name": "dialog.js",
+              "raw": 32245,
+              "gzip": 11062
+            },
+            {
+              "name": "authClient.js",
+              "raw": 28915,
+              "gzip": 10824
+            },
+            {
+              "name": "utils.js",
+              "raw": 27255,
+              "gzip": 8593
+            },
+            {
+              "name": "config.js",
+              "raw": 23586,
+              "gzip": 7729
+            },
+            {
+              "name": "root.js",
+              "raw": 9820,
+              "gzip": 3360
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 6805,
+              "gzip": 2179
+            },
+            {
+              "name": "manifest.js",
+              "raw": 12043,
+              "gzip": 1556
+            },
+            {
+              "name": "reset-password.js",
+              "raw": 2891,
+              "gzip": 1240
+            },
+            {
+              "name": "fields.js",
+              "raw": 1564,
+              "gzip": 697
+            },
+            {
+              "name": "feedback.js",
+              "raw": 1180,
+              "gzip": 573
+            },
+            {
+              "name": "PublicPageLayout.js",
+              "raw": 1179,
+              "gzip": 513
+            },
+            {
+              "name": "rolldown-runtime.js",
+              "raw": 901,
+              "gzip": 510
+            },
+            {
+              "name": "apiBaseUrl.js",
+              "raw": 709,
+              "gzip": 424
+            },
+            {
+              "name": "appBuildInfo.js",
+              "raw": 628,
+              "gzip": 378
+            }
+          ]
+        },
+        "css": {
+          "total": {
+            "raw": 269065,
+            "gzip": 39307
+          },
+          "assets": [
+            {
+              "name": "root.css",
+              "raw": 252359,
+              "gzip": 36347
+            },
+            {
+              "name": "flow-vendor.css",
+              "raw": 15395,
+              "gzip": 2518
+            },
+            {
+              "name": "dialog.css",
+              "raw": 1311,
+              "gzip": 442
+            }
+          ]
+        }
+      }
+    },
+    "projects": {
+      "url": "/projects",
+      "initial": {
+        "js": {
+          "total": {
+            "raw": 996447,
+            "gzip": 320357
+          },
+          "assets": [
+            {
+              "name": "entry.client.js",
+              "raw": 305658,
+              "gzip": 96175
+            },
+            {
+              "name": "flow-vendor.js",
+              "raw": 185591,
+              "gzip": 59372
+            },
+            {
+              "name": "motion-vendor.js",
+              "raw": 124379,
+              "gzip": 40120
+            },
+            {
+              "name": "renderer.js",
+              "raw": 111512,
+              "gzip": 36127
+            },
+            {
+              "name": "apiClient.js",
+              "raw": 50011,
+              "gzip": 16801
+            },
+            {
+              "name": "useProjects.js",
+              "raw": 52808,
+              "gzip": 16176
+            },
+            {
+              "name": "dialog.js",
+              "raw": 32245,
+              "gzip": 11062
+            },
+            {
+              "name": "authClient.js",
+              "raw": 28915,
+              "gzip": 10824
+            },
+            {
+              "name": "utils.js",
+              "raw": 27255,
+              "gzip": 8593
+            },
+            {
+              "name": "config.js",
+              "raw": 23586,
+              "gzip": 7729
+            },
+            {
+              "name": "root.js",
+              "raw": 9820,
+              "gzip": 3360
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 6805,
+              "gzip": 2179
+            },
+            {
+              "name": "modelAssetStore.js",
+              "raw": 5080,
+              "gzip": 1605
+            },
+            {
+              "name": "effectLayerMigration.js",
+              "raw": 5311,
+              "gzip": 1560
+            },
+            {
+              "name": "manifest.js",
+              "raw": 12043,
+              "gzip": 1556
+            },
+            {
+              "name": "projects.js",
+              "raw": 3720,
+              "gzip": 1525
+            },
+            {
+              "name": "assetStore.js",
+              "raw": 3021,
+              "gzip": 1174
+            },
+            {
+              "name": "generateThumbnail.js",
+              "raw": 1213,
+              "gzip": 725
+            },
+            {
+              "name": "fields.js",
+              "raw": 1564,
+              "gzip": 697
+            },
+            {
+              "name": "feedback.js",
+              "raw": 1180,
+              "gzip": 573
+            },
+            {
+              "name": "PublicPageLayout.js",
+              "raw": 1179,
+              "gzip": 513
+            },
+            {
+              "name": "rolldown-runtime.js",
+              "raw": 901,
+              "gzip": 510
+            },
+            {
+              "name": "apiBaseUrl.js",
+              "raw": 709,
+              "gzip": 424
+            },
+            {
+              "name": "appBuildInfo.js",
+              "raw": 628,
+              "gzip": 378
+            },
+            {
+              "name": "ProductPageHeader.js",
+              "raw": 673,
+              "gzip": 303
+            },
+            {
+              "name": "EmptyState.js",
+              "raw": 640,
+              "gzip": 296
+            }
+          ]
+        },
+        "css": {
+          "total": {
+            "raw": 282811,
+            "gzip": 42045
+          },
+          "assets": [
+            {
+              "name": "root.css",
+              "raw": 252359,
+              "gzip": 36347
+            },
+            {
+              "name": "flow-vendor.css",
+              "raw": 15395,
+              "gzip": 2518
+            },
+            {
+              "name": "primitives.css",
+              "raw": 8475,
+              "gzip": 1567
+            },
+            {
+              "name": "apiClient.css",
+              "raw": 5271,
+              "gzip": 1171
+            },
+            {
+              "name": "dialog.css",
+              "raw": 1311,
+              "gzip": 442
+            }
+          ]
+        }
+      }
+    },
+    "editor-layers-blank": {
+      "url": "/app",
+      "initial": {
+        "js": {
+          "total": {
+            "raw": 1348099,
+            "gzip": 424368
+          },
+          "assets": [
+            {
+              "name": "entry.client.js",
+              "raw": 305658,
+              "gzip": 96175
+            },
+            {
+              "name": "tabs.js",
+              "raw": 211357,
+              "gzip": 60478
+            },
+            {
+              "name": "flow-vendor.js",
+              "raw": 185591,
+              "gzip": 59372
+            },
+            {
+              "name": "motion-vendor.js",
+              "raw": 124379,
+              "gzip": 40120
+            },
+            {
+              "name": "renderer.js",
+              "raw": 111512,
+              "gzip": 36127
+            },
+            {
+              "name": "editor.js",
+              "raw": 99365,
+              "gzip": 29897
+            },
+            {
+              "name": "apiClient.js",
+              "raw": 50011,
+              "gzip": 16801
+            },
+            {
+              "name": "useProjects.js",
+              "raw": 52808,
+              "gzip": 16176
+            },
+            {
+              "name": "dialog.js",
+              "raw": 32245,
+              "gzip": 11062
+            },
+            {
+              "name": "authClient.js",
+              "raw": 28915,
+              "gzip": 10824
+            },
+            {
+              "name": "utils.js",
+              "raw": 27255,
+              "gzip": 8593
+            },
+            {
+              "name": "config.js",
+              "raw": 23586,
+              "gzip": 7729
+            },
+            {
+              "name": "starterDocuments.js",
+              "raw": 18945,
+              "gzip": 4716
+            },
+            {
+              "name": "root.js",
+              "raw": 9820,
+              "gzip": 3360
+            },
+            {
+              "name": "useAddLibraryMobileSheet.js",
+              "raw": 8102,
+              "gzip": 3094
+            },
+            {
+              "name": "randomConfig.js",
+              "raw": 6280,
+              "gzip": 2713
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 6805,
+              "gzip": 2179
+            },
+            {
+              "name": "constants.js",
+              "raw": 4117,
+              "gzip": 1764
+            },
+            {
+              "name": "modelAssetStore.js",
+              "raw": 5080,
+              "gzip": 1605
+            },
+            {
+              "name": "effectLayerMigration.js",
+              "raw": 5311,
+              "gzip": 1560
+            },
+            {
+              "name": "manifest.js",
+              "raw": 12043,
+              "gzip": 1556
+            },
+            {
+              "name": "noisePresets.js",
+              "raw": 4126,
+              "gzip": 1492
+            },
+            {
+              "name": "SearchField.js",
+              "raw": 3340,
+              "gzip": 1437
+            },
+            {
+              "name": "assetStore.js",
+              "raw": 3021,
+              "gzip": 1174
+            },
+            {
+              "name": "generateThumbnail.js",
+              "raw": 1213,
+              "gzip": 725
+            },
+            {
+              "name": "fields.js",
+              "raw": 1564,
+              "gzip": 697
+            },
+            {
+              "name": "feedback.js",
+              "raw": 1180,
+              "gzip": 573
+            },
+            {
+              "name": "PublicPageLayout.js",
+              "raw": 1179,
+              "gzip": 513
+            },
+            {
+              "name": "rolldown-runtime.js",
+              "raw": 901,
+              "gzip": 510
+            },
+            {
+              "name": "apiBaseUrl.js",
+              "raw": 709,
+              "gzip": 424
+            },
+            {
+              "name": "appBuildInfo.js",
+              "raw": 628,
+              "gzip": 378
+            },
+            {
+              "name": "EmptyState.js",
+              "raw": 640,
+              "gzip": 296
+            },
+            {
+              "name": "PrimitiveViewportState.js",
+              "raw": 413,
+              "gzip": 248
+            }
+          ]
+        },
+        "css": {
+          "total": {
+            "raw": 298965,
+            "gzip": 45221
+          },
+          "assets": [
+            {
+              "name": "root.css",
+              "raw": 252359,
+              "gzip": 36347
+            },
+            {
+              "name": "tabs.css",
+              "raw": 15522,
+              "gzip": 2922
+            },
+            {
+              "name": "flow-vendor.css",
+              "raw": 15395,
+              "gzip": 2518
+            },
+            {
+              "name": "primitives.css",
+              "raw": 8475,
+              "gzip": 1567
+            },
+            {
+              "name": "apiClient.css",
+              "raw": 5271,
+              "gzip": 1171
+            },
+            {
+              "name": "dialog.css",
+              "raw": 1311,
+              "gzip": 442
+            },
+            {
+              "name": "editor.css",
+              "raw": 632,
+              "gzip": 254
+            }
+          ]
+        }
+      }
+    },
+    "editor-nodes": {
+      "url": "/app",
+      "initial": {
+        "js": {
+          "total": {
+            "raw": 1348099,
+            "gzip": 424368
+          },
+          "assets": [
+            {
+              "name": "entry.client.js",
+              "raw": 305658,
+              "gzip": 96175
+            },
+            {
+              "name": "tabs.js",
+              "raw": 211357,
+              "gzip": 60478
+            },
+            {
+              "name": "flow-vendor.js",
+              "raw": 185591,
+              "gzip": 59372
+            },
+            {
+              "name": "motion-vendor.js",
+              "raw": 124379,
+              "gzip": 40120
+            },
+            {
+              "name": "renderer.js",
+              "raw": 111512,
+              "gzip": 36127
+            },
+            {
+              "name": "editor.js",
+              "raw": 99365,
+              "gzip": 29897
+            },
+            {
+              "name": "apiClient.js",
+              "raw": 50011,
+              "gzip": 16801
+            },
+            {
+              "name": "useProjects.js",
+              "raw": 52808,
+              "gzip": 16176
+            },
+            {
+              "name": "dialog.js",
+              "raw": 32245,
+              "gzip": 11062
+            },
+            {
+              "name": "authClient.js",
+              "raw": 28915,
+              "gzip": 10824
+            },
+            {
+              "name": "utils.js",
+              "raw": 27255,
+              "gzip": 8593
+            },
+            {
+              "name": "config.js",
+              "raw": 23586,
+              "gzip": 7729
+            },
+            {
+              "name": "starterDocuments.js",
+              "raw": 18945,
+              "gzip": 4716
+            },
+            {
+              "name": "root.js",
+              "raw": 9820,
+              "gzip": 3360
+            },
+            {
+              "name": "useAddLibraryMobileSheet.js",
+              "raw": 8102,
+              "gzip": 3094
+            },
+            {
+              "name": "randomConfig.js",
+              "raw": 6280,
+              "gzip": 2713
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 6805,
+              "gzip": 2179
+            },
+            {
+              "name": "constants.js",
+              "raw": 4117,
+              "gzip": 1764
+            },
+            {
+              "name": "modelAssetStore.js",
+              "raw": 5080,
+              "gzip": 1605
+            },
+            {
+              "name": "effectLayerMigration.js",
+              "raw": 5311,
+              "gzip": 1560
+            },
+            {
+              "name": "manifest.js",
+              "raw": 12043,
+              "gzip": 1556
+            },
+            {
+              "name": "noisePresets.js",
+              "raw": 4126,
+              "gzip": 1492
+            },
+            {
+              "name": "SearchField.js",
+              "raw": 3340,
+              "gzip": 1437
+            },
+            {
+              "name": "assetStore.js",
+              "raw": 3021,
+              "gzip": 1174
+            },
+            {
+              "name": "generateThumbnail.js",
+              "raw": 1213,
+              "gzip": 725
+            },
+            {
+              "name": "fields.js",
+              "raw": 1564,
+              "gzip": 697
+            },
+            {
+              "name": "feedback.js",
+              "raw": 1180,
+              "gzip": 573
+            },
+            {
+              "name": "PublicPageLayout.js",
+              "raw": 1179,
+              "gzip": 513
+            },
+            {
+              "name": "rolldown-runtime.js",
+              "raw": 901,
+              "gzip": 510
+            },
+            {
+              "name": "apiBaseUrl.js",
+              "raw": 709,
+              "gzip": 424
+            },
+            {
+              "name": "appBuildInfo.js",
+              "raw": 628,
+              "gzip": 378
+            },
+            {
+              "name": "EmptyState.js",
+              "raw": 640,
+              "gzip": 296
+            },
+            {
+              "name": "PrimitiveViewportState.js",
+              "raw": 413,
+              "gzip": 248
+            }
+          ]
+        },
+        "css": {
+          "total": {
+            "raw": 298965,
+            "gzip": 45221
+          },
+          "assets": [
+            {
+              "name": "root.css",
+              "raw": 252359,
+              "gzip": 36347
+            },
+            {
+              "name": "tabs.css",
+              "raw": 15522,
+              "gzip": 2922
+            },
+            {
+              "name": "flow-vendor.css",
+              "raw": 15395,
+              "gzip": 2518
+            },
+            {
+              "name": "primitives.css",
+              "raw": 8475,
+              "gzip": 1567
+            },
+            {
+              "name": "apiClient.css",
+              "raw": 5271,
+              "gzip": 1171
+            },
+            {
+              "name": "dialog.css",
+              "raw": 1311,
+              "gzip": 442
+            },
+            {
+              "name": "editor.css",
+              "raw": 632,
+              "gzip": 254
+            }
+          ]
+        }
+      },
+      "activation": {
+        "js": {
+          "total": {
+            "raw": 239317,
+            "gzip": 66986
+          },
+          "assets": [
+            {
+              "name": "node-canvas.js",
+              "raw": 133515,
+              "gzip": 36709
+            },
+            {
+              "name": "node-canvas.js",
+              "raw": 105802,
+              "gzip": 30277
+            }
+          ]
+        },
+        "css": {
+          "total": {
+            "raw": 82196,
+            "gzip": 13088
+          },
+          "assets": [
+            {
+              "name": "node-canvas.css",
+              "raw": 78021,
+              "gzip": 11991
+            },
+            {
+              "name": "node-canvas.css",
+              "raw": 4175,
+              "gzip": 1097
+            }
+          ]
+        }
+      }
+    },
+    "style-guide": {
+      "url": "/docs/style-guide",
+      "initial": {
+        "js": {
+          "total": {
+            "raw": 1332459,
+            "gzip": 412067
+          },
+          "assets": [
+            {
+              "name": "entry.client.js",
+              "raw": 305658,
+              "gzip": 96175
+            },
+            {
+              "name": "tabs.js",
+              "raw": 211357,
+              "gzip": 60478
+            },
+            {
+              "name": "flow-vendor.js",
+              "raw": 185591,
+              "gzip": 59372
+            },
+            {
+              "name": "motion-vendor.js",
+              "raw": 124379,
+              "gzip": 40120
+            },
+            {
+              "name": "renderer.js",
+              "raw": 111512,
+              "gzip": 36127
+            },
+            {
+              "name": "node-canvas.js",
+              "raw": 105802,
+              "gzip": 30277
+            },
+            {
+              "name": "apiClient.js",
+              "raw": 50011,
+              "gzip": 16801
+            },
+            {
+              "name": "docs.style-guide.js",
+              "raw": 70764,
+              "gzip": 16596
+            },
+            {
+              "name": "dialog.js",
+              "raw": 32245,
+              "gzip": 11062
+            },
+            {
+              "name": "authClient.js",
+              "raw": 28915,
+              "gzip": 10824
+            },
+            {
+              "name": "utils.js",
+              "raw": 27255,
+              "gzip": 8593
+            },
+            {
+              "name": "config.js",
+              "raw": 23586,
+              "gzip": 7729
+            },
+            {
+              "name": "root.js",
+              "raw": 9820,
+              "gzip": 3360
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 6805,
+              "gzip": 2179
+            },
+            {
+              "name": "constants.js",
+              "raw": 4117,
+              "gzip": 1764
+            },
+            {
+              "name": "effectLayerMigration.js",
+              "raw": 5311,
+              "gzip": 1560
+            },
+            {
+              "name": "manifest.js",
+              "raw": 12043,
+              "gzip": 1556
+            },
+            {
+              "name": "noisePresets.js",
+              "raw": 4126,
+              "gzip": 1492
+            },
+            {
+              "name": "SearchField.js",
+              "raw": 3340,
+              "gzip": 1437
+            },
+            {
+              "name": "assetStore.js",
+              "raw": 3021,
+              "gzip": 1174
+            },
+            {
+              "name": "fields.js",
+              "raw": 1564,
+              "gzip": 697
+            },
+            {
+              "name": "feedback.js",
+              "raw": 1180,
+              "gzip": 573
+            },
+            {
+              "name": "PublicPageLayout.js",
+              "raw": 1179,
+              "gzip": 513
+            },
+            {
+              "name": "rolldown-runtime.js",
+              "raw": 901,
+              "gzip": 510
+            },
+            {
+              "name": "apiBaseUrl.js",
+              "raw": 709,
+              "gzip": 424
+            },
+            {
+              "name": "appBuildInfo.js",
+              "raw": 628,
+              "gzip": 378
+            },
+            {
+              "name": "EmptyState.js",
+              "raw": 640,
+              "gzip": 296
+            }
+          ]
+        },
+        "css": {
+          "total": {
+            "raw": 405470,
+            "gzip": 61804
+          },
+          "assets": [
+            {
+              "name": "root.css",
+              "raw": 252359,
+              "gzip": 36347
+            },
+            {
+              "name": "node-canvas.css",
+              "raw": 78021,
+              "gzip": 11991
+            },
+            {
+              "name": "docs.css",
+              "raw": 29116,
+              "gzip": 4846
+            },
+            {
+              "name": "tabs.css",
+              "raw": 15522,
+              "gzip": 2922
+            },
+            {
+              "name": "flow-vendor.css",
+              "raw": 15395,
+              "gzip": 2518
+            },
+            {
+              "name": "primitives.css",
+              "raw": 8475,
+              "gzip": 1567
+            },
+            {
+              "name": "apiClient.css",
+              "raw": 5271,
+              "gzip": 1171
+            },
+            {
+              "name": "dialog.css",
+              "raw": 1311,
+              "gzip": 442
+            }
+          ]
+        }
+      }
+    },
+    "first-3d-activation": {
+      "url": "/app",
+      "initial": {
+        "js": {
+          "total": {
+            "raw": 1348099,
+            "gzip": 424368
+          },
+          "assets": [
+            {
+              "name": "entry.client.js",
+              "raw": 305658,
+              "gzip": 96175
+            },
+            {
+              "name": "tabs.js",
+              "raw": 211357,
+              "gzip": 60478
+            },
+            {
+              "name": "flow-vendor.js",
+              "raw": 185591,
+              "gzip": 59372
+            },
+            {
+              "name": "motion-vendor.js",
+              "raw": 124379,
+              "gzip": 40120
+            },
+            {
+              "name": "renderer.js",
+              "raw": 111512,
+              "gzip": 36127
+            },
+            {
+              "name": "editor.js",
+              "raw": 99365,
+              "gzip": 29897
+            },
+            {
+              "name": "apiClient.js",
+              "raw": 50011,
+              "gzip": 16801
+            },
+            {
+              "name": "useProjects.js",
+              "raw": 52808,
+              "gzip": 16176
+            },
+            {
+              "name": "dialog.js",
+              "raw": 32245,
+              "gzip": 11062
+            },
+            {
+              "name": "authClient.js",
+              "raw": 28915,
+              "gzip": 10824
+            },
+            {
+              "name": "utils.js",
+              "raw": 27255,
+              "gzip": 8593
+            },
+            {
+              "name": "config.js",
+              "raw": 23586,
+              "gzip": 7729
+            },
+            {
+              "name": "starterDocuments.js",
+              "raw": 18945,
+              "gzip": 4716
+            },
+            {
+              "name": "root.js",
+              "raw": 9820,
+              "gzip": 3360
+            },
+            {
+              "name": "useAddLibraryMobileSheet.js",
+              "raw": 8102,
+              "gzip": 3094
+            },
+            {
+              "name": "randomConfig.js",
+              "raw": 6280,
+              "gzip": 2713
+            },
+            {
+              "name": "SiteNav.js",
+              "raw": 6805,
+              "gzip": 2179
+            },
+            {
+              "name": "constants.js",
+              "raw": 4117,
+              "gzip": 1764
+            },
+            {
+              "name": "modelAssetStore.js",
+              "raw": 5080,
+              "gzip": 1605
+            },
+            {
+              "name": "effectLayerMigration.js",
+              "raw": 5311,
+              "gzip": 1560
+            },
+            {
+              "name": "manifest.js",
+              "raw": 12043,
+              "gzip": 1556
+            },
+            {
+              "name": "noisePresets.js",
+              "raw": 4126,
+              "gzip": 1492
+            },
+            {
+              "name": "SearchField.js",
+              "raw": 3340,
+              "gzip": 1437
+            },
+            {
+              "name": "assetStore.js",
+              "raw": 3021,
+              "gzip": 1174
+            },
+            {
+              "name": "generateThumbnail.js",
+              "raw": 1213,
+              "gzip": 725
+            },
+            {
+              "name": "fields.js",
+              "raw": 1564,
+              "gzip": 697
+            },
+            {
+              "name": "feedback.js",
+              "raw": 1180,
+              "gzip": 573
+            },
+            {
+              "name": "PublicPageLayout.js",
+              "raw": 1179,
+              "gzip": 513
+            },
+            {
+              "name": "rolldown-runtime.js",
+              "raw": 901,
+              "gzip": 510
+            },
+            {
+              "name": "apiBaseUrl.js",
+              "raw": 709,
+              "gzip": 424
+            },
+            {
+              "name": "appBuildInfo.js",
+              "raw": 628,
+              "gzip": 378
+            },
+            {
+              "name": "EmptyState.js",
+              "raw": 640,
+              "gzip": 296
+            },
+            {
+              "name": "PrimitiveViewportState.js",
+              "raw": 413,
+              "gzip": 248
+            }
+          ]
+        },
+        "css": {
+          "total": {
+            "raw": 298965,
+            "gzip": 45221
+          },
+          "assets": [
+            {
+              "name": "root.css",
+              "raw": 252359,
+              "gzip": 36347
+            },
+            {
+              "name": "tabs.css",
+              "raw": 15522,
+              "gzip": 2922
+            },
+            {
+              "name": "flow-vendor.css",
+              "raw": 15395,
+              "gzip": 2518
+            },
+            {
+              "name": "primitives.css",
+              "raw": 8475,
+              "gzip": 1567
+            },
+            {
+              "name": "apiClient.css",
+              "raw": 5271,
+              "gzip": 1171
+            },
+            {
+              "name": "dialog.css",
+              "raw": 1311,
+              "gzip": 442
+            },
+            {
+              "name": "editor.css",
+              "raw": 632,
+              "gzip": 254
+            }
+          ]
+        }
+      },
+      "activation": {
+        "js": {
+          "total": {
+            "raw": 812930,
+            "gzip": 211626
+          },
+          "assets": [
+            {
+              "name": "three-vendor.js",
+              "raw": 802308,
+              "gzip": 207046
+            },
+            {
+              "name": "primitiveScene.js",
+              "raw": 7184,
+              "gzip": 2907
+            },
+            {
+              "name": "primitiveRenderer.js",
+              "raw": 2786,
+              "gzip": 1267
+            },
+            {
+              "name": "canvasRendering.js",
+              "raw": 652,
+              "gzip": 406
+            }
+          ]
+        },
+        "css": {
+          "total": {
+            "raw": 0,
+            "gzip": 0
+          },
+          "assets": []
+        }
+      }
+    }
+  }
+}

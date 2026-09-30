@@ -1,0 +1,300 @@
+{
+  "$comment": "v0.49 route loading contract. Budgets are gzip KiB of JS/CSS requested on a first visit (service worker blocked) and are v0.49 exit targets; `baseline` values come from route-loading-baseline.json at v0.48.1. Asset names are hash-free. Change budgets or exceptions only through a reviewed update to this file and route-loading-matrix.md.",
+  "version": "0.49",
+  "baselineFile": "docs/loading/route-loading-baseline.json",
+  "sharedInitial": {
+    "groups": {
+      "framework": ["entry.client.js", "rolldown-runtime.js", "manifest.js", "root.js"],
+      "publicShell": [
+        "SiteNav.js",
+        "PublicPageLayout.js",
+        "ProductPageHeader.js",
+        "authClient.js",
+        "apiBaseUrl.js",
+        "appBuildInfo.js",
+        "dialog.js",
+        "fields.js",
+        "feedback.js",
+        "utils.js"
+      ],
+      "projectData": [
+        "apiClient.js",
+        "useProjects.js",
+        "assetStore.js",
+        "modelAssetStore.js",
+        "generateThumbnail.js",
+        "effectLayerMigration.js",
+        "EmptyState.js",
+        "config.js"
+      ],
+      "editorCore": [
+        "tabs.js",
+        "SearchField.js",
+        "constants.js",
+        "noisePresets.js",
+        "randomConfig.js",
+        "starterDocuments.js",
+        "useAddLibraryMobileSheet.js",
+        "PrimitiveViewportState.js",
+        "renderer.js",
+        "motion-vendor.js"
+      ]
+    },
+    "prohibitedEverywhere": ["three-vendor.js", "node-canvas.js", "primitiveScene.js", "primitiveRenderer.js"]
+  },
+  "states": [
+    {
+      "state": "home",
+      "url": "/",
+      "owner": {
+        "shell": "public",
+        "route": "routes/home"
+      },
+      "delivery": "prerender",
+      "initial": {
+        "allowed": ["framework", "publicShell", "home.js"],
+        "prohibited": [
+          "flow-vendor.js",
+          "pixi-vendor.js",
+          "renderer.js",
+          "tabs.js",
+          "pixiFilters.js",
+          "gpuRender.js",
+          "effectPixelTransform.worker.js",
+          "config.js",
+          "effectLayerMigration.js"
+        ],
+        "budget": {
+          "jsGzipKiB": 170,
+          "cssGzipKiB": 24
+        },
+        "baseline": {
+          "jsGzipKiB": 423.6,
+          "cssGzipKiB": 38.4
+        }
+      },
+      "activation": {
+        "trigger": "Live hero artwork starts rendering after the first paint.",
+        "allowed": [
+          "renderer.js",
+          "pixi-vendor.js",
+          "pixiFilters.js",
+          "gpuRender.js",
+          "effectPixelTransform.worker.js",
+          "effectLayerMigration.js"
+        ],
+        "budget": {
+          "jsGzipKiB": 185,
+          "cssGzipKiB": 0
+        }
+      },
+      "exceptions": [
+        {
+          "asset": "motion-vendor.js",
+          "reason": "The home route animates its own sections with Framer Motion; the shared public shell must not require it."
+        }
+      ]
+    },
+    {
+      "state": "docs",
+      "url": "/docs",
+      "owner": {
+        "shell": "public",
+        "route": "routes/docs"
+      },
+      "delivery": "prerender",
+      "initial": {
+        "allowed": ["framework", "publicShell", "docs.js", "docs.shared.js"],
+        "prohibited": ["flow-vendor.js", "pixi-vendor.js", "renderer.js", "motion-vendor.js", "tabs.js", "config.js"],
+        "budget": {
+          "jsGzipKiB": 170,
+          "cssGzipKiB": 24
+        },
+        "baseline": {
+          "jsGzipKiB": 240.4,
+          "cssGzipKiB": 38.4
+        }
+      }
+    },
+    {
+      "state": "account-recovery",
+      "url": "/reset-password",
+      "owner": {
+        "shell": "public",
+        "route": "routes/reset-password"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "allowed": ["framework", "publicShell", "reset-password.js"],
+        "prohibited": ["flow-vendor.js", "pixi-vendor.js", "renderer.js", "motion-vendor.js", "tabs.js", "config.js"],
+        "budget": {
+          "jsGzipKiB": 170,
+          "cssGzipKiB": 24
+        },
+        "baseline": {
+          "jsGzipKiB": 239.6,
+          "cssGzipKiB": 38.4
+        }
+      }
+    },
+    {
+      "state": "projects",
+      "url": "/projects",
+      "owner": {
+        "shell": "account",
+        "route": "routes/projects"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "allowed": ["framework", "publicShell", "projectData", "projects.js"],
+        "prohibited": ["flow-vendor.js", "pixi-vendor.js", "motion-vendor.js", "tabs.js"],
+        "budget": {
+          "jsGzipKiB": 230,
+          "cssGzipKiB": 26
+        },
+        "baseline": {
+          "jsGzipKiB": 312.8,
+          "cssGzipKiB": 41.1
+        }
+      },
+      "exceptions": [
+        {
+          "asset": "renderer.js",
+          "reason": "Project thumbnails render stored documents through the canonical renderer."
+        }
+      ]
+    },
+    {
+      "state": "editor-layers-blank",
+      "url": "/app",
+      "document": "blank",
+      "owner": {
+        "shell": "editor",
+        "route": "routes/editor"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "allowed": ["framework", "publicShell", "projectData", "editorCore", "editor.js"],
+        "prohibited": ["flow-vendor.js", "pixi-vendor.js"],
+        "budget": {
+          "jsGzipKiB": 370,
+          "cssGzipKiB": 50
+        },
+        "baseline": {
+          "jsGzipKiB": 414.4,
+          "cssGzipKiB": 44.2
+        }
+      },
+      "exceptions": [
+        {
+          "asset": "pixi-vendor.js",
+          "reason": "Allowed as soon as the open document has a layer that needs the WebGL pass; the blank document must not load it."
+        }
+      ]
+    },
+    {
+      "state": "editor-nodes",
+      "url": "/app",
+      "document": "blank",
+      "owner": {
+        "shell": "editor",
+        "component": "NodeCanvas"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "sameAs": "editor-layers-blank"
+      },
+      "activation": {
+        "trigger": "Switch to the Nodes tab.",
+        "allowed": ["flow-vendor.js", "node-canvas.js"],
+        "budget": {
+          "jsGzipKiB": 135,
+          "cssGzipKiB": 20
+        },
+        "baseline": {
+          "jsGzipKiB": 65.4,
+          "cssGzipKiB": 12.8
+        }
+      }
+    },
+    {
+      "state": "style-guide",
+      "url": "/docs/style-guide",
+      "owner": {
+        "shell": "public",
+        "route": "routes/docs.style-guide"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "allowed": ["framework", "publicShell", "projectData", "editorCore", "docs.style-guide.js"],
+        "prohibited": ["pixi-vendor.js", "three-vendor.js"],
+        "budget": {
+          "jsGzipKiB": 360,
+          "cssGzipKiB": 65
+        },
+        "baseline": {
+          "jsGzipKiB": 402.4,
+          "cssGzipKiB": 60.4
+        }
+      },
+      "exceptions": [
+        {
+          "asset": "node-canvas.js",
+          "reason": "Live specimens render real editor, inspector, and node-canvas patterns."
+        },
+        {
+          "asset": "flow-vendor.js",
+          "reason": "Node-canvas specimens use React Flow directly."
+        }
+      ]
+    },
+    {
+      "state": "first-3d-activation",
+      "url": "/app",
+      "document": "blank",
+      "owner": {
+        "shell": "editor",
+        "component": "primitive scene renderer"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "sameAs": "editor-layers-blank"
+      },
+      "activation": {
+        "trigger": "Add a Primitive layer from the Layers Add Library.",
+        "allowed": ["three-vendor.js", "primitiveScene.js", "primitiveRenderer.js", "canvasRendering.js"],
+        "budget": {
+          "jsGzipKiB": 215,
+          "cssGzipKiB": 5
+        },
+        "baseline": {
+          "jsGzipKiB": 206.7,
+          "cssGzipKiB": 0
+        }
+      }
+    }
+  ],
+  "delivery": {
+    "prerender": ["/", "/docs", "/docs/nodes", "/docs/recipes", "/docs/reference"],
+    "spaFallback": [
+      "/app",
+      "/projects",
+      "/reset-password",
+      "/showcase",
+      "/examples",
+      "/docs/style-guide",
+      "/docs/reference/:nodeId",
+      "*"
+    ],
+    "deferredCandidates": [
+      {
+        "path": "/docs/reference/:nodeId",
+        "reason": "Finite node set could be enumerated for prerendering; left on the SPA fallback for v0.49."
+      },
+      {
+        "path": "/showcase",
+        "reason": "The wall loads projects incrementally at runtime; only a static shell could be prerendered."
+      }
+    ]
+  }
+}
