@@ -173,9 +173,13 @@ listed as prohibited in `rootGraph` in the contract.
 
 Route families own their composition without layout routes, so URLs are
 unchanged: public, docs, account recovery, showcase, and Projects routes render
-`PublicPageLayout` themselves; the editor renders its own shell. The root error
-boundary loads `PublicPageLayout` only when it has to show a recovery page and
-shows the recovery content immediately while it loads.
+`PublicPageLayout` themselves; the editor renders its own shell. Unknown paths
+match the catch-all `routes/not-found` route, which renders the not-found page
+inside `Root`: the SPA shell is rendered with `Root`, so replacing it through
+the root error boundary made direct visits fail hydration (React #418). The
+root error boundary now handles only thrown errors; it loads `PublicPageLayout`
+only when it has to show a recovery page and shows the recovery content
+immediately while it loads.
 
 ## Delivery
 
