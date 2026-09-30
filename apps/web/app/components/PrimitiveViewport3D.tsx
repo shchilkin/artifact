@@ -297,8 +297,8 @@ function resizePrimitiveRenderer(root: HTMLElement, refs: PrimitiveSceneRefs, re
 
 function commitPrimitiveGesture(
   viewStateRef: MutableRefObject<PrimitiveViewportState>,
-  onViewStateDraftRef: MutableRefObject<Props['onViewStateDraft']>,
-  onViewStateChangeRef: MutableRefObject<Props['onViewStateChange']>,
+  onViewStateDraftRef: MutableRefObject<PrimitiveViewport3DProps['onViewStateDraft']>,
+  onViewStateChangeRef: MutableRefObject<PrimitiveViewport3DProps['onViewStateChange']>,
 ) {
   const next = { ...viewStateRef.current };
   onViewStateDraftRef.current?.(next);
@@ -328,8 +328,8 @@ function usePrimitiveGestureListeners({
   lockedRef: MutableRefObject<boolean>;
   dragStateRef: MutableRefObject<ViewportDragState | null>;
   isHoveredRef: MutableRefObject<boolean>;
-  onViewStateDraftRef: MutableRefObject<Props['onViewStateDraft']>;
-  onViewStateChangeRef: MutableRefObject<Props['onViewStateChange']>;
+  onViewStateDraftRef: MutableRefObject<PrimitiveViewport3DProps['onViewStateDraft']>;
+  onViewStateChangeRef: MutableRefObject<PrimitiveViewport3DProps['onViewStateChange']>;
   applyDraftViewState: (next: PrimitiveViewportState) => void;
   flushPendingWheelCommit: () => void;
   scheduleWheelCommit: () => void;
@@ -494,7 +494,11 @@ function handlePrimitiveKeyDown({
   applyKeyboardViewportState(next, applyViewState, onViewStateChange);
 }
 
-function notifyPrimitiveHover(interactive: boolean, onHoverChange: Props['onHoverChange'], hovered: boolean) {
+function notifyPrimitiveHover(
+  interactive: boolean,
+  onHoverChange: PrimitiveViewport3DProps['onHoverChange'],
+  hovered: boolean,
+) {
   if (interactive) onHoverChange?.(hovered);
 }
 
@@ -519,7 +523,7 @@ function PrimitiveViewportShell({
   hasRenderedFrame: boolean;
   webglUnavailable: boolean;
   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
-  onHoverChange?: Props['onHoverChange'];
+  onHoverChange?: PrimitiveViewport3DProps['onHoverChange'];
 }) {
   const status = resolveViewport3DStatus({ hasRenderedFrame, unavailable: webglUnavailable });
 

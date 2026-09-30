@@ -60,7 +60,7 @@ function createIdempotencyKey() {
   return globalThis.crypto?.randomUUID?.() ?? `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
-function jobIsActive(job: AiGenerationJob | null) {
+function jobIsActive(job: AiGenerationJob | null): job is AiGenerationJob {
   return job?.status === 'queued' || job?.status === 'running';
 }
 
@@ -213,14 +213,14 @@ function decodeBearerPayload(encodedPayload: string) {
   }
 }
 
-function debugClaim(value: unknown) {
+function debugClaim(value: unknown): string | null {
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return String(value);
   return debugArrayClaim(value);
 }
 
-function debugArrayClaim(value: unknown) {
+function debugArrayClaim(value: unknown): string | null {
   if (!Array.isArray(value)) return null;
   return value.flatMap((item) => debugClaim(item) ?? []).join(',') || null;
 }
@@ -402,7 +402,7 @@ function GenerationDiagnostics({
 type AccessCheckState = {
   state: 'idle' | 'checking' | 'success' | 'failed';
   checkedAt?: string;
-  message?: string;
+  message?: string | null;
   hasBearerToken?: boolean;
 };
 
@@ -905,7 +905,7 @@ function GenerationFeedback({
 }: {
   busy: boolean;
   job: AiGenerationJob | null;
-  status: string | null;
+  status: string | null | undefined;
 }) {
   if (!status) return null;
   const loading = busy || jobIsActive(job);

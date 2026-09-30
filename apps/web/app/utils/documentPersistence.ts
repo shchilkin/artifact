@@ -11,8 +11,13 @@ import {
   DEFAULT_GLOBAL,
   DOCUMENT_SCHEMA_VERSION,
   type EffectLayer,
+  type GraphEnvironmentNode,
+  type GraphGrimeShadowNode,
   type GraphMaterialNode,
+  type GraphRepeatNode,
+  type GraphScene3DNode,
   type GraphShaderNode,
+  type GraphTransformNode,
   type Layer,
   LEGACY_SHADER_KINDS,
   type MaterialConfig,
@@ -153,10 +158,17 @@ function normalizeMaterialPatch<T extends Partial<MaterialConfig>>(value: T): T 
   return patch;
 }
 
+type GraphArrayKey = {
+  [K in keyof CanvasGraph]-?: NonNullable<CanvasGraph[K]> extends readonly unknown[] ? K : never;
+}[keyof CanvasGraph];
+
+/** Stored graph node from an older schema that may be missing fields added later. */
+type StoredGraphNode<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
 function normalizeGraph(value: unknown): CanvasGraph | undefined {
   if (!isRecord(value)) return undefined;
-  const arrayField = <K extends keyof CanvasGraph>(key: K) =>
-    Array.isArray(value[key]) ? (value[key] as CanvasGraph[K]) : ([] as CanvasGraph[K]);
+  const arrayField = <K extends GraphArrayKey>(key: K) =>
+    (Array.isArray(value[key]) ? value[key] : []) as NonNullable<CanvasGraph[K]>;
   return {
     edges: arrayField('edges'),
     positions: isRecord(value.positions) ? (value.positions as CanvasGraph['positions']) : {},
@@ -184,8 +196,8 @@ function normalizeGraph(value: unknown): CanvasGraph | undefined {
   };
 }
 
-function normalizeShaderNodes(nodes: CanvasGraph['shaderNodes']): GraphShaderNode[] {
-  return (nodes ?? []).filter(isRecord).map((node) => {
+function normalizeShaderNodes(nodes: readonly unknown[]): GraphShaderNode[] {
+  return nodes.filter(isRecord).map((node) => {
     const shaderKind = normalizeShaderKind(node.shaderKind);
     const id = String(node.id ?? `shader-${Date.now()}`);
     const role =
@@ -225,76 +237,122 @@ function normalizeShaderNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
-function normalizeRepeatNodes(nodes: CanvasGraph['repeatNodes']) {
-  return nodes.map((node) => ({
-    rotationMode: 'fixed',
-    rotationStep: 0,
-    rotationJitter: 0,
-    seedOffset: 0,
-    ...node,
-  }));
+function normalizeRepeatNodes(
+  nodes: StoredGraphNode<GraphRepeatNode, 'rotationMode' | 'rotationStep' | 'rotationJitter' | 'seedOffset'>[],
+): GraphRepeatNode[] {
+  return nodes.map(
+    (node): GraphRepeatNode => ({
+      rotationMode: 'fixed',
+      rotationStep: 0,
+      rotationJitter: 0,
+      seedOffset: 0,
+      ...node,
+    }),
+  );
 }
 
-function normalizeTransformNodes(nodes: CanvasGraph['transformNodes']) {
-  return nodes.map((node) => ({
-    x: 0,
-    y: 0,
-    scaleX: 100,
-    scaleY: 100,
-    uniformScale: true,
-    rotation: 0,
-    pivotMode: 'canvas',
-    opacity: 100,
-    ...node,
-  }));
+function normalizeTransformNodes(
+  nodes: StoredGraphNode<
+    GraphTransformNode,
+    'x' | 'y' | 'scaleX' | 'scaleY' | 'uniformScale' | 'rotation' | 'pivotMode' | 'opacity'
+  >[],
+): GraphTransformNode[] {
+  return nodes.map(
+    (node): GraphTransformNode => ({
+      x: 0,
+      y: 0,
+      scaleX: 100,
+      scaleY: 100,
+      uniformScale: true,
+      rotation: 0,
+      pivotMode: 'canvas',
+      opacity: 100,
+      ...node,
+    }),
+  );
 }
 
-function normalizeGrimeShadowNodes(nodes: CanvasGraph['grimeShadowNodes']) {
-  return nodes.map((node) => ({
-    x: 8,
-    y: 10,
-    layers: 5,
-    blur: 10,
-    spread: 14,
-    grime: 45,
-    jitter: 10,
-    opacity: 58,
-    color: '#090606',
-    seedOffset: 0,
-    shadowOnly: false,
-    ...node,
-  }));
+function normalizeGrimeShadowNodes(
+  nodes: StoredGraphNode<
+    GraphGrimeShadowNode,
+    'x' | 'y' | 'layers' | 'blur' | 'spread' | 'grime' | 'jitter' | 'opacity' | 'color' | 'seedOffset' | 'shadowOnly'
+  >[],
+): GraphGrimeShadowNode[] {
+  return nodes.map(
+    (node): GraphGrimeShadowNode => ({
+      x: 8,
+      y: 10,
+      layers: 5,
+      blur: 10,
+      spread: 14,
+      grime: 45,
+      jitter: 10,
+      opacity: 58,
+      color: '#090606',
+      seedOffset: 0,
+      shadowOnly: false,
+      ...node,
+    }),
+  );
 }
 
-function normalizeScene3DNodes(nodes: CanvasGraph['scene3dNodes']) {
-  return nodes.map((node) => ({
-    environmentSrc: '',
-    environmentName: '',
-    environmentMime: '',
-    environmentBytes: 0,
-    materialMode: 'original',
-    transparent: true,
-    exposure: 100,
-    environmentStrength: 100,
-    environmentRotation: 0,
-    ambientIntensity: 115,
-    keyAzimuth: 38,
-    keyElevation: 42,
-    keyIntensity: 145,
-    fillIntensity: 65,
-    rimIntensity: 55,
-    ...node,
-  }));
+function normalizeScene3DNodes(
+  nodes: StoredGraphNode<
+    GraphScene3DNode,
+    | 'environmentSrc'
+    | 'environmentName'
+    | 'environmentMime'
+    | 'environmentBytes'
+    | 'materialMode'
+    | 'transparent'
+    | 'exposure'
+    | 'environmentStrength'
+    | 'environmentRotation'
+    | 'ambientIntensity'
+    | 'keyAzimuth'
+    | 'keyElevation'
+    | 'keyIntensity'
+    | 'fillIntensity'
+    | 'rimIntensity'
+  >[],
+): GraphScene3DNode[] {
+  return nodes.map(
+    (node): GraphScene3DNode => ({
+      environmentSrc: '',
+      environmentName: '',
+      environmentMime: '',
+      environmentBytes: 0,
+      materialMode: 'original',
+      transparent: true,
+      exposure: 100,
+      environmentStrength: 100,
+      environmentRotation: 0,
+      ambientIntensity: 115,
+      keyAzimuth: 38,
+      keyElevation: 42,
+      keyIntensity: 145,
+      fillIntensity: 65,
+      rimIntensity: 55,
+      ...node,
+    }),
+  );
 }
 
-function normalizeEnvironmentNodes(nodes: CanvasGraph['environmentNodes']) {
-  return nodes.map((node) => ({
-    environmentSrc: '',
-    environmentName: '',
-    environmentMime: '',
-    environmentBytes: 0,
-    ...node,
-  }));
+function normalizeEnvironmentNodes(
+  nodes: StoredGraphNode<
+    GraphEnvironmentNode,
+    'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'
+  >[],
+): GraphEnvironmentNode[] {
+  return nodes.map(
+    (node): GraphEnvironmentNode => ({
+      environmentSrc: '',
+      environmentName: '',
+      environmentMime: '',
+      environmentBytes: 0,
+      ...node,
+    }),
+  );
 }
 
 function normalizePortableFontAssets(value: unknown): PortableFontAsset[] | undefined {

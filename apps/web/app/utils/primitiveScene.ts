@@ -96,7 +96,7 @@ export function primitiveLayerMaterialConfig(layer: PrimitiveLayer): ResolvedMat
 }
 
 export function materialValue(value: number | undefined, fallback: number): number {
-  return clamp(Number.isFinite(value) ? value : fallback, 0, 1);
+  return clamp(value !== undefined && Number.isFinite(value) ? value : fallback, 0, 1);
 }
 
 function nextNoise(seed: { value: number }) {

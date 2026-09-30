@@ -102,7 +102,7 @@ export function inspectDocumentDependencies(doc: CanvasDocument): DocumentDepend
   return {
     importedImageRefs: unique(imageSources.filter(isAssetUri)),
     importedFontRefs: unique(
-      doc.layers.filter((layer) => layer.kind === 'text' && isFontUri(layer.font)).map((layer) => layer.font),
+      doc.layers.flatMap((layer) => (layer.kind === 'text' && isFontUri(layer.font) ? [layer.font] : [])),
     ),
     importedModelRefs: unique(modelSources.filter(isModelUri)),
     importedEnvironmentRefs: unique(environmentSources.filter(isEnvironmentUri)),

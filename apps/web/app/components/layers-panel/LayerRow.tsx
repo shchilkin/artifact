@@ -262,7 +262,7 @@ function LayerStatusMeta({ layer }: Pick<LayerRowProps, 'layer'>) {
 function LayerAiStatusBadge({ layer }: { layer: ImageLayer }) {
   const aiState = getAiGenerationUiState(layer.aiGeneration);
   const aiStatusLabel = getAiGenerationStatusLabel(layer.aiGeneration);
-  if (shouldHideAiStatusBadge(aiState, aiStatusLabel)) return null;
+  if (!aiStatusLabel || shouldHideAiStatusBadge(aiState, aiStatusLabel)) return null;
   return (
     <span className={`layer-ai-status layer-ai-status-${aiState}`} title={aiStatusLabel}>
       <LayerAiStatusSpinner state={aiState} />

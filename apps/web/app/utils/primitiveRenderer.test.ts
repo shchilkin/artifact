@@ -1,10 +1,16 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 
-import { makeGraphMaterialNode, makeSourceLayer } from '../types/config';
+import { makeGraphMaterialNode, makeSourceLayer, type PrimitiveLayer } from '../types/config';
 import { primitiveRendererTestInternals, renderPrimitiveToCanvas } from './primitiveRenderer';
 import { createPrimitiveMaterial } from './primitiveScene';
 import { measureAlphaBounds } from './render/alphaBounds';
+
+function makePrimitiveLayer(partial: Parameters<typeof makeSourceLayer>[1] = {}): PrimitiveLayer {
+  const layer = makeSourceLayer('primitive', partial);
+  if (layer.kind !== 'primitive') throw new Error(`Expected primitive layer, got ${layer.kind}`);
+  return layer;
+}
 
 function hasVisiblePixels(canvas: HTMLCanvasElement): boolean {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
@@ -21,7 +27,7 @@ function visibleBounds(canvas: HTMLCanvasElement): { width: number; height: numb
 
 describe('renderPrimitiveToCanvas', () => {
   it('returns visible fallback pixels when WebGL is unavailable', async () => {
-    const canvas = await renderPrimitiveToCanvas(makeSourceLayer('primitive'), 64);
+    const canvas = await renderPrimitiveToCanvas(makePrimitiveLayer(), 64);
 
     expect(canvas.width).toBe(64);
     expect(canvas.height).toBe(64);
@@ -29,21 +35,16 @@ describe('renderPrimitiveToCanvas', () => {
   });
 
   it('can bypass WebGL for draft preview fallback rendering', async () => {
-    const canvas = await renderPrimitiveToCanvas(
-      makeSourceLayer('primitive', { primitiveShape: 'cube' }),
-      64,
-      undefined,
-      {
-        forceFallback: true,
-      },
-    );
+    const canvas = await renderPrimitiveToCanvas(makePrimitiveLayer({ primitiveShape: 'cube' }), 64, undefined, {
+      forceFallback: true,
+    });
 
     expect(hasVisiblePixels(canvas)).toBe(true);
   });
 
   it('supports rectangular primitive render targets for aspect-aware previews', async () => {
     const canvas = await renderPrimitiveToCanvas(
-      makeSourceLayer('primitive', { primitiveShape: 'sphere' }),
+      makePrimitiveLayer({ primitiveShape: 'sphere' }),
       { width: 96, height: 54 },
       undefined,
       { forceFallback: true },
@@ -95,7 +96,7 @@ describe('renderPrimitiveToCanvas', () => {
     const normal = makeTextureCanvas();
     const alpha = makeTextureCanvas();
 
-    const material = createPrimitiveMaterial(makeSourceLayer('primitive'), makeGraphMaterialNode(), 'shaded', {
+    const material = createPrimitiveMaterial(makePrimitiveLayer(), makeGraphMaterialNode(), 'shaded', {
       albedo,
       roughness,
       metalness,

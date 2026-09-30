@@ -54,7 +54,7 @@ export function useEditorProjectsController({
     [activeProjectBinding, projects],
   );
   const projectSaveState: ProjectSaveState =
-    activeProject && activeProjectBinding.savedFingerprint === activeDocumentFingerprint
+    activeProject && activeProjectBinding?.savedFingerprint === activeDocumentFingerprint
       ? 'saved'
       : activeProject
         ? 'unsaved'

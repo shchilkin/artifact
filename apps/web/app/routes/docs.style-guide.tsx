@@ -34,7 +34,6 @@ import {
   BlendModeNote,
   FontPicker,
   InspectorColorInput,
-  InspectorLabel,
   InspectorSection,
   InspectorSelect,
   InspectorSlider,
@@ -130,6 +129,7 @@ const layers: Layer[] = [
     font: 'DISPLAY',
     size: 96,
     color: '#f4eadc',
+    align: 'center',
     x: 0.5,
     y: 0.5,
     rotation: 0,
@@ -138,17 +138,12 @@ const layers: Layer[] = [
     opacity: 100,
     blendMode: 'normal',
   },
-  {
+  makeEffectPresetLayer('grain', {
     id: 'style-layer-hidden',
     name: 'Hidden grain',
     visible: false,
-    locked: false,
-    kind: 'effect',
-    preset: 'grain',
     value: 55,
-    opacity: 100,
-    blendMode: 'normal',
-  },
+  }),
   {
     id: 'style-layer-locked',
     name: 'Locked print wash',
@@ -1094,7 +1089,6 @@ function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_
         collisionAdjusted={state === 'collision-adjusted'}
         mobile={state === 'mobile-sheet'}
         openMethod={openMethod}
-        preventOpenAutoFocus={state === 'open'}
         align={state === 'collision-adjusted' ? 'end' : 'start'}
         title={`${label} overlay`}
         description="Choose an editor action."
@@ -1303,14 +1297,8 @@ function InspectorFieldSpecimens() {
         open={sectionOpen}
         onToggle={() => setSectionOpen((open) => !open)}
       >
-        <div className="artifact-inspector-control">
-          <InspectorLabel>Title</InspectorLabel>
-          <InspectorTextInput value={title} placeholder="Cover title" onChange={setTitle} />
-        </div>
-        <div className="artifact-inspector-control">
-          <InspectorLabel>Caption</InspectorLabel>
-          <InspectorTextArea value={caption} onChange={setCaption} />
-        </div>
+        <InspectorTextInput label="Title" value={title} placeholder="Cover title" onChange={setTitle} />
+        <InspectorTextArea label="Caption" value={caption} onChange={setCaption} />
         <FontPicker label="Font" value={font} onChange={setFont} />
         <InspectorSlider
           label="Opacity"
@@ -1364,6 +1352,12 @@ function NodePropertiesPanelSpecimens() {
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
           onUpdateMaterialNode={noop}
+          onUpdateMaskNode={noop}
+          onUpdateTransformNode={noop}
+          onUpdateGrimeShadowNode={noop}
+          onUpdateScene3DNode={noop}
+          onUpdateEnvironmentNode={noop}
+          onUpdateShaderNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -1382,6 +1376,12 @@ function NodePropertiesPanelSpecimens() {
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
           onUpdateMaterialNode={noop}
+          onUpdateMaskNode={noop}
+          onUpdateTransformNode={noop}
+          onUpdateGrimeShadowNode={noop}
+          onUpdateScene3DNode={noop}
+          onUpdateEnvironmentNode={noop}
+          onUpdateShaderNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -1400,6 +1400,12 @@ function NodePropertiesPanelSpecimens() {
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
           onUpdateMaterialNode={noop}
+          onUpdateMaskNode={noop}
+          onUpdateTransformNode={noop}
+          onUpdateGrimeShadowNode={noop}
+          onUpdateScene3DNode={noop}
+          onUpdateEnvironmentNode={noop}
+          onUpdateShaderNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -1418,6 +1424,12 @@ function NodePropertiesPanelSpecimens() {
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
           onUpdateMaterialNode={noop}
+          onUpdateMaskNode={noop}
+          onUpdateTransformNode={noop}
+          onUpdateGrimeShadowNode={noop}
+          onUpdateScene3DNode={noop}
+          onUpdateEnvironmentNode={noop}
+          onUpdateShaderNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}

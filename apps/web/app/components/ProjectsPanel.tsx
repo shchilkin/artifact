@@ -528,7 +528,9 @@ function ProjectCard({
         onDelete={() => onDelete(project.id)}
         onLoad={loadProject}
         onSaveToCloud={
-          shouldShowSaveToCloud(project, syncState, onSaveToCloud) ? () => onSaveToCloud(project) : undefined
+          onSaveToCloud && shouldShowSaveToCloud(project, syncState, onSaveToCloud)
+            ? () => onSaveToCloud(project)
+            : undefined
         }
         syncState={syncState}
       />
