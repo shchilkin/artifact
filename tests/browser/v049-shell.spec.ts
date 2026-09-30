@@ -31,6 +31,12 @@ for (const route of DIRECT_ROUTES) {
 
 test('client navigation between public routes keeps the same document', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1024 });
+  // Visit each route once first: on a cold dev server, Vite may reload the page while it optimizes a
+  // route's dependencies, which would look like a lost document rather than client navigation.
+  for (const path of ['/docs', '/showcase', '/projects']) {
+    await page.goto(path);
+    await expect(page.getByRole('navigation', { name: 'Site navigation' })).toBeVisible({ timeout: 15_000 });
+  }
   await page.goto('/');
   await page.evaluate(() => {
     (window as unknown as { __artifactShellMarker?: string }).__artifactShellMarker = 'kept';

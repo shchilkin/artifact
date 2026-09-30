@@ -268,7 +268,8 @@ const BENIGN_BROWSER_TEST_SUBSTRINGS = [
   'Failed to load resource: A server with the specified hostname could not be found.',
   'Failed to load resource: net::ERR_NAME_NOT_RESOLVED',
   'Outdated Optimize Dep',
-  'Error loading route module `/app/routes/editor.tsx`, reloading page',
+  // A cold dev server reloads the page while Vite optimizes a route's dependencies on first visit.
+  'Error loading route module `/app/routes/',
   'Importing a module script failed',
   'Failed to fetch dynamically imported module: http://127.0.0.1:4173/node_modules/.vite/deps/',
   'Failed to fetch dynamically imported module: http://127.0.0.1:4173/@fs/Users/shchilkin/dev/album-cover-utils/node_modules/@react-router/dev/dist/config/defaults/entry.client.tsx',
@@ -276,7 +277,6 @@ const BENIGN_BROWSER_TEST_SUBSTRINGS = [
   'error loading dynamically imported module: http://127.0.0.1:4173/',
   'due to access control checks',
   'NS_BINDING_ABORTED',
-  'Error loading route module `/app/routes/showcase.tsx`, reloading page',
   'Cannot update a component (`NodeThumbnail`) while rendering a different component (`PerfMetric`)',
   'ResizeObserver loop completed with undelivered notifications',
   "WebGL: INVALID_OPERATION: texImage3D: FLIP_Y or PREMULTIPLY_ALPHA isn't allowed for uploading 3D textures",
