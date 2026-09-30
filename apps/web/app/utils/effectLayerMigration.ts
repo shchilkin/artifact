@@ -161,6 +161,7 @@ export function splitEffectPatchIntoPresetLayers(
       id: options.idPrefix ? `${options.idPrefix}-${rule.preset}-${index}` : layer.id,
       visible: source.visible ?? layer.visible,
       locked: source.locked ?? layer.locked,
+      ...(source.blendMode ? { blendMode: source.blendMode } : {}),
     };
   });
 }

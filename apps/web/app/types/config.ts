@@ -359,7 +359,7 @@ export type EffectPreset =
 export interface EffectLayer extends BaseLayer {
   kind: 'effect';
   preset?: EffectPreset; // which preset created this layer (drives panel icon)
-  /** Set by the effect inspector's Blend control; not read by the renderer yet. */
+  /** Composites the effect result over its input; defaults to normal (replace). */
   blendMode?: string;
   maskAlpha: boolean;
   grain: number;
