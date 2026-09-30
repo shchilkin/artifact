@@ -1,3 +1,4 @@
+import './styles/home.css';
 import { ButtonLink } from '@artifact/ui';
 import { useReducedMotion } from 'framer-motion';
 import { type RefObject, useEffect, useRef, useState } from 'react';

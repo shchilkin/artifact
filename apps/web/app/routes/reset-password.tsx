@@ -1,3 +1,4 @@
+import './styles/reset-password.css';
 import { Button, ButtonLink, Field, InlineNotice, Input } from '@artifact/ui';
 import { useCallback, useMemo, useState } from 'react';
 import type { MetaFunction } from 'react-router';

@@ -1,3 +1,4 @@
+import './styles/docs.css';
 import { Link, type MetaFunction } from 'react-router';
 import { DocsShell } from './docs.shared';
 

@@ -1,0 +1,238 @@
+/* Showcase page. Loaded through the route entries in routes/styles/. */
+
+/* ─── SHOWCASE MOSAIC ──────────────── */
+
+.showcase-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: clamp(48px, 7vw, 80px) clamp(14px, 4vw, 48px) clamp(32px, 5vw, 56px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(20px, 3vw, 32px);
+}
+
+.showcase-library {
+  display: grid;
+  gap: 0;
+}
+
+/* Showcase mosaic: flex columns distributed in JS. New items append at column bottoms. */
+
+.showcase-mosaic {
+  display: flex;
+  gap: clamp(10px, 1.4vw, 18px);
+  align-items: flex-start;
+}
+
+.showcase-mosaic__col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.4vw, 18px);
+}
+
+.showcase-tile {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+  text-align: left;
+}
+
+.showcase-tile:focus-visible .showcase-tile__frame {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.showcase-tile__frame {
+  position: relative;
+  width: 100%;
+  background: oklch(12% 0.01 42);
+  overflow: hidden;
+  outline: 1px solid oklch(18% 0.012 42);
+  outline-offset: 0;
+  transition:
+    outline-color 180ms ease-out,
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.showcase-tile:hover .showcase-tile__frame {
+  outline-color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+.showcase-tile__img,
+.showcase-tile__loading {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.showcase-tile__loading {
+  position: absolute;
+  inset: 0;
+  background: oklch(14% 0.01 42);
+  animation: showcase-pulse 2.4s ease-in-out infinite;
+}
+
+.showcase-tile__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    oklch(4% 0.005 42 / 0.96) 0%,
+    oklch(4% 0.005 42 / 0.7) 32%,
+    oklch(4% 0.005 42 / 0.18) 58%,
+    transparent 75%
+  );
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: clamp(10px, 1.4vw, 16px);
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+  pointer-events: none;
+}
+
+.showcase-tile:hover .showcase-tile__overlay,
+.showcase-tile:focus-visible .showcase-tile__overlay {
+  opacity: 1;
+}
+
+.showcase-tile__seed {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.showcase-tile__name {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(16px, 2vw, 24px);
+  text-transform: uppercase;
+  color: var(--text-primary);
+  line-height: 1.1;
+  margin: 0;
+}
+
+.showcase-tile__cta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent-primary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.showcase-sentinel {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  justify-content: center;
+  padding: 40px 0 16px;
+  min-height: 64px;
+}
+
+.showcase-loading {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .showcase-tile__loading {
+    animation: none;
+  }
+  .showcase-tile__overlay {
+    transition: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .showcase-tile__overlay {
+    opacity: 1;
+  }
+}
+
+.showcase-route {
+  overflow-x: clip;
+}
+
+.showcase-route .showcase-main {
+  padding-top: clamp(96px, 12vw, 168px);
+}
+
+.showcase-route .product-page-header {
+  width: min(1120px, calc(100vw - var(--space-8)));
+  margin: 0 auto clamp(var(--space-8), 7vw, 88px);
+}
+
+.showcase-route .product-page-header__copy h1 {
+  max-width: 12ch;
+}
+
+.showcase-tile-wrap {
+  min-width: 0;
+}
+
+.showcase-tile__error {
+  position: absolute;
+  inset: var(--space-3);
+  display: flex;
+  align-items: flex-end;
+  border: 1px dashed var(--state-warning);
+  background: color-mix(in oklch, var(--state-warning) 8%, var(--surface-card));
+  color: var(--state-warning);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-xs);
+  letter-spacing: var(--tracking-meta);
+  padding: var(--space-3);
+  text-transform: uppercase;
+}
+
+.showcase-loading {
+  width: min(360px, 100%);
+  display: grid;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-xs);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+}
+
+.showcase-empty-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-sm);
+  padding: 0 var(--space-4);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+@keyframes showcase-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

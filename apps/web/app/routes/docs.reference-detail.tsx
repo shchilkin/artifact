@@ -1,3 +1,4 @@
+import './styles/docs.reference-detail.css';
 import { ButtonLink } from '@artifact/ui';
 import { type MetaFunction, useParams } from 'react-router';
 import { ALL_NODES, NodePoster, nodeTypeLabel } from './docs.nodes';

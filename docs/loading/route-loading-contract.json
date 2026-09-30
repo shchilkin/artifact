@@ -5,8 +5,8 @@
   "currentFile": "docs/loading/route-loading-current.json",
   "enforcement": {
     "jsBudgets": true,
-    "cssBudgets": false,
-    "$comment": "CSS budgets are targets until #240 splits the global stylesheet by route owner; that issue turns cssBudgets on."
+    "cssBudgets": true,
+    "$comment": "Both budgets are enforced. CSS budgets apply since #240 split the global stylesheet by route owner."
   },
   "families": {
     "react": "react, react-dom, scheduler",

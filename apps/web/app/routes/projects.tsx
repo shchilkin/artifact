@@ -1,3 +1,4 @@
+import './styles/projects.css';
 import { ButtonLink, InlineNotice, Skeleton } from '@artifact/ui';
 import { useMemo, useState } from 'react';
 import type { MetaFunction } from 'react-router';

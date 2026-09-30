@@ -1,0 +1,14 @@
+/* Surface styles for /app. editor.tsx imports this file first, so the rules
+   stay in its route chunk and precede shared component CSS (the order they had
+   in the global stylesheet). Each route keeps its own entry file: a shared
+   entry would be split into a common chunk whose load order is not fixed. */
+@import "../../components/editor-target/editor-target.css";
+@import "../../components/node-canvas/panel/node-properties-panel.css";
+@import "../../components/storage-workspace-status.css";
+@import "../editor/empty-canvas-start.css";
+@import "../../components/layers-panel/layers-panel.css";
+@import "../editor/editor.css";
+@import "../../components/node-canvas/inspector/inspector.css";
+@import "../../components/ai-generation-panel.css";
+@import "../../components/projects-panel.css";
+@import "../../components/effect-info-popup.css";

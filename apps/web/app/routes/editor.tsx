@@ -1,3 +1,4 @@
+import './styles/editor.css';
 import { Button, IconButton } from '@artifact/ui';
 import { AnimatePresence } from 'framer-motion';
 import { lazy, type RefObject, Suspense, useCallback, useRef, useState } from 'react';

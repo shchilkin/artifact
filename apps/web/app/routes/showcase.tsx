@@ -1,3 +1,4 @@
+import './styles/showcase.css';
 import { Button, ProgressIndicator, Skeleton } from '@artifact/ui';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
