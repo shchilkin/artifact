@@ -1,15 +1,19 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import type { MetaFunction } from 'react-router';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import type { Route } from './+types/root';
 import './index.css';
 import './styles/product-surfaces.css';
 import { ArtifactAuthProvider } from './components/ArtifactAuthProvider';
-import { PublicPageLayout } from './components/PublicPageLayout';
 import { RouteRecovery } from './components/product-surfaces/RouteRecovery';
-import { GOOGLE_FONT_STYLESHEET_URL } from './types/config';
+import { GOOGLE_FONT_STYLESHEET_URL } from './types/typography';
 import { getAppBuildInfo, logAppBuildInfo } from './utils/appBuildInfo';
 import { registerArtifactServiceWorker } from './utils/pwaRegistration';
+
+// Public navigation is route-owned; the root loads it only when it has to render a recovery page.
+const PublicPageLayout = lazy(() =>
+  import('./components/PublicPageLayout').then((module) => ({ default: module.PublicPageLayout })),
+);
 
 // Default title/description — route-level meta() overrides these via <Meta />
 export const meta: MetaFunction = () => [
@@ -123,25 +127,29 @@ function getErrorBoundaryView(error: Route.ErrorBoundaryProps['error']) {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const { eyebrow, message, details, stack } = getErrorBoundaryView(error);
 
+  const recovery = (
+    <main className="product-route-main">
+      <RouteRecovery
+        eyebrow={eyebrow}
+        title={message}
+        detail={details}
+        diagnostics={
+          stack ? (
+            <details>
+              <summary>Development details</summary>
+              <pre>
+                <code>{stack}</code>
+              </pre>
+            </details>
+          ) : null
+        }
+      />
+    </main>
+  );
+
   return (
-    <PublicPageLayout className="product-route-layout">
-      <main className="product-route-main">
-        <RouteRecovery
-          eyebrow={eyebrow}
-          title={message}
-          detail={details}
-          diagnostics={
-            stack ? (
-              <details>
-                <summary>Development details</summary>
-                <pre>
-                  <code>{stack}</code>
-                </pre>
-              </details>
-            ) : null
-          }
-        />
-      </main>
-    </PublicPageLayout>
+    <Suspense fallback={recovery}>
+      <PublicPageLayout className="product-route-layout">{recovery}</PublicPageLayout>
+    </Suspense>
   );
 }
