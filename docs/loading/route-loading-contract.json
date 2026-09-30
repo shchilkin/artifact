@@ -296,5 +296,27 @@
         "reason": "The wall loads projects incrementally at runtime; only a static shell could be prerendered."
       }
     ]
+  },
+  "rootGraph": {
+    "$comment": "Static imports of the root route (manifest `routes.root.imports`). Anything a route family owns must not appear here.",
+    "allowed": [
+      "rolldown-runtime.js",
+      "entry.client.js",
+      "authClient.js",
+      "apiBaseUrl.js",
+      "appBuildInfo.js",
+      "typography.js",
+      "commands.js"
+    ],
+    "prohibited": [
+      "SiteNav.js",
+      "PublicPageLayout.js",
+      "AccountPanel.js",
+      "dialog.js",
+      "fields.js",
+      "feedback.js",
+      "config.js",
+      "motion-vendor.js"
+    ]
   }
 }

@@ -69,7 +69,23 @@ Activation-only dependencies:
 - **3D**: `three-vendor.js`, `primitiveScene.js`, `primitiveRenderer.js`, and
   `canvasRendering.js`.
 
-## Delivery
+## Root shell
+
+The root route owns only the HTML document, global tokens and theme, the route
+outlet, the session provider, build info, service-worker registration, and route
+recovery. Its static graph may contain `entry.client`, `rolldown-runtime`,
+`authClient`, `apiBaseUrl`, `appBuildInfo`, `typography`, and the UI `commands`
+module used by recovery links. Public navigation (`SiteNav`,
+`PublicPageLayout`), the account dialog, form fields, feedback, the document
+model (`config`), and Framer Motion are route-owned or loaded on demand and are
+listed as prohibited in `rootGraph` in the contract.
+
+Route families own their composition without layout routes, so URLs are
+unchanged: public, docs, account recovery, showcase, and Projects routes render
+`PublicPageLayout` themselves; the editor renders its own shell. The root error
+boundary loads `PublicPageLayout` only when it has to show a recovery page and
+shows the recovery content immediately while it loads.
+
 
 Prerendered in v0.49: `/`, `/docs`, `/docs/nodes`, `/docs/recipes`,
 `/docs/reference`. Live previews on `/` and `/docs/nodes` still render on the
@@ -90,7 +106,8 @@ static shell could be prerendered).
    (2.5 KiB) everywhere, although the node canvas itself is lazy. Owner: #242.
 2. **Framer Motion ships on every route** (39.2 KiB) because the shared
    `SiteNav` imports it. Home and the editor also import it directly.
-   Owner: #239.
+   Resolved in #239: `SiteNav` uses CSS entrance animations that respect reduced
+   motion, and the root no longer imports it.
 3. **The home hero renders through the full renderer at load.** `home.tsx`
    statically imports `renderer.js` (35.3 KiB), which then requests PixiJS
    (134.4 KiB) during the first visit. Owner: #242.
@@ -100,7 +117,8 @@ static shell could be prerendered).
    on every route. Owner: #240.
 5. **The root imports the document model for one constant.** `root.tsx` imports
    `GOOGLE_FONT_STYLESHEET_URL` from `types/config.ts`, pulling a 7.5 KiB
-   `config.js` chunk into every route. Owner: #239.
+   `config.js` chunk into every route. Resolved in #239: the root imports it from
+   `types/typography.ts`, and the account dialog loads on demand.
 6. **No hydration fallback.** Production logs React Router's
    `HydrateFallback` hint; the SPA shows nothing useful until JavaScript runs.
    Owner: #241.
