@@ -87,6 +87,49 @@ CI should run:
 
 ## Manual QA
 
+### v0.49.0 Release Prep And Evidence
+
+- Package metadata is bumped to `0.49.0` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.49.0.md` is prepared from the release template without a
+  visible internal checklist.
+- Delivery issues #238-#243 are merged into `development`: the route-loading
+  contract and matrix (#301), the minimal root shell (#302), truthful vendor and
+  renderer boundaries (#304), route-owned CSS (#305), unknown-path hydration
+  (#315), the hydration fallback with static public prerendering (#316), and
+  the `loading:gate` CI and release check (#317).
+- `npm run release:verify -- --version 0.49.0`, `npm run check`,
+  `npm run build`, and `npm run loading:gate` passed locally on 2026-09-30 from
+  a clean worktree. The check includes 20 UI Foundation tests, 721 Web tests,
+  261 passing API tests with 5 skipped, 11 Backoffice tests, 27 deployment
+  tests, 20 route-loading contract tests, and 3 legacy-registry contract tests,
+  plus formatting, lint, and all type checks.
+- The route-loading gate kept every representative state within budget with no
+  prohibited eager dependency: before-render JavaScript (gzip) is 131.1 KiB on
+  home, 119.2 KiB on docs, 119.6 KiB on account recovery, 218.7 KiB on Projects,
+  321.6 KiB on the blank editor, and 362.4 KiB on the style guide; Nodes
+  activation adds 119.4 KiB and first 3D activation adds 182.5 KiB.
+- The complete browser release gate scheduled 718 scenarios across Artifact
+  Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, the production
+  preview navigation, public shell, CSS ownership, and prerender segments, and
+  Backoffice desktop/mobile Chromium: 587 passed without retry, 1 passed on
+  retry (WebKit showcase-to-editor smoke after a WebGL `loseContext` warning),
+  and 130 were intentional skips.
+- `npm run perf:node-editor` passed because v0.49 moved React Flow and renderer
+  loading: drag, effect-control, and graph-pan interactions produced no long
+  tasks, with p95 frame times of 9.6-9.7 ms against the preferred 50 ms budget.
+- `npm audit` reports 0 vulnerabilities after a clean `npm ci`.
+- Accepted release risk: the style guide and Projects are within 8 and 12 KiB of
+  their JavaScript budgets; further growth there needs a reviewed contract
+  update.
+- Accepted release risk: dynamic paths show the loading shell until their route
+  chunk arrives; only the five static public paths are prerendered.
+- Accepted release risk: the WebKit showcase-to-editor smoke needed one retry
+  after a WebGL context-loss warning.
+- Accepted release risk: React Router 7.18 prints v8 future-flag warnings during
+  the build without changing runtime behavior.
+
 ### v0.48.1 Release Prep And Evidence
 
 - Package metadata is bumped to `0.48.1` in `package.json`,

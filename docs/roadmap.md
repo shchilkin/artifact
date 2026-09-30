@@ -111,14 +111,16 @@ Current planning status:
   [`editor-design-system.md`](./editor-design-system.md),
   [`version-plans/v0.42.md`](./version-plans/v0.42.md), and
   [`releases/v0.42.0.md`](./releases/v0.42.0.md).
-- v0.49 is the next Web release, Application Shell And Loading Boundaries:
-  production route ownership, minimal React Router shells, route-owned CSS,
-  useful SPA hydration and static public prerendering, truthful vendor/renderer
-  boundaries, and enforced JavaScript/CSS budgets. Its first delivery issue,
-  #238, is the current dependency frontier after the v0.48 publication gate.
-  See
-  [`version-plans/v0.49.md`](./version-plans/v0.49.md).
-- v0.50 is the planned Editor UX release: a stable editor layout with a
+- v0.49.0 is the Application Shell And Loading Boundaries release candidate
+  with its local release gate complete: production route ownership, minimal
+  React Router shells, route-owned CSS, a hydration fallback with static public
+  prerendering, truthful vendor/renderer boundaries, and JavaScript/CSS budgets
+  enforced by `npm run loading:gate`. Delivery issues #238-#243 are closed; #244
+  owns only delivery CI, exact-SHA staging, production promotion, and
+  publication evidence. See
+  [`version-plans/v0.49.md`](./version-plans/v0.49.md) and
+  [`releases/v0.49.0.md`](./releases/v0.49.0.md).
+- v0.50 is the next Web release, Editor UX: a stable editor layout with a
   layout-shift budget, measured input-to-preview latency, one inspector layout
   for Layers and Nodes, explicit render and destructive-action states, and a
   graph-derived Layers tree that represents custom node graphs. See
@@ -1421,12 +1423,11 @@ release before starting a new candidate track.
 
 Recommended order:
 
-1. Establish the v0.49 route ownership, loading matrix, and budgets in #238.
-2. Narrow application shells, CSS ownership, hydration, and dependency
-   boundaries against that approved contract.
-3. Make the editor stable, responsive, and honest in v0.50, including a
+1. Publish the completed v0.49 application-shell and loading-boundaries
+   candidate (#244).
+2. Make the editor stable, responsive, and honest in v0.50, including a
    graph-derived Layers tree.
-4. Resume new AI-assisted creation in v0.51 only after the v0.50 gate.
+3. Resume new AI-assisted creation in v0.51 only after the v0.50 gate.
 
 ## Non-goals for now
 
