@@ -7,6 +7,9 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig([
   globalIgnores([
+    'target',
+    'tools.local',
+    'packages/artifact-core-web/generated',
     'dist',
     'build',
     '.react-router',

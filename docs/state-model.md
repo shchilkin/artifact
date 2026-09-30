@@ -1,5 +1,25 @@
 # State Model
 
+The main Web editor now routes supported layer-property patches through the
+shared Rust/WASM core, while keeping its existing document and history ownership.
+See [main Web integration](./web-macos-main-web-integration.md) for the boundary,
+fallbacks and runtime build checks. Native/package sessions retain their own
+bounded Rust history. See [Web + native macOS pilot](./web-macos-viber-pilot.md) for its
+binding conformance checks and remaining UI/render acceptance. In that pilot,
+Scanlines and text edits use the same bounded patch history. A text Apply is
+one atomic command covering only changed content, size, color, or X/Y fields.
+Input drafts stay in client UI state; embedded assets and unknown document
+fields are never copied into history or rewritten by those commands.
+The image slice adds atomic `set_image` patches for `src`, X/Y, scale X/Y and
+rotation. Source replacements retain only the changed old/new payload fields
+for Undo; summaries never include image bytes. History keeps at most 50 entries
+and evicts oldest entries above 64 MiB of retained string data, keeping the
+newest undo entry even if it alone exceeds the byte target. Portable package
+payloads remain in the isolated Rust session; decoded images and import drafts
+remain outside document state. Existing manifest import provenance and unrelated
+fields remain unchanged.
+
+
 This document defines where state belongs in Artifact. The goal is predictable editing: a gesture should update the smallest possible state, commit deliberately, invalidate only what changed, and export the same image the user saw.
 
 ## Core rule

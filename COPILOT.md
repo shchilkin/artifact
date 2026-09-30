@@ -1,6 +1,14 @@
 # COPILOT.md
 
-This repo is a browser-only React Router app with a hybrid layer-stack and node-canvas editor. Use these instructions when making changes, and see `AGENTS.md` for the fuller QA and architecture playbook.
+The production editor is a React Router app with a hybrid layer-stack and node-canvas editor. Use these instructions when making changes, and see `AGENTS.md` for the fuller QA and architecture playbook.
+
+Web + native macOS architecture is described in ADR 0014,
+`docs/web-macos-editor-workspace.md` and `docs/web-macos-main-web-integration.md`.
+The real Web editor uses supported shared Rust property commands via WASM;
+its existing document/history owner, renderer and advanced graph remain intact.
+SwiftUI exposes layers, canvas, basic nodes and inspectors. The separate Web
+pilot is a compatibility test harness; its historical evidence is in
+`docs/web-macos-viber-pilot.md`. Native full Web parity is not complete.
 
 ## Read architecture docs first
 

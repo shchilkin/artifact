@@ -18,6 +18,17 @@ migration details.
 | Dependency-injected state | UI reads state through context interfaces or props. It should not know which top-level hook stores the data. |
 | Preview equals export | Thumbnail, gallery, preview, and export must call the same render pipeline unless the difference is intentional and documented. |
 
+## Experimental web and native macOS boundary
+
+[ADR 0014](./adr/0014-web-and-native-macos-with-shared-rust-core.md) records the
+accepted direction: React web and native SwiftUI macOS clients in this
+monorepo, with a shared Rust core built for native and WASM consumers. Other
+native platforms are outside scope. Its folder layout and ownership boundaries
+now exist in an isolated document-command pilot. See the
+[Viber pilot](./web-macos-viber-pilot.md) for builds, tests, and pending UI/render
+acceptance. The current production web architecture below remains authoritative
+until individual migrations are validated.
+
 ## Current high-level folders
 
 | Folder | Responsibility |
