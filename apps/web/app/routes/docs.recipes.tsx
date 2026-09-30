@@ -1,3 +1,4 @@
+import './styles/docs.recipes.css';
 import type { MetaFunction } from 'react-router';
 
 import { DocsLink, RECIPE_STARTERS, starterHref } from './docs.nodes';

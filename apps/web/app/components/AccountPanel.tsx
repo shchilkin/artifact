@@ -1,3 +1,4 @@
+import './account-panel.css';
 import { Button, Field, IconButton, InlineNotice, Input } from '@artifact/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { authClient, requestArtifactPasswordReset } from '../utils/authClient';

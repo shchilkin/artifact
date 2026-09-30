@@ -1,0 +1,254 @@
+/* AI generation panel and provenance. Loaded through the route entries in routes/styles/. */
+
+.ai-generation-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-generation-access-banner {
+  display: grid;
+  gap: 7px;
+  border: 1px solid color-mix(in oklch, var(--accent-primary) 42%, var(--line-default));
+  background: color-mix(in oklch, var(--accent-primary) 10%, var(--surface-card));
+  padding: 12px;
+  color: var(--text-primary);
+}
+
+.ai-generation-access-banner span,
+.ai-generation-provenance span {
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.ai-generation-access-banner p,
+.ai-generation-provenance p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.ai-generation-access-banner--failed {
+  border-color: color-mix(in oklch, var(--state-danger) 56%, var(--line-default));
+  background: color-mix(in oklch, var(--state-danger) 8%, var(--surface-card));
+}
+
+.ai-generation-access-banner--failed span {
+  color: var(--state-danger);
+}
+
+.ai-generation-access-action {
+  border: 1px solid color-mix(in oklch, var(--accent-primary) 52%, var(--line-default));
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  min-height: var(--touch);
+  padding: 0 12px;
+  text-transform: uppercase;
+}
+
+.ai-generation-access-action:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.ai-generation-provenance {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-control);
+  padding: 10px 12px;
+}
+
+.ai-generation-history-nav {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  border: 1px solid var(--line-default);
+  background: var(--surface-control);
+}
+
+.ai-generation-history-button {
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ai-generation-history-button:disabled {
+  cursor: default;
+  opacity: 0.32;
+}
+
+.ai-generation-history-count {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.ai-generation-provenance-loading {
+  border-color: color-mix(in oklch, var(--accent-primary) 45%, var(--line-default));
+  background: color-mix(in oklch, var(--accent-primary) 7%, var(--surface-app));
+}
+
+.ai-generation-provenance-failed {
+  border-color: color-mix(in oklch, var(--state-danger) 50%, var(--line-default));
+  background: color-mix(in oklch, var(--state-danger) 8%, var(--surface-app));
+}
+
+.ai-generation-provenance-failed span {
+  color: var(--state-danger);
+}
+
+.ai-generation-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ai-generation-diagnostics {
+  display: grid;
+  gap: 5px;
+  border: 1px solid color-mix(in oklch, var(--line-default) 80%, transparent);
+  background: var(--surface-control);
+  padding: 8px 10px;
+}
+
+.ai-generation-diagnostics div {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.ai-generation-diagnostics span {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ai-generation-diagnostics code {
+  min-width: 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.ai-generation-dev-diagnostics {
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in oklch, var(--accent-primary) 36%, var(--line-default));
+  background: color-mix(in oklch, var(--accent-primary) 5%, var(--surface-control));
+  padding: 9px 10px;
+}
+
+.ai-generation-dev-diagnostics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-generation-dev-diagnostics-header span {
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.ai-generation-dev-diagnostics-header button {
+  min-height: 28px;
+  border: 1px solid color-mix(in oklch, var(--accent-primary) 44%, var(--line-default));
+  background: transparent;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  padding: 0 9px;
+  text-transform: uppercase;
+}
+
+.ai-generation-dev-diagnostics-header button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.ai-generation-dev-diagnostics-rows {
+  display: grid;
+  gap: 5px;
+}
+
+.ai-generation-dev-diagnostics-rows div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.ai-generation-dev-diagnostics-rows span {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ai-generation-dev-diagnostics-rows code {
+  min-width: 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.ai-generation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.ai-generation-submit {
+  width: 100%;
+}
+
+.ai-generation-feedback {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-generation-meta {
+  display: flex;
+  gap: 8px;
+  min-height: 14px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}

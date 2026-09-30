@@ -3,7 +3,6 @@ import type { MetaFunction } from 'react-router';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import type { Route } from './+types/root';
 import './index.css';
-import './styles/product-surfaces.css';
 import { ArtifactAuthProvider } from './components/ArtifactAuthProvider';
 import { RouteRecovery } from './components/product-surfaces/RouteRecovery';
 import { GOOGLE_FONT_STYLESHEET_URL } from './types/typography';

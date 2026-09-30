@@ -60,14 +60,14 @@ Sizes are gzip KiB of JavaScript. "Before render" is `initial` minus
 
 | State | URL | Owning shell | Delivery | v0.48.1 | Current | Budget |
 | --- | --- | --- | --- | --- | --- | --- |
-| Home, before render | `/` | public | prerender | 423.6 | 130.3 | 170 |
-| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +179.8 | +185 |
+| Home, before render | `/` | public | prerender | 423.6 | 130.4 | 170 |
+| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +180.0 | +185 |
 | Docs | `/docs` | public | prerender | 240.4 | 118.5 | 170 |
-| Account recovery | `/reset-password` | public | SPA fallback | 239.6 | 118.8 | 170 |
-| Projects | `/projects` | account | SPA fallback | 312.8 | 217.9 | 230 |
-| Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 | 320.8 | 370 |
+| Account recovery | `/reset-password` | public | SPA fallback | 239.6 | 118.9 | 170 |
+| Projects | `/projects` | account | SPA fallback | 312.8 | 218.0 | 230 |
+| Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 | 321.0 | 370 |
 | Nodes activation | Nodes tab | NodeCanvas | — | +65.4 | +119.4 | +135 |
-| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 361.5 | 370 |
+| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 361.7 | 370 |
 | First 3D activation | add Primitive | primitive scene renderer | — | +206.7 | +182.5 | +215 |
 
 The Nodes activation grew because React Flow now loads with the node canvas
@@ -85,11 +85,80 @@ dependency cannot leave the route.
 | Style guide | pixi, three | node-canvas, react-flow, renderer: live specimens |
 | First 3D activation | — | three |
 
-CSS budgets (home, docs, recovery 24; Projects 26; editor 50; style guide 65;
-Nodes activation +20; 3D +5) are recorded in the contract but not enforced until
-#240 splits the global stylesheet by route owner; that issue turns on
-`enforcement.cssBudgets`. Current CSS: 35.6 KiB on public routes, 38.7 on
-Projects, 41.8 in the editor, 60.0 on the style guide.
+CSS, gzip KiB, enforced since #240 (`enforcement.cssBudgets`):
+
+| State | v0.48.1 | Current | Budget |
+| --- | --- | --- | --- |
+| Home | 38.4 | 12.4 | 24 |
+| Docs | 38.4 | 14.4 | 24 |
+| Account recovery | 38.4 | 10.4 | 24 |
+| Projects | 41.1 | 16.8 | 26 |
+| Editor, blank Layers | 44.2 | 28.9 | 50 |
+| Nodes activation | +12.8 | +14.8 | +20 |
+| Style guide | 60.4 | 48.9 | 65 |
+| First 3D activation | +0 | +0 | +5 |
+
+## CSS ownership
+
+`app/index.css` (the root stylesheet) holds only what every route needs:
+Tailwind, the UI foundation, tokens and the product theme, the base reset,
+document and `#root` rules, site navigation and the logo mark, focus and
+screen-reader utilities, and the route recovery page that the root error
+boundary renders. It is 9.1 KiB gzip.
+
+Surface styles live next to their owners and reach the page through one entry
+file per route in `app/routes/styles/`. Each route module imports its entry
+first, so the entry stays in the route chunk. React Router lists a route
+chunk's CSS before the CSS of the chunks it imports, so the surface rules keep
+the position they had in the global stylesheet: after the root stylesheet and
+before shared component CSS such as `primitives.css`, `dialog.css`,
+`inspector-system.css`, and `editor-workflow.css`, whose rules win ties with
+them. A shared entry would be split into a common chunk whose order in the
+route's CSS list is not fixed, which is why the docs routes each have their own
+entry with the same imports.
+
+| Owner file | Surfaces | Loaded by |
+| --- | --- | --- |
+| `routes/home.css` | home page | home |
+| `routes/docs.shared.css` | docs pages | docs routes, style guide |
+| `routes/docs.style-guide.surfaces.css` | style guide page | style guide |
+| `routes/showcase.css` | showcase | showcase |
+| `routes/projects.css` | Projects page | Projects |
+| `routes/reset-password.css` | password reset | account recovery |
+| `components/product-surfaces/product-surfaces.css` | page header, pattern specimens | docs, showcase, Projects, style guide |
+| `components/projects-panel.css` | projects library panel | Projects, editor |
+| `routes/editor/editor.css` | editor layout, canvas area, sidebar, bottom bar | editor, style guide |
+| `components/layers-panel/layers-panel.css` | layer rows, areas, Add Library | editor, style guide |
+| `components/node-canvas/inspector/inspector.css` | layer and node inspector | editor, style guide |
+| `components/editor-target/editor-target.css`, `components/node-canvas/panel/node-properties-panel.css`, `components/ai-generation-panel.css`, `components/effect-info-popup.css` | editor panels | editor, style guide |
+| `components/storage-workspace-status.css`, `routes/editor/empty-canvas-start.css` | editor status and empty start | editor |
+| `components/account-panel.css` | account dialog | `AccountPanel`, on demand |
+| `components/public-page-layout.css` | public footer | `PublicPageLayout` |
+
+The account dialog and the public footer load at their component boundary
+because no shared component CSS overrides them. The node canvas keeps
+`node-canvas.css` and React Flow's stylesheet on the lazy `NodeCanvas` chunk;
+3D chrome keeps `viewport-3d-chrome.css` on the viewport components.
+
+The editor shell, sidebar, and bottom bar share one file, as do the layers panel
+and Add Library, and the inspector-system and node inspector rules: their rules override each
+other in both directions, so separate files would need an import order that
+does not exist.
+
+The split was checked by comparing every computed style (elements and
+`::before`/`::after`) between the v0.48.1-shaped build and the split build on
+home, all docs pages, account recovery, Projects, showcase, an unknown path,
+the style guide, and the editor (blank, with layers, Add Library, effects, 3D,
+layer actions, export, file dialog, Nodes, node add menu, node inspector) plus
+client navigation, at 1440 and 390 px: no differences. Rules whose selectors
+can no longer match (unused `btn`, `pa-*`, `toggle-switch`, `hero-cover`,
+`landing-*`, `showcase-header`, `export-menu` classes and others) were removed.
+
+`tests/browser/v049-css-ownership.spec.ts` checks the production build
+(`vite preview`, run by `npm run test:browser:release`): public routes receive
+no editor, inspector, node-canvas, or 3D selectors; surface CSS loads after the
+root stylesheet and before shared component CSS; node-canvas CSS waits for the
+Nodes tab; and style guide specimens receive their surface styles.
 
 ## Root shell
 
@@ -135,8 +204,10 @@ static shell could be prerendered).
    PixiJS during the first visit. Resolved in #242: `home.tsx` imports the
    renderer dynamically, so the renderer and PixiJS arrive after the first
    render.
-4. **Global CSS holds every product surface.** `root.css` is 252 KiB raw
-   (35.5 KiB gzip) and loads on every route. Owner: #240.
+4. **Global CSS holds every product surface.** `root.css` was 252 KiB raw
+   (35.5 KiB gzip) and loaded on every route. Resolved in #240: `root.css` is
+   45 KiB raw (9.1 KiB gzip) and surface styles load with their route; see
+   [CSS ownership](#css-ownership).
 5. **The root imported the document model for one constant.** Resolved in #239.
 6. **No hydration fallback.** Production logs React Router's `HydrateFallback`
    hint; the SPA shows nothing useful until JavaScript runs. Owner: #241.
