@@ -13,4 +13,5 @@ export default [
   route('docs/reference', 'routes/docs.reference.tsx'),
   route('docs/reference/:nodeId', 'routes/docs.reference-detail.tsx'),
   route('docs/style-guide', 'routes/docs.style-guide.tsx'),
+  route('*', 'routes/not-found.tsx'),
 ] satisfies RouteConfig;

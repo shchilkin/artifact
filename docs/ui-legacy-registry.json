@@ -78,6 +78,12 @@
           "path": "/docs/style-guide",
           "module": "routes/docs.style-guide.tsx",
           "systems": ["ui-foundation", "artifact-design-system"]
+        },
+        {
+          "id": "artifact-not-found",
+          "path": "*",
+          "module": "routes/not-found.tsx",
+          "systems": ["ui-foundation", "artifact-design-system"]
         }
       ],
       "inventoryDocuments": [
