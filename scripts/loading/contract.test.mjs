@@ -99,3 +99,10 @@ test('prerender and SPA fallback paths do not overlap', () => {
     assert.equal(state.delivery === 'prerender', inPrerender, `${state.state} delivery disagrees with path lists`);
   }
 });
+
+test('root graph rules name allowed and prohibited chunks without overlap', () => {
+  const { allowed, prohibited } = contract.rootGraph;
+  assert.ok(allowed.length > 0 && prohibited.length > 0);
+  for (const asset of prohibited)
+    assert.ok(!allowed.includes(asset), `${asset} is both allowed and prohibited in root`);
+});

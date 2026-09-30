@@ -1,5 +1,4 @@
 import { Button, commandClassName, IconButton } from '@artifact/ui';
-import { AnimatePresence, motion } from 'framer-motion';
 import { type ReactNode, useState } from 'react';
 import { Link, NavLink } from 'react-router';
 import { useArtifactAuth } from '../hooks/useArtifactAuth';
@@ -34,13 +33,7 @@ export function SiteNav({
 
   return (
     <>
-      <motion.nav
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className={siteNavClassName({ solid, compact })}
-        aria-label={ariaLabel}
-      >
+      <nav className={siteNavClassName({ solid, compact })} aria-label={ariaLabel}>
         <Link to="/" className="site-nav-brand">
           <LogoGlyph />
           <span className="site-nav-brand-text">artifact</span>
@@ -48,12 +41,9 @@ export function SiteNav({
         <CompactSlot compact={compact}>{compactSlot}</CompactSlot>
         <DesktopNavLinks compact={compact} auth={auth} />
         <MobileNavToggle compact={compact} open={open} onToggle={() => setOpen((o) => !o)} />
-      </motion.nav>
+      </nav>
 
-      {/* Mobile menu dropdown */}
-      <AnimatePresence>
-        <MobileNavMenu open={open} compact={compact} solid={solid} auth={auth} onClose={() => setOpen(false)} />
-      </AnimatePresence>
+      <MobileNavMenu open={open} compact={compact} solid={solid} auth={auth} onClose={() => setOpen(false)} />
     </>
   );
 }
@@ -133,13 +123,9 @@ function MobileNavMenu({
 }) {
   if (!open || compact) return null;
   return (
-    <motion.nav
+    <nav
       id="mobile-nav-menu"
       aria-label="Mobile navigation"
-      initial={{ opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4 }}
-      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
       className={`site-nav-mobile-menu ${solid ? 'site-nav-mobile-menu--solid' : 'site-nav-mobile-menu--floating'}`}
     >
       {LINKS.map(({ to, label }) => (
@@ -156,7 +142,7 @@ function MobileNavMenu({
       </NavLink>
       <GitHubNavLink className="site-nav-mobile-link" />
       <AccountButton auth={auth} />
-    </motion.nav>
+    </nav>
   );
 }
 

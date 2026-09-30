@@ -87,6 +87,19 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['@xyflow/react', '@xstate/react'],
+    // Dependencies reached only through lazy imports are otherwise discovered mid-session, which makes
+    // Vite reload the page in development.
+    include: [
+      '@xyflow/react',
+      '@xstate/react',
+      'better-auth/react',
+      'clsx',
+      'framer-motion',
+      'pixi.js',
+      'radix-ui',
+      'tailwind-merge',
+      'three',
+      'xstate',
+    ],
   },
 });

@@ -32,7 +32,7 @@ const releaseSegments = [
   {
     label: 'Chromium configured account overlay',
     script: 'test:browser:chromium',
-    args: ['v044-auth.spec.ts'],
+    args: ['v044-auth.spec.ts', 'v049-shell.spec.ts'],
     serverMode: 'dev',
     authConfigured: true,
   },
