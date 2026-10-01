@@ -13,6 +13,7 @@ npm run release:verify
 npm run check
 npm run build
 npm run loading:gate
+npm run ux:gate
 npm run test:browser:release
 ```
 
@@ -33,6 +34,13 @@ CI should run:
   `docs/loading/route-loading-contract.json`; the measurement is uploaded as the
   `route-loading` artifact. See `docs/loading/route-loading-matrix.md` for how an
   intentional budget or boundary change is reviewed.
+- `npm run ux:gate` in the Playwright container whenever the browser jobs run
+  (and when `scripts/editor-ux/` or `docs/editor-ux/` change). It builds the web
+  app, measures editor layout stability and edit latency in Chromium on desktop
+  and mobile, and fails on any budget or exception-ceiling violation of
+  `docs/editor-ux/editor-ux-contract.json`; the measurement is uploaded as the
+  `editor-ux` artifact. See `docs/editor-ux/editor-ux-baseline.md` for how an
+  intentional budget or exception change is reviewed.
 - `npm run test:browser` in a browser-capable job with Chromium, Firefox, and
   WebKit installed. The suite includes desktop projects plus focused mobile
   Chromium/WebKit smoke.

@@ -33,7 +33,8 @@ const contract = JSON.parse(readFileSync('docs/editor-ux/editor-ux-contract.json
 const measurement = JSON.parse(readFileSync(measurementPath, 'utf8'));
 const violations = checkMeasurement(contract, measurement);
 const table = summaryTable(contract, measurement);
-const notices = staleExceptions(contract, evaluate(contract, measurement))
+// Latency budgets are defined for the CI runner, so an unused latency exception only means something there.
+const notices = (measurement.environment?.ci ? staleExceptions(contract, evaluate(contract, measurement)) : [])
   .filter(({ exception }) => !exception.deterministic)
   .map(({ exception }) => `${exception.key}: within budget in this run; exception ${exception.owner} may be removable`);
 

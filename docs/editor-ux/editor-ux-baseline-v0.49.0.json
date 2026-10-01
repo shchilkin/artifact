@@ -16,37 +16,37 @@
     "desktop/default/select-layer/layoutShift": 0.035,
     "desktop/default/select-layer/frameMovePx": 340,
     "desktop/default/switch-to-nodes/layoutShift": 0.172,
-    "desktop/default/switch-to-nodes/frameMovePx": 288.4,
+    "desktop/default/switch-to-nodes/frameMovePx": 279.8,
     "desktop/default/switch-to-layers/layoutShift": 0.534,
-    "desktop/default/switch-to-layers/frameMovePx": 288.4,
+    "desktop/default/switch-to-layers/frameMovePx": 279.8,
     "desktop/default/open-add-library/layoutShift": 0,
     "desktop/default/open-add-library/frameMovePx": 0,
     "desktop/default/command-bar/obscuredCommands": 0,
     "desktop/default/command-bar/overlappingCommands": 0,
     "desktop/default/inspector/sliderWidthDeltaPx": 39.5,
     "desktop/default/nodes-entry/nodesOutsideViewport": 5,
-    "desktop/default/slider-keypress/inputToPreviewMs": 16.7,
-    "desktop/default/slider-drag/durationMs": 396.7,
-    "desktop/default/slider-drag/settleMs": 292.7,
-    "desktop/default/node-preview/entrySettleMs": 484.1,
-    "desktop/default/node-preview/sliderSettleMs": 45.4,
+    "desktop/default/slider-keypress/inputToPreviewMs": 49.4,
+    "desktop/default/slider-drag/durationMs": 1002,
+    "desktop/default/slider-drag/settleMs": 374.1,
+    "desktop/default/node-preview/entrySettleMs": 523.8,
+    "desktop/default/node-preview/sliderSettleMs": 55.1,
     "desktop/effect-stack/select-layer/layoutShift": 0.035,
     "desktop/effect-stack/select-layer/frameMovePx": 340,
     "desktop/effect-stack/switch-to-nodes/layoutShift": 0.172,
-    "desktop/effect-stack/switch-to-nodes/frameMovePx": 288.4,
+    "desktop/effect-stack/switch-to-nodes/frameMovePx": 279.8,
     "desktop/effect-stack/switch-to-layers/layoutShift": 0.534,
-    "desktop/effect-stack/switch-to-layers/frameMovePx": 288.4,
+    "desktop/effect-stack/switch-to-layers/frameMovePx": 279.8,
     "desktop/effect-stack/open-add-library/layoutShift": 0,
     "desktop/effect-stack/open-add-library/frameMovePx": 0,
     "desktop/effect-stack/command-bar/obscuredCommands": 0,
     "desktop/effect-stack/command-bar/overlappingCommands": 0,
     "desktop/effect-stack/inspector/sliderWidthDeltaPx": 39.5,
     "desktop/effect-stack/nodes-entry/nodesOutsideViewport": 7,
-    "desktop/effect-stack/slider-keypress/inputToPreviewMs": 32.3,
-    "desktop/effect-stack/slider-drag/durationMs": 611.2,
-    "desktop/effect-stack/slider-drag/settleMs": 338.5,
-    "desktop/effect-stack/node-preview/entrySettleMs": 501.5,
-    "desktop/effect-stack/node-preview/sliderSettleMs": 54.4,
+    "desktop/effect-stack/slider-keypress/inputToPreviewMs": 84.5,
+    "desktop/effect-stack/slider-drag/durationMs": 1493.3,
+    "desktop/effect-stack/slider-drag/settleMs": 74.4,
+    "desktop/effect-stack/node-preview/entrySettleMs": 538.9,
+    "desktop/effect-stack/node-preview/sliderSettleMs": 128.5,
     "mobile/default/select-layer/layoutShift": 0,
     "mobile/default/select-layer/frameMovePx": 0,
     "mobile/default/switch-to-nodes/layoutShift": 0,
@@ -81,11 +81,11 @@
             },
             "switch-to-nodes": {
               "layoutShift": 0.172,
-              "frameMovePx": 288.4
+              "frameMovePx": 279.8
             },
             "switch-to-layers": {
               "layoutShift": 0.534,
-              "frameMovePx": 288.4
+              "frameMovePx": 279.8
             },
             "open-add-library": {
               "layoutShift": 0,
@@ -107,44 +107,60 @@
           }
         },
         "latency": {
-          "samples": 3,
+          "samples": 5,
           "slider-keypress": {
-            "inputToPreviewMs": 16.7
+            "inputToPreviewMs": 49.4
           },
           "slider-drag": {
             "steps": 20,
-            "durationMs": 396.7,
-            "settleMs": 292.7,
+            "durationMs": 1002,
+            "settleMs": 374.1,
             "paintsDuringDrag": 20
           },
           "node-preview": {
-            "entrySettleMs": 484.1,
-            "sliderSettleMs": 45.4
+            "entrySettleMs": 523.8,
+            "sliderSettleMs": 55.1
           },
           "runs": [
             {
-              "inputToPreviewMs": 16.7,
-              "durationMs": 396.7,
-              "settleMs": 299.7,
+              "inputToPreviewMs": 49.4,
+              "durationMs": 1004.4,
+              "settleMs": 375,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 482.5,
-              "nodeSliderSettleMs": 45
+              "nodeEntrySettleMs": 523.8,
+              "nodeSliderSettleMs": 54.6
             },
             {
-              "inputToPreviewMs": 14.8,
-              "durationMs": 423.1,
-              "settleMs": 279.2,
+              "inputToPreviewMs": 49.1,
+              "durationMs": 986.3,
+              "settleMs": 373,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 484.1,
-              "nodeSliderSettleMs": 45.4
+              "nodeEntrySettleMs": 525.1,
+              "nodeSliderSettleMs": 54.7
             },
             {
-              "inputToPreviewMs": 20.2,
-              "durationMs": 385.5,
-              "settleMs": 292.7,
+              "inputToPreviewMs": 48.1,
+              "durationMs": 1002,
+              "settleMs": 375.8,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 530.3,
-              "nodeSliderSettleMs": 46.4
+              "nodeEntrySettleMs": 590.5,
+              "nodeSliderSettleMs": 55.1
+            },
+            {
+              "inputToPreviewMs": 62,
+              "durationMs": 1002.1,
+              "settleMs": 374.1,
+              "paintsDuringDrag": 20,
+              "nodeEntrySettleMs": 523.2,
+              "nodeSliderSettleMs": 59.2
+            },
+            {
+              "inputToPreviewMs": 50,
+              "durationMs": 985.3,
+              "settleMs": 373.4,
+              "paintsDuringDrag": 20,
+              "nodeEntrySettleMs": 521.8,
+              "nodeSliderSettleMs": 55.1
             }
           ]
         }
@@ -158,11 +174,11 @@
             },
             "switch-to-nodes": {
               "layoutShift": 0.172,
-              "frameMovePx": 288.4
+              "frameMovePx": 279.8
             },
             "switch-to-layers": {
               "layoutShift": 0.534,
-              "frameMovePx": 288.4
+              "frameMovePx": 279.8
             },
             "open-add-library": {
               "layoutShift": 0,
@@ -184,44 +200,60 @@
           }
         },
         "latency": {
-          "samples": 3,
+          "samples": 5,
           "slider-keypress": {
-            "inputToPreviewMs": 32.3
+            "inputToPreviewMs": 84.5
           },
           "slider-drag": {
             "steps": 20,
-            "durationMs": 611.2,
-            "settleMs": 338.5,
+            "durationMs": 1493.3,
+            "settleMs": 74.4,
             "paintsDuringDrag": 20
           },
           "node-preview": {
-            "entrySettleMs": 501.5,
-            "sliderSettleMs": 54.4
+            "entrySettleMs": 538.9,
+            "sliderSettleMs": 128.5
           },
           "runs": [
             {
-              "inputToPreviewMs": 32.3,
-              "durationMs": 611.2,
-              "settleMs": 336.8,
+              "inputToPreviewMs": 84.5,
+              "durationMs": 1493.3,
+              "settleMs": 469,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 539.5,
-              "nodeSliderSettleMs": 52.7
+              "nodeEntrySettleMs": 546.9,
+              "nodeSliderSettleMs": 128.3
             },
             {
-              "inputToPreviewMs": 34.5,
-              "durationMs": 562.1,
-              "settleMs": 338.5,
+              "inputToPreviewMs": 83.1,
+              "durationMs": 1478.8,
+              "settleMs": 468.3,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 501.5,
-              "nodeSliderSettleMs": 54.4
+              "nodeEntrySettleMs": 547.2,
+              "nodeSliderSettleMs": 130
             },
             {
-              "inputToPreviewMs": 29.3,
-              "durationMs": 649.6,
-              "settleMs": 340.2,
+              "inputToPreviewMs": 86.6,
+              "durationMs": 1426.7,
+              "settleMs": 70.7,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 490.3,
-              "nodeSliderSettleMs": 60.8
+              "nodeEntrySettleMs": 534.7,
+              "nodeSliderSettleMs": 127.2
+            },
+            {
+              "inputToPreviewMs": 99.2,
+              "durationMs": 1508.7,
+              "settleMs": 58.4,
+              "paintsDuringDrag": 20,
+              "nodeEntrySettleMs": 525.5,
+              "nodeSliderSettleMs": 128.5
+            },
+            {
+              "inputToPreviewMs": 78.1,
+              "durationMs": 1494.2,
+              "settleMs": 74.4,
+              "paintsDuringDrag": 20,
+              "nodeEntrySettleMs": 538.9,
+              "nodeSliderSettleMs": 132.7
             }
           ]
         }

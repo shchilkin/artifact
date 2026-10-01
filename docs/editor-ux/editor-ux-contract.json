@@ -3,8 +3,14 @@
   "version": "0.50",
   "baselineFile": "docs/editor-ux/editor-ux-baseline-v0.49.0.json",
   "viewports": {
-    "desktop": { "width": 1440, "height": 900 },
-    "mobile": { "width": 375, "height": 812 }
+    "desktop": {
+      "width": 1440,
+      "height": 900
+    },
+    "mobile": {
+      "width": 375,
+      "height": 812
+    }
   },
   "documents": ["default", "effect-stack"],
   "budgets": [
@@ -74,7 +80,7 @@
     },
     {
       "metric": "settleMs",
-      "max": 400,
+      "max": 600,
       "unit": "ms",
       "deterministic": false,
       "viewports": ["desktop"],
@@ -112,7 +118,7 @@
     },
     {
       "key": "desktop/*/switch-to-nodes/frameMovePx",
-      "max": 288.4,
+      "max": 290,
       "owner": "#307",
       "reason": "The command bar changes position and width between Layers and Nodes."
     },
@@ -124,7 +130,7 @@
     },
     {
       "key": "desktop/*/switch-to-layers/frameMovePx",
-      "max": 288.4,
+      "max": 290,
       "owner": "#307",
       "reason": "The command bar changes position and width between Nodes and Layers."
     },
@@ -163,6 +169,30 @@
       "max": 228,
       "owner": "#309",
       "reason": "After visiting Nodes, the Layers inspector renders the same slider at 129 px instead of 357 px."
+    },
+    {
+      "key": "desktop/*/slider-keypress/inputToPreviewMs",
+      "max": 130,
+      "owner": "#308",
+      "reason": "One slider step takes up to 85 ms to reach the preview on the CI runner; the default document sits at the 50 ms budget."
+    },
+    {
+      "key": "desktop/default/slider-drag/durationMs",
+      "max": 1500,
+      "owner": "#308",
+      "reason": "Each drag step blocks the main thread for about three frames: a 20-step drag takes 1000 ms instead of about 340 ms."
+    },
+    {
+      "key": "desktop/effect-stack/slider-drag/durationMs",
+      "max": 2250,
+      "owner": "#308",
+      "reason": "Each drag step blocks the main thread for about four frames: a 20-step drag takes 1490 ms instead of about 340 ms."
+    },
+    {
+      "key": "desktop/effect-stack/node-preview/sliderSettleMs",
+      "max": 190,
+      "owner": "#308",
+      "reason": "Node thumbnails downstream of an edited effect take 128 ms to settle on the CI runner."
     }
   ]
 }

@@ -11,6 +11,7 @@
 // for what each metric means.
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { withPreviewServer } from '../preview-server.mjs';
 import { REFERENCE_DOCUMENTS } from './documents.mjs';
@@ -26,10 +27,6 @@ const VIEWPORTS = [
   { name: 'mobile', width: 375, height: 812, mobile: true },
 ];
 const DRAG_STEPS = 20;
-// Paints closer together than this belong to one burst of preview updates. The deferred full-quality pass
-// starts later than this after an edit, so it is not counted as part of the response to the edit.
-const BURST_GAP_MS = 400;
-
 // Runs in the page before any app code. Records layout shifts, preview paints, node-thumbnail renders, and
 // the browser timestamps of slider input.
 function instrument() {
@@ -244,17 +241,6 @@ const resetTimeline = (page) =>
     ux.inputs.length = 0;
   });
 
-// End of the first burst of `events` after `since`: the first event, then every event within BURST_GAP_MS of
-// the one before it.
-function burstEnd(events, since) {
-  let end = null;
-  for (const time of events.filter((event) => event > since)) {
-    if (end !== null && time - end > BURST_GAP_MS) break;
-    end = time;
-  }
-  return end;
-}
-
 async function measureKeypress(page, slider) {
   await waitForIdle(page);
   await resetTimeline(page);
@@ -280,16 +266,16 @@ async function measureDrag(page, slider) {
   }
   const endedAt = await page.evaluate(() => performance.now());
   await page.mouse.up();
-  await waitForIdle(page);
+  // A full second of quiet, so the full-quality pass that follows the draft frames is part of the settle time.
+  await waitForIdle(page, 1_000);
   const { paints, inputs } = await page.evaluate(() => ({
     paints: window.__editorUx.paints,
     inputs: window.__editorUx.inputs,
   }));
   const lastInput = Math.max(...inputs.filter((time) => time <= endedAt));
-  const settledAt = burstEnd(paints, lastInput);
   return {
     durationMs: endedAt - startedAt,
-    settleMs: settledAt === null ? null : settledAt - lastInput,
+    settleMs: paints.length ? Math.max(...paints) - lastInput : null,
     paintsDuringDrag: paints.filter((time) => time <= endedAt).length,
   };
 }
@@ -378,6 +364,7 @@ function flatten(results) {
 async function measure(origin) {
   const { chromium } = await import('playwright');
   const browser = await chromium.launch();
+  environment.chromium = browser.version();
   const results = {};
   for (const viewport of VIEWPORTS) {
     results[viewport.name] = {};
@@ -391,10 +378,17 @@ async function measure(origin) {
   return results;
 }
 
+// Latency values depend on the machine; the environment says where a measurement was taken.
+const environment = {
+  ci: Boolean(process.env.CI),
+  platform: `${process.platform}/${process.arch}`,
+  cpus: os.cpus().length,
+};
 const results = await withPreviewServer(measure);
 const result = {
   version: JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version,
   generatedBy: 'scripts/editor-ux/measure.mjs',
+  environment,
   viewports: Object.fromEntries(VIEWPORTS.map(({ name, width, height }) => [name, { width, height }])),
   documents: REFERENCE_DOCUMENTS.map(({ name }) => name),
   metrics: flatten(results),
