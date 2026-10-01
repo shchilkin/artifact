@@ -1,0 +1,168 @@
+{
+  "$comment": "v0.50 editor UX contract. Metric keys are `viewport/document/subject/metric`, measured by scripts/editor-ux/measure.mjs on the production web build in Chromium. `budgets` are the normative limits; `deterministic` budgets do not depend on machine speed. `exceptions` are temporary ceilings for metrics that do not meet their budget yet: each names the delivery issue that removes it. `npm run ux:gate` builds, measures, and fails on any violation of this file. Change budgets or exceptions only through one reviewed update to this file and editor-ux-baseline.md.",
+  "version": "0.50",
+  "baselineFile": "docs/editor-ux/editor-ux-baseline-v0.49.0.json",
+  "viewports": {
+    "desktop": { "width": 1440, "height": 900 },
+    "mobile": { "width": 375, "height": 812 }
+  },
+  "documents": ["default", "effect-stack"],
+  "budgets": [
+    {
+      "metric": "layoutShift",
+      "max": 0.05,
+      "unit": "score",
+      "deterministic": true,
+      "viewports": ["desktop", "mobile"],
+      "subjects": ["select-layer", "switch-to-nodes", "switch-to-layers", "open-add-library"]
+    },
+    {
+      "metric": "frameMovePx",
+      "max": 1,
+      "unit": "px",
+      "deterministic": true,
+      "viewports": ["desktop"],
+      "subjects": ["select-layer", "switch-to-nodes", "switch-to-layers", "open-add-library"]
+    },
+    {
+      "metric": "nodesOutsideViewport",
+      "max": 0,
+      "unit": "nodes",
+      "deterministic": true,
+      "viewports": ["desktop"],
+      "subjects": ["nodes-entry"]
+    },
+    {
+      "metric": "obscuredCommands",
+      "max": 0,
+      "unit": "commands",
+      "deterministic": true,
+      "viewports": ["desktop", "mobile"],
+      "subjects": ["command-bar"]
+    },
+    {
+      "metric": "overlappingCommands",
+      "max": 0,
+      "unit": "pairs",
+      "deterministic": true,
+      "viewports": ["desktop", "mobile"],
+      "subjects": ["command-bar"]
+    },
+    {
+      "metric": "sliderWidthDeltaPx",
+      "max": 1,
+      "unit": "px",
+      "deterministic": true,
+      "viewports": ["desktop", "mobile"],
+      "subjects": ["inspector"]
+    },
+    {
+      "metric": "inputToPreviewMs",
+      "max": 50,
+      "unit": "ms",
+      "deterministic": false,
+      "viewports": ["desktop"],
+      "subjects": ["slider-keypress"]
+    },
+    {
+      "metric": "durationMs",
+      "max": 500,
+      "unit": "ms",
+      "deterministic": false,
+      "viewports": ["desktop"],
+      "subjects": ["slider-drag"]
+    },
+    {
+      "metric": "settleMs",
+      "max": 400,
+      "unit": "ms",
+      "deterministic": false,
+      "viewports": ["desktop"],
+      "subjects": ["slider-drag"]
+    },
+    {
+      "metric": "entrySettleMs",
+      "max": 1000,
+      "unit": "ms",
+      "deterministic": false,
+      "viewports": ["desktop"],
+      "subjects": ["node-preview"]
+    },
+    {
+      "metric": "sliderSettleMs",
+      "max": 100,
+      "unit": "ms",
+      "deterministic": false,
+      "viewports": ["desktop"],
+      "subjects": ["node-preview"]
+    }
+  ],
+  "exceptions": [
+    {
+      "key": "desktop/*/select-layer/frameMovePx",
+      "max": 340,
+      "owner": "#307",
+      "reason": "Selecting a layer opens the inspector column, moves the preview 170 px left, and narrows the command bar by 340 px."
+    },
+    {
+      "key": "desktop/*/switch-to-nodes/layoutShift",
+      "max": 0.172,
+      "owner": "#307",
+      "reason": "Entering Nodes replaces the full-width command bar with a narrower one at a different position."
+    },
+    {
+      "key": "desktop/*/switch-to-nodes/frameMovePx",
+      "max": 288.4,
+      "owner": "#307",
+      "reason": "The command bar changes position and width between Layers and Nodes."
+    },
+    {
+      "key": "desktop/*/switch-to-layers/layoutShift",
+      "max": 0.534,
+      "owner": "#307",
+      "reason": "Returning to Layers re-lays out the canvas area and the command bar."
+    },
+    {
+      "key": "desktop/*/switch-to-layers/frameMovePx",
+      "max": 288.4,
+      "owner": "#307",
+      "reason": "The command bar changes position and width between Nodes and Layers."
+    },
+    {
+      "key": "desktop/default/nodes-entry/nodesOutsideViewport",
+      "max": 5,
+      "owner": "#307",
+      "reason": "Nodes opens at a fixed zoom instead of fitting the graph: 5 of 7 nodes start outside the viewport."
+    },
+    {
+      "key": "desktop/effect-stack/nodes-entry/nodesOutsideViewport",
+      "max": 7,
+      "owner": "#307",
+      "reason": "Nodes opens at a fixed zoom instead of fitting the graph: 7 of 9 nodes start outside the viewport."
+    },
+    {
+      "key": "mobile/*/command-bar/obscuredCommands",
+      "max": 1,
+      "owner": "#307",
+      "reason": "Randomize is covered by More at 375 px."
+    },
+    {
+      "key": "mobile/*/command-bar/overlappingCommands",
+      "max": 2,
+      "owner": "#307",
+      "reason": "Randomize overlaps More and Projects at 375 px."
+    },
+    {
+      "key": "desktop/*/inspector/sliderWidthDeltaPx",
+      "max": 39.5,
+      "owner": "#309",
+      "reason": "After visiting Nodes, the Layers inspector renders the same slider at 129 px instead of 168.5 px."
+    },
+    {
+      "key": "mobile/*/inspector/sliderWidthDeltaPx",
+      "max": 228,
+      "owner": "#309",
+      "reason": "After visiting Nodes, the Layers inspector renders the same slider at 129 px instead of 357 px."
+    }
+  ]
+}

@@ -1,0 +1,309 @@
+{
+  "version": "0.49.0",
+  "generatedBy": "scripts/editor-ux/measure.mjs",
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 900
+    },
+    "mobile": {
+      "width": 375,
+      "height": 812
+    }
+  },
+  "documents": ["default", "effect-stack"],
+  "metrics": {
+    "desktop/default/select-layer/layoutShift": 0.035,
+    "desktop/default/select-layer/frameMovePx": 340,
+    "desktop/default/switch-to-nodes/layoutShift": 0.172,
+    "desktop/default/switch-to-nodes/frameMovePx": 288.4,
+    "desktop/default/switch-to-layers/layoutShift": 0.534,
+    "desktop/default/switch-to-layers/frameMovePx": 288.4,
+    "desktop/default/open-add-library/layoutShift": 0,
+    "desktop/default/open-add-library/frameMovePx": 0,
+    "desktop/default/command-bar/obscuredCommands": 0,
+    "desktop/default/command-bar/overlappingCommands": 0,
+    "desktop/default/inspector/sliderWidthDeltaPx": 39.5,
+    "desktop/default/nodes-entry/nodesOutsideViewport": 5,
+    "desktop/default/slider-keypress/inputToPreviewMs": 16.7,
+    "desktop/default/slider-drag/durationMs": 396.7,
+    "desktop/default/slider-drag/settleMs": 292.7,
+    "desktop/default/node-preview/entrySettleMs": 484.1,
+    "desktop/default/node-preview/sliderSettleMs": 45.4,
+    "desktop/effect-stack/select-layer/layoutShift": 0.035,
+    "desktop/effect-stack/select-layer/frameMovePx": 340,
+    "desktop/effect-stack/switch-to-nodes/layoutShift": 0.172,
+    "desktop/effect-stack/switch-to-nodes/frameMovePx": 288.4,
+    "desktop/effect-stack/switch-to-layers/layoutShift": 0.534,
+    "desktop/effect-stack/switch-to-layers/frameMovePx": 288.4,
+    "desktop/effect-stack/open-add-library/layoutShift": 0,
+    "desktop/effect-stack/open-add-library/frameMovePx": 0,
+    "desktop/effect-stack/command-bar/obscuredCommands": 0,
+    "desktop/effect-stack/command-bar/overlappingCommands": 0,
+    "desktop/effect-stack/inspector/sliderWidthDeltaPx": 39.5,
+    "desktop/effect-stack/nodes-entry/nodesOutsideViewport": 7,
+    "desktop/effect-stack/slider-keypress/inputToPreviewMs": 32.3,
+    "desktop/effect-stack/slider-drag/durationMs": 611.2,
+    "desktop/effect-stack/slider-drag/settleMs": 338.5,
+    "desktop/effect-stack/node-preview/entrySettleMs": 501.5,
+    "desktop/effect-stack/node-preview/sliderSettleMs": 54.4,
+    "mobile/default/select-layer/layoutShift": 0,
+    "mobile/default/select-layer/frameMovePx": 0,
+    "mobile/default/switch-to-nodes/layoutShift": 0,
+    "mobile/default/switch-to-nodes/frameMovePx": 329.4,
+    "mobile/default/switch-to-layers/layoutShift": 0,
+    "mobile/default/switch-to-layers/frameMovePx": 329.4,
+    "mobile/default/open-add-library/layoutShift": 0,
+    "mobile/default/open-add-library/frameMovePx": 0,
+    "mobile/default/command-bar/obscuredCommands": 1,
+    "mobile/default/command-bar/overlappingCommands": 2,
+    "mobile/default/inspector/sliderWidthDeltaPx": 228,
+    "mobile/effect-stack/select-layer/layoutShift": 0,
+    "mobile/effect-stack/select-layer/frameMovePx": 0,
+    "mobile/effect-stack/switch-to-nodes/layoutShift": 0,
+    "mobile/effect-stack/switch-to-nodes/frameMovePx": 329.4,
+    "mobile/effect-stack/switch-to-layers/layoutShift": 0,
+    "mobile/effect-stack/switch-to-layers/frameMovePx": 329.4,
+    "mobile/effect-stack/open-add-library/layoutShift": 0,
+    "mobile/effect-stack/open-add-library/frameMovePx": 0,
+    "mobile/effect-stack/command-bar/obscuredCommands": 1,
+    "mobile/effect-stack/command-bar/overlappingCommands": 2,
+    "mobile/effect-stack/inspector/sliderWidthDeltaPx": 228
+  },
+  "details": {
+    "desktop": {
+      "default": {
+        "layout": {
+          "interactions": {
+            "select-layer": {
+              "layoutShift": 0.035,
+              "frameMovePx": 340
+            },
+            "switch-to-nodes": {
+              "layoutShift": 0.172,
+              "frameMovePx": 288.4
+            },
+            "switch-to-layers": {
+              "layoutShift": 0.534,
+              "frameMovePx": 288.4
+            },
+            "open-add-library": {
+              "layoutShift": 0,
+              "frameMovePx": 0
+            }
+          },
+          "commandBar": {
+            "obscured": [],
+            "overlapping": []
+          },
+          "nodes": {
+            "total": 7,
+            "outsideViewport": 5
+          },
+          "inspector": {
+            "sliderWidthLayers": 168.5,
+            "sliderWidthAfterNodes": 129,
+            "sliderWidthDeltaPx": 39.5
+          }
+        },
+        "latency": {
+          "samples": 3,
+          "slider-keypress": {
+            "inputToPreviewMs": 16.7
+          },
+          "slider-drag": {
+            "steps": 20,
+            "durationMs": 396.7,
+            "settleMs": 292.7,
+            "paintsDuringDrag": 20
+          },
+          "node-preview": {
+            "entrySettleMs": 484.1,
+            "sliderSettleMs": 45.4
+          },
+          "runs": [
+            {
+              "inputToPreviewMs": 16.7,
+              "durationMs": 396.7,
+              "settleMs": 299.7,
+              "paintsDuringDrag": 20,
+              "nodeEntrySettleMs": 482.5,
+              "nodeSliderSettleMs": 45
+            },
+            {
+              "inputToPreviewMs": 14.8,
+              "durationMs": 423.1,
+              "settleMs": 279.2,
+              "paintsDuringDrag": 20,
+              "nodeEntrySettleMs": 484.1,
+              "nodeSliderSettleMs": 45.4
+            },
+            {
+              "inputToPreviewMs": 20.2,
+              "durationMs": 385.5,
+              "settleMs": 292.7,
+              "paintsDuringDrag": 20,
+              "nodeEntrySettleMs": 530.3,
+              "nodeSliderSettleMs": 46.4
+            }
+          ]
+        }
+      },
+      "effect-stack": {
+        "layout": {
+          "interactions": {
+            "select-layer": {
+              "layoutShift": 0.035,
+              "frameMovePx": 340
+            },
+            "switch-to-nodes": {
+              "layoutShift": 0.172,
+              "frameMovePx": 288.4
+            },
+            "switch-to-layers": {
+              "layoutShift": 0.534,
+              "frameMovePx": 288.4
+            },
+            "open-add-library": {
+              "layoutShift": 0,
+              "frameMovePx": 0
+            }
+          },
+          "commandBar": {
+            "obscured": [],
+            "overlapping": []
+          },
+          "nodes": {
+            "total": 9,
+            "outsideViewport": 7
+          },
+          "inspector": {
+            "sliderWidthLayers": 168.5,
+            "sliderWidthAfterNodes": 129,
+            "sliderWidthDeltaPx": 39.5
+          }
+        },
+        "latency": {
+          "samples": 3,
+          "slider-keypress": {
+            "inputToPreviewMs": 32.3
+          },
+          "slider-drag": {
+            "steps": 20,
+            "durationMs": 611.2,
+            "settleMs": 338.5,
+            "paintsDuringDrag": 20
+          },
+          "node-preview": {
+            "entrySettleMs": 501.5,
+            "sliderSettleMs": 54.4
+          },
+          "runs": [
+            {
+              "inputToPreviewMs": 32.3,
+              "durationMs": 611.2,
+              "settleMs": 336.8,
+              "paintsDuringDrag": 20,
+              "nodeEntrySettleMs": 539.5,
+              "nodeSliderSettleMs": 52.7
+            },
+            {
+              "inputToPreviewMs": 34.5,
+              "durationMs": 562.1,
+              "settleMs": 338.5,
+              "paintsDuringDrag": 20,
+              "nodeEntrySettleMs": 501.5,
+              "nodeSliderSettleMs": 54.4
+            },
+            {
+              "inputToPreviewMs": 29.3,
+              "durationMs": 649.6,
+              "settleMs": 340.2,
+              "paintsDuringDrag": 20,
+              "nodeEntrySettleMs": 490.3,
+              "nodeSliderSettleMs": 60.8
+            }
+          ]
+        }
+      }
+    },
+    "mobile": {
+      "default": {
+        "layout": {
+          "interactions": {
+            "select-layer": {
+              "layoutShift": 0,
+              "frameMovePx": 0
+            },
+            "switch-to-nodes": {
+              "layoutShift": 0,
+              "frameMovePx": 329.4
+            },
+            "switch-to-layers": {
+              "layoutShift": 0,
+              "frameMovePx": 329.4
+            },
+            "open-add-library": {
+              "layoutShift": 0,
+              "frameMovePx": 0
+            }
+          },
+          "commandBar": {
+            "obscured": ["Randomize document"],
+            "overlapping": [
+              "Randomize document / More editor actions",
+              "Randomize document / Projects. Local workspace ready"
+            ]
+          },
+          "nodes": {
+            "total": 7,
+            "outsideViewport": 6
+          },
+          "inspector": {
+            "sliderWidthLayers": 357,
+            "sliderWidthAfterNodes": 129,
+            "sliderWidthDeltaPx": 228
+          }
+        }
+      },
+      "effect-stack": {
+        "layout": {
+          "interactions": {
+            "select-layer": {
+              "layoutShift": 0,
+              "frameMovePx": 0
+            },
+            "switch-to-nodes": {
+              "layoutShift": 0,
+              "frameMovePx": 329.4
+            },
+            "switch-to-layers": {
+              "layoutShift": 0,
+              "frameMovePx": 329.4
+            },
+            "open-add-library": {
+              "layoutShift": 0,
+              "frameMovePx": 0
+            }
+          },
+          "commandBar": {
+            "obscured": ["Randomize document"],
+            "overlapping": [
+              "Randomize document / More editor actions",
+              "Randomize document / Projects. Local workspace ready"
+            ]
+          },
+          "nodes": {
+            "total": 9,
+            "outsideViewport": 8
+          },
+          "inspector": {
+            "sliderWidthLayers": 357,
+            "sliderWidthAfterNodes": 129,
+            "sliderWidthDeltaPx": 228
+          }
+        }
+      }
+    }
+  }
+}
