@@ -63,6 +63,53 @@ function instrument() {
   ux.busy = () => Boolean(document.querySelector('.canvas-wrapper [aria-busy="true"]'));
 }
 
+// Fixed Canvas 2D workload that runs in a blank page. Its duration says how fast this machine is, independent
+// of the app, so latency values can be compared between machines.
+function calibrationWorkload() {
+  const size = 540;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  const scratch = document.createElement('canvas');
+  scratch.width = size;
+  scratch.height = size;
+  const scratchContext = scratch.getContext('2d');
+  const startedAt = performance.now();
+  for (let pass = 0; pass < 6; pass += 1) {
+    const gradient = context.createLinearGradient(0, 0, size, size);
+    gradient.addColorStop(0, `hsl(${pass * 40} 80% 50%)`);
+    gradient.addColorStop(1, `hsl(${pass * 40 + 120} 80% 30%)`);
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+    for (let blit = 0; blit < 12; blit += 1) {
+      scratchContext.globalAlpha = 0.6;
+      scratchContext.drawImage(canvas, blit, blit, size - blit * 2, size - blit * 2);
+      context.drawImage(scratch, -blit, -blit, size + blit * 2, size + blit * 2);
+    }
+    const image = context.getImageData(0, 0, size, size);
+    const pixels = image.data;
+    for (let index = 0; index < pixels.length; index += 4) {
+      const luminance = 0.299 * pixels[index] + 0.587 * pixels[index + 1] + 0.114 * pixels[index + 2];
+      pixels[index] = (pixels[index] + luminance) >> 1;
+      pixels[index + 1] = (pixels[index + 1] * 3 + luminance) >> 2;
+      pixels[index + 2] = 255 - pixels[index + 2];
+    }
+    context.putImageData(image, 0, 0);
+  }
+  return performance.now() - startedAt;
+}
+
+/** Median duration of the calibration workload on this machine, after a warm-up run. */
+async function calibrate(browser) {
+  const page = await browser.newPage();
+  await page.goto('about:blank');
+  const runs = [];
+  for (let run = 0; run < 8; run += 1) runs.push(await page.evaluate(calibrationWorkload));
+  await page.close();
+  return median(runs.slice(1));
+}
+
 const median = (values) => {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted.length ? sorted[Math.floor((sorted.length - 1) / 2)] : null;
@@ -336,9 +383,13 @@ async function measureLatency(browser, origin, viewport, reference) {
   };
 }
 
-/** Flat `viewport/document/subject/metric` keys: the form the contract budgets and exceptions refer to. */
-function flatten(results) {
+/**
+ * Flat `viewport/document/subject/metric` keys: the form the contract budgets and exceptions refer to. Latency
+ * values are scaled by `speed` into reference-machine milliseconds; `details` keeps the raw values.
+ */
+function flatten(results, speed) {
   const metrics = {};
+  const reference = (value) => (value === null ? null : round(value * speed));
   for (const [viewport, documents] of Object.entries(results)) {
     for (const [document, result] of Object.entries(documents)) {
       const prefix = `${viewport}/${document}`;
@@ -351,11 +402,13 @@ function flatten(results) {
       metrics[`${prefix}/inspector/sliderWidthDeltaPx`] = result.layout.inspector.sliderWidthDeltaPx;
       if (!result.latency) continue;
       metrics[`${prefix}/nodes-entry/nodesOutsideViewport`] = result.layout.nodes.outsideViewport;
-      metrics[`${prefix}/slider-keypress/inputToPreviewMs`] = result.latency['slider-keypress'].inputToPreviewMs;
-      metrics[`${prefix}/slider-drag/durationMs`] = result.latency['slider-drag'].durationMs;
-      metrics[`${prefix}/slider-drag/settleMs`] = result.latency['slider-drag'].settleMs;
-      metrics[`${prefix}/node-preview/entrySettleMs`] = result.latency['node-preview'].entrySettleMs;
-      metrics[`${prefix}/node-preview/sliderSettleMs`] = result.latency['node-preview'].sliderSettleMs;
+      metrics[`${prefix}/slider-keypress/inputToPreviewMs`] = reference(
+        result.latency['slider-keypress'].inputToPreviewMs,
+      );
+      metrics[`${prefix}/slider-drag/durationMs`] = reference(result.latency['slider-drag'].durationMs);
+      metrics[`${prefix}/slider-drag/settleMs`] = reference(result.latency['slider-drag'].settleMs);
+      metrics[`${prefix}/node-preview/entrySettleMs`] = reference(result.latency['node-preview'].entrySettleMs);
+      metrics[`${prefix}/node-preview/sliderSettleMs`] = reference(result.latency['node-preview'].sliderSettleMs);
     }
   }
   return metrics;
@@ -365,6 +418,7 @@ async function measure(origin) {
   const { chromium } = await import('playwright');
   const browser = await chromium.launch();
   environment.chromium = browser.version();
+  const calibrations = [await calibrate(browser)];
   const results = {};
   for (const viewport of VIEWPORTS) {
     results[viewport.name] = {};
@@ -372,26 +426,32 @@ async function measure(origin) {
       const layout = await measureLayout(browser, origin, viewport, reference);
       const latency = viewport.mobile ? null : await measureLatency(browser, origin, viewport, reference);
       results[viewport.name][reference.name] = { layout, ...(latency ? { latency } : {}) };
+      if (latency) calibrations.push(await calibrate(browser));
     }
   }
   await browser.close();
+  environment.calibrationMs = round(median(calibrations));
+  environment.calibrationRuns = calibrations.map((value) => round(value));
   return results;
 }
 
-// Latency values depend on the machine; the environment says where a measurement was taken.
+// Latency values depend on the machine; the environment says where a measurement was taken and how fast it was.
 const environment = {
   ci: Boolean(process.env.CI),
   platform: `${process.platform}/${process.arch}`,
   cpus: os.cpus().length,
 };
+const contract = JSON.parse(readFileSync(path.join(ROOT, 'docs/editor-ux/editor-ux-contract.json'), 'utf8'));
 const results = await withPreviewServer(measure);
+// Reference-machine milliseconds = measured milliseconds x (reference calibration / this machine's calibration).
+environment.speed = round(contract.calibration.referenceMs / environment.calibrationMs, 3);
 const result = {
   version: JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version,
   generatedBy: 'scripts/editor-ux/measure.mjs',
   environment,
   viewports: Object.fromEntries(VIEWPORTS.map(({ name, width, height }) => [name, { width, height }])),
   documents: REFERENCE_DOCUMENTS.map(({ name }) => name),
-  metrics: flatten(results),
+  metrics: flatten(results, environment.speed),
   details: results,
 };
 

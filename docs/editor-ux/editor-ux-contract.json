@@ -13,6 +13,10 @@
     }
   },
   "documents": ["default", "effect-stack"],
+  "calibration": {
+    "referenceMs": 100,
+    "$comment": "Duration of the fixed Canvas 2D calibration workload on the reference machine. Latency metrics are scaled by referenceMs / measured calibration before they are checked."
+  },
   "budgets": [
     {
       "metric": "layoutShift",
