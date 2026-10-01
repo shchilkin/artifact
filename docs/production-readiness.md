@@ -129,6 +129,12 @@ CI should run:
   after a WebGL context-loss warning.
 - Accepted release risk: React Router 7.18 prints v8 future-flag warnings during
   the build without changing runtime behavior.
+- Release PR #318 (`16ecf13`), post-merge CI `36862517921`, and exact-SHA
+  staging `36863906626` passed. Promotion PR #319 merged production commit
+  `c673a4de735ec0ed47a8bd44ab9e07e25e718d40` into `main`.
+- Release run `36865709034` created tag `v0.49.0`; production run
+  `36874222074` deployed and verified it; publish run `36878105056` published
+  the release on 2026-10-01.
 
 ### v0.48.1 Release Prep And Evidence
 
