@@ -20,6 +20,16 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.49.0 was released on 2026-10-01 as the Application Shell And Loading
+  Boundaries release: production route ownership, minimal React Router shells,
+  route-owned CSS, a hydration fallback with static public prerendering,
+  truthful vendor/renderer boundaries, and JavaScript/CSS budgets enforced by
+  `npm run loading:gate`. Tag `v0.49.0` resolves to production commit
+  `c673a4de735ec0ed47a8bd44ab9e07e25e718d40`; exact-SHA staging, production API
+  and web verification, and publication passed. All seven delivery issues and
+  milestone #11 are closed. See
+  [`version-plans/v0.49.md`](./version-plans/v0.49.md) and
+  [`releases/v0.49.0.md`](./releases/v0.49.0.md).
 - v0.48.0 was released on 2026-07-27 as the UI Conformance And Legacy Removal
   release. The finite legacy registry has zero unresolved entries, both Product
   Themes share one executable Foundation conformance contract, and the seven
@@ -111,15 +121,6 @@ Current planning status:
   [`editor-design-system.md`](./editor-design-system.md),
   [`version-plans/v0.42.md`](./version-plans/v0.42.md), and
   [`releases/v0.42.0.md`](./releases/v0.42.0.md).
-- v0.49.0 is the Application Shell And Loading Boundaries release candidate
-  with its local release gate complete: production route ownership, minimal
-  React Router shells, route-owned CSS, a hydration fallback with static public
-  prerendering, truthful vendor/renderer boundaries, and JavaScript/CSS budgets
-  enforced by `npm run loading:gate`. Delivery issues #238-#243 are closed; #244
-  owns only delivery CI, exact-SHA staging, production promotion, and
-  publication evidence. See
-  [`version-plans/v0.49.md`](./version-plans/v0.49.md) and
-  [`releases/v0.49.0.md`](./releases/v0.49.0.md).
 - v0.50 is the next Web release, Editor UX: a stable editor layout with a
   layout-shift budget, measured input-to-preview latency, one inspector layout
   for Layers and Nodes, explicit render and destructive-action states, and a
@@ -136,8 +137,7 @@ Current planning status:
 - The native macOS client (epic #260, draft PRs #283–#293) is paused as of
   2026-09-29. Web comes first: v0.49, then v0.50 Editor UX, which owns the
   measured editor performance work, then offline support through the Web
-  application. Native
-  branches are kept but not merged. See
+  application. Native branches are kept but not merged. See
   [`adr/0015-pause-native-macos-client-and-improve-web-first.md`](./adr/0015-pause-native-macos-client-and-improve-web-first.md).
 - v0.41.3 was released on 2026-07-21 as the isolated model-drop graph stability
   patch. Validation of v0.41.2 recovery found that dropping a GLB/GLTF in Nodes
@@ -1419,16 +1419,14 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-Use the completed UI-system sequence as the gate for the application-shell
-release before starting a new candidate track.
+Use the released application-shell and loading boundaries as the base for the
+Editor UX release before starting a new candidate track.
 
 Recommended order:
 
-1. Publish the completed v0.49 application-shell and loading-boundaries
-   candidate (#244).
-2. Make the editor stable, responsive, and honest in v0.50, including a
+1. Make the editor stable, responsive, and honest in v0.50, including a
    graph-derived Layers tree.
-3. Resume new AI-assisted creation in v0.51 only after the v0.50 gate.
+2. Resume new AI-assisted creation in v0.51 only after the v0.50 gate.
 
 ## Non-goals for now
 
