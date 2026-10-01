@@ -176,25 +176,25 @@
     },
     {
       "key": "desktop/*/slider-keypress/inputToPreviewMs",
-      "max": 185,
+      "max": 215,
       "owner": "#308",
       "reason": "One slider step takes 62 ms (default) and 122 ms (effect-stack) to reach the preview."
     },
     {
       "key": "desktop/default/slider-drag/durationMs",
-      "max": 1650,
+      "max": 1900,
       "owner": "#308",
       "reason": "Each drag step blocks the main thread for about three frames: a 20-step drag takes 1095 ms instead of about 340 ms."
     },
     {
       "key": "desktop/effect-stack/slider-drag/durationMs",
-      "max": 2900,
+      "max": 3400,
       "owner": "#308",
       "reason": "Each drag step blocks the main thread for about six frames: a 20-step drag takes 1938 ms instead of about 340 ms."
     },
     {
       "key": "desktop/*/node-preview/sliderSettleMs",
-      "max": 265,
+      "max": 310,
       "owner": "#308",
       "reason": "Node thumbnails downstream of an edited effect take 68 ms (default) and 177 ms (effect-stack) to settle."
     }

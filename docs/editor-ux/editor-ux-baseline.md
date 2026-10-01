@@ -132,15 +132,17 @@ needed, so a fixed behavior cannot keep a stale allowance.
 | `mobile/*/command-bar/overlappingCommands` | 2 | 2 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/inspector/sliderWidthDeltaPx` | 39.5 px | 39.5 | [#309](https://github.com/shchilkin/artifact/issues/309) |
 | `mobile/*/inspector/sliderWidthDeltaPx` | 228 px | 228 | [#309](https://github.com/shchilkin/artifact/issues/309) |
-| `desktop/*/slider-keypress/inputToPreviewMs` | 62.4 / 121.8 ms | 185 | [#308](https://github.com/shchilkin/artifact/issues/308) |
-| `desktop/default/slider-drag/durationMs` | 1095.3 ms | 1650 | [#308](https://github.com/shchilkin/artifact/issues/308) |
-| `desktop/effect-stack/slider-drag/durationMs` | 1937.8 ms | 2900 | [#308](https://github.com/shchilkin/artifact/issues/308) |
-| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | 265 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/*/slider-keypress/inputToPreviewMs` | 62.4 / 121.8 ms | 215 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/default/slider-drag/durationMs` | 1095.3 ms | 1900 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/effect-stack/slider-drag/durationMs` | 1937.8 ms | 3400 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | 310 | [#308](https://github.com/shchilkin/artifact/issues/308) |
 
 Layout ceilings equal the measured value. The command bar is a few pixels
 narrower with the CI fonts (279.8 px) than on macOS (288.4 px), so the two
-mode-switch `frameMovePx` ceilings are 290. Latency ceilings are 1.5 times the
-baseline value to absorb what the speed scale does not.
+mode-switch `frameMovePx` ceilings are 290. Latency ceilings are about 1.75 times
+the baseline value to absorb what the speed scale does not: a slower runner of
+the same class (calibration 142.8 ms) still reported scaled values 24-28% above
+the baseline.
 
 Selecting a layer already meets the layout-shift budget (0.035) because the
 shift score weighs the moved area, but it moves the preview 170 px and narrows
