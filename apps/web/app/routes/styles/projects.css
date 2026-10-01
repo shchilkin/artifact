@@ -1,0 +1,7 @@
+/* Surface styles for /projects. projects.tsx imports this file first, so the rules
+   stay in its route chunk and precede shared component CSS (the order they had
+   in the global stylesheet). Each route keeps its own entry file: a shared
+   entry would be split into a common chunk whose load order is not fixed. */
+@import "../../components/projects-panel.css";
+@import "../projects.css";
+@import "../../components/product-surfaces/product-surfaces.css";

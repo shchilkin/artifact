@@ -1,3 +1,4 @@
+import './styles/home.css';
 import { ButtonLink } from '@artifact/ui';
 import { useReducedMotion } from 'framer-motion';
 import { type RefObject, useEffect, useRef, useState } from 'react';
@@ -14,7 +15,7 @@ import {
   makeTextLayer,
 } from '../types/config';
 import { HERO_FRAMES } from '../utils/heroConfigs';
-import { renderDocument } from '../utils/renderer';
+import { pageMeta } from '../utils/pageMeta';
 
 const SEED = 31415;
 const CANVAS_PX = 540;
@@ -27,6 +28,10 @@ const HOME_STEP_KEY_DELTA: Record<string, number> = {
   PageUp: -1,
 };
 const HOME_EDITABLE_KEY_TARGETS = new Set(['INPUT', 'TEXTAREA']);
+
+// The hero artwork renders through the canonical renderer, which pulls in PixiJS. Load it after the page
+// has rendered so the home route's first paint does not wait for the WebGL stack.
+const loadRenderer = () => import('../utils/renderer');
 
 interface Step {
   title: string;
@@ -132,14 +137,13 @@ function buildDoc(stepIndex: number): CanvasDocument {
   };
 }
 
-export const meta: MetaFunction = () => [
-  { title: 'Artifact | Local-first Cover Art Editor' },
-  {
-    name: 'description',
-    content:
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'Artifact | Local-first Cover Art Editor',
+    description:
       'Artifact is a local-first creative editor for cover art, posters, type, texture, effects, nodes, local projects, and clean raster export.',
-  },
-];
+    path: '/',
+  });
 
 function nearestHomeStepIndex(refs: Array<HTMLElement | null>, viewportHeight: number) {
   if (!refs.length) return null;
@@ -182,6 +186,7 @@ async function renderHomeHeroStep({
   token: number;
 }) {
   try {
+    const { renderDocument } = await loadRenderer();
     const out = await renderDocument(buildDoc(effectiveStep), CANVAS_PX, CANVAS_PX, imageCache);
     if (renderTokenRef.current !== token) return;
     swapHomeHeroCanvas(out, canvasARef, canvasBRef, frontIdxRef);
@@ -355,6 +360,7 @@ export default function Home() {
     Promise.all(
       HERO_FRAMES.map(async ({ doc }) => {
         try {
+          const { renderDocument } = await loadRenderer();
           const out = await renderDocument(doc, THUMB, THUMB, emptyCache);
           return out.toDataURL('image/jpeg', 0.75);
         } catch {

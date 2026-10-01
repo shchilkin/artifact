@@ -79,7 +79,7 @@ export async function prepareCloudProjectDocument(
 ): Promise<CanvasDocument> {
   const portableDoc = await preparePortableDocument(doc, options);
   const uploader = createCloudAssetUploader(options);
-  const fontAssetsByUri = new Map(
+  const fontAssetsByUri = new Map<string, PortableFontAsset>(
     (portableDoc.fontAssets ?? []).map((asset) => [fontUriFromId(asset.id), asset] as const),
   );
   const modelLabelsByDataUrl = new Map((portableDoc.modelAssets ?? []).map((asset) => [asset.dataUrl, asset.label]));

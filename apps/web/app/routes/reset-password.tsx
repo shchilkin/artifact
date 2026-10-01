@@ -1,17 +1,18 @@
+import './styles/reset-password.css';
 import { Button, ButtonLink, Field, InlineNotice, Input } from '@artifact/ui';
 import { useCallback, useMemo, useState } from 'react';
 import type { MetaFunction } from 'react-router';
 import { useSearchParams } from 'react-router';
 import { PublicPageLayout } from '../components/PublicPageLayout';
 import { resetArtifactPassword } from '../utils/authClient';
+import { pageMeta } from '../utils/pageMeta';
 
-export const meta: MetaFunction = () => [
-  { title: 'artifact | Reset password' },
-  {
-    name: 'description',
-    content: 'Choose a new password for your Artifact account.',
-  },
-];
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'artifact | Reset password',
+    description: 'Choose a new password for your Artifact account.',
+    path: '/reset-password',
+  });
 
 export default function ResetPasswordRoute() {
   const [searchParams] = useSearchParams();

@@ -5,6 +5,7 @@ import type {
   EffectPreset,
   EmojiLayer,
   GlobalConfig,
+  NoiseType,
   TextLayer,
 } from '../types/config';
 import {
@@ -332,7 +333,9 @@ function buildTypePosterFormula(rng: Rng, baseHue: number): CanvasDocument['laye
     makeFillLayer({ name: 'flat plate', color: randomPlateColor(baseHue, rng) }),
     makeSourceLayer('noise', {
       name: 'paper field',
-      noiseType: pick(['paper', 'clouds', 'static'], rng),
+      // 'paper' and 'static' were never valid NoiseTypes and rendered as clouds; keep the
+      // same entry count so seeded documents draw the same RNG sequence.
+      noiseType: pick<NoiseType>(['clouds', 'clouds', 'clouds'], rng),
       noiseScale: rand(18, 44, rng),
       noiseDetail: rand(3, 7, rng),
       noiseContrast: rand(46, 70, rng),
@@ -378,7 +381,9 @@ function buildTexturePlateFormula(rng: Rng, baseHue: number): CanvasDocument['la
     makeFillLayer({ name: 'base plate', color: randomPlateColor(baseHue, rng) }),
     makeSourceLayer('noise', {
       name: 'source texture',
-      noiseType: pick(['cells', 'clouds', 'paper', 'static'], rng),
+      // 'paper' and 'static' were never valid NoiseTypes and rendered as clouds; keep the
+      // same entry count so seeded documents draw the same RNG sequence.
+      noiseType: pick<NoiseType>(['cells', 'clouds', 'clouds', 'clouds'], rng),
       noiseScale: rand(12, 56, rng),
       noiseDetail: rand(4, 8, rng),
       noiseContrast: rand(58, 82, rng),
@@ -620,9 +625,6 @@ export function randomDocument(): CanvasDocument {
   return randomDocumentForFormula(formula, seed);
 }
 
-export function randomLayerSection(layer: EmojiLayer, section: 'EMOJIS'): Partial<EmojiLayer>;
-export function randomLayerSection(layer: EffectLayer, section: string): Partial<EffectLayer>;
-export function randomLayerSection(layer: TextLayer, section: 'TEXT'): Partial<TextLayer>;
 type RandomLayerSectionFactory = (layer: unknown, h: number, accentHue: number) => Partial<unknown>;
 
 function randomEmojiSection(): Partial<EmojiLayer> {
@@ -749,6 +751,9 @@ const RANDOM_LAYER_SECTION_FACTORIES: Record<string, RandomLayerSectionFactory> 
   TEXT: (layer, h) => randomTextPatch(inferTextRandomRole(layer as TextLayer), h, layer as TextLayer),
 };
 
+export function randomLayerSection(layer: EmojiLayer, section: 'EMOJIS'): Partial<EmojiLayer>;
+export function randomLayerSection(layer: EffectLayer, section: string): Partial<EffectLayer>;
+export function randomLayerSection(layer: TextLayer, section: 'TEXT'): Partial<TextLayer>;
 export function randomLayerSection(layer: unknown, section: string): Partial<unknown> {
   const h = rand(0, 359);
   const ah = (h + rand(120, 240)) % 360;

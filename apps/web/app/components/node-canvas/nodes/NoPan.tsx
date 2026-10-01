@@ -17,7 +17,7 @@ const NoPanImpl = function NoPan<T extends ElementType = 'div'>(
   { as, className, onPointerDown, onMouseDown, onClick, onDoubleClick, ...props }: NoPanProps<T>,
   ref: ForwardedRef<Element>,
 ) {
-  const Component = as ?? 'div';
+  const Component: ElementType = as ?? 'div';
   return (
     <Component
       ref={ref}

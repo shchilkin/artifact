@@ -1,3 +1,4 @@
+import './styles/docs.nodes.css';
 import { Button } from '@artifact/ui';
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
@@ -18,6 +19,7 @@ import {
   makeTextLayer,
 } from '../types/config';
 import { EFFECT_DOCS } from '../utils/effectDocs';
+import { pageMeta } from '../utils/pageMeta';
 import { renderDocument } from '../utils/renderer';
 import {
   MASKED_TYPE_LINES_GRAPH_RECIPE,
@@ -795,7 +797,9 @@ function humanizeParam(key: string): string {
 
 // ─── Slider UI Data ──────────────────────────────────────────────────────────
 
-function parseRange(rangeStr: string) {
+type PosterParamRange = { type: 'color' } | { type: 'range'; min: number; max: number; step: number };
+
+function parseRange(rangeStr: string): PosterParamRange | null {
   if (rangeStr.includes('hex')) return { type: 'color' };
   const numMatch = rangeStr.match(/(-?[0-9.]+)[–-](-?[0-9.]+)/);
   if (numMatch) {
@@ -807,14 +811,9 @@ function parseRange(rangeStr: string) {
   return null;
 }
 
-type LayerBag = Record<string, unknown>;
-
 function findNodeLayer(doc: CanvasDocument, nodeId: string) {
   if (nodeId in EFFECT_PRESETS) {
-    return (
-      doc.layers.find((l) => l.kind === 'effect' && (l as LayerBag).preset === nodeId) ??
-      doc.layers[doc.layers.length - 1]
-    );
+    return doc.layers.find((l) => l.kind === 'effect' && l.preset === nodeId) ?? doc.layers[doc.layers.length - 1];
   }
   return doc.layers.find((l) => l.kind === nodeId) ?? doc.layers[doc.layers.length - 1];
 }
@@ -825,11 +824,12 @@ function updateDocParam(doc: CanvasDocument, nodeId: string, paramKey: string, v
 
   if (targetLayer) {
     const keys = paramKey.split(' / ').map((k) => k.trim());
-    const bag = targetLayer as LayerBag;
+    const patch: Record<string, unknown> = {};
     keys.forEach((k) => {
-      if (k === 'scaleX' && !keys.includes('scaleY')) bag['scaleY'] = value;
-      bag[k] = value;
+      if (k === 'scaleX' && !keys.includes('scaleY')) patch.scaleY = value;
+      patch[k] = value;
     });
+    Object.assign(targetLayer, patch);
   }
 
   return newDoc;
@@ -840,7 +840,7 @@ function getDocParam(doc: CanvasDocument, nodeId: string, paramKey: string): unk
 
   if (targetLayer) {
     const primaryKey = paramKey.split(' / ')[0].trim();
-    return (targetLayer as LayerBag)[primaryKey] ?? 0;
+    return Object.entries(targetLayer).find(([field]) => field === primaryKey)?.[1] ?? 0;
   }
   return 0;
 }
@@ -934,7 +934,7 @@ export function NodePoster({ node }: { node: NodeDef }) {
   const [controlsOpen, setControlsOpen] = useState(false);
   const docRef = useRef(doc);
   const revRef = useRef(0);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const tryHref = `/app?doc=${encodeURIComponent(JSON.stringify(doc))}`;
   const controlsId = `node-${node.id}-controls`;
 
@@ -1074,7 +1074,7 @@ function NodePosterControl({
   onDocChange: (doc: CanvasDocument) => void;
 }) {
   const parsed = parseRange(param.range);
-  const val = getDocParam(doc, node.id, param.key);
+  const val = posterParamValue(getDocParam(doc, node.id, param.key));
   if (!parsed) return null;
 
   return (
@@ -1090,6 +1090,10 @@ function NodePosterControl({
       />
     </label>
   );
+}
+
+function posterParamValue(value: unknown): string | number {
+  return typeof value === 'string' || typeof value === 'number' ? value : Number(value);
 }
 
 function posterParamValueLabel(parsed: NonNullable<ReturnType<typeof parseRange>>, val: string | number) {
@@ -1134,13 +1138,12 @@ function NodePosterControlInput({
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
-export const meta: MetaFunction = () => [
-  { title: 'Docs | Artifact' },
-  {
-    name: 'description',
-    content: 'Artifact docs for editor workflows, node types, applications, effects, files, and export.',
-  },
-];
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'Learn | Artifact Docs',
+    description: 'Artifact docs for editor workflows, node types, applications, effects, files, and export.',
+    path: '/docs/nodes',
+  });
 
 function buildDocsSearchItems(): SearchItem[] {
   return [

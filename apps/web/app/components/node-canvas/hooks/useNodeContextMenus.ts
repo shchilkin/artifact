@@ -229,7 +229,7 @@ function connectEndAddRequest(
 }
 
 function connectEndRequest(
-  connection: ReturnType<typeof pendingConnectStart>,
+  connection: ReturnType<typeof pendingConnectStart> | ReturnType<typeof pendingConnectEnd>,
   pointer: MouseEvent | Touch | undefined,
 ) {
   if (!connection) return null;

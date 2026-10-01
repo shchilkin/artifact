@@ -57,6 +57,8 @@ export async function setupBrowserTestPage(page: Page, options: BrowserTestPageO
     });
   });
 
+  waitForHydrationAfterNavigation(page);
+
   page.on('console', (message) => {
     const type = message.type();
     const text = message.text();
@@ -67,6 +69,27 @@ export async function setupBrowserTestPage(page: Page, options: BrowserTestPageO
     if (isBenignBrowserTestIssue(error.message)) return;
     issues.push(`pageerror: ${error.message}`);
   });
+}
+
+/** Resolves once React has hydrated the current document (the root sets `data-hydrated` on `<html>`). */
+export async function waitForHydration(page: Page): Promise<void> {
+  await page.locator('html[data-hydrated]').waitFor({ state: 'attached', timeout: 20_000 });
+}
+
+/**
+ * Prerendered pages show real controls before JavaScript runs, so a test could otherwise act on markup React
+ * has not hydrated yet. Page loads wait for hydration unless the caller only waits for the response to commit.
+ */
+function waitForHydrationAfterNavigation(page: Page): void {
+  const goto = page.goto.bind(page);
+  const reload = page.reload.bind(page);
+  const settle = async <T>(navigation: Promise<T>, waitUntil?: string): Promise<T> => {
+    const response = await navigation;
+    if (waitUntil !== 'commit') await waitForHydration(page);
+    return response;
+  };
+  page.goto = (url, options) => settle(goto(url, options), options?.waitUntil);
+  page.reload = (options) => settle(reload(options), options?.waitUntil);
 }
 
 export function expectNoBrowserIssues(page: Page): void {
@@ -268,7 +291,8 @@ const BENIGN_BROWSER_TEST_SUBSTRINGS = [
   'Failed to load resource: A server with the specified hostname could not be found.',
   'Failed to load resource: net::ERR_NAME_NOT_RESOLVED',
   'Outdated Optimize Dep',
-  'Error loading route module `/app/routes/editor.tsx`, reloading page',
+  // A cold dev server reloads the page while Vite optimizes a route's dependencies on first visit.
+  'Error loading route module `/app/routes/',
   'Importing a module script failed',
   'Failed to fetch dynamically imported module: http://127.0.0.1:4173/node_modules/.vite/deps/',
   'Failed to fetch dynamically imported module: http://127.0.0.1:4173/@fs/Users/shchilkin/dev/album-cover-utils/node_modules/@react-router/dev/dist/config/defaults/entry.client.tsx',
@@ -276,7 +300,6 @@ const BENIGN_BROWSER_TEST_SUBSTRINGS = [
   'error loading dynamically imported module: http://127.0.0.1:4173/',
   'due to access control checks',
   'NS_BINDING_ABORTED',
-  'Error loading route module `/app/routes/showcase.tsx`, reloading page',
   'Cannot update a component (`NodeThumbnail`) while rendering a different component (`PerfMetric`)',
   'ResizeObserver loop completed with undelivered notifications',
   "WebGL: INVALID_OPERATION: texImage3D: FLIP_Y or PREMULTIPLY_ALPHA isn't allowed for uploading 3D textures",

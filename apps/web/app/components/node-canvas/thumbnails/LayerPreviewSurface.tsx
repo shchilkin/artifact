@@ -265,7 +265,7 @@ function resolvedLiveImageSource(resolvedSource: { key: string; source: string |
   return resolvedSource.source;
 }
 
-function isTransformableLayer(layer: LayerNodeData['layer']) {
+function isTransformableLayer(layer: LayerNodeData['layer']): layer is TransformableLayer {
   return layer.kind === 'text' || layer.kind === 'image';
 }
 
@@ -339,7 +339,9 @@ function LiveTransformMedia({
   showLiveTransformOverlay: boolean;
   liveImageSource: string | null;
 }) {
-  if (!showLiveTransformOverlay) return <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />;
+  if (!showLiveTransformOverlay || !isTransformableLayer(layer)) {
+    return <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />;
+  }
   return (
     <>
       {mediaBgPreviewTargetId ? <NodeThumbnail previewTargetId={mediaBgPreviewTargetId} /> : <EmptyThumbnailFrame />}
@@ -371,7 +373,7 @@ function TransformDragOverlay({
   onTransformDraft?: (patch: LayerTransformPatch) => void;
   onTransformCommit?: () => void;
 }) {
-  if (!shouldShowTransformDragOverlay(layer, selected)) return null;
+  if (!selected || !isTransformableLayer(layer)) return null;
   return (
     <DragTransformOverlay
       layer={layer}
@@ -380,10 +382,6 @@ function TransformDragOverlay({
       onStart={activateTransformSurface}
     />
   );
-}
-
-function shouldShowTransformDragOverlay(layer: LayerNodeData['layer'], selected: boolean) {
-  return selected && isTransformableLayer(layer);
 }
 
 function galleryPreviewClassName(isDraggable: boolean, selected: boolean) {

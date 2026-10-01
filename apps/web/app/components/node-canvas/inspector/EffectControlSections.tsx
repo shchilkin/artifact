@@ -16,7 +16,7 @@ import { effectSectionSummary } from './effectSectionModel';
 import { InspectorColorInput, InspectorSection, InspectorSlider } from './fields';
 
 type EffectStringField = {
-  [K in keyof EffectLayer]: EffectLayer[K] extends string ? K : never;
+  [K in keyof EffectLayer]-?: EffectLayer[K] extends string ? K : never;
 }[keyof EffectLayer];
 
 type IndexedColorField =

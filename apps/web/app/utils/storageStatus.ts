@@ -47,7 +47,8 @@ export function formatBytes(bytes: number): string {
 export function classifyStoragePressure(estimate: StorageEstimateSnapshot | null | undefined): StoragePressure {
   const usage = estimate?.usage;
   const quota = estimate?.quota;
-  if (!Number.isFinite(usage) || !Number.isFinite(quota) || Number(quota) <= 0) return 'unknown';
+  if (typeof usage !== 'number' || typeof quota !== 'number') return 'unknown';
+  if (!Number.isFinite(usage) || !Number.isFinite(quota) || quota <= 0) return 'unknown';
   const ratio = usage / quota;
   if (ratio >= 0.92) return 'full';
   if (ratio >= 0.72) return 'watch';

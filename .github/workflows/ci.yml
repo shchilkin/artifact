@@ -145,7 +145,7 @@ jobs:
           changed="$(git diff --name-only "$base" HEAD || true)"
           echo "$changed"
 
-          if echo "$changed" | grep -Eq '^(\.github/workflows/ci\.yml|package\.json|package-lock\.json|playwright\.config\.ts|apps/|packages/|tests/browser/)'; then
+          if echo "$changed" | grep -Eq '^(\.github/workflows/ci\.yml|package\.json|package-lock\.json|playwright\.config\.ts|apps/|packages/|tests/browser/|scripts/loading/|docs/loading/)'; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"
@@ -193,6 +193,41 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  route-loading:
+    needs: browser-changes
+    if: needs.browser-changes.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    name: route loading
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Route budgets and loading boundaries
+        env:
+          HOME: /root
+        run: npm run loading:gate
+
+      - name: Upload route loading measurement
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-loading
+          path: apps/web/build/route-loading.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   browser-backoffice:
     needs: browser-changes
@@ -271,7 +306,7 @@ jobs:
 
   container-gate:
     name: container gate
-    needs: [quality, browser-changes, browser, browser-backoffice, container-changes]
+    needs: [quality, browser-changes, browser, browser-backoffice, route-loading, container-changes]
     if: always()
     runs-on: ubuntu-latest
     outputs:
@@ -286,6 +321,7 @@ jobs:
           BROWSER_REQUIRED: ${{ needs.browser-changes.outputs.should_run }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           BACKOFFICE_BROWSER_RESULT: ${{ needs.browser-backoffice.result }}
+          ROUTE_LOADING_RESULT: ${{ needs.route-loading.result }}
           CONTAINER_CHANGES_RESULT: ${{ needs.container-changes.result }}
           CONTAINER_REQUIRED: ${{ needs.container-changes.outputs.should_run }}
         shell: bash
@@ -315,6 +351,10 @@ jobs:
 
           if [ "$BROWSER_REQUIRED" = "true" ] && [ "$BACKOFFICE_BROWSER_RESULT" != "success" ]; then
             fail_gate "Required Backoffice browser result was '$BACKOFFICE_BROWSER_RESULT'."
+          fi
+
+          if [ "$BROWSER_REQUIRED" = "true" ] && [ "$ROUTE_LOADING_RESULT" != "success" ]; then
+            fail_gate "Required route loading gate result was '$ROUTE_LOADING_RESULT'."
           fi
 
           if [ "$CONTAINER_REQUIRED" != "true" ]; then

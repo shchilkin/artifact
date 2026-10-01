@@ -5,6 +5,7 @@ import {
   Controls,
   ReactFlow,
   type ReactFlowInstance,
+  SelectionMode,
   ViewportPortal,
 } from '@xyflow/react';
 import {
@@ -43,7 +44,11 @@ import {
 import { LazyModelViewport3D, LazyPrimitiveViewport3D } from '../LazyViewport3D';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
-import { type PrimitiveRenderMode, type PrimitiveViewportState } from '../PrimitiveViewportState';
+import {
+  defaultPrimitiveViewportState,
+  type PrimitiveRenderMode,
+  type PrimitiveViewportState,
+} from '../PrimitiveViewportState';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 import { EmptyState } from '../ui/EmptyState';
 import { Toolbar, ToolbarButton } from '../ui/Toolbar';
@@ -612,7 +617,7 @@ export function NodeCanvas({
               elementsSelectable
               selectionKeyCode="Shift"
               selectionOnDrag={!primitiveViewportLockActive}
-              selectionMode="partial"
+              selectionMode={SelectionMode.Partial}
               multiSelectionKeyCode={['Meta', 'Control']}
               minZoom={0.3}
               maxZoom={2}

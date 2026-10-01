@@ -243,6 +243,12 @@ Layer rendering happens through `applyLayerToCanvas` in `renderer.ts`.
 | `array` | Canvas procedural source |
 | `effect` | Canvas effects plus PixiJS GPU filters |
 
+Effect layers accept an optional `blendMode`. Unset or `normal` replaces the
+input with the effect result, as before. Any other mode composites the effect
+result over the untouched input with that Canvas 2D composite operation, after
+`maskAlpha`. Effect layers with a non-normal blend mode are excluded from the
+fused GPU-only effect chain in graph mode so stack and graph output match.
+
 Primitive layers are rendered as frame-fitted sources in both stack and graph paths. Their old document placement fields may still exist for compatibility, but the UI no longer exposes primitive placement controls; camera and framing are handled by the primitive viewport state instead.
 
 Text rendering uses the shared font registry in `apps/web/app/types/typography.ts`.

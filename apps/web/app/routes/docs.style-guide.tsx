@@ -1,3 +1,4 @@
+import './styles/docs.style-guide.css';
 import {
   FoundationCommandMatrix,
   FoundationFeedbackMatrix,
@@ -34,7 +35,6 @@ import {
   BlendModeNote,
   FontPicker,
   InspectorColorInput,
-  InspectorLabel,
   InspectorSection,
   InspectorSelect,
   InspectorSlider,
@@ -47,6 +47,7 @@ import { PortRow } from '../components/node-canvas/inspector/PortRow';
 import { NodeFrame } from '../components/node-canvas/nodes/NodeFrame';
 import { NodeShell } from '../components/node-canvas/nodes/NodeShell';
 import { NodePropertiesPanel } from '../components/node-canvas/panel/NodePropertiesPanel';
+import { pageMeta } from '../utils/pageMeta';
 import '@xyflow/react/dist/style.css';
 import '../components/node-canvas/node-canvas.css';
 import { Button, IconButton, Input } from '@artifact/ui';
@@ -95,13 +96,12 @@ import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
 import { EXPORT_NODE_ID } from '../utils/nodeGraph';
 import './docs.style-guide.css';
 
-export const meta: MetaFunction = () => [
-  { title: 'Artifact editor style guide' },
-  {
-    name: 'description',
-    content: 'Internal style guide for Artifact editor primitives, tokens, and reusable UI states.',
-  },
-];
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'Artifact editor style guide',
+    description: 'Internal style guide for Artifact editor primitives, tokens, and reusable UI states.',
+    path: '/docs/style-guide',
+  });
 
 const layers: Layer[] = [
   {
@@ -130,6 +130,7 @@ const layers: Layer[] = [
     font: 'DISPLAY',
     size: 96,
     color: '#f4eadc',
+    align: 'center',
     x: 0.5,
     y: 0.5,
     rotation: 0,
@@ -138,17 +139,12 @@ const layers: Layer[] = [
     opacity: 100,
     blendMode: 'normal',
   },
-  {
+  makeEffectPresetLayer('grain', {
     id: 'style-layer-hidden',
     name: 'Hidden grain',
     visible: false,
-    locked: false,
-    kind: 'effect',
-    preset: 'grain',
     value: 55,
-    opacity: 100,
-    blendMode: 'normal',
-  },
+  }),
   {
     id: 'style-layer-locked',
     name: 'Locked print wash',
@@ -1094,7 +1090,6 @@ function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_
         collisionAdjusted={state === 'collision-adjusted'}
         mobile={state === 'mobile-sheet'}
         openMethod={openMethod}
-        preventOpenAutoFocus={state === 'open'}
         align={state === 'collision-adjusted' ? 'end' : 'start'}
         title={`${label} overlay`}
         description="Choose an editor action."
@@ -1303,14 +1298,8 @@ function InspectorFieldSpecimens() {
         open={sectionOpen}
         onToggle={() => setSectionOpen((open) => !open)}
       >
-        <div className="artifact-inspector-control">
-          <InspectorLabel>Title</InspectorLabel>
-          <InspectorTextInput value={title} placeholder="Cover title" onChange={setTitle} />
-        </div>
-        <div className="artifact-inspector-control">
-          <InspectorLabel>Caption</InspectorLabel>
-          <InspectorTextArea value={caption} onChange={setCaption} />
-        </div>
+        <InspectorTextInput label="Title" value={title} placeholder="Cover title" onChange={setTitle} />
+        <InspectorTextArea label="Caption" value={caption} onChange={setCaption} />
         <FontPicker label="Font" value={font} onChange={setFont} />
         <InspectorSlider
           label="Opacity"
@@ -1364,6 +1353,12 @@ function NodePropertiesPanelSpecimens() {
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
           onUpdateMaterialNode={noop}
+          onUpdateMaskNode={noop}
+          onUpdateTransformNode={noop}
+          onUpdateGrimeShadowNode={noop}
+          onUpdateScene3DNode={noop}
+          onUpdateEnvironmentNode={noop}
+          onUpdateShaderNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -1382,6 +1377,12 @@ function NodePropertiesPanelSpecimens() {
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
           onUpdateMaterialNode={noop}
+          onUpdateMaskNode={noop}
+          onUpdateTransformNode={noop}
+          onUpdateGrimeShadowNode={noop}
+          onUpdateScene3DNode={noop}
+          onUpdateEnvironmentNode={noop}
+          onUpdateShaderNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -1400,6 +1401,12 @@ function NodePropertiesPanelSpecimens() {
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
           onUpdateMaterialNode={noop}
+          onUpdateMaskNode={noop}
+          onUpdateTransformNode={noop}
+          onUpdateGrimeShadowNode={noop}
+          onUpdateScene3DNode={noop}
+          onUpdateEnvironmentNode={noop}
+          onUpdateShaderNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -1418,6 +1425,12 @@ function NodePropertiesPanelSpecimens() {
           onUpdateColorNode={noop}
           onUpdateRepeatNode={noop}
           onUpdateMaterialNode={noop}
+          onUpdateMaskNode={noop}
+          onUpdateTransformNode={noop}
+          onUpdateGrimeShadowNode={noop}
+          onUpdateScene3DNode={noop}
+          onUpdateEnvironmentNode={noop}
+          onUpdateShaderNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}

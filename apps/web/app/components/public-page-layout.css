@@ -1,0 +1,79 @@
+/* Public page footer. Imported by PublicPageLayout. */
+
+.product-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-top: 1px solid var(--line-default);
+  background: var(--surface-app);
+  color: var(--text-secondary);
+  padding: var(--space-4) clamp(var(--space-4), 4vw, var(--space-8));
+}
+
+.product-footer__brand,
+.product-footer__links,
+.product-footer__link {
+  display: flex;
+  align-items: center;
+}
+
+.product-footer__brand {
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: var(--type-readable-md);
+  font-weight: var(--weight-display);
+  text-transform: uppercase;
+}
+
+.product-footer__links {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-6);
+}
+
+.product-footer__link {
+  min-height: 44px;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-xs);
+  line-height: var(--leading-readable);
+  text-decoration: none;
+}
+
+.product-footer__link img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  opacity: 0.72;
+}
+
+.product-footer__link strong {
+  color: var(--text-primary);
+  font-weight: var(--weight-strong);
+}
+
+.product-footer__link:hover strong,
+.product-footer__link:focus-visible strong {
+  color: var(--accent-primary);
+}
+
+.product-footer__link:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (max-width: 640px) {
+  .product-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .product-footer__links {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

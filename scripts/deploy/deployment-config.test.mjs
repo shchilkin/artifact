@@ -28,6 +28,26 @@ describe('deployment configuration', () => {
     assert.equal(config.git?.deploymentEnabled?.main, false);
   });
 
+  it('serves prerendered public pages and sends every other path to the SPA fallback', async () => {
+    const [config, contract] = await Promise.all([
+      readFile(new URL('vercel.json', root), 'utf8').then(JSON.parse),
+      readFile(new URL('docs/loading/route-loading-contract.json', root), 'utf8').then(JSON.parse),
+    ]);
+    const rewrites = config.rewrites ?? [];
+    const catchAll = rewrites.at(-1);
+
+    assert.deepEqual(catchAll, { source: '/(.*)', destination: '/__spa-fallback.html' });
+    // `/` is served by the prerendered build/client/index.html before any rewrite applies.
+    for (const path of contract.delivery.prerender.filter((path) => path !== '/')) {
+      const rewrite = rewrites.find((entry) => entry.source === path);
+      assert.equal(rewrite?.destination, `${path}/index.html`, `${path} must serve its prerendered HTML`);
+      assert.ok(rewrites.indexOf(rewrite) < rewrites.indexOf(catchAll), `${path} must resolve before the fallback`);
+    }
+    for (const rewrite of rewrites.slice(0, -1)) {
+      assert.ok(contract.delivery.prerender.includes(rewrite.source), `${rewrite.source} is not an approved prerender`);
+    }
+  });
+
   it('keeps production deployment behind the release gate and promotes web last', async () => {
     const releaseWorkflow = await readFile(new URL('.github/workflows/release.yml', root), 'utf8');
     const stagedWeb = releaseWorkflow.indexOf('Deploy staged web without production domains');
@@ -158,10 +178,13 @@ describe('deployment configuration', () => {
     assert.match(workflow, /browser-backoffice:\n[\s\S]*?name: browser \(backoffice\)/);
     assert.match(
       workflow,
-      /container-gate:\n[\s\S]*?needs: \[quality, browser-changes, browser, browser-backoffice, container-changes\]/,
+      /container-gate:\n[\s\S]*?needs: \[quality, browser-changes, browser, browser-backoffice, route-loading, container-changes\]/,
     );
     assert.match(workflow, /BACKOFFICE_BROWSER_RESULT: \$\{\{ needs\.browser-backoffice\.result \}\}/);
     assert.match(workflow, /Required Backoffice browser result was/);
+    assert.match(workflow, /route-loading:\n[\s\S]*?name: route loading\n[\s\S]*?run: npm run loading:gate/);
+    assert.match(workflow, /ROUTE_LOADING_RESULT: \$\{\{ needs\.route-loading\.result \}\}/);
+    assert.match(workflow, /Required route loading gate result was/);
     assert.match(workflow, /should_build: \$\{\{ steps\.gate\.outputs\.should_build \}\}/);
     assert.match(
       workflow,

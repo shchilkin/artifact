@@ -7,11 +7,12 @@ import type {
 } from '../types/config';
 import { DOCUMENT_SCHEMA_VERSION } from '../types/config';
 import { getBundledFontRegistryItem, isBundledFontName } from '../types/typography';
-import { isAssetUri, type StoreDocumentImageAssetOptions } from './assetStore';
+import { isAssetUri } from './assetStore';
 import {
   inspectDocumentDependencies,
   type PreparePortableDocumentOptions,
   preparePortableDocument,
+  type StorePortableDocumentAssetOptions,
   storePortableDocumentAssets,
 } from './documentAssets';
 import { normalizeDocument } from './documentPersistence';
@@ -21,7 +22,6 @@ import {
   hydrateDocumentFontAssets,
   isFontUri,
   loadImportedFontAsset,
-  type StoreDocumentFontAssetOptions,
   stripDocumentFontAssets,
 } from './fontStore';
 import { modelUriFromId } from './modelAssetStore';
@@ -111,12 +111,14 @@ export interface PrepareArtifactProjectPackageOptions extends PreparePortableDoc
   now?: Date;
 }
 
-export interface ImportArtifactProjectPackageOptions
-  extends StoreDocumentImageAssetOptions,
-    StoreDocumentFontAssetOptions {}
+export type ImportArtifactProjectPackageOptions = StorePortableDocumentAssetOptions;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function isProjectPackageManifest(value: unknown): value is ProjectPackageManifest {
+  return isRecord(value) && value.kind === ARTIFACT_PROJECT_PACKAGE_KIND;
 }
 
 function unique(values: string[]) {
@@ -469,11 +471,11 @@ export function parseArtifactProjectPackage(value: string | null | undefined): A
   if (!value) return null;
   try {
     const parsed: unknown = JSON.parse(value);
-    if (!isRecord(parsed) || parsed.artifactPackage !== 'project' || !isRecord(parsed.manifest)) return null;
-    if (parsed.manifest.kind !== ARTIFACT_PROJECT_PACKAGE_KIND) return null;
+    if (!isRecord(parsed) || parsed.artifactPackage !== 'project') return null;
+    if (!isProjectPackageManifest(parsed.manifest)) return null;
     return {
       artifactPackage: 'project',
-      manifest: parsed.manifest as ProjectPackageManifest,
+      manifest: parsed.manifest,
       document: normalizeDocument(parsed.document),
     };
   } catch {

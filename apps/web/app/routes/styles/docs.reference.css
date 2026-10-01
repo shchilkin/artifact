@@ -1,0 +1,6 @@
+/* Surface styles for /docs/reference. docs.reference.tsx imports this file first, so the rules
+   stay in its route chunk and precede shared component CSS (the order they had
+   in the global stylesheet). Each route keeps its own entry file: a shared
+   entry would be split into a common chunk whose load order is not fixed. */
+@import "../docs.shared.css";
+@import "../../components/product-surfaces/product-surfaces.css";

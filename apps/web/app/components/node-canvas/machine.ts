@@ -31,7 +31,7 @@ function computeNextNodeIds(current: string[], id: string | null, additive: bool
 function expandedNodeIdAfterSelection(
   currentExpandedId: string | null,
   selectedNodeIds: string[],
-  id: string,
+  id: string | null,
   additive: boolean,
 ) {
   if (!currentExpandedId) return null;

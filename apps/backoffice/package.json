@@ -1,14 +1,14 @@
 {
   "name": "@artifact/backoffice",
   "private": true,
-  "version": "0.48.1",
+  "version": "0.49.0",
   "type": "module",
   "scripts": {
     "build": "npm --workspace @artifact/shared run build && react-router build",
     "check": "npm run typecheck && npm run test",
     "dev": "npm --workspace @artifact/shared run build && react-router dev --host 127.0.0.1 --port ${PORT:-4030}",
     "preview": "vite preview --outDir build/client --host 127.0.0.1 --port ${PORT:-4030}",
-    "typecheck": "npm --workspace @artifact/shared run build && react-router typegen && tsc",
+    "typecheck": "npm --workspace @artifact/shared run build && react-router typegen && tsc -b",
     "test": "npm --workspace @artifact/shared run build && vitest run --config vitest.config.ts",
     "test:browser": "npm --workspace @artifact/shared run build && playwright test --config playwright.config.ts"
   },

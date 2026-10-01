@@ -6,7 +6,16 @@ import { cn } from '@/lib/utils';
 import { type InspectorStateProps, inspectorStateAttributes, inspectorStateLabels } from './inspectorState';
 import './inspector-system.css';
 
-interface InspectorFieldProps extends FieldProps, InspectorStateProps {
+interface InspectorFieldControlProps {
+  'aria-describedby'?: string;
+  'aria-errormessage'?: string;
+  'aria-invalid'?: boolean;
+  disabled?: boolean;
+  id?: string;
+}
+
+interface InspectorFieldProps extends Omit<FieldProps, 'children'>, InspectorStateProps {
+  children: ReactElement<InspectorFieldControlProps>;
   status?: React.ReactNode;
 }
 
@@ -30,22 +39,13 @@ export function InspectorField({
   const hasError = error !== null && error !== undefined && error !== false;
   const hintId = controlId && hasHint ? `${controlId}-hint` : undefined;
   const errorId = controlId && hasError ? `${controlId}-error` : undefined;
-  const control = cloneElement(
-    children as ReactElement<{
-      'aria-describedby'?: string;
-      'aria-errormessage'?: string;
-      'aria-invalid'?: boolean;
-      disabled?: boolean;
-      id?: string;
-    }>,
-    {
-      'aria-describedby': joinIds(children.props['aria-describedby'], hintId, errorId),
-      'aria-errormessage': children.props['aria-errormessage'] ?? errorId,
-      'aria-invalid': validation === 'invalid' || children.props['aria-invalid'],
-      disabled: disabled || children.props.disabled,
-      id: children.props.id ?? controlId,
-    },
-  );
+  const control = cloneElement(children, {
+    'aria-describedby': joinIds(children.props['aria-describedby'], hintId, errorId),
+    'aria-errormessage': children.props['aria-errormessage'] ?? errorId,
+    'aria-invalid': validation === 'invalid' || children.props['aria-invalid'],
+    disabled: disabled || children.props.disabled,
+    id: children.props.id ?? controlId,
+  });
 
   return (
     <Field

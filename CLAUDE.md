@@ -174,4 +174,5 @@ npm run test:browser # focused Playwright browser/WebGL smoke tests
 - **Don't add `as unknown` casts** to escape type errors — fix the types instead.
 - **Don't call `_setDoc` directly** outside `generator.tsx`. Always go through the `setDoc` wrapper so history is recorded.
 - **Don't import PixiJS at the module top level** in paths that run server-side. Pixi is browser-only; use dynamic `import('pixi.js')` inside async functions as the existing code does.
+- **Don't touch browser APIs during render on prerendered routes.** The paths in `docs/loading/route-loading-contract.json` `delivery.prerender` (`/`, `/docs`, `/docs/nodes`, `/docs/recipes`, `/docs/reference`) and the root render at build time in Node. Keep `window`, storage, WebGL, and auth-session work in effects or lazy imports, and keep first-render output identical on server and client.
 - **Don't add effect parameters to `EffectLayer` without also updating** `DEFAULT_EFFECT_LAYER_PROPS`, `ZERO_EFFECT`, all relevant `EFFECT_PRESETS` entries, `buildFiltersFromEffectLayer`, and the `Sidebar` controls.

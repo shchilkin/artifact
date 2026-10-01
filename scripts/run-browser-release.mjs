@@ -32,7 +32,7 @@ const releaseSegments = [
   {
     label: 'Chromium configured account overlay',
     script: 'test:browser:chromium',
-    args: ['v044-auth.spec.ts'],
+    args: ['v044-auth.spec.ts', 'v049-shell.spec.ts'],
     serverMode: 'dev',
     authConfigured: true,
   },
@@ -58,6 +58,18 @@ const releaseSegments = [
     label: 'Chromium production public shell',
     script: 'test:browser',
     args: ['--project=chromium', 'v044-product-surfaces.spec.ts', '--grep', 'public shell'],
+    serverMode: 'preview',
+  },
+  {
+    label: 'Chromium production CSS ownership',
+    script: 'test:browser',
+    args: ['--project=chromium', 'v049-css-ownership.spec.ts'],
+    serverMode: 'preview',
+  },
+  {
+    label: 'Chromium production prerender and SPA fallback',
+    script: 'test:browser',
+    args: ['--project=chromium', 'v049-prerender.spec.ts', 'v049-shell.spec.ts'],
     serverMode: 'preview',
   },
   { label: 'Mobile Chromium and WebKit', script: 'test:browser:mobile', args: [], serverMode: 'dev' },
