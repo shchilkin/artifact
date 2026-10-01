@@ -7,6 +7,7 @@ import type {
   FillLayer,
   ImageLayer,
   Layer,
+  SourceLayer,
   TextLayer,
 } from '../../../types/config';
 import { DEFAULT_EFFECT_LAYER_PROPS } from '../../../types/config';
@@ -1091,7 +1092,30 @@ function hasGpuEffect(layer: EffectLayer): boolean {
 }
 
 export function isGpuOnlyEffectLayer(layer: EffectLayer): boolean {
-  return layer.visible && !layer.maskAlpha && hasGpuEffect(layer) && !hasCanvas2DEffect(layer);
+  return (
+    layer.visible && !layer.maskAlpha && !hasEffectBlendMode(layer) && hasGpuEffect(layer) && !hasCanvas2DEffect(layer)
+  );
+}
+
+function hasEffectBlendMode(layer: EffectLayer): boolean {
+  return (layer.blendMode ?? 'normal') !== 'normal';
+}
+
+/** Composites the effected result over the untouched input using the layer's blend mode. */
+function blendEffectOverBase(
+  base: HTMLCanvasElement,
+  effected: HTMLCanvasElement,
+  layer: EffectLayer,
+  W: number,
+  H: number,
+): HTMLCanvasElement {
+  if (!hasEffectBlendMode(layer) || effected === base) return effected;
+  const blended = cloneCanvas(base, W, H);
+  const ctx = blended.getContext('2d')!;
+  ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode ?? 'normal');
+  ctx.drawImage(effected, 0, 0, W, H);
+  ctx.globalCompositeOperation = 'source-over';
+  return blended;
 }
 
 export async function applyGpuOnlyEffectLayerChain(
@@ -1203,7 +1227,7 @@ function sourceLayerLayout(layer: Layer, options: RenderOptions) {
     : (options.sourceLayout ?? 'document');
 }
 
-async function renderSourceLayerToCanvas(context: LayerRenderContext<Layer>) {
+async function renderSourceLayerToCanvas(context: LayerRenderContext<SourceLayer>) {
   const { ctx, W, H, layer, seed, scale, options, current } = context;
   await drawSourceLayer(
     ctx,
@@ -1279,6 +1303,12 @@ async function applyGpuFiltersForEffect(
 }
 
 async function renderEffectLayerToCanvas(context: LayerRenderContext<EffectLayer>) {
+  const { base, layer, W, H } = context;
+  const effected = await renderEffectPass(context);
+  return blendEffectOverBase(base, effected, layer, W, H);
+}
+
+async function renderEffectPass(context: LayerRenderContext<EffectLayer>) {
   const { base, ctx, W, H, layer, seed, scale, options } = context;
   throwIfRenderAborted(options);
   if (options.skipEffects) return base;

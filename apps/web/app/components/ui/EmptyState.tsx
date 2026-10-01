@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 import './primitives.css';
 
-interface EmptyStateProps extends HTMLAttributes<HTMLDivElement> {
+interface EmptyStateProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   actions?: ReactNode;
   body?: ReactNode;
   eyebrow?: string;

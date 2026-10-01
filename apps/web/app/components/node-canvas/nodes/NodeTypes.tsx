@@ -1,4 +1,4 @@
-import type { NodeProps } from '@xyflow/react';
+import type { Node, NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
@@ -31,7 +31,7 @@ import { NodeFrame } from './NodeFrame';
 import { useLayerTransformDraft } from './useLayerTransformDraft';
 import { useTransformNodeDraft } from './useTransformNodeDraft';
 
-export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<LayerNodeData>) {
+export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: NodeProps<Node<LayerNodeData>>) {
   const { selectNode, deleteNode, updateLayer, setPrimitiveViewportActive } = useNodeCanvasActions();
   const { layer, previewTargetId, selected, outputPath, editing, connected, primitiveViewState, primitiveRenderMode } =
     data;
@@ -91,7 +91,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
   );
 });
 
-export const MaterialNodeComponent = memo(function MaterialNodeComponent({ data }: NodeProps<MaterialNodeData>) {
+export const MaterialNodeComponent = memo(function MaterialNodeComponent({ data }: NodeProps<Node<MaterialNodeData>>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
   const { materialNode, previewTargetId, selected, outputPath, editing, connected } = data;
   const materialInputs = [
@@ -129,7 +129,7 @@ export const MaterialNodeComponent = memo(function MaterialNodeComponent({ data 
   );
 });
 
-export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: NodeProps<ColorNodeData>) {
+export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: NodeProps<Node<ColorNodeData>>) {
   const { selectNode } = useNodeCanvasActions();
   const { colorNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
@@ -156,7 +156,7 @@ export const ColorNodeComponent = memo(function ColorNodeComponent({ data }: Nod
   );
 });
 
-export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: NodeProps<MergeNodeData>) {
+export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: NodeProps<Node<MergeNodeData>>) {
   const { selectNode } = useNodeCanvasActions();
   const { mergeNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
@@ -189,7 +189,7 @@ export const MergeNodeComponent = memo(function MergeNodeComponent({ data }: Nod
   );
 });
 
-export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: NodeProps<RepeatNodeData>) {
+export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: NodeProps<Node<RepeatNodeData>>) {
   const { selectNode } = useNodeCanvasActions();
   const { repeatNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
@@ -222,7 +222,7 @@ export const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: N
   );
 });
 
-export const MaskNodeComponent = memo(function MaskNodeComponent({ data }: NodeProps<MaskNodeData>) {
+export const MaskNodeComponent = memo(function MaskNodeComponent({ data }: NodeProps<Node<MaskNodeData>>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
   const { maskNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
@@ -256,7 +256,9 @@ export const MaskNodeComponent = memo(function MaskNodeComponent({ data }: NodeP
   );
 });
 
-export const TransformNodeComponent = memo(function TransformNodeComponent({ data }: NodeProps<TransformNodeData>) {
+export const TransformNodeComponent = memo(function TransformNodeComponent({
+  data,
+}: NodeProps<Node<TransformNodeData>>) {
   const { selectNode, deleteNode, updateTransformNode } = useNodeCanvasActions();
   const { transformNode, previewTargetId, sourcePreviewTargetId, selected, outputPath, editing, connected } = data;
   const transform = useTransformNodeDraft(transformNode, updateTransformNode);
@@ -296,7 +298,7 @@ export const TransformNodeComponent = memo(function TransformNodeComponent({ dat
 
 export const GrimeShadowNodeComponent = memo(function GrimeShadowNodeComponent({
   data,
-}: NodeProps<GrimeShadowNodeData>) {
+}: NodeProps<Node<GrimeShadowNodeData>>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
   const { grimeShadowNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
@@ -324,7 +326,7 @@ export const GrimeShadowNodeComponent = memo(function GrimeShadowNodeComponent({
   );
 });
 
-export const Scene3DNodeComponent = memo(function Scene3DNodeComponent({ data }: NodeProps<Scene3DNodeData>) {
+export const Scene3DNodeComponent = memo(function Scene3DNodeComponent({ data }: NodeProps<Node<Scene3DNodeData>>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
   const {
     scene3dNode,
@@ -388,7 +390,7 @@ export const Scene3DNodeComponent = memo(function Scene3DNodeComponent({ data }:
 
 export const EnvironmentNodeComponent = memo(function EnvironmentNodeComponent({
   data,
-}: NodeProps<EnvironmentNodeData>) {
+}: NodeProps<Node<EnvironmentNodeData>>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
   const { environmentNode, previewTargetId, sourcePreviewTargetId, selected, outputPath, editing, connected } = data;
   const rendersSource = Boolean(sourcePreviewTargetId);
@@ -421,7 +423,7 @@ export const EnvironmentNodeComponent = memo(function EnvironmentNodeComponent({
   );
 });
 
-export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: NodeProps<ShaderNodeData>) {
+export const ShaderNodeComponent = memo(function ShaderNodeComponent({ data }: NodeProps<Node<ShaderNodeData>>) {
   const { selectNode, deleteNode } = useNodeCanvasActions();
   const {
     shaderNode,
@@ -575,7 +577,7 @@ function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationSta
   );
 }
 
-export const FallbackNodeComponent = memo(function FallbackNodeComponent({ data }: NodeProps<FallbackNodeData>) {
+export const FallbackNodeComponent = memo(function FallbackNodeComponent({ data }: NodeProps<Node<FallbackNodeData>>) {
   const { selectNode } = useNodeCanvasActions();
   const { id, label, name, selected, outputPath, editing } = data;
 
@@ -597,7 +599,7 @@ export const FallbackNodeComponent = memo(function FallbackNodeComponent({ data 
   );
 });
 
-export const ExportNodeComponent = memo(function ExportNodeComponent({ data }: NodeProps<ExportNodeData>) {
+export const ExportNodeComponent = memo(function ExportNodeComponent({ data }: NodeProps<Node<ExportNodeData>>) {
   const { selectNode } = useNodeCanvasActions();
   const { previewTargetId, selected, outputPath, editing, connected } = data;
 

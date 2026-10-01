@@ -1,3 +1,4 @@
+import './public-page-layout.css';
 import type { ReactNode } from 'react';
 import { Footer } from './Footer';
 import { SiteNav } from './SiteNav';

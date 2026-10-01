@@ -1,7 +1,13 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 
-import { makeGraphMaterialNode, makeGraphScene3DNode, makeSourceLayer } from '../types/config';
+import {
+  type ModelLayer,
+  makeGraphMaterialNode,
+  makeGraphScene3DNode,
+  makeSourceLayer,
+  type PrimitiveLayer,
+} from '../types/config';
 import {
   addModelSceneLights,
   applySceneEnvironmentIntensity,
@@ -13,6 +19,20 @@ import {
   normalizeModelRoot,
   renderModelToCanvas,
 } from './modelRenderer';
+
+type SourceLayerPartial = Parameters<typeof makeSourceLayer>[1];
+
+function makeModelLayer(partial: SourceLayerPartial = {}): ModelLayer {
+  const layer = makeSourceLayer('model', partial);
+  if (layer.kind !== 'model') throw new Error(`Expected model layer, got ${layer.kind}`);
+  return layer;
+}
+
+function makePrimitiveLayer(partial: SourceLayerPartial = {}): PrimitiveLayer {
+  const layer = makeSourceLayer('primitive', partial);
+  if (layer.kind !== 'primitive') throw new Error(`Expected primitive layer, got ${layer.kind}`);
+  return layer;
+}
 
 function hasVisiblePixels(canvas: HTMLCanvasElement): boolean {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
@@ -38,11 +58,7 @@ describe('renderModelToCanvas', () => {
 
     expect(foreignMesh instanceof THREE.Mesh).toBe(false);
 
-    applySceneMaterialMode(
-      root,
-      makeSourceLayer('model', { color: '#f1d2a4' }),
-      makeGraphScene3DNode({ materialMode: 'clay' }),
-    );
+    applySceneMaterialMode(root, makeModelLayer({ color: '#f1d2a4' }), makeGraphScene3DNode({ materialMode: 'clay' }));
     expect(foreignMesh.material).toBeInstanceOf(THREE.MeshStandardMaterial);
 
     await applySceneMaterialConfig(root, makeGraphMaterialNode({ materialPreset: 'goldFoil' }));
@@ -51,7 +67,10 @@ describe('renderModelToCanvas', () => {
 
   it('applies connected PBR material texture canvases to scene materials', async () => {
     const root = new THREE.Group();
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    const mesh = new THREE.Mesh<THREE.BufferGeometry, THREE.Material>(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshBasicMaterial(),
+    );
     root.add(mesh);
     const albedo = document.createElement('canvas');
     albedo.width = 8;
@@ -79,13 +98,16 @@ describe('renderModelToCanvas', () => {
 
   it('creates primitive scene sources that accept PBR material nodes', async () => {
     const root = await loadScene3DSourceObject(
-      makeSourceLayer('primitive', { primitiveShape: 'sphere' }),
+      makePrimitiveLayer({ primitiveShape: 'sphere' }),
       makeGraphScene3DNode({ materialMode: 'original' }),
       makeGraphMaterialNode({ materialPreset: 'chrome' }),
     );
     let material: THREE.Material | null = null;
     root.traverse((object) => {
-      if ((object as THREE.Mesh & { isMesh?: boolean }).isMesh === true) material = (object as THREE.Mesh).material;
+      if ((object as THREE.Mesh & { isMesh?: boolean }).isMesh === true) {
+        const meshMaterial = (object as THREE.Mesh).material;
+        if (!Array.isArray(meshMaterial)) material = meshMaterial;
+      }
     });
 
     expect(material).toBeInstanceOf(THREE.MeshPhysicalMaterial);
@@ -94,13 +116,16 @@ describe('renderModelToCanvas', () => {
 
   it('lets connected PBR material nodes override scene material modes', async () => {
     const root = await loadScene3DSourceObject(
-      makeSourceLayer('primitive', { primitiveShape: 'sphere' }),
+      makePrimitiveLayer({ primitiveShape: 'sphere' }),
       makeGraphScene3DNode({ materialMode: 'unlit' }),
       makeGraphMaterialNode({ materialPreset: 'chrome' }),
     );
     let material: THREE.Material | null = null;
     root.traverse((object) => {
-      if ((object as THREE.Mesh & { isMesh?: boolean }).isMesh === true) material = (object as THREE.Mesh).material;
+      if ((object as THREE.Mesh & { isMesh?: boolean }).isMesh === true) {
+        const meshMaterial = (object as THREE.Mesh).material;
+        if (!Array.isArray(meshMaterial)) material = meshMaterial;
+      }
     });
 
     expect(material).toBeInstanceOf(THREE.MeshPhysicalMaterial);
@@ -110,17 +135,18 @@ describe('renderModelToCanvas', () => {
 
   it('lets connected scene environments override generated material environment maps', async () => {
     const root = await loadScene3DSourceObject(
-      makeSourceLayer('primitive', { primitiveShape: 'sphere' }),
+      makePrimitiveLayer({ primitiveShape: 'sphere' }),
       makeGraphScene3DNode({ materialMode: 'original' }),
       makeGraphMaterialNode({ materialPreset: 'chrome' }),
     );
-    let material: THREE.MeshPhysicalMaterial | null = null;
+    const physicalMaterials: THREE.MeshPhysicalMaterial[] = [];
     root.traverse((object) => {
       if ((object as THREE.Mesh & { isMesh?: boolean }).isMesh === true) {
         const nextMaterial = (object as THREE.Mesh).material;
-        if (nextMaterial instanceof THREE.MeshPhysicalMaterial) material = nextMaterial;
+        if (nextMaterial instanceof THREE.MeshPhysicalMaterial) physicalMaterials.push(nextMaterial);
       }
     });
+    const material = physicalMaterials.at(-1) ?? null;
 
     expect(material?.envMap).toBeInstanceOf(THREE.Texture);
     const baseIntensity = material?.envMapIntensity ?? 0;
@@ -145,7 +171,7 @@ describe('renderModelToCanvas', () => {
 
   it('returns visible fallback pixels when draft rendering bypasses GLB parsing', async () => {
     const canvas = await renderModelToCanvas(
-      makeSourceLayer('model', {
+      makeModelLayer({
         modelName: 'skull.glb',
         modelSrc: 'artifact-model://missing',
       }),
@@ -175,7 +201,7 @@ describe('renderModelToCanvas', () => {
       THREE.RGBAFormat,
       THREE.FloatType,
     );
-    const layer = makeSourceLayer('model', { color: '#d7a66a', accentColor: '#ff6b48' });
+    const layer = makeModelLayer({ color: '#d7a66a', accentColor: '#ff6b48' });
 
     addModelSceneLights(scene, layer, makeGraphScene3DNode({ environmentStrength: 150 }), texture);
 

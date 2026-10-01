@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GraphTransformNode } from '../../../types/config';
 
 export type TransformNodePatch = Partial<Pick<GraphTransformNode, 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation'>>;
+type TransformNodeDraft = Required<TransformNodePatch>;
 
 const WHEEL_SCALE_STEP = 0.16;
 const WHEEL_COMMIT_DELAY = 90;
@@ -21,7 +22,7 @@ function clampScale(value: number) {
   return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
 }
 
-function getTransform(node: GraphTransformNode): Required<TransformNodePatch> {
+function getTransform(node: GraphTransformNode): TransformNodeDraft {
   return {
     x: node.x,
     y: node.y,
@@ -43,7 +44,7 @@ function samePatch(a: TransformNodePatch | null, b: TransformNodePatch | null) {
 
 function nextTransformDraft(
   node: GraphTransformNode,
-  currentDraft: TransformNodePatch | null,
+  currentDraft: TransformNodeDraft | null,
   patch: TransformNodePatch,
 ) {
   const next = {
@@ -65,13 +66,13 @@ export function useTransformNodeDraft(
   transformNode: GraphTransformNode,
   commitTransformNode: (id: string, patch: Partial<GraphTransformNode>) => void,
 ) {
-  const [draft, setDraft] = useState<TransformNodePatch | null>(null);
-  const draftRef = useRef<TransformNodePatch | null>(null);
-  const pendingDraftRef = useRef<TransformNodePatch | null>(null);
+  const [draft, setDraft] = useState<TransformNodeDraft | null>(null);
+  const draftRef = useRef<TransformNodeDraft | null>(null);
+  const pendingDraftRef = useRef<TransformNodeDraft | null>(null);
   const draftFrameRef = useRef<number | null>(null);
   const nodeRef = useRef(transformNode);
-  const commitTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const clearDraftTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const commitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const clearDraftTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const flushPendingDraft = useCallback(() => {
     cancelDraftFrame(draftFrameRef.current);

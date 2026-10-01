@@ -179,7 +179,7 @@ function NodeGalleryCanvasHandles({
   imageCache: Map<string, HTMLImageElement>;
   onLayerUpdate?: (patch: Partial<TextLayer | ImageLayer>) => void;
 }) {
-  if (!canRenderGalleryHandles(layer, onLayerUpdate, canvasSize)) return null;
+  if (!onLayerUpdate || !canRenderGalleryHandles(layer, onLayerUpdate, canvasSize)) return null;
   return (
     <CanvasHandles
       layer={layer}

@@ -23,7 +23,10 @@ globalThis.addEventListener('message', (event: MessageEvent<EffectPixelWorkerReq
   const { id, request } = event.data;
   try {
     const result = transformEffectPixels(request);
-    globalThis.postMessage({ id, result } satisfies EffectPixelWorkerResponse, [result.data.buffer]);
+    const buffer = result.data.buffer;
+    globalThis.postMessage({ id, result } satisfies EffectPixelWorkerResponse, {
+      transfer: buffer instanceof ArrayBuffer ? [buffer] : [],
+    });
   } catch (error) {
     globalThis.postMessage({
       id,

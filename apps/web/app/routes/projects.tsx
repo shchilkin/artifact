@@ -1,3 +1,4 @@
+import './styles/projects.css';
 import { ButtonLink, InlineNotice, Skeleton } from '@artifact/ui';
 import { useMemo, useState } from 'react';
 import type { MetaFunction } from 'react-router';
@@ -13,15 +14,15 @@ import {
   saveActiveProjectBinding,
 } from '../utils/activeProjectBinding';
 import { normalizeDocument, saveDocumentToStorage } from '../utils/documentPersistence';
+import { pageMeta } from '../utils/pageMeta';
 import type { SavedProject } from '../utils/projectLibrary';
 
-export const meta: MetaFunction = () => [
-  { title: 'artifact | Projects' },
-  {
-    name: 'description',
-    content: 'Browse, recover, delete, and open local Artifact projects stored in this browser.',
-  },
-];
+export const meta: MetaFunction = () =>
+  pageMeta({
+    title: 'artifact | Projects',
+    description: 'Browse, recover, delete, and open local Artifact projects stored in this browser.',
+    path: '/projects',
+  });
 
 export default function ProjectsRoute() {
   const navigate = useNavigate();

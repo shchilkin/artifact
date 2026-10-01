@@ -26,7 +26,7 @@ seven deleted compatibility files is recreated.
 
 | Surface | System assignment | Detail contract |
 | --- | --- | --- |
-| `/`, `/projects`, `/reset-password`, `/examples`, `/showcase` | UI Foundation where primitives apply; Artifact Design System for composition and theme | Route entries in the JSON registry |
+| `/`, `/projects`, `/reset-password`, `/examples`, `/showcase`, unknown paths (`*`) | UI Foundation where primitives apply; Artifact Design System for composition and theme | Route entries in the JSON registry |
 | `/docs`, `/docs/nodes`, `/docs/recipes`, `/docs/reference`, `/docs/reference/:nodeId` | UI Foundation where primitives apply; Artifact Design System for documentation shells and product patterns | Route entries in the JSON registry |
 | `/docs/style-guide` | Artifact Product Theme plus the shared UI Foundation Matrix | Four identifier sets in the JSON registry |
 | `/app` shell, Layers, Add Library, commands, overlays | UI Foundation plus Artifact Design System | [`editor-workflow-inventory.md`](./editor-workflow-inventory.md) |

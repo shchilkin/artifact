@@ -243,13 +243,18 @@ function parseAiShaderValidationResponse(value: unknown): AiShaderValidationResp
   };
 }
 
-function parseShaderResponseEnvelope(value: unknown) {
+function parseShaderResponseEnvelope(value: unknown): {
+  response: Record<string, unknown>;
+  requestId: string;
+  candidateRevision: 0 | 1;
+} {
   const response = ensureObject(value);
   const requestId = ensureString(response.requestId, 'requestId');
-  if (response.candidateRevision !== 0 && response.candidateRevision !== 1) {
+  const candidateRevision = response.candidateRevision;
+  if (candidateRevision !== 0 && candidateRevision !== 1) {
     throw new AiGenerationApiError('Generation API returned an invalid candidate revision.', 0, 'invalid_response');
   }
-  return { response, requestId, candidateRevision: response.candidateRevision };
+  return { response, requestId, candidateRevision };
 }
 
 async function requestJson(path: string, init: RequestInit, options: AiGenerationClientOptions): Promise<unknown> {
@@ -342,7 +347,16 @@ async function awaitShaderCandidate(
 ): Promise<AiShaderGenerationResponse> {
   let current = initial;
   const deadline = Date.now() + Math.max(0, options.pollTimeoutMs ?? 120_000);
-  while (current.status === 'pending' || current.status === 'repairing') {
+  while (true) {
+    if (current.status === 'failed') throw new AiGenerationApiError(current.message, 200, current.code);
+    if (current.status === 'client_rejected') {
+      throw new AiGenerationApiError(
+        'This shader is waiting for browser-guided repair.',
+        409,
+        'shader_repair_required',
+      );
+    }
+    if (current.status === 'generated' || current.status === 'accepted') return current;
     const remainingMs = deadline - Date.now();
     if (remainingMs <= 0) {
       throw new AiGenerationApiError(
@@ -355,11 +369,6 @@ async function awaitShaderCandidate(
     const next = await pollShaderRequest(current.requestId, options);
     if (next) current = next;
   }
-  if (current.status === 'failed') throw new AiGenerationApiError(current.message, 200, current.code);
-  if (current.status === 'client_rejected') {
-    throw new AiGenerationApiError('This shader is waiting for browser-guided repair.', 409, 'shader_repair_required');
-  }
-  return current;
 }
 
 async function pollShaderRequest(requestId: string, options: AiGenerationClientOptions) {

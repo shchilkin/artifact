@@ -1,5 +1,5 @@
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
-import type { SourceLayer } from '../types/config';
+import type { NoiseLayer, SourceLayer } from '../types/config';
 import { hexToRgb, mixRgb, type Rgb } from './colorMath';
 import { lcg } from './lcg';
 import type { MaterialTextureCanvases, ResolvedMaterialConfig } from './primitiveScene';
@@ -19,7 +19,7 @@ function rgbToStyle(color: Rgb, alpha = 1) {
 
 async function drawNoiseLayer(
   ctx: CanvasRenderingContext2D,
-  layer: SourceLayer,
+  layer: NoiseLayer,
   seed: number,
   draft: boolean,
   drawWidth = SOURCE_SIZE,

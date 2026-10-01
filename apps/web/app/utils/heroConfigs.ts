@@ -1,5 +1,5 @@
 import type { CanvasDocument, EffectLayer } from '../types/config';
-import { makeEmojiLayer } from '../types/config';
+import { DEFAULT_EXPORT, makeEmojiLayer } from '../types/config';
 import { splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
 
 export interface HeroFrame {
@@ -16,6 +16,7 @@ function mkDoc(
   return {
     global: { bg, seed, aspect: '1:1' },
     layers: [makeEmojiLayer({ emojis, ...emojiOpts }), ...splitEffectPatchIntoPresetLayers(fx)],
+    export: DEFAULT_EXPORT,
   };
 }
 

@@ -1,0 +1,643 @@
+/* Projects library panel, shared by the Projects page and the editor. Loaded through the route entries in routes/styles/. */
+
+.projects-list {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-3);
+  scrollbar-color: var(--line-default) transparent;
+  scrollbar-width: thin;
+}
+
+.projects-empty-state {
+  display: flex;
+  flex: 1;
+  min-height: 220px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  border: 1px solid color-mix(in oklch, var(--line-default) 78%, transparent);
+  background: color-mix(in oklch, var(--surface-card) 42%, transparent);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-sm);
+  line-height: 1.45;
+  text-align: center;
+}
+
+.projects-empty-state p {
+  max-width: 32ch;
+  margin: 0;
+}
+
+.projects-empty-state p + p {
+  color: color-mix(in oklch, var(--text-secondary) 84%, transparent);
+}
+
+.project-count {
+  color: var(--text-secondary);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.project-count-warning {
+  color: var(--accent-primary);
+}
+
+.project-count-muted {
+  color: var(--text-secondary);
+}
+
+.library-card-action {
+  min-height: 32px;
+  height: 32px;
+  padding-inline: 8px;
+  font-size: var(--type-ui-xs);
+}
+
+.library-card-action-delete {
+  color: var(--text-muted);
+  border-color: color-mix(in oklch, var(--line-strong) 82%, transparent);
+}
+
+.library-card-action-delete:hover {
+  color: var(--state-danger);
+  border-color: color-mix(in oklch, var(--state-danger) 48%, var(--line-default));
+  background: color-mix(in oklch, var(--state-danger) 7%, transparent);
+}
+
+.library-card-open {
+  display: flex;
+  flex: 1;
+  gap: var(--space-3);
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+button.library-card-open {
+  cursor: pointer;
+}
+
+button.library-card-open:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.library-card-artwork {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.library-card-image {
+  display: block;
+  width: 80px;
+  height: 80px;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in oklch, var(--line-default) 74%, transparent);
+  object-fit: cover;
+}
+
+.library-card-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.library-card-meta {
+  min-width: 0;
+}
+
+.library-card-title,
+.library-card-updated,
+.library-card-seed,
+.library-card-size {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-card-title {
+  color: var(--text-primary);
+  font-size: var(--type-ui-md);
+  font-weight: var(--weight-strong);
+  line-height: 1.35;
+}
+
+.library-card-storage {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  min-height: 18px;
+  align-items: center;
+  border: 1px solid color-mix(in oklch, var(--line-default) 78%, transparent);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  margin-block: 3px 1px;
+  padding: 0 6px;
+  text-transform: uppercase;
+}
+
+.library-card-storage-cloud {
+  border-color: color-mix(in oklch, var(--text-secondary) 46%, var(--line-default));
+  color: color-mix(in oklch, var(--text-primary) 82%, var(--text-secondary));
+}
+
+.library-card-storage-synced {
+  border-color: color-mix(in oklch, var(--accent-primary) 52%, var(--line-default));
+  color: var(--accent-primary);
+}
+
+.library-card-storage-syncing {
+  border-color: color-mix(in oklch, var(--state-warning) 54%, var(--line-default));
+  color: var(--state-warning);
+}
+
+.library-card-storage-warning {
+  border-color: color-mix(in oklch, var(--state-warning) 58%, var(--line-default));
+  color: var(--state-warning);
+}
+
+.library-card-storage-danger {
+  border-color: color-mix(in oklch, var(--state-danger) 58%, var(--line-default));
+  color: var(--state-danger);
+}
+
+.library-card-sync-detail {
+  overflow: hidden;
+  max-width: 100%;
+  margin: 0 0 2px;
+  color: var(--text-muted);
+  font-size: var(--type-ui-xs);
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-card-sync-detail-synced {
+  color: color-mix(in oklch, var(--state-success) 72%, var(--text-secondary));
+}
+
+.library-card-sync-detail-syncing,
+.library-card-sync-detail-warning {
+  color: var(--state-warning);
+}
+
+.library-card-sync-detail-danger {
+  color: var(--state-danger);
+}
+
+.library-card-updated,
+.library-card-seed,
+.library-card-size {
+  color: var(--text-secondary);
+  font-size: var(--type-ui-xs);
+  letter-spacing: 0.05em;
+  line-height: 1.45;
+}
+
+.library-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.library-card-badge,
+.library-card-hover-cue {
+  position: absolute;
+  z-index: 1;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.library-card-badge {
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid color-mix(in oklch, var(--accent-primary) 54%, var(--line-default));
+  background: color-mix(in oklch, var(--surface-card) 78%, transparent);
+  color: var(--accent-primary);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  padding: 0 8px;
+}
+
+.library-card-hover-cue {
+  right: 10px;
+  bottom: 10px;
+  color: var(--text-primary);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.library-card-secondary-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  align-items: center;
+  min-height: 0;
+}
+
+.library-card-more-action {
+  display: inline-flex;
+  width: var(--touch);
+  min-width: var(--touch);
+  height: var(--touch);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in oklch, var(--line-strong) 78%, transparent);
+  background: color-mix(in oklch, var(--surface-card) 74%, transparent);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.library-card-more-action:hover,
+.library-card-more-action[aria-expanded="true"] {
+  background: color-mix(in oklch, var(--surface-card) 92%, var(--accent-primary));
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.library-card-more-action:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.project-delete-dialog {
+  top: 50%;
+  left: 50%;
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid color-mix(in oklch, var(--state-danger) 42%, var(--line-default));
+  background: color-mix(in oklch, var(--surface-card) 90%, var(--surface-panel));
+  color: var(--text-primary);
+  padding: 22px;
+  transform: translate(-50%, -50%);
+}
+
+.project-delete-dialog__title {
+  margin: 0;
+  color: var(--state-danger);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.project-delete-dialog__copy {
+  margin: 14px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.project-delete-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.library-panel {
+  box-shadow: -18px 0 50px color-mix(in oklch, black 44%, transparent);
+}
+
+.library-panel > div:first-child,
+.library-panel > div:nth-child(2),
+.library-panel > div:nth-child(3) {
+  border-color: var(--line-strong);
+  background: color-mix(in oklch, var(--surface-panel-raised) 82%, transparent);
+}
+
+.library-panel input {
+  border-color: var(--line-default);
+  background: var(--surface-control);
+}
+
+.project-save-panel {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-strong);
+  background: color-mix(in oklch, var(--surface-panel-raised) 82%, transparent);
+}
+
+.project-primary-save {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.project-save-note {
+  margin: -1px 1px 0;
+  color: color-mix(in oklch, var(--text-secondary) 92%, transparent);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  line-height: 1.45;
+}
+
+.project-name-field {
+  box-sizing: border-box;
+  display: flex;
+  min-width: 0;
+  height: 52px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid var(--line-default);
+  background: var(--surface-control);
+  padding: 7px 10px 8px;
+}
+
+.project-name-field span {
+  color: var(--state-success);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+}
+
+.project-name-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+
+.project-name-field:focus-within {
+  border-color: var(--accent-primary);
+}
+
+.project-name-field input::placeholder {
+  color: var(--text-secondary);
+}
+
+.library-save-button.ui-command {
+  box-sizing: border-box;
+  width: 128px;
+  min-width: 128px;
+  height: 52px;
+  min-height: 52px;
+  padding-inline: 0;
+}
+
+.project-workspace-summary {
+  background: color-mix(in oklch, var(--surface-panel-raised) 82%, transparent);
+}
+
+.project-status-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.project-status-line {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line-default);
+  background: var(--surface-control);
+  padding: 0 8px;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.project-status-line__label {
+  color: var(--text-muted);
+}
+
+.project-status-line__value {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.project-status-line-ok .project-status-line__value {
+  color: var(--state-success);
+}
+
+.project-status-line-warning .project-status-line__value {
+  color: var(--state-warning);
+}
+
+.project-status-line-danger .project-status-line__value {
+  color: var(--state-danger);
+}
+
+.project-workspace-summary__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+  color: var(--text-secondary);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.project-workspace-summary__rows {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-default);
+  background: var(--surface-control);
+}
+
+.project-workspace-summary__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border-bottom: 1px solid color-mix(in oklch, var(--line-default) 74%, transparent);
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.project-workspace-summary__row:last-child {
+  border-bottom: 0;
+}
+
+.project-workspace-summary__value {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.project-workspace-summary__value-ok {
+  color: var(--state-success);
+}
+
+.project-workspace-summary__value-warning {
+  color: var(--state-warning);
+}
+
+.project-workspace-summary__value-danger {
+  color: var(--state-danger);
+}
+
+.project-workspace-summary__value-muted {
+  color: var(--text-muted);
+}
+
+.project-workspace-summary__warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 7px 8px;
+  border: 1px solid color-mix(in oklch, var(--state-warning) 54%, var(--line-default));
+  background: color-mix(in oklch, var(--state-warning) 12%, transparent);
+  color: var(--state-warning);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.project-storage-details {
+  margin-top: 8px;
+  border: 1px solid color-mix(in oklch, var(--line-default) 80%, transparent);
+  background: color-mix(in oklch, var(--surface-card) 62%, transparent);
+}
+
+.project-storage-details summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 7px 8px;
+  color: var(--text-secondary);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.project-storage-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.project-storage-details summary::after {
+  content: "+";
+  float: right;
+  color: var(--text-muted);
+}
+
+.project-storage-details[open] summary::after {
+  content: "-";
+}
+
+.project-storage-details .project-workspace-summary__rows {
+  border: 0;
+  border-top: 1px solid color-mix(in oklch, var(--line-default) 68%, transparent);
+  background: transparent;
+}
+
+.project-new-blank-action {
+  min-height: 42px;
+  color: var(--text-secondary);
+  border-color: color-mix(in oklch, var(--line-strong) 86%, transparent);
+  background: color-mix(in oklch, var(--surface-card) 70%, transparent);
+}
+
+.project-new-blank-action:hover {
+  color: var(--accent-primary);
+  border-color: color-mix(in oklch, var(--accent-primary) 38%, var(--line-default));
+  background: color-mix(in oklch, var(--accent-primary) 6%, var(--surface-card));
+}
+
+.library-card {
+  box-sizing: border-box;
+  display: flex;
+  min-width: 0;
+  gap: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-color: var(--line-strong);
+  background: color-mix(in oklch, var(--surface-card) 84%, var(--surface-panel));
+  padding: var(--space-3);
+  box-shadow: inset 1px 0 0 color-mix(in oklch, var(--line-strong) 82%, transparent);
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+
+.library-card:hover {
+  background: var(--surface-control-hover);
+  box-shadow: inset 1px 0 0 color-mix(in oklch, var(--accent-primary) 72%, transparent);
+}
+
+.library-card-active {
+  border-color: color-mix(in oklch, var(--state-success) 44%, var(--line-default));
+  background: color-mix(in oklch, var(--state-success) 6%, var(--surface-card));
+  box-shadow: inset 1px 0 0 color-mix(in oklch, var(--state-success) 70%, transparent);
+}
+
+.library-card-active:hover {
+  border-color: color-mix(in oklch, var(--state-success) 58%, var(--line-default));
+  background: color-mix(in oklch, var(--state-success) 9%, var(--surface-card));
+  box-shadow: inset 1px 0 0 color-mix(in oklch, var(--state-success) 78%, transparent);
+}
+
+.library-card-draft {
+  border-color: color-mix(in oklch, var(--state-warning) 42%, var(--line-default));
+  background: color-mix(in oklch, var(--state-warning) 7%, var(--surface-card));
+  box-shadow: inset 1px 0 0 color-mix(in oklch, var(--state-warning) 68%, transparent);
+}
+
+.library-card-draft:hover {
+  border-color: color-mix(in oklch, var(--state-warning) 62%, var(--line-default));
+  background: color-mix(in oklch, var(--state-warning) 10%, var(--surface-card));
+  box-shadow: inset 1px 0 0 color-mix(in oklch, var(--state-warning) 74%, transparent);
+}
+
+.library-card-draft .library-card-action-load {
+  color: var(--state-warning);
+  border-color: color-mix(in oklch, var(--state-warning) 44%, var(--line-default));
+}
+
+.library-card-draft .library-card-action-load:hover {
+  color: var(--surface-card);
+  border-color: var(--state-warning);
+  background: var(--state-warning);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-card,
+  .library-card-hover-cue,
+  .library-card-more-action {
+    transition: none;
+  }
+}

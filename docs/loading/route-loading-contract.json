@@ -1,0 +1,294 @@
+{
+  "$comment": "v0.49 route loading contract. Rules name dependency families (attributed from client source maps), not chunk file names. `initial` budgets are gzip KiB of JS/CSS a route loads before it renders (first visit, service worker blocked); `activation` budgets cover what loads afterwards, either automatically after first render (`trigger` says so) or on a user action. `baselineV0481` values are the v0.48.1 measurement in route-loading-baseline-v0.48.1.json. `npm run loading:gate` builds and measures the production app and fails on any violation of this file. Change budgets, families, root graph, or exceptions only through one reviewed update to this file and route-loading-matrix.md.",
+  "version": "0.49",
+  "baselineFile": "docs/loading/route-loading-baseline-v0.48.1.json",
+  "enforcement": {
+    "jsBudgets": true,
+    "cssBudgets": true,
+    "$comment": "Both budgets are enforced. CSS budgets apply since #240 split the global stylesheet by route owner."
+  },
+  "families": {
+    "react": "react, react-dom, scheduler",
+    "react-router": "react-router and @react-router packages",
+    "motion": "framer-motion, motion-dom, motion-utils",
+    "react-flow": "@xyflow packages and d3 modules",
+    "pixi": "pixi.js and @pixi packages",
+    "three": "three",
+    "renderer": "app/utils/render, renderer.ts, pixiFilters, gpuRender",
+    "node-canvas": "app/components/node-canvas except inspector/, constants.ts, helpers.ts, and nodes/NoPan.tsx"
+  },
+  "rootGraph": {
+    "$comment": "Static imports of the root route (manifest `routes.root.imports`). Framework chunks shared with `entry.client` (manifest `entry.imports`) are implied; every other import must be listed in `allowed`. Anything a route family owns must not appear here, and the root graph must carry no family a public route prohibits.",
+    "allowed": [
+      "rolldown-runtime.js",
+      "entry.client.js",
+      "authClient.js",
+      "apiBaseUrl.js",
+      "appBuildInfo.js",
+      "typography.js",
+      "commands.js",
+      "useArtifactAuth.js",
+      "LogoGlyph.js",
+      "RouteRecovery.js",
+      "pageMeta.js"
+    ],
+    "prohibited": [
+      "SiteNav.js",
+      "PublicPageLayout.js",
+      "AccountPanel.js",
+      "dialog.js",
+      "fields.js",
+      "feedback.js",
+      "config.js",
+      "motion-vendor.js"
+    ]
+  },
+  "states": [
+    {
+      "state": "home",
+      "url": "/",
+      "owner": {
+        "shell": "public",
+        "route": "routes/home"
+      },
+      "delivery": "prerender",
+      "initial": {
+        "budget": {
+          "jsGzipKiB": 170,
+          "cssGzipKiB": 24
+        },
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "renderer", "node-canvas"],
+        "baselineV0481": {
+          "jsGzipKiB": 423.6,
+          "cssGzipKiB": 38.4
+        }
+      },
+      "activation": {
+        "trigger": "Automatic: the hero artwork and preview mosaic render after the first paint.",
+        "allowedFamilies": ["pixi", "renderer"],
+        "budget": {
+          "jsGzipKiB": 185,
+          "cssGzipKiB": 0
+        }
+      },
+      "exceptions": [
+        {
+          "family": "motion",
+          "reason": "The home route animates its own sections with Framer Motion; the shared public shell must not require it."
+        },
+        {
+          "asset": "config.js",
+          "reason": "Home step content is defined as editor layers built with the document model factories."
+        }
+      ]
+    },
+    {
+      "state": "docs",
+      "url": "/docs",
+      "owner": {
+        "shell": "public",
+        "route": "routes/docs"
+      },
+      "delivery": "prerender",
+      "initial": {
+        "budget": {
+          "jsGzipKiB": 170,
+          "cssGzipKiB": 24
+        },
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "renderer", "motion", "node-canvas"],
+        "baselineV0481": {
+          "jsGzipKiB": 240.4,
+          "cssGzipKiB": 38.4
+        }
+      }
+    },
+    {
+      "state": "account-recovery",
+      "url": "/reset-password",
+      "owner": {
+        "shell": "public",
+        "route": "routes/reset-password"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "budget": {
+          "jsGzipKiB": 170,
+          "cssGzipKiB": 24
+        },
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "renderer", "motion", "node-canvas"],
+        "baselineV0481": {
+          "jsGzipKiB": 239.6,
+          "cssGzipKiB": 38.4
+        }
+      }
+    },
+    {
+      "state": "projects",
+      "url": "/projects",
+      "owner": {
+        "shell": "account",
+        "route": "routes/projects"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "budget": {
+          "jsGzipKiB": 230,
+          "cssGzipKiB": 26
+        },
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "motion", "node-canvas"],
+        "baselineV0481": {
+          "jsGzipKiB": 312.8,
+          "cssGzipKiB": 41.1
+        }
+      },
+      "exceptions": [
+        {
+          "family": "renderer",
+          "reason": "Project thumbnails render stored documents through the canonical renderer."
+        }
+      ]
+    },
+    {
+      "state": "editor-layers-blank",
+      "url": "/app",
+      "document": "blank",
+      "owner": {
+        "shell": "editor",
+        "route": "routes/editor"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "budget": {
+          "jsGzipKiB": 370,
+          "cssGzipKiB": 50
+        },
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "node-canvas"],
+        "baselineV0481": {
+          "jsGzipKiB": 414.4,
+          "cssGzipKiB": 44.2
+        }
+      },
+      "exceptions": [
+        {
+          "family": "pixi",
+          "reason": "Allowed once the open document has a layer that needs the WebGL pass; the blank document must not load it."
+        },
+        {
+          "family": "motion",
+          "reason": "Editor panels animate with Framer Motion."
+        },
+        {
+          "family": "renderer",
+          "reason": "The Layers canvas preview renders through the canonical renderer."
+        }
+      ]
+    },
+    {
+      "state": "editor-nodes",
+      "url": "/app",
+      "document": "blank",
+      "owner": {
+        "shell": "editor",
+        "component": "NodeCanvas"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "sameAs": "editor-layers-blank"
+      },
+      "activation": {
+        "trigger": "Switch to the Nodes tab.",
+        "allowedFamilies": ["react-flow", "node-canvas"],
+        "budget": {
+          "jsGzipKiB": 135,
+          "cssGzipKiB": 20
+        },
+        "baselineV0481": {
+          "jsGzipKiB": 65.4,
+          "cssGzipKiB": 12.8
+        }
+      }
+    },
+    {
+      "state": "style-guide",
+      "url": "/docs/style-guide",
+      "owner": {
+        "shell": "public",
+        "route": "routes/docs.style-guide"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "budget": {
+          "jsGzipKiB": 370,
+          "cssGzipKiB": 65
+        },
+        "prohibitedFamilies": ["pixi", "three"],
+        "baselineV0481": {
+          "jsGzipKiB": 402.4,
+          "cssGzipKiB": 60.4
+        }
+      },
+      "exceptions": [
+        {
+          "family": "node-canvas",
+          "reason": "Live specimens render real node-canvas patterns."
+        },
+        {
+          "family": "react-flow",
+          "reason": "Node-canvas specimens use React Flow directly."
+        },
+        {
+          "family": "renderer",
+          "reason": "Artwork specimens render through the canonical renderer."
+        }
+      ]
+    },
+    {
+      "state": "first-3d-activation",
+      "url": "/app",
+      "document": "blank",
+      "owner": {
+        "shell": "editor",
+        "component": "primitive scene renderer"
+      },
+      "delivery": "spa-fallback",
+      "initial": {
+        "sameAs": "editor-layers-blank"
+      },
+      "activation": {
+        "trigger": "Add a Primitive layer from the Layers Add Library.",
+        "allowedFamilies": ["three"],
+        "budget": {
+          "jsGzipKiB": 215,
+          "cssGzipKiB": 5
+        },
+        "baselineV0481": {
+          "jsGzipKiB": 206.7,
+          "cssGzipKiB": 0
+        }
+      }
+    }
+  ],
+  "delivery": {
+    "prerender": ["/", "/docs", "/docs/nodes", "/docs/recipes", "/docs/reference"],
+    "spaFallback": [
+      "/app",
+      "/projects",
+      "/reset-password",
+      "/showcase",
+      "/examples",
+      "/docs/style-guide",
+      "/docs/reference/:nodeId",
+      "*"
+    ],
+    "deferredCandidates": [
+      {
+        "path": "/docs/reference/:nodeId",
+        "reason": "Finite node set could be enumerated for prerendering; left on the SPA fallback for v0.49."
+      },
+      {
+        "path": "/showcase",
+        "reason": "The wall loads projects incrementally at runtime; only a static shell could be prerendered."
+      }
+    ]
+  }
+}

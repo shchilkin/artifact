@@ -357,8 +357,8 @@ describe('documentPackage', () => {
 
     const manifest = buildArtifactProjectPackageManifest(sourceDoc, sourceDoc);
 
-    expect(manifest.models.assets).toEqual([{ ref: modelRef, embedded: false }]);
-    expect(manifest.environments.assets).toEqual([{ ref: environmentRef, embedded: false }]);
+    expect(manifest.models?.assets).toEqual([{ ref: modelRef, embedded: false }]);
+    expect(manifest.environments?.assets).toEqual([{ ref: environmentRef, embedded: false }]);
   });
 
   it('keeps legacy packages without embedded 3D payloads importable and reports unresolved refs', async () => {

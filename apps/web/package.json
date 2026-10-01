@@ -1,7 +1,7 @@
 {
   "name": "@artifact/web",
   "private": true,
-  "version": "0.48.1",
+  "version": "0.49.0",
   "type": "module",
   "scripts": {
     "build": "npm --workspace @artifact/shared run build && react-router build",
@@ -9,7 +9,7 @@
     "dev": "npm --workspace @artifact/shared run build && react-router dev",
     "favicon": "node ../../scripts/generate-favicon.mjs",
     "preview": "vite preview --outDir build/client",
-    "typecheck": "npm --workspace @artifact/shared run build && react-router typegen && tsc",
+    "typecheck": "npm --workspace @artifact/shared run build && react-router typegen && tsc -b",
     "test": "npm --workspace @artifact/shared run build && vitest run --config vitest.config.ts",
     "test:coverage": "npm --workspace @artifact/shared run build && vitest run --config vitest.config.ts --coverage --coverage.reporter=text-summary --coverage.reporter=json-summary",
     "test:browser": "npm --workspace @artifact/shared run build && playwright test -c ../../playwright.config.ts",
@@ -47,6 +47,7 @@
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.184.1",
     "tailwindcss": "^4.2.4",
     "typescript": "~6.0.2",
     "vite": "^8.0.10",

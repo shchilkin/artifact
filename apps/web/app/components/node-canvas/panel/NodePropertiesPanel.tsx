@@ -117,15 +117,16 @@ function hasAiGenerationHistory(
 function isDifferentAiVariant(
   item: NonNullable<ImageLayer['aiGenerationHistory']>[number],
   src: string,
-  jobId: string,
+  jobId: string | undefined,
 ) {
   return item.src !== src ? true : item.aiGeneration.jobId !== jobId;
 }
 
 function seedCurrentAiGenerationVariant(layer: ImageLayer): Partial<ImageLayer> {
-  if (!shouldSeedCurrentAiGenerationVariant(layer)) return {};
+  const { aiGeneration } = layer;
+  if (!aiGeneration || !shouldSeedCurrentAiGenerationVariant(layer)) return {};
   return {
-    aiGenerationHistory: [{ src: layer.src, aiGeneration: layer.aiGeneration }],
+    aiGenerationHistory: [{ src: layer.src, aiGeneration }],
     aiGenerationHistoryIndex: 0,
   };
 }

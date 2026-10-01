@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { makeSourceLayer } from '../../../types/config';
+import { makeSourceLayer, type NoiseLayer } from '../../../types/config';
 import { generateNoiseTextureData, toNoiseTextureLayerConfig } from './noiseTexture';
+
+function makeNoiseLayer(partial: Parameters<typeof makeSourceLayer>[1] = {}): NoiseLayer {
+  const layer = makeSourceLayer('noise', partial);
+  if (layer.kind !== 'noise') throw new Error(`Expected noise layer, got ${layer.kind}`);
+  return layer;
+}
 
 describe('generateNoiseTextureData', () => {
   it('creates deterministic noise pixels for the same config and seed', () => {
-    const layer = makeSourceLayer('noise', {
+    const layer = makeNoiseLayer({
       color: '#102030',
       accentColor: '#f0c060',
       noiseScale: 18,
@@ -30,7 +36,7 @@ describe('generateNoiseTextureData', () => {
   });
 
   it('changes pixels when the seed changes', () => {
-    const layer = makeSourceLayer('noise', { noiseScale: 12, noiseDetail: 3 });
+    const layer = makeNoiseLayer({ noiseScale: 12, noiseDetail: 3 });
     const config = toNoiseTextureLayerConfig(layer);
 
     const a = generateNoiseTextureData({ layer: config, seed: 11, textureSize: 24 });

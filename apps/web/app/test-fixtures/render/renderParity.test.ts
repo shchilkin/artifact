@@ -530,6 +530,38 @@ describe('renderDocument — preview/export size parity', () => {
     expectFullyOpaqueCanvas(dotted);
   });
 
+  it('effect blend mode composites the effect result over its input', async () => {
+    const source = makeFillLayer({ color: '#777777', opacity: 100 });
+    const makeDoc = (blendMode?: string): CanvasDocument => ({
+      global: { bg: 'transparent', seed: 92, aspect: '1:1' },
+      layers: [
+        source,
+        makeEffectPresetLayer('dotGrain', {
+          dotGrain: 100,
+          dotGrainSize: 5,
+          dotGrainDensity: 80,
+          dotGrainJitter: 20,
+          ...(blendMode ? { blendMode } : {}),
+        }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+    const render = (doc: CanvasDocument, graphMode?: 'stack') =>
+      renderDocument(doc, 120, 120, new Map(), { draft: true, ...(graphMode ? { graphMode } : {}) });
+
+    const base = await render({ ...makeDoc(), layers: [source] }, 'stack');
+    const normal = await render(makeDoc('normal'), 'stack');
+    const unset = await render(makeDoc(), 'stack');
+    const lightened = await render(makeDoc('lighten'), 'stack');
+    const lightenedGraph = await render(makeDoc('lighten'));
+
+    expect(pixelsEqual(allPixels(normal), allPixels(unset))).toBe(true);
+    expect(darkerThan(normal, 90)).toBeGreaterThan(100);
+    // Dot grain only darkens, so lighten keeps the input untouched.
+    expect(pixelsEqual(allPixels(lightened), allPixels(base))).toBe(true);
+    expect(pixelsEqual(allPixels(lightenedGraph), allPixels(lightened))).toBe(true);
+  });
+
   it('bad stream creates deterministic macroblock damage and responds to seed offset', async () => {
     const source = makeFillLayer({ color: '#777777', opacity: 100 });
     const makeDoc = (seedOffset = 0): CanvasDocument => ({

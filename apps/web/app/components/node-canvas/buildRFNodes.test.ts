@@ -32,6 +32,7 @@ describe('buildRFNodes', () => {
       { sources: new Set(), targets: new Set() },
       {},
       {},
+      {},
     );
 
     expect(nodes[0]).toMatchObject({

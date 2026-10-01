@@ -1,15 +1,16 @@
+import './styles/docs.reference-detail.css';
 import { ButtonLink } from '@artifact/ui';
 import { type MetaFunction, useParams } from 'react-router';
+import { pageMeta } from '../utils/pageMeta';
 import { ALL_NODES, NodePoster, nodeTypeLabel } from './docs.nodes';
 import { DocsSection, DocsShell } from './docs.shared';
 
-export const meta: MetaFunction = () => [
-  { title: 'Node Reference | Artifact Docs' },
-  {
-    name: 'description',
-    content: 'Artifact node reference with controls, ports, workflow notes, and editor links.',
-  },
-];
+export const meta: MetaFunction = ({ params }) =>
+  pageMeta({
+    title: 'Node Reference | Artifact Docs',
+    description: 'Artifact node reference with controls, ports, workflow notes, and editor links.',
+    path: `/docs/reference/${params.nodeId ?? ''}`,
+  });
 
 const NODE_DETAIL_CHAINS: Partial<Record<string, string[]>> = {
   lineField: ['Line Field -> Mask -> Merge -> Output', 'Line Field -> Repeat -> Text -> Output'],

@@ -108,6 +108,7 @@ function makeBranchedGraph(): CanvasGraph {
       [EXPORT_NODE_ID]: { x: 640, y: 120 },
     },
     mergeNodes: [makeGraphMergeNode({ id: 'merge-a' })],
+    colorNodes: [],
   };
 }
 
@@ -227,7 +228,12 @@ describe('documentCommands', () => {
   });
 
   it('connects the first layer created from layers view directly to export', () => {
-    const doc = makeDoc({ edges: [], positions: { [EXPORT_NODE_ID]: { x: 0, y: 80 } }, mergeNodes: [] });
+    const doc = makeDoc({
+      edges: [],
+      positions: { [EXPORT_NODE_ID]: { x: 0, y: 80 } },
+      mergeNodes: [],
+      colorNodes: [],
+    });
     const layer = makeFillLayer({ id: 'fill-b' });
     const next = addLayerToDocument({ ...doc, layers: [] }, layer);
 
@@ -480,7 +486,8 @@ describe('documentCommands', () => {
 
     expect(layerId).toBeTruthy();
     expect(result.doc.layers.at(-1)).toMatchObject({ id: layerId, kind: 'noise', name: 'CRT Dirt' });
-    expect(result.doc.layers.at(-1)?.kind === 'noise' ? result.doc.layers.at(-1)?.seedOffset : 0).toBeGreaterThan(0);
+    const insertedLayer = result.doc.layers.at(-1);
+    expect(insertedLayer?.kind === 'noise' ? insertedLayer.seedOffset : 0).toBeGreaterThan(0);
     expect(result.doc.graph?.positions[layerId!]).toEqual({ x: 480, y: 320 });
   });
 

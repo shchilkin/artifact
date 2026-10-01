@@ -28,7 +28,7 @@ export function useEditorExport(
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingEnvMap, setIsExportingEnvMap] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const exportErrorTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const exportErrorTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => () => clearTimeout(exportErrorTimerRef.current), []);
 

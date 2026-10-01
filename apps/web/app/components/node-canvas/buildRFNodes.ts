@@ -14,6 +14,8 @@ import type {
   GraphShaderNode,
   GraphTransformNode,
   Layer,
+  ModelLayer,
+  PrimitiveLayer,
 } from '../../types/config';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
@@ -286,7 +288,8 @@ function buildScene3DRFNode(sn: GraphScene3DNode, context: BuildRFNodeContext): 
   const environmentPreviewTargetId = context.incomingNodeId(sn.id, 'env');
   const modelLayer =
     context.doc.layers.find(
-      (layer) => layer.id === modelPreviewTargetId && (layer.kind === 'model' || layer.kind === 'primitive'),
+      (layer): layer is ModelLayer | PrimitiveLayer =>
+        layer.id === modelPreviewTargetId && (layer.kind === 'model' || layer.kind === 'primitive'),
     ) ?? null;
   const materialNode = (context.graph.materialNodes ?? []).find((node) => node.id === materialPreviewTargetId) ?? null;
   const environmentNode =

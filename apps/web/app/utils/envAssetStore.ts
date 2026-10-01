@@ -1,4 +1,4 @@
-import type { CanvasDocument, PortableEnvironmentAsset } from '../types/config';
+import type { CanvasDocument, GraphEnvironmentNode, GraphScene3DNode, PortableEnvironmentAsset } from '../types/config';
 import { mapDocumentEnvironmentSources } from './documentSourceMapping';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
 import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';

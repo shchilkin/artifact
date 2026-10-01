@@ -61,6 +61,7 @@ import {
   removeColorNode,
   removeEnvironmentNode,
   removeGraphArea,
+  removeGraphEdge,
   removeGrimeShadowNode,
   removeLayerFromGraph,
   removeMaskNode,
@@ -826,8 +827,13 @@ export function deleteNodesFromDocument(doc: CanvasDocument, ids: string[]): Can
 export function updateLayerInDocument(doc: CanvasDocument, id: string, patch: Partial<Layer>): CanvasDocument {
   return {
     ...doc,
-    layers: doc.layers.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer)),
+    layers: doc.layers.map((layer) => (layer.id === id ? applyLayerPatch(layer, patch) : layer)),
   };
+}
+
+/** Callers pass patches built for the target layer's kind, so the merge keeps that kind's shape. */
+function applyLayerPatch(layer: Layer, patch: Partial<Layer>): Layer {
+  return { ...layer, ...patch } as Layer;
 }
 
 export function renameLayerInDocument(doc: CanvasDocument, id: string, name: string): CanvasDocument {

@@ -9,6 +9,8 @@ import type {
   GraphScene3DNode,
   Layer,
   LayerKind,
+  ModelLayer,
+  PrimitiveLayer,
 } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import { isLayerStackGraph } from '../../utils/documentCommands';
@@ -28,10 +30,10 @@ import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { LayerAddMenu } from './LayerAddMenu';
 import { LayerAreaFolder } from './LayerAreaFolder';
 import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu';
-import { LayerRow, LayerSelectionControl } from './LayerRow';
+import { LayerRow, type LayerRowProps, LayerSelectionControl } from './LayerRow';
 import { buildLayerDisplayItems, type LayerDisplayItem } from './layerDisplayItems';
 import { useLayerDragReorder } from './useLayerDragReorder';
-import { type LayerSelectionModifiers, useLayerSelection } from './useLayerSelection';
+import { useLayerSelection } from './useLayerSelection';
 
 export interface LayerPanelProps {
   doc: CanvasDocument;
@@ -480,13 +482,13 @@ function LayerDisplayEntry({
   onFinishAreaRename: (id: string, name: string | null) => void;
   onRemoveArea: (areaId: string) => void;
   onToggleAreaVisible: (layers: Layer[], visible: boolean) => void;
-  onSelectLayer: (id: string, event: LayerSelectionModifiers) => void;
-  onOpenLayerContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void;
+  onSelectLayer: LayerRowProps['onSelect'];
+  onOpenLayerContextMenu: LayerRowProps['onOpenContextMenu'];
   onStartEditing: (id: string | null) => void;
   onFinishRename: (id: string, name: string | null) => void;
-  onDragStart: (layer: Layer) => void;
-  onDragOverLayer: (layer: Layer, event: React.DragEvent<HTMLDivElement>) => void;
-  onDropLayer: (layer: Layer, event: React.DragEvent<HTMLDivElement>) => void;
+  onDragStart: LayerRowProps['onDragStart'];
+  onDragOverLayer: LayerRowProps['onDragOverLayer'];
+  onDropLayer: LayerRowProps['onDropLayer'];
   onDragEnd: () => void;
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
@@ -574,6 +576,10 @@ function Scene3DLayerRows({
   );
 }
 
+function sceneModelLabel(model: ModelLayer | PrimitiveLayer) {
+  return model.kind === 'model' ? model.modelName : model.name;
+}
+
 function Scene3DLayerRow({
   scene,
   doc,
@@ -620,7 +626,11 @@ function Scene3DLayerRow({
           3D Scene
         </span>
         {model && (
-          <span className="layer-area-chip" title={model.modelName} aria-label={`Model: ${model.modelName}`}>
+          <span
+            className="layer-area-chip"
+            title={sceneModelLabel(model)}
+            aria-label={`Model: ${sceneModelLabel(model)}`}
+          >
             model
           </span>
         )}

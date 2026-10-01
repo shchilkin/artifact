@@ -2,6 +2,7 @@ import type {
   ShaderDefinition,
   ShaderInstance,
   ShaderPropertyDefinition,
+  ShaderPropertyType,
   ShaderPropertyValue,
   ShaderRole,
 } from '@artifact/shared';
@@ -79,7 +80,14 @@ export const SHADER_KINDS = [
 ] as const;
 export const LEGACY_SHADER_KINDS = ['tilelessTexture'] as const;
 export type ShaderKind = (typeof SHADER_KINDS)[number] | (typeof LEGACY_SHADER_KINDS)[number];
-export type { ShaderDefinition, ShaderInstance, ShaderPropertyDefinition, ShaderPropertyValue, ShaderRole };
+export type {
+  ShaderDefinition,
+  ShaderInstance,
+  ShaderPropertyDefinition,
+  ShaderPropertyType,
+  ShaderPropertyValue,
+  ShaderRole,
+};
 export type NoiseType = 'value' | 'clouds' | 'cells';
 export type ArrayPattern = 'line' | 'grid' | 'radial';
 type ArrayShape = 'disc' | 'bar' | 'diamond';
@@ -351,6 +359,8 @@ export type EffectPreset =
 export interface EffectLayer extends BaseLayer {
   kind: 'effect';
   preset?: EffectPreset; // which preset created this layer (drives panel icon)
+  /** Composites the effect result over its input; defaults to normal (replace). */
+  blendMode?: string;
   maskAlpha: boolean;
   grain: number;
   dotGrain: number;
@@ -1147,7 +1157,7 @@ function omitEffectKind(
 export const ZERO_EFFECT = omitEffectKind(DEFAULT_EFFECT_LAYER_PROPS);
 
 export type EffectNumericField = {
-  [K in keyof EffectLayer]: EffectLayer[K] extends number ? K : never;
+  [K in keyof EffectLayer]-?: EffectLayer[K] extends number ? K : never;
 }[keyof EffectLayer];
 
 export interface EffectPresetMeta {
@@ -1717,6 +1727,7 @@ export function makeEffectPresetLayer(preset: EffectPreset, overrides: EffectPre
     name,
     visible: true,
     locked: false,
+    ...ZERO_EFFECT,
     ...partial,
     ...valuePatch,
     ...rest,
@@ -1910,8 +1921,6 @@ export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): Gra
     id,
     name: 'Shader',
     shaderKind,
-    role,
-    palette: defaultShaderPalette(shaderKind),
     distortion: 56,
     swirl: 28,
     grain: 12,

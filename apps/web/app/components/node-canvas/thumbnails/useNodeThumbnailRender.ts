@@ -392,7 +392,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const { priority = false } = options;
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isFrameVisible = useThumbnailVisibility(priority, frameRef);
 
   // Dev-only: previous render signatures keyed by item id, used for change logging.

@@ -77,7 +77,7 @@ export function useEditorAssets(
 ) {
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
   const [dropError, setDropError] = useState<string | null>(null);
-  const dropErrorTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const dropErrorTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pendingAssetStoresRef = useRef(new Set<string>());
   const mountedRef = useRef(true);
 

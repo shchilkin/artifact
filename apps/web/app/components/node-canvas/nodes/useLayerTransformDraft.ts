@@ -4,6 +4,7 @@ import type { Layer } from '../../../types/config';
 
 export type TransformableLayer = Extract<Layer, { kind: 'text' | 'image' }>;
 export type LayerTransformPatch = Partial<Pick<TransformableLayer, 'x' | 'y' | 'rotation' | 'scaleX' | 'scaleY'>>;
+type LayerTransformDraft = Required<LayerTransformPatch>;
 
 const WHEEL_SCALE_STEP = 0.0016;
 const WHEEL_COMMIT_DELAY = 90;
@@ -20,7 +21,7 @@ function clampScale(value: number) {
   return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
 }
 
-function getTransform(layer: TransformableLayer): Required<LayerTransformPatch> {
+function getTransform(layer: TransformableLayer): LayerTransformDraft {
   return {
     x: layer.x,
     y: layer.y,
@@ -42,8 +43,8 @@ function samePatch(a: LayerTransformPatch | null, b: LayerTransformPatch | null)
 
 function shouldClearSettledDraft(
   layer: Layer,
-  currentDraft: LayerTransformPatch | null,
-  matchingDraft: LayerTransformPatch,
+  currentDraft: LayerTransformDraft | null,
+  matchingDraft: LayerTransformDraft,
 ) {
   if (!isTransformableLayer(layer)) return false;
   if (!currentDraft) return false;
@@ -51,13 +52,13 @@ function shouldClearSettledDraft(
   return sameTransform(layer, currentDraft);
 }
 
-function shouldCommitDraftOnCleanup(layer: Layer, currentDraft: LayerTransformPatch | null) {
+function shouldCommitDraftOnCleanup(layer: Layer, currentDraft: LayerTransformDraft | null) {
   if (!isTransformableLayer(layer)) return false;
   if (!currentDraft) return false;
   return !sameTransform(layer, currentDraft);
 }
 
-function nextTransformDraft(layer: Layer, currentDraft: LayerTransformPatch | null, patch: LayerTransformPatch) {
+function nextTransformDraft(layer: Layer, currentDraft: LayerTransformDraft | null, patch: LayerTransformPatch) {
   if (!isTransformableLayer(layer)) return null;
   const next = {
     ...(currentDraft ?? getTransform(layer)),
@@ -71,13 +72,13 @@ function cancelDraftFrame(frameId: number | null) {
 }
 
 export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, patch: Partial<Layer>) => void) {
-  const [draft, setDraft] = useState<LayerTransformPatch | null>(null);
-  const draftRef = useRef<LayerTransformPatch | null>(null);
-  const pendingDraftRef = useRef<LayerTransformPatch | null>(null);
+  const [draft, setDraft] = useState<LayerTransformDraft | null>(null);
+  const draftRef = useRef<LayerTransformDraft | null>(null);
+  const pendingDraftRef = useRef<LayerTransformDraft | null>(null);
   const draftFrameRef = useRef<number | null>(null);
   const layerRef = useRef(layer);
-  const commitTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const clearDraftTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const commitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const clearDraftTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const flushPendingDraft = useCallback(() => {
     if (draftFrameRef.current !== null) {
@@ -112,7 +113,7 @@ export function useLayerTransformDraft(layer: Layer, commitLayer: (id: string, p
       cancelDraftFrame(draftFrameRef.current);
       const currentLayer = layerRef.current;
       const currentDraft = draftRef.current;
-      if (!shouldCommitDraftOnCleanup(currentLayer, currentDraft)) return;
+      if (!currentDraft || !shouldCommitDraftOnCleanup(currentLayer, currentDraft)) return;
       commitLayer(currentLayer.id, currentDraft);
     },
     [commitLayer],
@@ -184,8 +185,8 @@ function scheduleDraftFrame(currentFrame: number | null, callback: () => void) {
 }
 
 function commitPendingDraft(
-  pending: LayerTransformPatch | null,
-  setDraft: (updater: (current: LayerTransformPatch | null) => LayerTransformPatch | null) => void,
+  pending: LayerTransformDraft | null,
+  setDraft: (updater: (current: LayerTransformDraft | null) => LayerTransformDraft | null) => void,
 ) {
   if (!pending) return;
   setDraft((current) => (samePatch(current, pending) ? current : pending));
