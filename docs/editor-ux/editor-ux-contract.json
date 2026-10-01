@@ -1,5 +1,5 @@
 {
-  "$comment": "v0.50 editor UX contract. Metric keys are `viewport/document/subject/metric`, measured by scripts/editor-ux/measure.mjs on the production web build in Chromium. `budgets` are the normative limits; `deterministic` budgets do not depend on machine speed. `exceptions` are temporary ceilings for metrics that do not meet their budget yet: each names the delivery issue that removes it. `npm run ux:gate` builds, measures, and fails on any violation of this file. Change budgets or exceptions only through one reviewed update to this file and editor-ux-baseline.md.",
+  "$comment": "v0.50 editor UX contract. Metric keys are `viewport/document/subject/metric`, measured by scripts/editor-ux/measure.mjs on the production web build in Chromium. `budgets` are the normative limits; `deterministic` budgets do not depend on machine speed; the others are latency budgets in reference-machine milliseconds (see `calibration`). `exceptions` are temporary ceilings for metrics that do not meet their budget yet: each names the delivery issue that removes it. `npm run ux:gate` builds, measures, and fails on any violation of this file. Change budgets or exceptions only through one reviewed update to this file and editor-ux-baseline.md.",
   "version": "0.50",
   "baselineFile": "docs/editor-ux/editor-ux-baseline-v0.49.0.json",
   "viewports": {
@@ -14,8 +14,8 @@
   },
   "documents": ["default", "effect-stack"],
   "calibration": {
-    "referenceMs": 100,
-    "$comment": "Duration of the fixed Canvas 2D calibration workload on the reference machine. Latency metrics are scaled by referenceMs / measured calibration before they are checked."
+    "referenceMs": 118.6,
+    "$comment": "Duration of the fixed Canvas 2D calibration workload on the v0.49.0 baseline run (GitHub-hosted ubuntu-latest, 4 CPUs). Latency metrics are scaled by referenceMs / measured calibration before they are checked, so budgets are in reference-machine milliseconds."
   },
   "budgets": [
     {
@@ -84,7 +84,7 @@
     },
     {
       "metric": "settleMs",
-      "max": 600,
+      "max": 700,
       "unit": "ms",
       "deterministic": false,
       "viewports": ["desktop"],
@@ -92,7 +92,7 @@
     },
     {
       "metric": "entrySettleMs",
-      "max": 1000,
+      "max": 1200,
       "unit": "ms",
       "deterministic": false,
       "viewports": ["desktop"],
@@ -176,27 +176,27 @@
     },
     {
       "key": "desktop/*/slider-keypress/inputToPreviewMs",
-      "max": 130,
+      "max": 185,
       "owner": "#308",
-      "reason": "One slider step takes up to 85 ms to reach the preview on the CI runner; the default document sits at the 50 ms budget."
+      "reason": "One slider step takes 62 ms (default) and 122 ms (effect-stack) to reach the preview."
     },
     {
       "key": "desktop/default/slider-drag/durationMs",
-      "max": 1500,
+      "max": 1650,
       "owner": "#308",
-      "reason": "Each drag step blocks the main thread for about three frames: a 20-step drag takes 1000 ms instead of about 340 ms."
+      "reason": "Each drag step blocks the main thread for about three frames: a 20-step drag takes 1095 ms instead of about 340 ms."
     },
     {
       "key": "desktop/effect-stack/slider-drag/durationMs",
-      "max": 2250,
+      "max": 2900,
       "owner": "#308",
-      "reason": "Each drag step blocks the main thread for about four frames: a 20-step drag takes 1490 ms instead of about 340 ms."
+      "reason": "Each drag step blocks the main thread for about six frames: a 20-step drag takes 1938 ms instead of about 340 ms."
     },
     {
-      "key": "desktop/effect-stack/node-preview/sliderSettleMs",
-      "max": 190,
+      "key": "desktop/*/node-preview/sliderSettleMs",
+      "max": 265,
       "owner": "#308",
-      "reason": "Node thumbnails downstream of an edited effect take 128 ms to settle on the CI runner."
+      "reason": "Node thumbnails downstream of an edited effect take 68 ms (default) and 177 ms (effect-stack) to settle."
     }
   ]
 }

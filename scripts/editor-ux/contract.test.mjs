@@ -34,6 +34,12 @@ test('slider input-to-preview latency and node-preview settle time are budgeted'
   }
 });
 
+test('latency is scaled to the baseline run, which is the reference machine', () => {
+  assert.ok(contract.calibration.referenceMs > 0);
+  assert.equal(baseline.environment.calibrationMs, contract.calibration.referenceMs);
+  assert.equal(baseline.environment.speed, 1);
+});
+
 test('every budget names a unit, known viewports, subjects, and whether it is deterministic', () => {
   for (const budget of contract.budgets) {
     assert.ok(budget.unit, `${budget.metric} has no unit`);

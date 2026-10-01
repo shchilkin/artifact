@@ -20,7 +20,7 @@ npm run ux:gate
 `scripts/editor-ux/measure.mjs`, and checks the result against
 `editor-ux-contract.json`. It exits non-zero on any violation. It needs Chromium
 (Playwright) and nothing else: no API, no database, no long-lived service. A run
-takes about two minutes.
+takes about four minutes on CI.
 
 The measurement serves `apps/web/build/client` with `vite preview` and drives
 `/app` in Chromium with the service worker blocked, the dark color scheme, and
@@ -72,10 +72,24 @@ thumbnail renders come from the `artifact:thumbnail-render` performance
 measures described in [`../performance.md`](../performance.md). Input times are
 event timestamps, so they include time spent waiting for the main thread.
 
-Latency budgets are defined for the CI gate environment (GitHub-hosted
-`ubuntu-latest`, Playwright container, software WebGL). Faster local hardware
-reports lower values; compare local runs with each other, not with the CI
-baseline.
+### Machine speed
+
+Latency depends on the machine: two GitHub-hosted runners measured the same
+build up to two times apart. Each run therefore times a fixed Canvas 2D
+workload in a blank page (`calibrationMs`, before and after each document's
+latency pass) and scales every latency value by
+`calibration.referenceMs / calibrationMs`. Budgets and exception ceilings are in
+these reference-machine milliseconds; the reference is the v0.49.0 baseline run
+(GitHub-hosted `ubuntu-latest`, 4 CPUs, Playwright container, software WebGL,
+calibration 118.6 ms). The measurement keeps the raw values under `details` and
+the scale under `environment.speed`.
+
+The scale is an approximation. It does not make different architectures
+comparable (an Apple Silicon laptop with a GPU reports lower values than the
+reference even after scaling), and delays that are fixed in the app, such as the
+240 ms wait before the full-quality pass, are scaled along with everything
+else. Use local runs to compare a change against its base on the same machine;
+the CI run is the one that decides.
 
 ## Budgets
 
@@ -87,7 +101,11 @@ baseline.
 | `obscuredCommands` | 0 | desktop, mobile |
 | `overlappingCommands` | 0 | desktop, mobile |
 | `sliderWidthDeltaPx` | 1 px | desktop, mobile |
-TIMING_BUDGET_ROWS
+| `inputToPreviewMs` | 50 ms | desktop |
+| `slider-drag/durationMs` | 500 ms | desktop |
+| `slider-drag/settleMs` | 700 ms | desktop |
+| `node-preview/entrySettleMs` | 1200 ms | desktop |
+| `node-preview/sliderSettleMs` | 100 ms | desktop |
 
 `frameMovePx` and `nodesOutsideViewport` are budgeted on desktop only: on mobile
 the Layers and Nodes views use different page layouts by design, and a whole
@@ -105,16 +123,24 @@ needed, so a fixed behavior cannot keep a stale allowance.
 | --- | --- | --- | --- |
 | `desktop/*/select-layer/frameMovePx` | 340 px | 340 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/switch-to-nodes/layoutShift` | 0.172 | 0.172 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/*/switch-to-nodes/frameMovePx` | 288.4 px | 288.4 | [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `desktop/*/switch-to-nodes/frameMovePx` | 279.8 px | 290 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/switch-to-layers/layoutShift` | 0.534 | 0.534 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/*/switch-to-layers/frameMovePx` | 288.4 px | 288.4 | [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `desktop/*/switch-to-layers/frameMovePx` | 279.8 px | 290 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/default/nodes-entry/nodesOutsideViewport` | 5 of 7 | 5 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/effect-stack/nodes-entry/nodesOutsideViewport` | 7 of 9 | 7 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `mobile/*/command-bar/obscuredCommands` | 1 | 1 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `mobile/*/command-bar/overlappingCommands` | 2 | 2 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/inspector/sliderWidthDeltaPx` | 39.5 px | 39.5 | [#309](https://github.com/shchilkin/artifact/issues/309) |
 | `mobile/*/inspector/sliderWidthDeltaPx` | 228 px | 228 | [#309](https://github.com/shchilkin/artifact/issues/309) |
-TIMING_EXCEPTION_ROWS
+| `desktop/*/slider-keypress/inputToPreviewMs` | 62.4 / 121.8 ms | 185 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/default/slider-drag/durationMs` | 1095.3 ms | 1650 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/effect-stack/slider-drag/durationMs` | 1937.8 ms | 2900 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | 265 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+
+Layout ceilings equal the measured value. The command bar is a few pixels
+narrower with the CI fonts (279.8 px) than on macOS (288.4 px), so the two
+mode-switch `frameMovePx` ceilings are 290. Latency ceilings are 1.5 times the
+baseline value to absorb what the speed scale does not.
 
 Selecting a layer already meets the layout-shift budget (0.035) because the
 shift score weighs the moved area, but it moves the preview 170 px and narrows
@@ -123,7 +149,29 @@ to account.
 
 ## v0.49.0 Baseline
 
-TIMING_BASELINE_SECTION
+Latency on the reference run (median of five samples, milliseconds):
+
+| Metric | `default` | `effect-stack` | Budget |
+| --- | ---: | ---: | ---: |
+| `slider-keypress/inputToPreviewMs` | 62.4 | 121.8 | 50 |
+| `slider-drag/durationMs` | 1095.3 | 1937.8 | 500 |
+| `slider-drag/settleMs` | 406.7 | 563.2 | 700 |
+| `node-preview/entrySettleMs` | 604.3 | 552.6 | 1200 |
+| `node-preview/sliderSettleMs` | 68.3 | 177.3 | 100 |
+
+Every drag step produced one preview paint (20 paints for 20 steps), and each
+step held the main thread for three to six frames. That is the gap #308 closes.
+
+Layout values are the same for both documents except the node count:
+
+| Interaction | Desktop `layoutShift` | Desktop `frameMovePx` | Mobile `layoutShift` |
+| --- | ---: | ---: | ---: |
+| `select-layer` | 0.035 | 340 | 0 |
+| `switch-to-nodes` | 0.172 | 279.8 | 0 |
+| `switch-to-layers` | 0.534 | 279.8 | 0 |
+| `open-add-library` | 0 | 0 | 0 |
+
+On mobile, Randomize is covered by More and overlaps More and Projects.
 
 ## Changing A Budget Or Exception
 

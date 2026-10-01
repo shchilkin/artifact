@@ -1,6 +1,15 @@
 {
   "version": "0.49.0",
   "generatedBy": "scripts/editor-ux/measure.mjs",
+  "environment": {
+    "ci": true,
+    "platform": "linux/x64",
+    "cpus": 4,
+    "chromium": "148.0.7778.96",
+    "calibrationMs": 118.6,
+    "calibrationRuns": [119.1, 118.5, 118.6],
+    "speed": 1
+  },
   "viewports": {
     "desktop": {
       "width": 1440,
@@ -25,11 +34,11 @@
     "desktop/default/command-bar/overlappingCommands": 0,
     "desktop/default/inspector/sliderWidthDeltaPx": 39.5,
     "desktop/default/nodes-entry/nodesOutsideViewport": 5,
-    "desktop/default/slider-keypress/inputToPreviewMs": 49.4,
-    "desktop/default/slider-drag/durationMs": 1002,
-    "desktop/default/slider-drag/settleMs": 374.1,
-    "desktop/default/node-preview/entrySettleMs": 523.8,
-    "desktop/default/node-preview/sliderSettleMs": 55.1,
+    "desktop/default/slider-keypress/inputToPreviewMs": 62.4,
+    "desktop/default/slider-drag/durationMs": 1095.3,
+    "desktop/default/slider-drag/settleMs": 406.7,
+    "desktop/default/node-preview/entrySettleMs": 604.3,
+    "desktop/default/node-preview/sliderSettleMs": 68.3,
     "desktop/effect-stack/select-layer/layoutShift": 0.035,
     "desktop/effect-stack/select-layer/frameMovePx": 340,
     "desktop/effect-stack/switch-to-nodes/layoutShift": 0.172,
@@ -42,11 +51,11 @@
     "desktop/effect-stack/command-bar/overlappingCommands": 0,
     "desktop/effect-stack/inspector/sliderWidthDeltaPx": 39.5,
     "desktop/effect-stack/nodes-entry/nodesOutsideViewport": 7,
-    "desktop/effect-stack/slider-keypress/inputToPreviewMs": 84.5,
-    "desktop/effect-stack/slider-drag/durationMs": 1493.3,
-    "desktop/effect-stack/slider-drag/settleMs": 74.4,
-    "desktop/effect-stack/node-preview/entrySettleMs": 538.9,
-    "desktop/effect-stack/node-preview/sliderSettleMs": 128.5,
+    "desktop/effect-stack/slider-keypress/inputToPreviewMs": 121.8,
+    "desktop/effect-stack/slider-drag/durationMs": 1937.8,
+    "desktop/effect-stack/slider-drag/settleMs": 563.2,
+    "desktop/effect-stack/node-preview/entrySettleMs": 552.6,
+    "desktop/effect-stack/node-preview/sliderSettleMs": 177.3,
     "mobile/default/select-layer/layoutShift": 0,
     "mobile/default/select-layer/frameMovePx": 0,
     "mobile/default/switch-to-nodes/layoutShift": 0,
@@ -109,58 +118,58 @@
         "latency": {
           "samples": 5,
           "slider-keypress": {
-            "inputToPreviewMs": 49.4
+            "inputToPreviewMs": 62.4
           },
           "slider-drag": {
             "steps": 20,
-            "durationMs": 1002,
-            "settleMs": 374.1,
+            "durationMs": 1095.3,
+            "settleMs": 406.7,
             "paintsDuringDrag": 20
           },
           "node-preview": {
-            "entrySettleMs": 523.8,
-            "sliderSettleMs": 55.1
+            "entrySettleMs": 604.3,
+            "sliderSettleMs": 68.3
           },
           "runs": [
             {
-              "inputToPreviewMs": 49.4,
-              "durationMs": 1004.4,
-              "settleMs": 375,
+              "inputToPreviewMs": 63.9,
+              "durationMs": 1078.7,
+              "settleMs": 406.4,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 523.8,
-              "nodeSliderSettleMs": 54.6
+              "nodeEntrySettleMs": 441.4,
+              "nodeSliderSettleMs": 68.3
             },
             {
-              "inputToPreviewMs": 49.1,
-              "durationMs": 986.3,
-              "settleMs": 373,
+              "inputToPreviewMs": 56.2,
+              "durationMs": 1079.8,
+              "settleMs": 406.3,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 525.1,
-              "nodeSliderSettleMs": 54.7
+              "nodeEntrySettleMs": 609.5,
+              "nodeSliderSettleMs": 71.6
             },
             {
-              "inputToPreviewMs": 48.1,
-              "durationMs": 1002,
-              "settleMs": 375.8,
+              "inputToPreviewMs": 63.8,
+              "durationMs": 1128.2,
+              "settleMs": 407.2,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 590.5,
-              "nodeSliderSettleMs": 55.1
+              "nodeEntrySettleMs": 442.5,
+              "nodeSliderSettleMs": 67.7
             },
             {
-              "inputToPreviewMs": 62,
-              "durationMs": 1002.1,
-              "settleMs": 374.1,
+              "inputToPreviewMs": 62.4,
+              "durationMs": 1113.3,
+              "settleMs": 411.4,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 523.2,
-              "nodeSliderSettleMs": 59.2
+              "nodeEntrySettleMs": 604.3,
+              "nodeSliderSettleMs": 68.1
             },
             {
-              "inputToPreviewMs": 50,
-              "durationMs": 985.3,
-              "settleMs": 373.4,
+              "inputToPreviewMs": 56.7,
+              "durationMs": 1095.3,
+              "settleMs": 406.7,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 521.8,
-              "nodeSliderSettleMs": 55.1
+              "nodeEntrySettleMs": 626.1,
+              "nodeSliderSettleMs": 68.3
             }
           ]
         }
@@ -202,58 +211,58 @@
         "latency": {
           "samples": 5,
           "slider-keypress": {
-            "inputToPreviewMs": 84.5
+            "inputToPreviewMs": 121.8
           },
           "slider-drag": {
             "steps": 20,
-            "durationMs": 1493.3,
-            "settleMs": 74.4,
+            "durationMs": 1937.8,
+            "settleMs": 563.2,
             "paintsDuringDrag": 20
           },
           "node-preview": {
-            "entrySettleMs": 538.9,
-            "sliderSettleMs": 128.5
+            "entrySettleMs": 552.6,
+            "sliderSettleMs": 177.3
           },
           "runs": [
             {
-              "inputToPreviewMs": 84.5,
-              "durationMs": 1493.3,
-              "settleMs": 469,
+              "inputToPreviewMs": 115.7,
+              "durationMs": 1933.6,
+              "settleMs": 564.1,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 546.9,
-              "nodeSliderSettleMs": 128.3
+              "nodeEntrySettleMs": 528,
+              "nodeSliderSettleMs": 211.2
             },
             {
-              "inputToPreviewMs": 83.1,
-              "durationMs": 1478.8,
-              "settleMs": 468.3,
+              "inputToPreviewMs": 146.7,
+              "durationMs": 2017.8,
+              "settleMs": 563.2,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 547.2,
-              "nodeSliderSettleMs": 130
+              "nodeEntrySettleMs": 575.5,
+              "nodeSliderSettleMs": 176.8
             },
             {
-              "inputToPreviewMs": 86.6,
-              "durationMs": 1426.7,
-              "settleMs": 70.7,
+              "inputToPreviewMs": 122.2,
+              "durationMs": 1937.8,
+              "settleMs": 561.9,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 534.7,
-              "nodeSliderSettleMs": 127.2
+              "nodeEntrySettleMs": 557.8,
+              "nodeSliderSettleMs": 177.6
             },
             {
-              "inputToPreviewMs": 99.2,
-              "durationMs": 1508.7,
-              "settleMs": 58.4,
+              "inputToPreviewMs": 115.8,
+              "durationMs": 1935.5,
+              "settleMs": 562.3,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 525.5,
-              "nodeSliderSettleMs": 128.5
+              "nodeEntrySettleMs": 521.1,
+              "nodeSliderSettleMs": 177.3
             },
             {
-              "inputToPreviewMs": 78.1,
-              "durationMs": 1494.2,
-              "settleMs": 74.4,
+              "inputToPreviewMs": 121.8,
+              "durationMs": 1949.2,
+              "settleMs": 572.7,
               "paintsDuringDrag": 20,
-              "nodeEntrySettleMs": 538.9,
-              "nodeSliderSettleMs": 132.7
+              "nodeEntrySettleMs": 552.6,
+              "nodeSliderSettleMs": 177.2
             }
           ]
         }
