@@ -134,8 +134,9 @@ Current planning status:
   [`version-plans/v0.51.md`](./version-plans/v0.51.md) and
   [`ai-assisted-creation.md`](./ai-assisted-creation.md).
 - The native macOS client (epic #260, draft PRs #283–#293) is paused as of
-  2026-09-29. Web comes first: v0.49, then measured editor performance work,
-  then offline support through the Web application, then v0.50. Native
+  2026-09-29. Web comes first: v0.49, then v0.50 Editor UX, which owns the
+  measured editor performance work, then offline support through the Web
+  application. Native
   branches are kept but not merged. See
   [`adr/0015-pause-native-macos-client-and-improve-web-first.md`](./adr/0015-pause-native-macos-client-and-improve-web-first.md).
 - v0.41.3 was released on 2026-07-21 as the isolated model-drop graph stability
