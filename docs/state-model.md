@@ -134,6 +134,9 @@ Current examples:
 
 - text/image node local transform draft
 - active primitive drag ref
+- inspector slider value during a drag: the slider shows each value at once and
+  commits to the document (`debounce` mode) at most every 66 ms, the preview's
+  frame interval, and once more on release
 
 Rules:
 
