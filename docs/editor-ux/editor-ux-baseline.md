@@ -228,34 +228,65 @@ preview frames, so the preview keeps painting them (see
 
 ## After #324
 
-CI run [37136512732](https://github.com/shchilkin/artifact/actions/runs/37136512732)
-(calibration 142.5 ms, speed 0.832, drag floor 664.7 ms, blank-page drag
-main-thread time 21.4 ms), reference-machine milliseconds:
+CI run [37147332122](https://github.com/shchilkin/artifact/actions/runs/37147332122)
+(calibration 142.7 ms, speed 0.831, drag floor 664.8 ms, blank-page drag
+main-thread time 22 ms), reference-machine milliseconds:
 
 | Metric | `default` | `effect-stack` | Budget |
 | --- | ---: | ---: | ---: |
-| `slider-keypress/inputToPreviewMs` | 31.7 | 38.1 | 50 |
-| `slider-drag/mainThreadMs` | 128.3 | 121.4 | 160 |
-| `slider-drag/settleMs` | 413.8 | 578.7 | 700 |
-| `node-preview/entrySettleMs` | 429.2 | 525.5 | 1200 |
-| `node-preview/sliderSettleMs` | 23.3 | 22.5 | 100 |
+| `slider-keypress/inputToPreviewMs` | 35.6 | 37.9 | 50 |
+| `slider-drag/mainThreadMs` | 129.4 | 122.4 | 160 |
+| `slider-drag/settleMs` | 413.6 | 582.0 | 700 |
+| `node-preview/entrySettleMs` | 426.0 | 523.6 | 1200 |
+| `node-preview/sliderSettleMs` | 24.2 | 20.3 | 100 |
+
+What the numbers measure on CI:
+
+- **Keypress:** on the CI runner (software WebGL) the keypress budget is met by
+  the interactive frame, rendered at 270 px instead of 540 px. The full-quality
+  1080 px frame replaces it after the deferred-render delay and is not part of
+  `inputToPreviewMs`. On a hardware GPU the interactive frame stays at 540 px.
+- **Drag:** the `mainThreadMs` window ends when the last pointer move has been
+  delivered, before `mouse.up`. The slider's final coalesced document update on
+  release and the full-quality pass after the drag fall outside the window.
+  They are covered by `settleMs`.
 
 The drag painted the preview 10 / 9 times (3-4 after #308). In experiment run
 [37135908817](https://github.com/shchilkin/artifact/actions/runs/37135908817),
 four runners (speed 0.83-1.09) measured keypress latency of 24-33 / 30-41 ms
-and drag main-thread time of 108-126 / 117-127 ms with the same code. The
-changes are described in [`../performance.md`](../performance.md).
+and drag main-thread time of 108-126 / 117-127 ms. The changes are described
+in [`../performance.md`](../performance.md).
 
-Keypress render phases, milliseconds after the key (`name@start+duration`):
+### Keypress render phases
 
-| Run | `default` | `effect-stack` |
-| --- | --- | --- |
-| Before (development, [37128565147](https://github.com/shchilkin/artifact/actions/runs/37128565147), speed 0.831) | render 7+90; `rgbSplit` layer 12+85, of which GPU pass 23+74 (filter and readback 29+68) | render 10+176; `grain` 15+14; `rgbSplit` layer 29+89 with GPU pass 46+73; second GPU pass (halftone, vignette) 119+67 |
-| After (run above, speed 0.832) | render 7+30; `rgbSplit` layer 9+28, of which GPU pass at 270 px 20+16 (filter and readback 21+15) | render 7+35; `grain` 9+1; `rgbSplit` Canvas 2D part 9+11; one merged GPU pass at 270 px 21+21 |
+Milliseconds after the key, as `start+duration`, median sample of each run:
 
-In both documents the GPU pass became smaller (270 px instead of 540 px:
-filter and readback about 68 → 15-20 ms), `effect-stack` lost one of its two
-GPU passes, and its grain layer reuses its cached texture (14 → 1 ms).
+| Phase | Before, `default` | After, `default` | Before, `effect-stack` | After, `effect-stack` |
+| --- | --- | --- | --- | --- |
+| Document render (input to finished frame) | 7+90 | 7+33 | 10+176 | 8+36 |
+| Edited layer and those below it | scanlines 11+1 | scanlines 8+0 | scanlines 12+1 | scanlines 9+1 |
+| Grain (Canvas 2D) | - | - | 13+14 | 10+0 (cached texture) |
+| RGB Split worker round trip (Canvas 2D kernel) | not traced | 10+11 | not traced | 11+13 |
+| GPU upload and blit (submitted on the main thread) | not traced | 21+1 | not traced | 26+1 |
+| GPU fence wait (upload, blit, filters, `readPixels` on the GPU) | 29+68, together with readback | 22+16 | 47+71 and 111+67, together with readback | 27+17, one merged pass |
+| Readback copy and unpremultiply, then canvas write | inside the above | 39+1, 40+0 | inside the above | 44+0, 44+0 |
+| GPU passes above the edit | 1 at 540 px | 1 at 270 px | 2 at 540 px | 1 at 270 px |
+
+Before: development, run [37128565147](https://github.com/shchilkin/artifact/actions/runs/37128565147),
+speed 0.831. After: the run above. Before #324 the trace recorded the GPU pass
+only as `gpu-filter-extract` and did not trace the worker. Since #324 it
+records `gpu-upload`, `gpu-blit`, `gpu-fence-wait`, `gpu-readback`,
+`gpu-to-canvas`, and `worker-transform`. The GPU executes the upload, blit,
+filters, and `readPixels` asynchronously in its own process, and the fence
+only reports when all of them are done. JavaScript therefore cannot time them
+apart, and software WebGL has no GPU timer queries
+(see [`../performance.md`](../performance.md)).
+
+The GPU pass shrank fourfold in pixels (fence wait about 68 → 17 ms).
+`effect-stack` lost one of its two GPU passes, and its grain layer reuses its
+cached texture (14 → 0-1 ms). The RGB Split worker round trip (4-15 ms) is now
+the largest Canvas 2D phase. The main thread is free while the GPU fence is
+pending.
 
 ## Changing A Budget Or Exception
 
