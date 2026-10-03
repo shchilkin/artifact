@@ -62,7 +62,8 @@ of the Scanlines layer in each document.
 | Metric | Subject | Meaning |
 | --- | --- | --- |
 | `inputToPreviewMs` | `slider-keypress` | From the browser receiving one arrow-key press on the slider to the next paint of the preview canvas. |
-| `durationMs` | `slider-drag` | Time to deliver a 20-step pointer drag, one step per animation frame, reported above the drag floor (see Machine speed). An unblocked main thread scores about 340 ms. |
+| `mainThreadMs` | `slider-drag` | Main-thread task time of the page while a 20-step pointer drag is delivered, one step per animation frame (Chromium's `TaskDuration` performance metric). A blank page with a bare range input takes 15-25 ms. Since #308. |
+| `durationMs` | `slider-drag` | Secondary, not budgeted: time to deliver the same drag, reported above the drag floor (see Machine speed). |
 | `settleMs` | `slider-drag` | From the last drag input to the last preview paint before the preview has been quiet for one second. This includes the full-quality pass that follows the draft frames. |
 | `entrySettleMs` | `node-preview` | From clicking Nodes to the last node-thumbnail render of the entry. |
 | `sliderSettleMs` | `node-preview` | From one arrow-key press on the Nodes inspector slider to the last node-thumbnail render it causes. |
@@ -111,7 +112,7 @@ the CI run is the one that decides.
 | `overlappingCommands` | 0 | desktop, mobile |
 | `sliderWidthDeltaPx` | 1 px | desktop, mobile |
 | `inputToPreviewMs` | 50 ms | desktop |
-| `slider-drag/durationMs` | 500 ms | desktop |
+| `slider-drag/mainThreadMs` | 160 ms | desktop |
 | `slider-drag/settleMs` | 700 ms | desktop |
 | `node-preview/entrySettleMs` | 1200 ms | desktop |
 | `node-preview/sliderSettleMs` | 100 ms | desktop |
@@ -143,6 +144,7 @@ needed, so a fixed behavior cannot keep a stale allowance.
 | `mobile/*/inspector/sliderWidthDeltaPx` | 228 px | 228 | [#309](https://github.com/shchilkin/artifact/issues/309) |
 | `desktop/default/slider-keypress/inputToPreviewMs` | 62.4 ms | 130 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 | `desktop/effect-stack/slider-keypress/inputToPreviewMs` | 121.8 ms | 215 | [#324](https://github.com/shchilkin/artifact/issues/324) |
+| `desktop/*/slider-drag/mainThreadMs` | not measured | 480 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 
 Layout ceilings equal the measured value. The command bar is a few pixels
 narrower with the CI fonts (279.8 px) than on macOS (288.4 px), so the two
@@ -158,13 +160,22 @@ pass in `default` and two in `effect-stack`. Meeting the 50 ms budget there
 needs a cheaper render, which
 [#324](https://github.com/shchilkin/artifact/issues/324) owns.
 
+`slider-drag/mainThreadMs` replaced the budgeted `slider-drag/durationMs` in
+#308. On the CI runner the drag loop cannot run faster than two frames per step
+(665.7 ms against a blank page), so the 500 ms duration budget was below what
+the harness can deliver there, and subtracting that floor would hide app work
+that fits in the idle frame. The 160 ms budget keeps U1's intent: 500 ms for a
+drag that an unblocked main thread delivers in 340 ms. The v0.49.0 run did not
+measure main-thread time; on the CI container image (Apple Silicon host,
+calibration about 120 ms), v0.49.0 spent 515 / 1008 ms of main-thread time on
+the drag.
+
 Metrics a delivery issue fixed are listed under `fixed` in the contract with the
 baseline value they replaced. The v0.49.0 baseline still exceeds their budgets;
 `npm run test:editor-ux` accepts that only for metrics listed there.
 
 | Metric | v0.49.0 | Fixed by |
 | --- | --- | --- |
-| `desktop/*/slider-drag/durationMs` | 1095.3 / 1937.8 ms (769.6 / 1612.1 floor-corrected) | [#308](https://github.com/shchilkin/artifact/issues/308) |
 | `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | [#308](https://github.com/shchilkin/artifact/issues/308) |
 
 Selecting a layer already meets the layout-shift budget (0.035) because the
@@ -187,26 +198,8 @@ Latency on the reference run (median of five samples, milliseconds):
 Every drag step produced one preview paint (20 paints for 20 steps), and each
 step held the main thread for three to six frames. That is the gap #308 closes.
 The v0.49.0 run did not record the drag floor; floor-corrected with the CI
-runner's 665.7 ms, its `durationMs` values are 769.6 and 1612.1 ms.
-
-## After #308
-
-CI run [37117905308](https://github.com/shchilkin/artifact/actions/runs/37117905308)
-(calibration 107.9 ms, speed 1.099, drag floor 665.6 ms), reference-machine
-milliseconds:
-
-| Metric | `default` | `effect-stack` | Budget |
-| --- | ---: | ---: | ---: |
-| `slider-keypress/inputToPreviewMs` | 80.6 | 119.1 | 50 |
-| `slider-drag/durationMs` | 340 | 354.5 | 500 |
-| `slider-drag/settleMs` | 466.6 | 615.2 | 700 |
-| `node-preview/entrySettleMs` | 526.6 | 597.9 | 1200 |
-| `node-preview/sliderSettleMs` | 32.8 | 24.1 | 100 |
-
-A drag now delivers its 20 steps within 13 ms of the frame-paced floor
-(raw 662.9 and 678.8 ms against 665.6 ms) and paints three to five preview
-frames instead of twenty. Keypress latency on this runner varied between 65
-and 86 ms (`default`) and 119 and 147 ms (`effect-stack`) across the PR's runs.
+runner's 665.7 ms, its `durationMs` values are 769.6 and 1612.1 ms. `durationMs`
+is no longer budgeted (see Exceptions).
 
 Layout values are the same for both documents except the node count:
 
@@ -218,6 +211,32 @@ Layout values are the same for both documents except the node count:
 | `open-add-library` | 0 | 0 | 0 |
 
 On mobile, Randomize is covered by More and overlaps More and Projects.
+
+## After #308
+
+CI run [37126258008](https://github.com/shchilkin/artifact/actions/runs/37126258008)
+(calibration 143.4 ms, speed 0.827, drag floor 665.1 ms, blank-page drag
+main-thread time 16.1 ms), reference-machine milliseconds:
+
+| Metric | `default` | `effect-stack` | Budget |
+| --- | ---: | ---: | ---: |
+| `slider-keypress/inputToPreviewMs` | 79.2 | 146.6 | 50 |
+| `slider-drag/mainThreadMs` | 329.7 | 356.9 | 160 |
+| `slider-drag/settleMs` | 443.4 | 670.4 | 700 |
+| `node-preview/entrySettleMs` | 416.1 | 565.2 | 1200 |
+| `node-preview/sliderSettleMs` | 25.1 | 27.5 | 100 |
+
+Secondary: `slider-drag/durationMs` 391.2 / 405.3 (raw 727 / 744 ms against
+the 665 ms floor); 4 / 3 preview paints during the drag (20 / 20 in v0.49.0).
+Across the PR's runs keypress latency varied between 65 and 86 ms (`default`)
+and 119 and 147 ms (`effect-stack`), and effect-stack settle between 541 and
+670 ms.
+
+With superseded interactive passes dropped instead of painted (run
+[37125665340](https://github.com/shchilkin/artifact/actions/runs/37125665340),
+speed 0.997), main-thread time was 302.2 / 313.2 ms but the drag painted 0 / 0-1
+preview frames, so the preview keeps painting them (see
+[`../performance.md`](../performance.md)).
 
 ## Changing A Budget Or Exception
 
