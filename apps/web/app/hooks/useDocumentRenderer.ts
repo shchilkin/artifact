@@ -285,14 +285,17 @@ function setRenderFailure(error: unknown, setRenderState: RenderStateSetter) {
 function drawRenderResult(result: HTMLCanvasElement, refs: DocumentRendererRefs, setRenderState: RenderStateSetter) {
   const displayCanvas = refs.canvasRef.current;
   if (!displayCanvas) return;
+  // The display canvas takes the frame's own size and CSS scales it to the preview box. Scaling a small
+  // interactive frame up into a full-resolution canvas would cost a full-resolution raster per paint.
+  if (displayCanvas.width !== result.width || displayCanvas.height !== result.height) {
+    displayCanvas.width = result.width;
+    displayCanvas.height = result.height;
+  }
   const ctx = displayCanvas.getContext('2d')!;
   ctx.clearRect(0, 0, displayCanvas.width, displayCanvas.height);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality =
-    result.width < displayCanvas.width || result.height < displayCanvas.height ? 'medium' : 'high';
-  ctx.drawImage(result, 0, 0, displayCanvas.width, displayCanvas.height);
+  ctx.drawImage(result, 0, 0);
   refs.lastGoodCanvasRef.current = result;
-  if (result.width === displayCanvas.width && result.height === displayCanvas.height) {
+  if (result.width === refs.renderWidthRef.current && result.height === refs.renderHeightRef.current) {
     rememberRenderFrame(refs.cacheKeyRef.current, result);
   }
   setRenderState({
