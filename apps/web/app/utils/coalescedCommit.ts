@@ -1,61 +1,62 @@
+import { browserTimerClock, type TimerClock } from './timerClock';
+
 /**
  * Passes continuous values on at most every `intervalMs`: a value after a pause goes through at once, values
  * within the interval are coalesced into the latest, which goes through when the interval ends or on `flush`.
+ * Each value carries the commit it belongs to, so a waiting value is never passed to a later target.
  */
 export interface CoalescedCommitOptions {
   intervalMs: number;
-  commit: (value: number) => void;
   /** A value is waiting (`value`) or no longer waiting (`null`). */
   onPendingChange?: (value: number | null) => void;
-  now?: () => number;
-  setTimer?: (callback: () => void, ms: number) => unknown;
-  clearTimer?: (handle: unknown) => void;
+  clock?: TimerClock;
 }
 
 export interface CoalescedCommit {
-  change: (value: number) => void;
-  /** Passes on a waiting value now, for example when the gesture ends. */
+  change: (value: number, commit: (value: number) => void) => void;
+  /** Passes on a waiting value now, for example when the gesture ends or the target changes. */
   flush: () => void;
 }
 
 export function createCoalescedCommit({
   intervalMs,
-  commit,
   onPendingChange,
-  now = () => performance.now(),
-  setTimer = (callback, ms) => setTimeout(callback, ms),
-  clearTimer = (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+  clock = browserTimerClock,
 }: CoalescedCommitOptions): CoalescedCommit {
-  let pending: number | null = null;
+  let pending: { value: number; commit: (value: number) => void } | null = null;
   let lastCommitAt = Number.NEGATIVE_INFINITY;
   let timer: unknown = null;
 
-  function commitNow(value: number) {
+  function commitNow(value: number, commit: (value: number) => void) {
     const wasPending = pending !== null;
     pending = null;
-    lastCommitAt = now();
+    lastCommitAt = clock.now();
     commit(value);
     if (wasPending) onPendingChange?.(null);
   }
 
-  function flush() {
-    if (timer !== null) clearTimer(timer);
-    timer = null;
-    if (pending !== null) commitNow(pending);
+  function commitPending() {
+    if (pending) commitNow(pending.value, pending.commit);
   }
 
-  function change(value: number) {
-    const wait = lastCommitAt + intervalMs - now();
+  function flush() {
+    if (timer !== null) clock.clearTimer(timer);
+    timer = null;
+    commitPending();
+  }
+
+  function change(value: number, commit: (value: number) => void) {
+    const wait = lastCommitAt + intervalMs - clock.now();
     if (wait <= 0 && timer === null) {
-      commitNow(value);
+      commitNow(value, commit);
       return;
     }
-    pending = value;
+    pending = { value, commit };
     onPendingChange?.(value);
-    timer ??= setTimer(
+    timer ??= clock.setTimer(
       () => {
         timer = null;
-        if (pending !== null) commitNow(pending);
+        commitPending();
       },
       Math.max(0, wait),
     );

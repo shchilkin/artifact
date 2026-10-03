@@ -1,38 +1,38 @@
-import { type ComponentPropsWithoutRef, useEffect, useRef, useState } from 'react';
+import { type ComponentPropsWithoutRef, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import { useStableCallback } from '../../../../hooks/useStableCallback';
+import { createCoalescedCommit } from '../../../../utils/coalescedCommit';
+import { PREVIEW_FRAME_INTERVAL_MS } from '../../../../utils/interactionTiming';
 import { PropertyRow } from '../../../inspector-system';
 import { stopNodeEvent } from '../../helpers';
 import { NoPan } from '../../nodes/NoPan';
-import { createCoalescedCommit } from './coalescedCommit';
+import { InspectorTargetContext } from './inspectorTargetContext';
 
 /**
- * Shortest time between two document updates from one slider. The layer preview renders at most this often during a
- * drag, so updating the document (and re-rendering the editor) on every pointer move in between does nothing visible.
- */
-const SLIDER_COMMIT_INTERVAL_MS = 66;
-
-/**
- * The slider shows every value at once and passes it on through a coalesced commit, so a drag updates the document
- * at the preview's frame rate rather than on every pointer move.
+ * The slider shows every value at once and updates the document at most once per preview frame interval, so a drag
+ * does not re-render the editor on every pointer move. A change after a pause goes through immediately. A value
+ * still waiting goes to the target it was made on: when the gesture ends, the inspector switches to another layer
+ * or node, or the slider unmounts.
  */
 function useCoalescedSliderValue(value: number, onChange: (value: number) => void) {
   const [draft, setDraft] = useState<number | null>(null);
-  const commitChange = useStableCallback(onChange);
   const [coalesced] = useState(() =>
-    createCoalescedCommit({ intervalMs: SLIDER_COMMIT_INTERVAL_MS, commit: commitChange, onPendingChange: setDraft }),
+    createCoalescedCommit({ intervalMs: PREVIEW_FRAME_INTERVAL_MS, onPendingChange: setDraft }),
   );
-
-  // A value still waiting when the slider goes away (selection change, panel close) is not lost.
+  const target = useContext(InspectorTargetContext);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a target change is what flushes the waiting value
+  useLayoutEffect(() => coalesced.flush(), [coalesced, target]);
   useEffect(() => coalesced.flush, [coalesced]);
 
-  return { displayValue: draft ?? value, change: coalesced.change, flush: coalesced.flush };
+  return {
+    displayValue: draft ?? value,
+    change: (nextValue: number) => coalesced.change(nextValue, onChange),
+    flush: coalesced.flush,
+  };
 }
 
 export function InspectorSlider({
   label,
   value,
-  valueLabel,
   formatValue,
   min,
   max,
@@ -46,8 +46,7 @@ export function InspectorSlider({
 }: {
   label: string;
   value: number;
-  valueLabel?: string;
-  /** Formats the shown value; preferred over `valueLabel`, because it also formats a value still being dragged. */
+  /** Formats the shown value, including a value still being dragged. */
   formatValue?: (value: number) => string;
   min: number;
   max: number;
@@ -62,11 +61,7 @@ export function InspectorSlider({
   const infoRef = useRef<HTMLButtonElement>(null);
   const { displayValue, change, flush } = useCoalescedSliderValue(value, onChange);
   const sliderValue = Math.min(max, Math.max(min, displayValue));
-  const shownLabel = formatValue
-    ? formatValue(displayValue)
-    : displayValue === value && valueLabel !== undefined
-      ? valueLabel
-      : displayValue;
+  const shownLabel = formatValue ? formatValue(displayValue) : displayValue;
   const manualMax = overrideMax ?? max;
   const clampManualValue = (nextValue: number) => Math.min(manualMax, Math.max(min, nextValue));
   return (
@@ -180,6 +175,7 @@ function SliderInputs({
             if (event.target.value === '') return;
             onChange(clampManualValue(Number(event.target.value)));
           }}
+          onBlur={onCommit}
         />
       ) : null}
     </div>

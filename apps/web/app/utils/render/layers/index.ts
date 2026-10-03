@@ -66,6 +66,8 @@ export interface RenderOptions {
    * readback rounding, so full-quality, thumbnail, and export renders leave this off.
    */
   mergeGpuPasses?: boolean;
+  /** Layer preview only: its GPU passes feed the device's GPU cost estimate, which sizes interactive frames. */
+  recordGpuCost?: boolean;
   /** Transient render cancellation signal. Never store this in document state. */
   signal?: AbortSignal;
 }
@@ -994,14 +996,37 @@ async function applyCanvas2DEffects(
   applySpeedLinesEffect(ctx, W, H, layer, seed, scale);
 }
 
+/** The seed an effect layer's Canvas 2D effects and GPU filters draw from. */
+function effectLayerSeed(documentSeed: number, layer: EffectLayer) {
+  return documentSeed + (layer.seedOffset ?? 0);
+}
+
+/**
+ * An effect layer's Canvas 2D effects, shared by separate and merged GPU passes so both draw the same pixels.
+ * Returns the layer's seed for its GPU filters.
+ */
+async function applyEffectLayerCanvas2DEffects(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  layer: EffectLayer,
+  documentSeed: number,
+  scale: number,
+) {
+  const effectSeed = effectLayerSeed(documentSeed, layer);
+  await applyCanvas2DEffects(ctx, W, H, layer, effectSeed, scale, lcg(effectSeed ^ 0x1a2b3c));
+  return effectSeed;
+}
+
 async function runGpuPass(
   current: HTMLCanvasElement,
   W: number,
   H: number,
   filters: Filter[],
+  options: RenderOptions,
 ): Promise<HTMLCanvasElement> {
   const { gpuRenderToCanvas } = await loadGpuModules();
-  return gpuRenderToCanvas({ width: W, height: H, source: current, filters });
+  return gpuRenderToCanvas({ width: W, height: H, source: current, filters, recordCost: options.recordGpuCost });
 }
 
 const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
@@ -1145,12 +1170,11 @@ export async function applyGpuOnlyEffectLayerChain(
   const filters: Filter[] = [];
   for (const layer of layers) {
     throwIfRenderAborted(options);
-    const effectSeed = doc.global.seed + (layer.seedOffset ?? 0);
-    const nextFilters = buildFiltersFromEffectLayer(layer, effectSeed, W, H);
+    const nextFilters = buildFiltersFromEffectLayer(layer, effectLayerSeed(doc.global.seed, layer), W, H);
     if (nextFilters?.length) filters.push(...nextFilters);
   }
   if (filters.length === 0) return base;
-  return runGpuPass(cloneCanvas(base, W, H), W, H, filters);
+  return runGpuPass(cloneCanvas(base, W, H), W, H, filters, options);
 }
 
 /** The Canvas 2D part of an effect layer whose GPU filters run later, in a merged GPU pass. */
@@ -1166,8 +1190,7 @@ export async function applyEffectLayerCanvas2DPass(
   return measureLayerRender(layer, async () => {
     throwIfRenderAborted(options);
     const { ctx, current, seed, scale } = createLayerRenderContext(base, layer, doc, W, H, imageCache, options);
-    const effectSeed = seed + (layer.seedOffset ?? 0);
-    await applyCanvas2DEffects(ctx, W, H, layer, effectSeed, scale, lcg(effectSeed ^ 0x1a2b3c));
+    await applyEffectLayerCanvas2DEffects(ctx, W, H, layer, seed, scale);
     throwIfRenderAborted(options);
     return current;
   });
@@ -1331,7 +1354,7 @@ async function applyGpuFiltersForEffect(
   const { buildFiltersFromEffectLayer } = await loadGpuModules();
   const filters = buildFiltersFromEffectLayer(layer, effectSeed, W, H);
   if (!filters?.length) return current;
-  const next = await runGpuPass(current, W, H, filters);
+  const next = await runGpuPass(current, W, H, filters, options);
   throwIfRenderAborted(options);
   return next;
 }
@@ -1350,8 +1373,7 @@ async function renderEffectPass(context: LayerRenderContext<EffectLayer>) {
   if (scaledEffect) return scaledEffect;
 
   const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
-  const effectSeed = seed + (layer.seedOffset ?? 0);
-  await applyCanvas2DEffects(ctx, W, H, layer, effectSeed, scale, lcg(effectSeed ^ 0x1a2b3c));
+  const effectSeed = await applyEffectLayerCanvas2DEffects(ctx, W, H, layer, seed, scale);
   throwIfRenderAborted(options);
   let current = await applyGpuFiltersForEffect(context.current, context, effectSeed);
   if (alphaMask) current = maskCanvasToAlpha(current, alphaMask, W, H);

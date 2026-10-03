@@ -60,7 +60,15 @@ describe('runtime inspector field adapters', () => {
 
   it('renders sliders as labelled dense property rows with explicit values', () => {
     const html = renderToStaticMarkup(
-      <InspectorSlider label="Opacity" value={82} valueLabel="82%" min={0} max={100} disabled onChange={() => {}} />,
+      <InspectorSlider
+        label="Opacity"
+        value={82}
+        formatValue={(value) => `${value}%`}
+        min={0}
+        max={100}
+        disabled
+        onChange={() => {}}
+      />,
     );
 
     expect(html).toContain('data-inspector-property-row="true"');

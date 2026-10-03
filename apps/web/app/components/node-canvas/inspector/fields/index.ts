@@ -10,4 +10,5 @@ export { InspectorStateProvider } from './InspectorStateProvider';
 export { InspectorTextArea } from './InspectorTextArea';
 export { InspectorTextInput } from './InspectorTextInput';
 export { InspectorToggle } from './InspectorToggle';
+export { InspectorTargetContext } from './inspectorTargetContext';
 export { ScaleLockRow } from './ScaleLockRow';

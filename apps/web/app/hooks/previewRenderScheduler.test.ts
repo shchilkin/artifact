@@ -1,50 +1,31 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { createFakeTimerClock } from '../test-fixtures/fakeTimerClock';
 import { createPreviewRenderScheduler } from './previewRenderScheduler';
 
 type Done = (options?: { cooldown?: boolean }) => void;
 
 function setup(cooldownRatio = 2, minIntervalMs = 0) {
-  let clock = 0;
   const microtasks: Array<() => void> = [];
-  const timers: Array<{ at: number; callback: () => void; cleared: boolean }> = [];
   const finishers: Done[] = [];
   const run = vi.fn((done: Done) => {
     finishers.push(done);
   });
   const onSupersede = vi.fn();
+  const flushMicrotasks = () => {
+    while (microtasks.length) microtasks.shift()?.();
+  };
+  const { clock, advanceTo: advanceClockTo } = createFakeTimerClock({ afterTimer: flushMicrotasks });
   const scheduler = createPreviewRenderScheduler({
     run,
     onSupersede,
     cooldownRatio,
     minIntervalMs,
-    now: () => clock,
-    setTimer: (callback, ms) => {
-      const timer = { at: clock + ms, callback, cleared: false };
-      timers.push(timer);
-      return timer;
-    },
-    clearTimer: (handle) => {
-      const timer = timers.find((item) => item === handle);
-      if (timer) timer.cleared = true;
-    },
+    clock,
     queueMicrotask: (callback) => microtasks.push(callback),
   });
-
-  const flushMicrotasks = () => {
-    while (microtasks.length) microtasks.shift()?.();
-  };
-  /** Moves the clock to `time`, firing due timers in order. */
   const advanceTo = (time: number) => {
-    while (true) {
-      const due = timers.filter((item) => !item.cleared && item.at <= time).sort((a, b) => a.at - b.at)[0];
-      if (!due) break;
-      clock = Math.max(clock, due.at);
-      due.cleared = true;
-      due.callback();
-      flushMicrotasks();
-    }
-    clock = time;
+    advanceClockTo(time);
     flushMicrotasks();
   };
 

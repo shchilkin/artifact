@@ -11,6 +11,8 @@ interface GpuRenderOptions {
   filters: Filter[];
   /** `sync` reads the result back with the blocking `extract.canvas`; the default follows `setGpuReadback`. */
   readback?: GpuReadback;
+  /** Adds the pass to the device's GPU cost estimate (`gpuPassCost.ts`); the layer preview's passes only. */
+  recordCost?: boolean;
 }
 
 let defaultReadback: GpuReadback = 'async';
@@ -364,6 +366,7 @@ export async function gpuRenderToCanvas({
   source,
   filters,
   readback = defaultReadback,
+  recordCost = false,
 }: GpuRenderOptions): Promise<HTMLCanvasElement> {
   return enqueueRender(async () => {
     return await measureGpuPhase(GPU_RENDER_MEASURE, async () => {
@@ -372,7 +375,7 @@ export async function gpuRenderToCanvas({
         try {
           const startedAt = now();
           const output = await renderWithRenderer(shared, W, H, source, filters, readback);
-          recordGpuPass(now() - startedAt, W, H);
+          if (recordCost) recordGpuPass(now() - startedAt, W, H);
           return output;
         } catch {
           disposeShared();

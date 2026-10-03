@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { makeEffectPresetLayer } from '../../../types/config';
+import { applyGrain, resetGrainTextureCache } from './textureEffects';
 
-function grainPixels(applyGrain: typeof import('./textureEffects').applyGrain, grain: number, seed: number) {
+function grainPixels(grain: number, seed: number) {
   const canvas = document.createElement('canvas');
   canvas.width = 24;
   canvas.height = 16;
@@ -13,27 +14,23 @@ function grainPixels(applyGrain: typeof import('./textureEffects').applyGrain, g
 }
 
 describe('applyGrain', () => {
-  it('draws the same pixels from a cached grain texture as from a freshly built one', async () => {
-    vi.resetModules();
-    const fresh = await import('./textureEffects');
-    const first = grainPixels(fresh.applyGrain, 40, 7);
-    const cachedRepeat = grainPixels(fresh.applyGrain, 40, 7);
+  beforeEach(() => resetGrainTextureCache());
 
-    vi.resetModules();
-    const rebuilt = await import('./textureEffects');
-    // Fill the cache past its limit with other textures, then rebuild the first one.
-    for (const seed of [1, 2, 3, 4, 5]) grainPixels(rebuilt.applyGrain, 40, seed);
-    const afterEviction = grainPixels(rebuilt.applyGrain, 40, 7);
+  it('draws the same pixels from a cached grain texture as from a freshly built one', () => {
+    const fresh = grainPixels(40, 7);
+    const cached = grainPixels(40, 7);
+    // Fill the cache past its limit with other textures, so the first one is rebuilt.
+    for (const seed of [1, 2, 3, 4, 5]) grainPixels(40, seed);
+    const rebuilt = grainPixels(40, 7);
 
-    expect(cachedRepeat).toEqual(first);
-    expect(afterEviction).toEqual(first);
+    expect(cached).toEqual(fresh);
+    expect(rebuilt).toEqual(fresh);
   });
 
-  it('keys the texture by seed and amount', async () => {
-    const { applyGrain } = await import('./textureEffects');
-    const base = grainPixels(applyGrain, 40, 7);
+  it('keys the texture by seed and amount', () => {
+    const base = grainPixels(40, 7);
 
-    expect(grainPixels(applyGrain, 40, 8)).not.toEqual(base);
-    expect(grainPixels(applyGrain, 41, 7)).not.toEqual(base);
+    expect(grainPixels(40, 8)).not.toEqual(base);
+    expect(grainPixels(41, 7)).not.toEqual(base);
   });
 });

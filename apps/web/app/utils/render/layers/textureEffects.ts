@@ -12,9 +12,18 @@ export function applyScanlines(ctx: CanvasRenderingContext2D, W: number, H: numb
   for (let y = 0; y < H; y += step) ctx.fillRect(0, y, W, lineH);
 }
 
-/** Grain textures by seed, size and amount. Rebuilding one is a per-pixel loop, and edits to other layers reuse it. */
+/**
+ * Grain textures by seed, size and amount. Rebuilding one is a per-pixel loop, and preview edits to other layers
+ * reuse it. Only textures up to the full-quality preview size (1080 px square) are kept, so an export at 2x or 3x
+ * does not leave large canvases behind.
+ */
 const GRAIN_TEXTURE_CACHE_LIMIT = 4;
+const GRAIN_TEXTURE_CACHE_MAX_PIXELS = 1080 * 1080;
 const grainTextures = new Map<string, HTMLCanvasElement>();
+
+export function resetGrainTextureCache() {
+  grainTextures.clear();
+}
 
 function grainTexture(W: number, H: number, grain: number, seed: number): HTMLCanvasElement {
   const key = `${seed}:${W}x${H}:${grain}`;
@@ -38,6 +47,7 @@ function grainTexture(W: number, H: number, grain: number, seed: number): HTMLCa
   }
   octx.putImageData(imageData, 0, 0);
 
+  if (W * H > GRAIN_TEXTURE_CACHE_MAX_PIXELS) return offscreen;
   grainTextures.set(key, offscreen);
   while (grainTextures.size > GRAIN_TEXTURE_CACHE_LIMIT) {
     const oldestKey = grainTextures.keys().next().value;
