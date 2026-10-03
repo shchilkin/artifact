@@ -3,20 +3,27 @@
  * it starts, so a request carries no payload).
  *
  * - Requests made while a start is already scheduled coalesce into that start.
- * - A request made while a render runs supersedes it (`onSupersede` aborts it) and leaves exactly one pending
- *   render, which starts when the running one finishes. A continuous gesture therefore never has more than one
- *   render in flight and one waiting, however many inputs it delivers.
- * - Between consecutive renders the scheduler leaves the main thread free for `cooldownRatio` times the previous
- *   render's duration, so input keeps flowing while renders are expensive. A request after an idle period starts
- *   on the next microtask.
+ * - A request made while a render runs calls `onSupersede` (which may abort the render) and leaves exactly one
+ *   pending render, which starts when the running one finishes. A continuous gesture therefore never has more than
+ *   one render in flight and one waiting, however many inputs it delivers.
+ * - After a render that asks for a cooldown, the next one waits until the main thread has been free for
+ *   `cooldownRatio` times that render's duration (at most `maxCooldownMs`), so input keeps flowing while renders are
+ *   expensive. The wait ends early once requests stop for `quietMs`: when a gesture ends, its last state renders at
+ *   once. A request after an idle period starts on the next microtask.
  */
 export interface PreviewRenderSchedulerOptions {
-  /** Starts one render. The render must call `done` exactly once when it settles, including on abort or error. */
-  run: (done: () => void) => void;
-  /** A newer request arrived while a render was running: abort or mark that render stale. */
+  /**
+   * Starts one render. The render must call `done` exactly once when it settles, including on abort or error, and
+   * pass `cooldown: false` when the next render does not need to leave the main thread free first.
+   */
+  run: (done: (options?: { cooldown?: boolean }) => void) => void;
+  /** A newer request arrived while a render was running. */
   onSupersede?: () => void;
   /** Free time left between consecutive renders, as a multiple of the previous render's duration. */
   cooldownRatio?: number;
+  maxCooldownMs?: number;
+  /** Requests this far apart count as the end of continuous input. */
+  quietMs?: number;
   now?: () => number;
   setTimer?: (callback: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
@@ -25,18 +32,22 @@ export interface PreviewRenderSchedulerOptions {
 
 export interface PreviewRenderScheduler {
   request: () => void;
-  /** Drops a scheduled start (the running render, if any, continues). */
+  /** Drops a scheduled or pending start (the running render, if any, continues). */
   cancelScheduled: () => void;
   readonly running: boolean;
   readonly pending: boolean;
 }
 
 export const DEFAULT_PREVIEW_COOLDOWN_RATIO = 2;
+const DEFAULT_MAX_COOLDOWN_MS = 250;
+const DEFAULT_QUIET_MS = 34;
 
 export function createPreviewRenderScheduler({
   run,
   onSupersede,
   cooldownRatio = DEFAULT_PREVIEW_COOLDOWN_RATIO,
+  maxCooldownMs = DEFAULT_MAX_COOLDOWN_MS,
+  quietMs = DEFAULT_QUIET_MS,
   now = () => performance.now(),
   setTimer = (callback, ms) => setTimeout(callback, ms),
   clearTimer = (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
@@ -48,7 +59,8 @@ export function createPreviewRenderScheduler({
   let timer: unknown = null;
   let generation = 0;
   let startedAt = 0;
-  let earliestNextStart = Number.NEGATIVE_INFINITY;
+  let cooldownUntil = Number.NEGATIVE_INFINITY;
+  let lastRequestAt = Number.NEGATIVE_INFINITY;
 
   function start(scheduledGeneration: number) {
     if (scheduledGeneration !== generation || !scheduled) return;
@@ -57,37 +69,62 @@ export function createPreviewRenderScheduler({
     running = true;
     startedAt = now();
     let settled = false;
-    run(() => {
+    run((options) => {
       if (settled) return;
       settled = true;
-      finish();
+      finish(options?.cooldown ?? true);
     });
   }
 
-  function finish() {
+  function finish(cooldown: boolean) {
     running = false;
     const endedAt = now();
-    earliestNextStart = endedAt + Math.max(0, endedAt - startedAt) * cooldownRatio;
+    cooldownUntil = cooldown
+      ? endedAt + Math.min(maxCooldownMs, Math.max(0, endedAt - startedAt) * cooldownRatio)
+      : Number.NEGATIVE_INFINITY;
     if (!pending) return;
     pending = false;
-    request();
+    schedule();
   }
 
-  function request() {
-    if (running) {
-      if (!pending) pending = true;
-      onSupersede?.();
+  /** Time left before a start may happen: the cooldown, unless input has gone quiet first. */
+  function waitMs() {
+    const current = now();
+    if (current >= cooldownUntil) return 0;
+    const quietAt = lastRequestAt + quietMs;
+    return current >= quietAt ? 0 : Math.min(cooldownUntil, quietAt) - current;
+  }
+
+  function armTimer(scheduledGeneration: number) {
+    const wait = waitMs();
+    if (wait <= 0) {
+      start(scheduledGeneration);
       return;
     }
+    timer = setTimer(() => {
+      if (scheduledGeneration === generation && scheduled) armTimer(scheduledGeneration);
+    }, wait);
+  }
+
+  function schedule() {
     if (scheduled) return;
     scheduled = true;
     const scheduledGeneration = generation;
-    const waitMs = earliestNextStart - now();
-    if (waitMs > 0) {
-      timer = setTimer(() => start(scheduledGeneration), waitMs);
+    if (waitMs() > 0) {
+      armTimer(scheduledGeneration);
       return;
     }
     enqueueMicrotask(() => start(scheduledGeneration));
+  }
+
+  function request() {
+    lastRequestAt = now();
+    if (running) {
+      pending = true;
+      onSupersede?.();
+      return;
+    }
+    schedule();
   }
 
   function cancelScheduled() {

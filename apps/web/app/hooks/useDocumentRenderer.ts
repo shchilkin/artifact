@@ -275,10 +275,15 @@ function drawRenderResult(result: HTMLCanvasElement, refs: DocumentRendererRefs,
   });
 }
 
-function finishRenderCycle(refs: DocumentRendererRefs, abortController: AbortController, done: () => void) {
+function finishRenderCycle(
+  refs: DocumentRendererRefs,
+  abortController: AbortController,
+  done: (options: { cooldown: boolean }) => void,
+) {
   refs.renderingRef.current = false;
   if (refs.activeAbortRef.current === abortController) refs.activeAbortRef.current = null;
-  done();
+  // Only interactive passes are part of a gesture; a full-quality pass must not delay the next edit.
+  done({ cooldown: refs.interactiveRenderRef.current });
 }
 
 function renderCacheForMode(refs: DocumentRendererRefs, renderOptions: RenderOptions, width: number, height: number) {
@@ -701,10 +706,10 @@ export function useDocumentRenderer(
     }
   }, []);
 
-  const doRender = useCallback((done: () => void) => {
+  const doRender = useCallback((done: (options: { cooldown: boolean }) => void) => {
     const rendererRefs = rendererRefsRef.current;
     if (!rendererRefs.canvasRef.current) {
-      done();
+      done({ cooldown: false });
       return;
     }
 
