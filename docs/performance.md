@@ -104,7 +104,21 @@ The Pixi bridge records `artifact:gpu-render`, `artifact:gpu-queue-wait`,
 `artifact:gpu-upload`, `artifact:gpu-blit`, and `artifact:gpu-filter-extract`.
 These marks exist to answer whether GPU-backed effect time is coming from
 renderer serialization, canvas-to-texture upload, the WebGL pass, or readback
-into a Canvas 2D surface.
+into a Canvas 2D surface. Inside `gpu-filter-extract`, the non-blocking readback
+records `artifact:gpu-fence-wait`, `artifact:gpu-readback`, and
+`artifact:gpu-to-canvas`:
+
+- `gpu-fence-wait` is the GPU running the commands queued before it. These are
+  the texture upload and blit submitted in `gpu-blit`, the filters, and
+  `readPixels`. WebGL runs them asynchronously in the GPU process and the fence
+  only reports when all are done, so JavaScript cannot time them apart.
+  `EXT_disjoint_timer_query_webgl2` could, but software WebGL does not expose
+  it.
+- `gpu-readback` copies the pixels out of the buffer and unpremultiplies them.
+- `gpu-to-canvas` writes them into the output canvas.
+
+The Canvas 2D pixel-kernel worker records one `artifact:worker-transform` per
+round trip (main-thread `getImageData` excluded).
 
 Adjacent graph effect nodes that only use Pixi filters are batched into a single
 GPU pass. This preserves the separate-node editing model while avoiding repeated
@@ -196,21 +210,25 @@ Recent manual profiling notes:
   - The editor commits once per edit instead of three times. Autosave status
     only changes when its outcome changes, and the storage summary follows the
     document after an edit settles. Only the edited layer row re-renders.
+  - Interactive renders within one burst of input start at least
+    `PREVIEW_FRAME_INTERVAL_MS` apart (`apps/web/app/utils/interactionTiming.ts`,
+    about 15 preview frames per second). A first edit, and the last state after
+    input stops, still render at once. While a frame is showing, only a
+    full-quality pass marks the preview busy.
   - Inspector sliders show every value at once and update the document at most
-    every 66 ms during a drag; a change after a pause, and the value on release,
-    go through at once.
-  - Grain textures are cached by seed, size, and amount.
+    once per preview frame interval during a drag. A change after a pause, and
+    the value on release, go through at once. A value still waiting goes to the
+    layer or node it was made on (`InspectorTargetContext`).
+  - Grain textures up to the full-quality preview size are cached by seed, size,
+    and amount; larger (export) textures are not kept.
   - The interactive preview frame is sized to the GPU: 3/4 or 1/2 of the draft
     size when a pass at the draft size would exceed 12 ms (see
-    [`rendering.md`](./rendering.md)). It merges an effect layer's GPU filters
+    [`rendering.md`](./rendering.md)). The estimate is a fixed cost plus a cost
+    per megapixel, fitted to the layer preview's own GPU passes only. It merges an effect layer's GPU filters
     into the next GPU-only pass. When its size changes, one unpainted render in
     idle time fills the layer prefix cache at the new size.
   - The display canvas takes each frame's own size. Upscaling a small frame into
     the 1080 px canvas cost a full-resolution raster per paint.
-  - Interactive renders within one burst of input start at least 66 ms apart
-    (about 15 preview frames per second during a drag). A first edit, and the
-    last state after input stops, still render at once. While a frame is
-    showing, only a full-quality pass marks the preview busy.
   - Keypress traces, before and after, are in
     [`editor-ux/editor-ux-baseline.md`](./editor-ux/editor-ux-baseline.md).
 - Node thumbnails share a graph render cache for upstream branches (keyed by
