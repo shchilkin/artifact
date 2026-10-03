@@ -268,7 +268,12 @@ at full size: one in `default` (Scanlines feeds Output) and five in
 exception owned by [#324](https://github.com/shchilkin/artifact/issues/324).
 `entrySettleMs` stays within budget.
 
-SLIDER_TABLE_PLACEHOLDER
+| Metric | `default` | `effect-stack` | Budget |
+| --- | ---: | ---: | ---: |
+| `node-preview/entrySettleMs` | 590.2 | 598.2 | 1200 |
+| `node-preview/sliderSettleMs` | 95.8 | 177.6 | 100 |
+
+Values are from a local run (Apple Silicon, scaled).
 
 ## Changing A Budget Or Exception
 
