@@ -473,6 +473,8 @@ export default function Editor() {
       )}
       <div className={`app app-${viewMode}`}>
         <main
+          // A fresh main per mode: its box changes between the two layouts and must not count as a shift.
+          key={viewMode}
           className={`main main-${viewMode}`}
           onDragEnter={(event) => {
             if (Array.from(event.dataTransfer.types).includes('Files')) {
@@ -576,8 +578,9 @@ export default function Editor() {
               {dropError ?? exportError ?? documentFileError ?? modelFileError ?? environmentFileError}
             </EditorWorkflowNotice>
           )}
-          <BottomBar {...bottomBarProps} />
         </main>
+
+        <BottomBar {...bottomBarProps} />
 
         {viewMode === 'layers' && (
           <Sidebar

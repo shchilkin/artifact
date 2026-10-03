@@ -121,33 +121,22 @@ needed, so a fixed behavior cannot keep a stale allowance.
 
 | Metric | v0.49.0 | Ceiling | Owner |
 | --- | --- | --- | --- |
-| `desktop/*/select-layer/frameMovePx` | 340 px | 340 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/*/switch-to-nodes/layoutShift` | 0.172 | 0.172 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/*/switch-to-nodes/frameMovePx` | 279.8 px | 290 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/*/switch-to-layers/layoutShift` | 0.534 | 0.534 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/*/switch-to-layers/frameMovePx` | 279.8 px | 290 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/default/nodes-entry/nodesOutsideViewport` | 5 of 7 | 5 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/effect-stack/nodes-entry/nodesOutsideViewport` | 7 of 9 | 7 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `mobile/*/command-bar/obscuredCommands` | 1 | 1 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `mobile/*/command-bar/overlappingCommands` | 2 | 2 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/inspector/sliderWidthDeltaPx` | 39.5 px | 39.5 | [#309](https://github.com/shchilkin/artifact/issues/309) |
 | `mobile/*/inspector/sliderWidthDeltaPx` | 228 px | 228 | [#309](https://github.com/shchilkin/artifact/issues/309) |
 | `desktop/*/slider-keypress/inputToPreviewMs` | 62.4 / 121.8 ms | 215 | [#308](https://github.com/shchilkin/artifact/issues/308) |
 | `desktop/default/slider-drag/durationMs` | 1095.3 ms | 1900 | [#308](https://github.com/shchilkin/artifact/issues/308) |
 | `desktop/effect-stack/slider-drag/durationMs` | 1937.8 ms | 3400 | [#308](https://github.com/shchilkin/artifact/issues/308) |
-| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | 310 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | 700 | [#308](https://github.com/shchilkin/artifact/issues/308) |
 
-Layout ceilings equal the measured value. The command bar is a few pixels
-narrower with the CI fonts (279.8 px) than on macOS (288.4 px), so the two
-mode-switch `frameMovePx` ceilings are 290. Latency ceilings are about 1.75 times
+Layout ceilings equal the measured value. Latency ceilings are about 1.75 times
 the baseline value to absorb what the speed scale does not: a slower runner of
 the same class (calibration 142.8 ms) still reported scaled values 24-28% above
 the baseline.
 
-Selecting a layer already meets the layout-shift budget (0.035) because the
-shift score weighs the moved area, but it moves the preview 170 px and narrows
-the command bar by 340 px; `frameMovePx` is the metric that holds that behavior
-to account.
+[#307](https://github.com/shchilkin/artifact/issues/307) removed the layout
+exceptions for selecting a layer, switching between Layers and Nodes, the first
+Nodes entry, and the mobile command bar; see
+[After the stable editor frame](#after-the-stable-editor-frame).
 
 ## v0.49.0 Baseline
 
@@ -174,6 +163,42 @@ Layout values are the same for both documents except the node count:
 | `open-add-library` | 0 | 0 | 0 |
 
 On mobile, Randomize is covered by More and overlaps More and Projects.
+
+Selecting a layer already met the layout-shift budget (0.035) because the shift
+score weighs the moved area, but it moved the preview 170 px and narrowed the
+command bar by 340 px; `frameMovePx` is the metric that held that behavior to
+account.
+
+## After The Stable Editor Frame
+
+[#307](https://github.com/shchilkin/artifact/issues/307) gives the desktop
+editor a fixed frame: the layer list, the canvas, and an inspector column that
+is always reserved (with an empty state when nothing is selected) sit above one
+full-width command-bar row that both modes share. Nodes fits the graph on entry,
+and the mobile command bar lays out in two rows.
+
+| Interaction | Desktop `layoutShift` | Desktop `frameMovePx` | Mobile `layoutShift` |
+| --- | ---: | ---: | ---: |
+| `select-layer` | 0 | 0 | 0 |
+| `switch-to-nodes` | 0 | 0 | 0 |
+| `switch-to-layers` | 0 | 0 | 0 |
+| `open-add-library` | 0 | 0 | 0 |
+
+| Metric | `default` | `effect-stack` |
+| --- | ---: | ---: |
+| `nodes-entry/nodesOutsideViewport` | 0 of 7 | 0 of 9 |
+| mobile `command-bar/obscuredCommands` | 0 | 0 |
+| mobile `command-bar/overlappingCommands` | 0 | 0 |
+
+On mobile the Layers and Nodes command bars still sit in different places by
+design (`frameMovePx` 330 px, not budgeted).
+
+Fitting the graph on entry puts every node on screen, so a slider edit in Nodes
+now re-renders every downstream thumbnail instead of the one or two that were
+visible before. `node-preview/sliderSettleMs` rose from 68.3 / 177.3 ms to about
+290 / 380 ms (local run, scaled), so its #308 ceiling went from 310 to 700 in the
+same change. Its budget and owner are unchanged: #308's node-preview queue
+brings it back down.
 
 ## Changing A Budget Or Exception
 

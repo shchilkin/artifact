@@ -65,10 +65,15 @@ test('every exception has an owning issue, a reason, a ceiling above the budget,
   }
 });
 
-test('the checked-in baseline measures every budgeted metric and satisfies the contract', () => {
+// The baseline records v0.49.0 before any v0.50 fix, so its values may exceed budgets whose exceptions later
+// deliveries removed. It must still measure every budgeted metric.
+test('the checked-in baseline measures every budgeted metric', () => {
   assert.deepEqual(baseline.viewports, contract.viewports);
   assert.deepEqual(baseline.documents, contract.documents);
-  assert.deepEqual(checkMeasurement(contract, baseline), []);
+  assert.deepEqual(
+    checkMeasurement(contract, baseline).filter((violation) => violation.includes('not measured')),
+    [],
+  );
 });
 
 const fixtureContract = {

@@ -42,6 +42,7 @@ import { LayerPanel } from './layers-panel/LayerPanel';
 import { EnvironmentInspector } from './node-canvas/inspector/EnvironmentInspector';
 import { InspectorReadout, InspectorToggle } from './node-canvas/inspector/fields';
 import { Scene3DInspector } from './node-canvas/inspector/Scene3DInspector';
+import { EmptyState } from './ui/EmptyState';
 
 type SidebarLayerPanelProps = Pick<
   LayerPanelProps,
@@ -638,7 +639,7 @@ export function Sidebar({
         </div>
       </aside>
 
-      {hasInspectorContent && (
+      {hasInspectorContent ? (
         <aside className="layer-inspector-drawer" aria-label="Layer settings">
           <AiImageSection
             aspect={doc.global.aspect ?? '1:1'}
@@ -657,6 +658,15 @@ export function Sidebar({
             scene={selectedScene}
             selectedTargetSummary={selectedSceneSummary}
             onDocChange={onDocChange}
+          />
+        </aside>
+      ) : (
+        <aside className="layer-inspector-drawer layer-inspector-drawer--empty" aria-label="Layer settings">
+          <EmptyState
+            className="layer-inspector-empty-state"
+            eyebrow="Settings"
+            title="No layer selected"
+            body="Select a layer to edit its settings."
           />
         </aside>
       )}

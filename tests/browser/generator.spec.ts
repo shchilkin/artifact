@@ -3110,7 +3110,8 @@ test('node add menu can drag an effect onto the canvas', async ({ page }) => {
         bubbles: true,
         cancelable: true,
         clientX: rect.left + 520,
-        clientY: rect.top + 320,
+        // Above the graph, which Nodes fits and centers on entry: empty pane, away from nodes and edges.
+        clientY: rect.top + 48,
         dataTransfer,
       }),
     );
@@ -3135,7 +3136,8 @@ test('node add menu can drag an effect onto the canvas', async ({ page }) => {
         bubbles: true,
         cancelable: true,
         clientX: rect.left + 520,
-        clientY: rect.top + 320,
+        // Above the graph, which Nodes fits and centers on entry: empty pane, away from nodes and edges.
+        clientY: rect.top + 48,
         dataTransfer,
       }),
     );

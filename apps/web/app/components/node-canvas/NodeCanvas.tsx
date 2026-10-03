@@ -117,6 +117,11 @@ const nodeTypes = {
 };
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
+// Every Nodes entry opens with the whole graph in view, once React Flow has measured the nodes. Long linear
+// graphs need to zoom out further than 0.3 to fit beside the properties panel.
+const RF_MIN_ZOOM = 0.1;
+const RF_FIT_VIEW_OPTIONS = { padding: 0.2, minZoom: RF_MIN_ZOOM };
+
 function hasFileTransfer(dataTransfer: DataTransfer) {
   return Array.from(dataTransfer.types).includes('Files');
 }
@@ -184,7 +189,6 @@ export function NodeCanvas({
 
   // Stable DOM refs shared across hooks.
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
-  const fittedRef = useRef(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const canvasSurfaceRef = useRef<HTMLDivElement>(null);
   const addNodeButtonRef = useRef<HTMLButtonElement>(null);
@@ -414,14 +418,6 @@ export function NodeCanvas({
     onGraphChange,
   });
 
-  // Fit view on first render.
-  useEffect(() => {
-    if (!fittedRef.current && dragNodes.length > 0 && rfInstanceRef.current) {
-      fittedRef.current = true;
-      setTimeout(() => rfInstanceRef.current?.fitView({ padding: 0.2, duration: 0 }), 0);
-    }
-  }, [dragNodes.length]);
-
   const onPaneClick = useCallback(() => {
     clearSelectedArea();
     closeContextMenu();
@@ -612,6 +608,8 @@ export function NodeCanvas({
               onEdgeClick={onEdgeClick}
               isValidConnection={isValidConnection}
               onInit={onRFInit}
+              fitView
+              fitViewOptions={RF_FIT_VIEW_OPTIONS}
               nodeTypes={nodeTypes}
               colorMode="dark"
               elementsSelectable
@@ -619,7 +617,7 @@ export function NodeCanvas({
               selectionOnDrag={!primitiveViewportLockActive}
               selectionMode={SelectionMode.Partial}
               multiSelectionKeyCode={['Meta', 'Control']}
-              minZoom={0.3}
+              minZoom={RF_MIN_ZOOM}
               maxZoom={2}
               zoomOnScroll={!primitiveViewportLockActive}
               zoomOnPinch={!primitiveViewportLockActive}

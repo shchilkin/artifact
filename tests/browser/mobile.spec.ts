@@ -6,6 +6,7 @@ import {
   expectNoBrowserIssues,
   fillLayerFixture,
   setupBrowserTestPage,
+  switchToLayerView,
   switchToNodeView,
 } from './helpers';
 
@@ -61,8 +62,8 @@ test('mobile nodes chrome keeps toolbar and bottom actions separated', async ({ 
 
   const layout = await page.evaluate(() => {
     const toolbar = document.querySelector('.node-canvas-toolbar')?.getBoundingClientRect();
-    const bottom = document.querySelector('.main-nodes > .bottom-bar')?.getBoundingClientRect();
-    const actionBoxes = Array.from(document.querySelectorAll('.main-nodes > .bottom-bar button')).map((button) => {
+    const bottom = document.querySelector('.app-nodes > .bottom-bar')?.getBoundingClientRect();
+    const actionBoxes = Array.from(document.querySelectorAll('.app-nodes > .bottom-bar button')).map((button) => {
       const box = button.getBoundingClientRect();
       return { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
     });
@@ -156,4 +157,63 @@ async function hoverFirstLayerRow(page: Page) {
   const firstRow = page.locator('.layer-row').first();
   await firstRow.hover();
   return firstRow;
+}
+
+test('mobile command bar shows every command without overlap in Layers and Nodes', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(documentUrl(layeredFillDocument));
+  await expectLayerCanvasToHavePixels(page);
+
+  const layers = await readMobileCommandBar(page);
+  expect(layers.names).toEqual(expect.arrayContaining(['Randomize document', 'More editor actions', 'Export artwork']));
+  expect(layers.obscured).toEqual([]);
+  expect(layers.overlapping).toEqual([]);
+  expect(layers.outsideViewport).toEqual([]);
+
+  await switchToNodeView(page);
+  const nodes = await readMobileCommandBar(page);
+  expect(nodes.names).toEqual(expect.arrayContaining(['Randomize document', 'More editor actions']));
+  expect(nodes.overlapping).toEqual([]);
+  expect(nodes.outsideViewport).toEqual([]);
+
+  await switchToLayerView(page);
+  await page.locator('.layer-row-name-button', { hasText: 'Top fill' }).click();
+  const selected = await readMobileCommandBar(page);
+  expect(selected.obscured).toEqual([]);
+  expect(selected.overlapping).toEqual([]);
+});
+
+// Visible command-bar buttons that another element covers, that overlap each other, or that leave the viewport.
+async function readMobileCommandBar(page: Page) {
+  return page.evaluate(() => {
+    const bar = [...document.querySelectorAll('.editor-command-bar')].find(
+      (element) => element.getBoundingClientRect().width > 0 && getComputedStyle(element).opacity !== '0',
+    );
+    const buttons = [...(bar?.querySelectorAll('button') ?? [])]
+      .map((button) => ({ button, rect: button.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.width > 0);
+    const name = (button: Element) => button.getAttribute('aria-label') ?? button.textContent?.trim() ?? '';
+    const overlapping: string[] = [];
+    for (let i = 0; i < buttons.length; i += 1) {
+      for (let j = i + 1; j < buttons.length; j += 1) {
+        const [a, b] = [buttons[i]!.rect, buttons[j]!.rect];
+        const width = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const height = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (width > 1 && height > 1) overlapping.push(`${name(buttons[i]!.button)} / ${name(buttons[j]!.button)}`);
+      }
+    }
+    return {
+      names: buttons.map(({ button }) => name(button)),
+      obscured: buttons
+        .filter(({ button, rect }) => {
+          const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+          return hit !== button && !button.contains(hit);
+        })
+        .map(({ button }) => name(button)),
+      overlapping,
+      outsideViewport: buttons
+        .filter(({ rect }) => rect.left < -1 || rect.right > window.innerWidth + 1)
+        .map(({ button }) => name(button)),
+    };
+  });
 }
