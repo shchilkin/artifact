@@ -271,13 +271,13 @@ the baseline as well measured 86.8 / 179.6 ms locally, because Output then
 re-renders the whole downstream chain at full size after each edit. The canvas preview,
 document render, and export are unchanged.
 
-CI run [37131797552](https://github.com/shchilkin/artifact/actions/runs/37131797552)
+CI run [37149562758](https://github.com/shchilkin/artifact/actions/runs/37149562758)
 (speed 0.831), reference-machine milliseconds:
 
 | Metric | `default` | `effect-stack` | Budget |
 | --- | ---: | ---: | ---: |
-| `node-preview/entrySettleMs` | 377.3 | 388.0 | 1200 |
-| `node-preview/sliderSettleMs` | 58.3 | 72.9 | 100 |
+| `node-preview/entrySettleMs` | 452.5 | 616.2 | 1200 |
+| `node-preview/sliderSettleMs` | 56.8 | 73.5 | 100 |
 
 Both are within budget without an exception. `sliderSettleMs` stays above the
 #308 values measured with the old fixed zoom (25.1 / 27.5 ms) because more
