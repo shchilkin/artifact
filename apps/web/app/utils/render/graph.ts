@@ -25,6 +25,7 @@ import { EXPORT_NODE_ID } from '../nodeGraph';
 import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas, toCompositeOperation } from './canvas';
 import { renderCustomCodeShaderNodeToCanvas } from './customCodeShader';
+import { findIncomingSource, graphLayerInputPort } from './graphInputs';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 import { renderShaderNodeToCanvas } from './shaderNodes';
 
@@ -36,15 +37,6 @@ export interface GraphRenderCache {
   entries: Map<string, Promise<HTMLCanvasElement>>;
   entryKey?: (nodeId: string) => string | null;
   limit?: number;
-}
-
-function findIncomingSource(
-  graph: CanvasGraph,
-  toId: string,
-  toPort: CanvasGraph['edges'][number]['toPort'],
-): string | null {
-  const edge = graph.edges.find((item) => item.toId === toId && item.toPort === toPort);
-  return edge?.fromId ?? null;
 }
 
 function findMergeNode(graph: CanvasGraph, nodeId: string): GraphMergeNode | undefined {
@@ -968,10 +960,6 @@ async function renderGpuOnlyLayerChain(
   const base = gpuEffectChain.baseSourceId ? await renderDependency(gpuEffectChain.baseSourceId) : createCanvas(W, H);
   throwIfRenderAborted(options);
   return applyGpuOnlyEffectLayerChain(base, gpuEffectChain.layers, doc, W, H, options);
-}
-
-function graphLayerInputPort(layer: Layer): 'in' | 'bg' {
-  return layer.kind === 'effect' ? 'in' : 'bg';
 }
 
 function graphLayerRenderOptions(layer: Layer, options: RenderOptions): RenderOptions {
