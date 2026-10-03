@@ -87,8 +87,10 @@ test('dedicated Projects page opens local projects back in the editor', async ({
   await localProjects.getByRole('button', { name: 'Project actions for Projects Page Smoke' }).click();
   await expect(page.getByRole('menuitem', { name: 'Delete project' })).toBeVisible();
   await page.getByRole('menuitem', { name: 'Delete project' }).click();
-  await expect(page.getByRole('dialog', { name: 'Delete project?' })).toBeVisible();
-  await page.getByRole('button', { name: 'CANCEL' }).click();
+  const deleteConfirm = page.getByRole('alertdialog', { name: 'Delete project?' });
+  await expect(deleteConfirm).toBeVisible();
+  await expect(deleteConfirm.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await deleteConfirm.getByRole('button', { name: 'Cancel' }).click();
   await localProjects.getByRole('button', { name: 'Load Projects Page Smoke' }).click();
 
   await expect(page).toHaveURL(/\/app$/);

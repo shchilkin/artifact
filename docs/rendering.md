@@ -50,12 +50,19 @@ into document pixels.
 | --- | --- | --- |
 | `renderDocument` | `apps/web/app/utils/renderer.ts` | Main document render entry. Chooses stack or graph mode. |
 | `renderGraphTarget` | `apps/web/app/utils/renderer.ts` | Renders a specific node target through graph traversal. |
+| `collectGraphRenderReach` | `apps/web/app/utils/renderer.ts` | Node ids that contribute to a graph target, from the graph renderers' own input lookups. |
+| `collectDocumentOutputNodeIds` | `apps/web/app/utils/renderer.ts` | Node ids that contribute to the document output, with `renderDocument`'s default graph choice. Layers rows use it for "not in output". |
 | `renderPrimitiveToCanvas` | `apps/web/app/utils/primitiveRenderer.ts` | One-shot Three.js primitive render for document/export pipeline. |
 | `generateThumbnail` | `apps/web/app/utils/generateThumbnail.ts` | Preset/example thumbnail generation. |
 
 Rule:
 
 > UI surfaces may wrap these functions, but they should not reimplement artwork rendering.
+
+Reachability lives beside the renderers in `render/graph.ts` (`graphNodeRenderInputs`). When a graph
+renderer starts or stops reading an input port, update that function in the same change;
+`test-fixtures/render/graphRenderReach.test.ts` renders each fixture and fails when the reach and the
+nodes the renderer visits disagree.
 
 `apps/web/app/utils/renderer.ts` is the stable caller-facing facade. Renderer internals
 live under `apps/web/app/utils/render/`; app code should keep importing the public entry

@@ -26,6 +26,8 @@ export interface LayerRowProps {
   nested?: boolean;
   /** Stack order is owned by a custom node graph, so rows cannot be dragged. */
   reorderDisabled?: boolean;
+  /** Whether the renderer reaches this layer from Output; see `collectDocumentOutputNodeIds`. */
+  reachesOutput?: boolean;
   onSelect: (id: string, event: LayerSelectionModifiers) => void;
   onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLElement>) => void;
   onStartEditing: (id: string) => void;
@@ -194,7 +196,7 @@ function LayerNameEditor({
       <button
         type="button"
         className={`layer-row-name layer-row-name-button ${selected ? 'text-text' : 'text-dim'}`}
-        title={selected ? `Rename ${layer.name}` : `Select ${layer.name}`}
+        title={layer.name}
         onClick={(event) => {
           if (!selected) return;
           event.stopPropagation();
@@ -244,15 +246,26 @@ function LayerKindBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
   );
 }
 
-function LayerStatusMeta({ layer }: Pick<LayerRowProps, 'layer'>) {
-  const items = layer.visible ? [] : ['hidden'];
+const LAYER_STATUS_LABELS = {
+  'not-in-output': 'not in output',
+  hidden: 'hidden',
+  locked: 'locked',
+} as const;
+
+function LayerStatusMeta({ layer, reachesOutput }: Pick<LayerRowProps, 'layer' | 'reachesOutput'>) {
+  const items: Array<keyof typeof LAYER_STATUS_LABELS> = reachesOutput ? [] : ['not-in-output'];
+  if (!layer.visible) items.push('hidden');
   if (layer.locked) items.push('locked');
   if (items.length === 0) return null;
   return (
     <span className="layer-row-meta-status">
       {items.map((item) => (
-        <span key={item} className={`layer-row-meta-state layer-row-meta-state-${item}`}>
-          {item}
+        <span
+          key={item}
+          className={`layer-row-meta-state layer-row-meta-state-${item}`}
+          title={item === 'not-in-output' ? 'Not connected to Output in the node graph' : undefined}
+        >
+          {LAYER_STATUS_LABELS[item]}
         </span>
       ))}
     </span>
@@ -324,7 +337,7 @@ function LayerMoreButton({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'laye
         onOpenContextMenu(layer.id, event);
       }}
       aria-label={`Open actions for layer ${layer.name}`}
-      title="Layer actions"
+      title={`Open actions for layer ${layer.name}`}
     >
       •••
     </button>
@@ -342,7 +355,7 @@ function LayerLockedBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
 
 function LayerRowActions({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'>) {
   return (
-    <div className="layer-row-actions" aria-label={`${layer.name} layer actions`}>
+    <div className="layer-row-actions">
       <LayerMoreButton layer={layer} onOpenContextMenu={onOpenContextMenu} />
     </div>
   );
@@ -356,6 +369,7 @@ export const LayerRow = memo(function LayerRow({
   editing,
   nested = false,
   reorderDisabled = false,
+  reachesOutput = true,
   onSelect,
   onOpenContextMenu,
   onStartEditing,
@@ -385,6 +399,7 @@ export const LayerRow = memo(function LayerRow({
       data-layer-id={layer.id}
       data-layer-visible={layer.visible ? 'true' : 'false'}
       data-layer-locked={layer.locked ? 'true' : 'false'}
+      data-layer-output={reachesOutput ? 'reached' : 'unreached'}
       onDragStart={(event) => handleLayerRowDragStart(event, layer, onDragStart, reorderDisabled)}
       onDragOver={(event) => {
         event.preventDefault();
@@ -422,7 +437,7 @@ export const LayerRow = memo(function LayerRow({
         />
       </EditorRowPrimary>
       <EditorRowMetadata className="layer-row-meta">
-        <LayerStatusMeta layer={layer} />
+        <LayerStatusMeta layer={layer} reachesOutput={reachesOutput} />
         <LayerAiBadges layer={layer} />
         <LayerLockedBadge layer={layer} />
         <LayerAreaChip areas={areas} nested={nested} />

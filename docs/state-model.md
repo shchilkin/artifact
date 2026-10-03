@@ -120,8 +120,18 @@ Includes:
 - open context menu
 - open gallery node
 
+Editor confirmation state is also overlay state. `useEditorConfirm`
+(`components/editor-workflow/useEditorConfirm.tsx`) holds one pending
+`EditorConfirmDialog` request, and `useReplaceableWork`
+(`routes/editor/useReplaceableWork.ts`) remembers a fingerprint of the document
+the editor last put in place (the default document, a shared link, a loaded
+file or project, New, Randomize). Randomize and opening a project ask first
+only when the current document differs from that baseline; New asks whenever
+the canvas is not blank. Neither value is saved or part of undo.
+
 Rules:
 
+- Replacing or destructive editor actions confirm through `EditorConfirmDialog`, never `window.confirm`.
 - Selection changes must not dirty the document.
 - Opening/closing menus must not invalidate thumbnails.
 - Node-local controls should stop propagation when they are not intended to select, pan, or zoom the graph.
