@@ -31,6 +31,7 @@ const DRAG_STEPS = 20;
 // the browser timestamps of slider input.
 function instrument() {
   const ux = {
+    since: 0,
     shifts: [],
     paints: [],
     thumbnails: [],
@@ -59,7 +60,9 @@ function instrument() {
   for (const type of ['keydown', 'pointermove', 'pointerdown']) {
     window.addEventListener(type, (event) => ux.inputs.push(event.timeStamp), { capture: true, passive: true });
   }
-  ux.lastActivity = () => Math.max(0, ux.paints.at(-1) ?? 0, ux.thumbnails.at(-1) ?? 0);
+  // Quiet is measured from the last reset at the earliest, so an interaction that has not produced its first paint or
+  // thumbnail yet does not count as idle.
+  ux.lastActivity = () => Math.max(ux.since, ux.paints.at(-1) ?? 0, ux.thumbnails.at(-1) ?? 0);
   ux.busy = () => Boolean(document.querySelector('.canvas-wrapper [aria-busy="true"]'));
 }
 
@@ -98,6 +101,33 @@ function calibrationWorkload() {
     context.putImageData(image, 0, 0);
   }
   return performance.now() - startedAt;
+}
+
+/**
+ * The slider-drag loop against a bare range input in a blank page: the time the harness itself needs to deliver 20
+ * steps, one per animation frame, with nothing else on the main thread. It depends on the platform's frame pacing,
+ * not on CPU speed.
+ */
+async function measureDragFloor(browser) {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await page.setContent('<input type="range" min="0" max="100" value="20" style="width: 600px; margin: 100px">');
+  const box = await page.locator('input').boundingBox();
+  const y = box.y + box.height / 2;
+  const startX = box.x + box.width * 0.2;
+  const runs = [];
+  for (let run = 0; run < 6; run += 1) {
+    await page.mouse.move(startX, y);
+    await page.mouse.down();
+    const startedAt = await page.evaluate(() => performance.now());
+    for (let step = 1; step <= DRAG_STEPS; step += 1) {
+      await page.mouse.move(startX + step * 3, y);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+    }
+    runs.push((await page.evaluate(() => performance.now())) - startedAt);
+    await page.mouse.up();
+  }
+  await page.close();
+  return median(runs.slice(1));
 }
 
 /** Median duration of the calibration workload on this machine, after a warm-up run. */
@@ -283,6 +313,7 @@ async function measureLayout(browser, origin, viewport, reference) {
 const resetTimeline = (page) =>
   page.evaluate(() => {
     const ux = window.__editorUx;
+    ux.since = performance.now();
     ux.paints.length = 0;
     ux.thumbnails.length = 0;
     ux.inputs.length = 0;
@@ -332,6 +363,7 @@ async function measureNodeEntry(page) {
   await resetTimeline(page);
   const startedAt = await page.evaluate(() => performance.now());
   await switchToNodes(page);
+  await page.waitForFunction(() => window.__editorUx.thumbnails.length > 0, null, { timeout: 10_000 });
   await waitForIdle(page, 800);
   const thumbnails = await page.evaluate(() => window.__editorUx.thumbnails);
   return thumbnails.length ? Math.max(...thumbnails) - startedAt : null;
@@ -419,6 +451,7 @@ async function measure(origin) {
   const browser = await chromium.launch();
   environment.chromium = browser.version();
   const calibrations = [await calibrate(browser)];
+  environment.dragFloorMs = round(await measureDragFloor(browser));
   const results = {};
   for (const viewport of VIEWPORTS) {
     results[viewport.name] = {};
