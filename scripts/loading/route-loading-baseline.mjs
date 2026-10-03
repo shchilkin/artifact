@@ -16,11 +16,10 @@
 // service worker so every state is measured as a first visit. A free port is
 // chosen per run.
 
-import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:net';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
+import { withPreviewServer } from '../preview-server.mjs';
 import {
   chunkFamilies,
   initialRouteFiles,
@@ -141,33 +140,6 @@ function rootGraph() {
   };
 }
 
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const probe = createServer();
-    probe.once('error', reject);
-    probe.listen(0, '127.0.0.1', () => {
-      const { port } = probe.address();
-      probe.close(() => resolve(port));
-    });
-  });
-}
-
-// Waits until the preview serves this build's SPA shell, not just any server on the port.
-async function waitForBuild(origin, child, timeoutMs = 30_000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (child.exitCode !== null) throw new Error(`vite preview exited with code ${child.exitCode}`);
-    try {
-      const html = await (await fetch(`${origin}/app`)).text();
-      if (html.includes('/assets/entry.client-')) return;
-    } catch {
-      // not up yet
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`Preview server did not serve the build at ${origin}`);
-}
-
 async function measureState(browser, origin, spec, manifest) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block' });
   if (spec.doc) {
@@ -209,15 +181,7 @@ async function measureState(browser, origin, spec, manifest) {
 
 async function browserBaseline() {
   const { chromium } = await import('playwright');
-  const port = await freePort();
-  const origin = `http://127.0.0.1:${port}`;
-  const server = spawn(
-    'npx',
-    ['vite', 'preview', '--outDir', 'build/client', '--port', String(port), '--strictPort', '--host', '127.0.0.1'],
-    { cwd: WEB, stdio: 'ignore', detached: true },
-  );
-  try {
-    await waitForBuild(origin, server);
+  return withPreviewServer(async (origin) => {
     const manifest = readRouteManifest();
     const browser = await chromium.launch();
     const states = {};
@@ -226,10 +190,7 @@ async function browserBaseline() {
     }
     await browser.close();
     return states;
-  } finally {
-    // npx starts vite as a child process; stop the whole group so no preview server is left running.
-    process.kill(-server.pid, 'SIGTERM');
-  }
+  });
 }
 
 const version = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;

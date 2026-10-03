@@ -28,6 +28,11 @@ PERF_OUTPUT=test-results/performance/before.json npm run perf:node-editor
 PERF_OUTPUT=test-results/performance/after.json npm run perf:node-editor
 ```
 
+Enforced editor budgets (layout shift, slider input-to-preview latency, and
+node-preview settle time on the production build) are a separate gate:
+`npm run ux:gate`, described in
+[`editor-ux/editor-ux-baseline.md`](./editor-ux/editor-ux-baseline.md).
+
 ## Metrics
 
 Each scenario reports:
