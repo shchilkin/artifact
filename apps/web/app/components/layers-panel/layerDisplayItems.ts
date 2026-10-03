@@ -44,7 +44,7 @@ export function getLayerIcon(layer: Layer): string {
   return KIND_ICONS[layer.kind];
 }
 
-const GRAPH_HELPER_META: Record<GraphHelperKind, { icon: string; label: string }> = {
+export const GRAPH_HELPER_META: Record<GraphHelperKind, { icon: string; label: string }> = {
   merge: { icon: '◇', label: 'merge' },
   color: { icon: '◐', label: 'grade' },
   repeat: { icon: '▦', label: 'repeat' },

@@ -78,10 +78,10 @@ import {
   saveDocumentToStorage,
   takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
+import { graphUtilityNodeKind } from '../utils/nodeGraph';
 import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
-import { isSelectableScene3DTarget } from '../utils/scene3DInputs';
 import type { TextPresetId } from '../utils/textPresets';
 
 function isEditableUndoTarget(target: EventTarget | null) {
@@ -114,7 +114,8 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
 
   const safeSelectedLayerId =
     selectedLayerId &&
-    (doc.layers.some((layer) => layer.id === selectedLayerId) || isSelectableScene3DTarget(doc, selectedLayerId))
+    (doc.layers.some((layer) => layer.id === selectedLayerId) ||
+      Boolean(doc.graph && graphUtilityNodeKind(doc.graph, selectedLayerId)))
       ? selectedLayerId
       : null;
 

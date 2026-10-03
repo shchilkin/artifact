@@ -1798,3 +1798,167 @@
       0 0;
   }
 }
+
+/* Graph-derived Layers tree for custom graphs (docs/layers-graph-tree.md). */
+.layer-panel-view-switch {
+  display: flex;
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid color-mix(in oklch, var(--line-default) 76%, transparent);
+}
+
+.layer-panel-view-switch .artifact-tabs-trigger {
+  min-height: var(--control-h-compact);
+  padding-inline: var(--space-3);
+  font-size: var(--type-ui-xs);
+}
+
+.layer-tree {
+  /* Deep graphs keep their real aria-level; only the visual indentation is capped. */
+  --layer-tree-indent: 14px;
+  --layer-tree-indent-cap: 6;
+}
+
+.layer-tree .layer-row-tree,
+.layer-tree .layer-tree-folder-row {
+  padding-inline-start: calc(
+    var(--space-3) +
+    (min(var(--layer-tree-level, 1), var(--layer-tree-indent-cap)) - 1) *
+    var(--layer-tree-indent)
+  );
+}
+
+.layer-tree [role="treeitem"]:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+.layer-row-tree .layer-row-drag-handle {
+  display: none;
+}
+
+.layer-tree [data-area-rail="true"]::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: var(--layer-area-color);
+  pointer-events: none;
+}
+
+.layer-tree-caret {
+  display: inline-flex;
+  width: 14px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  transition: transform 120ms ease-out;
+}
+
+.layer-tree-caret[data-expanded="true"] {
+  transform: rotate(90deg);
+}
+
+.layer-tree-node-row {
+  min-height: 40px;
+  background: color-mix(in oklch, var(--surface-panel) 84%, var(--surface-app));
+}
+
+.layer-tree-node-icon {
+  width: 20px;
+  flex-shrink: 0;
+  color: color-mix(in oklch, var(--accent-primary) 78%, var(--text-secondary));
+  font-size: 11px;
+  text-align: center;
+}
+
+.layer-tree-node-kind,
+.layer-tree-merge-summary {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.layer-tree-merge-summary {
+  color: var(--text-secondary);
+}
+
+.layer-tree-reference-row {
+  min-height: 34px;
+  background: color-mix(in oklch, var(--surface-app) 42%, var(--surface-panel));
+}
+
+.layer-tree-reference-row .layer-row-name {
+  font-style: italic;
+}
+
+.layer-tree-folder-row {
+  position: relative;
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline-end: var(--space-3);
+  border-bottom: 1px solid color-mix(in oklch, var(--line-default) 48%, transparent);
+  background: color-mix(in oklch, var(--surface-app) 42%, transparent);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+}
+
+.layer-tree-folder-row:hover {
+  color: var(--text-secondary);
+}
+
+.layer-tree-folder-row[data-tree-folder="notInOutput"] {
+  margin-top: var(--space-3);
+  border-top: 1px solid color-mix(in oklch, var(--line-default) 76%, transparent);
+  color: var(--text-secondary);
+}
+
+.layer-tree-folder-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-tree-folder-count {
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .layer-tree {
+    --layer-tree-indent: 10px;
+    --layer-tree-indent-cap: 3;
+  }
+
+  .layer-tree .layer-row-tree {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .layer-tree-folder-row,
+  .layer-tree-node-row,
+  .layer-tree-reference-row {
+    min-height: var(--touch);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer-tree-caret {
+    transition: none;
+  }
+}

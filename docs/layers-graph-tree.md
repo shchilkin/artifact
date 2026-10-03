@@ -104,3 +104,26 @@ several branches, so both cannot be folders at once.
   invalidation rules in [`rendering.md`](./rendering.md).
 - Structural folder collapse state is UI state keyed by node id.
 - Selecting a reference row selects the canonical node in both modes.
+
+## Implementation notes (v0.50 U6)
+
+- `apps/web/app/utils/render/graphInputs.ts` describes the inputs the renderer
+  follows per node kind and use (`render`, `material`, `read`); the renderer
+  imports its port lookup from there. `buildGraphLayerTree`
+  (`apps/web/app/utils/graphLayerTree.ts`) walks those inputs, so ignored
+  inputs (a losing duplicate edge, a fill-role shader's `bg`, a standalone
+  material's non-albedo maps) land in "Not in output" exactly as the renderer
+  ignores them.
+- Merge `b` rows sit directly under the merge row; mask, pattern, and "Inputs"
+  folders are labelled rows. Visual indentation is capped (6 levels on wide
+  screens, 3 on narrow ones) while `aria-level` stays exact. Narrow screens
+  start with nested folders and "Not in output" collapsed.
+- The tree is one ARIA tree with roving focus: arrows move and expand or
+  collapse, Home/End jump, Enter/Space select, F2 renames a layer, and
+  Shift+F10 or the context-menu key opens layer actions.
+- Selecting a graph-only node shows a short inspector notice; its settings are
+  edited in Nodes until a later release brings those inspectors to Layers.
+- Folder rows have no thumbnails, matching layer rows. If they are added, they
+  must render through the content-keyed graph cache described in
+  [`rendering.md`](./rendering.md) and invalidate only on commit.
+

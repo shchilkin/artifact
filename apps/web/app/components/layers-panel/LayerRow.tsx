@@ -1,4 +1,5 @@
 import type {
+  CSSProperties,
   DragEvent as ReactDragEvent,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
@@ -17,6 +18,20 @@ import { getLayerIcon } from './layerDisplayItems';
 import type { LayerDropPosition } from './useLayerDragReorder';
 import type { LayerSelectionModifiers } from './useLayerSelection';
 
+/** Placement of a row in the graph-derived Layers tree; the row renders as an ARIA treeitem. */
+export interface LayerRowTreePlacement {
+  key: string;
+  level: number;
+  setSize: number;
+  posInSet: number;
+  /** Roving tab stop: only the active tree item is in the tab order. */
+  focusable: boolean;
+  label: string;
+  /** Present when the row has nested inputs that can be expanded or collapsed. */
+  expanded?: boolean;
+  onToggleExpanded?: () => void;
+}
+
 export interface LayerRowProps {
   layer: Layer;
   areas: GraphArea[];
@@ -26,6 +41,7 @@ export interface LayerRowProps {
   nested?: boolean;
   /** Stack order is owned by a custom node graph, so rows cannot be dragged. */
   reorderDisabled?: boolean;
+  tree?: LayerRowTreePlacement;
   onSelect: (id: string, event: LayerSelectionModifiers) => void;
   onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLElement>) => void;
   onStartEditing: (id: string) => void;
@@ -185,9 +201,10 @@ function LayerNameEditor({
   layer,
   editing,
   selected,
+  inTree,
   onStartEditing,
   onFinishRename,
-}: Pick<LayerRowProps, 'layer' | 'editing' | 'selected' | 'onStartEditing' | 'onFinishRename'>) {
+}: Pick<LayerRowProps, 'layer' | 'editing' | 'selected' | 'onStartEditing' | 'onFinishRename'> & { inTree: boolean }) {
   const finishRename = (value: string | null) => onFinishRename(layer.id, value);
   if (!editing) {
     return (
@@ -195,6 +212,7 @@ function LayerNameEditor({
         type="button"
         className={`layer-row-name layer-row-name-button ${selected ? 'text-text' : 'text-dim'}`}
         title={selected ? `Rename ${layer.name}` : `Select ${layer.name}`}
+        tabIndex={inTree ? -1 : undefined}
         onClick={(event) => {
           if (!selected) return;
           event.stopPropagation();
@@ -221,7 +239,7 @@ function LayerNameEditor({
   );
 }
 
-function layerKindLabel(layer: Layer) {
+export function layerKindLabel(layer: Layer) {
   if (layer.kind === 'emoji') return 'emoji';
   if (layer.kind === 'primitive') return '3d';
   return layer.kind;
@@ -314,11 +332,16 @@ function LayerAreaChip({ areas, nested }: Pick<LayerRowProps, 'areas' | 'nested'
   );
 }
 
-function LayerMoreButton({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'>) {
+function LayerMoreButton({
+  layer,
+  inTree,
+  onOpenContextMenu,
+}: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'> & { inTree: boolean }) {
   return (
     <button
       type="button"
       className="layer-row-action"
+      tabIndex={inTree ? -1 : undefined}
       onClick={(event) => {
         event.stopPropagation();
         onOpenContextMenu(layer.id, event);
@@ -340,11 +363,68 @@ function LayerLockedBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
   );
 }
 
-function LayerRowActions({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'>) {
+function LayerRowActions({
+  layer,
+  inTree,
+  onOpenContextMenu,
+}: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'> & { inTree: boolean }) {
   return (
     <div className="layer-row-actions" aria-label={`${layer.name} layer actions`}>
-      <LayerMoreButton layer={layer} onOpenContextMenu={onOpenContextMenu} />
+      <LayerMoreButton layer={layer} inTree={inTree} onOpenContextMenu={onOpenContextMenu} />
     </div>
+  );
+}
+
+export function LayerTreeCaret({ expanded, onToggle }: { expanded?: boolean; onToggle?: () => void }) {
+  if (expanded === undefined) return <span className="layer-tree-caret layer-tree-caret-leaf" aria-hidden="true" />;
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      aria-hidden="true"
+      className="layer-tree-caret"
+      data-expanded={expanded ? 'true' : 'false'}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle?.();
+      }}
+    >
+      ▸
+    </button>
+  );
+}
+
+/** ARIA treeitem attributes and indentation for a row placed in the graph-derived Layers tree. */
+export function layerTreeItemProps(tree: LayerRowTreePlacement, selected: boolean, areaColor?: string) {
+  const style = { '--layer-tree-level': tree.level, '--layer-area-color': areaColor } as CSSProperties;
+  return {
+    role: 'treeitem',
+    'aria-level': tree.level,
+    'aria-setsize': tree.setSize,
+    'aria-posinset': tree.posInSet,
+    'aria-selected': selected,
+    'aria-expanded': tree.expanded,
+    'aria-label': tree.label,
+    tabIndex: tree.focusable ? 0 : -1,
+    'data-tree-key': tree.key,
+    'data-area-rail': areaColor ? 'true' : undefined,
+    style,
+  };
+}
+
+function LayerRowSelection({
+  layer,
+  selected,
+  tree,
+  onSelect,
+}: Pick<LayerRowProps, 'layer' | 'selected' | 'tree' | 'onSelect'>) {
+  if (tree) return <LayerTreeCaret expanded={tree.expanded} onToggle={tree.onToggleExpanded} />;
+  return (
+    <LayerSelectionControl
+      label={`Select ${layer.name} layer`}
+      selected={selected}
+      onSelect={(event) => onSelect(layer.id, event)}
+    />
   );
 }
 
@@ -356,6 +436,7 @@ export const LayerRow = memo(function LayerRow({
   editing,
   nested = false,
   reorderDisabled = false,
+  tree,
   onSelect,
   onOpenContextMenu,
   onStartEditing,
@@ -372,10 +453,12 @@ export const LayerRow = memo(function LayerRow({
     layer,
   });
 
+  const treeProps = tree ? layerTreeItemProps(tree, selected, areas[0]?.color) : { role: 'listitem' };
+
   return (
     <EditorRowFrame
+      {...treeProps}
       draggable={!layer.locked && !reorderDisabled}
-      role="listitem"
       selected={selected}
       isHidden={!layer.visible}
       isLocked={layer.locked}
@@ -401,14 +484,10 @@ export const LayerRow = memo(function LayerRow({
         event.stopPropagation();
         onStartEditing(layer.id);
       }}
-      className={`layer-row layer-row-kind-${layer.kind} px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
+      className={`layer-row layer-row-kind-${layer.kind} px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${tree ? 'layer-row-tree' : ''} ${stateClassNames}`}
     >
       <EditorRowLeading>
-        <LayerSelectionControl
-          label={`Select ${layer.name} layer`}
-          selected={selected}
-          onSelect={(event) => onSelect(layer.id, event)}
-        />
+        <LayerRowSelection layer={layer} selected={selected} tree={tree} onSelect={onSelect} />
         <LayerDragHandle layer={layer} reorderDisabled={reorderDisabled} onDragStart={onDragStart} />
         <LayerKindBadge layer={layer} />
       </EditorRowLeading>
@@ -417,6 +496,7 @@ export const LayerRow = memo(function LayerRow({
           layer={layer}
           editing={editing}
           selected={selected}
+          inTree={Boolean(tree)}
           onStartEditing={onStartEditing}
           onFinishRename={onFinishRename}
         />
@@ -428,7 +508,7 @@ export const LayerRow = memo(function LayerRow({
         <LayerAreaChip areas={areas} nested={nested} />
       </EditorRowMetadata>
       <EditorRowActions>
-        <LayerRowActions layer={layer} onOpenContextMenu={onOpenContextMenu} />
+        <LayerRowActions layer={layer} inTree={Boolean(tree)} onOpenContextMenu={onOpenContextMenu} />
       </EditorRowActions>
     </EditorRowFrame>
   );

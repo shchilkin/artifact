@@ -14,6 +14,7 @@ import type {
 } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import { isLayerStackGraph } from '../../utils/documentCommands';
+import { buildGraphLayerTree, type GraphLayerTree } from '../../utils/graphLayerTree';
 import { getLayerAreaMap } from '../../utils/layerAreas';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
@@ -26,7 +27,10 @@ import {
   EditorRowPrimary,
 } from '../editor-workflow/EditorRowFrame';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
+import { GraphLayerTreeView } from './GraphLayerTreeView';
+import { graphTreeLayerOrder } from './graphTreeItems';
 import { LayerAddMenu } from './LayerAddMenu';
 import { LayerAreaFolder } from './LayerAreaFolder';
 import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu';
@@ -73,6 +77,21 @@ function graphAreasForDocument(doc: CanvasDocument) {
   return doc.graph?.areas ?? [];
 }
 
+/** Custom graphs show either the graph-derived structure or today's area folders. */
+type LayerPanelView = 'structure' | 'areas';
+
+function graphTreeDisplayLayers(tree: GraphLayerTree | null, layers: Layer[]): Layer[] | null {
+  if (!tree) return null;
+  const layersById = new Map(layers.map((layer) => [layer.id, layer]));
+  return graphTreeLayerOrder(tree, (id) => layersById.has(id)).map((id) => layersById.get(id)!);
+}
+
+function contextMenuReturnFocusTarget(target: HTMLElement) {
+  const row = target.closest<HTMLElement>('.layer-row');
+  if (row?.getAttribute('role') === 'treeitem') return row;
+  return row?.querySelector<HTMLElement>('.layer-row-selection-control') ?? target;
+}
+
 function activeLayerPanelCollapsedAreaIds(collapsedAreaIds: Set<string>, graphAreas: GraphArea[]) {
   const areaIds = new Set(graphAreas.map((area) => area.id));
   return new Set([...collapsedAreaIds].filter((areaId) => areaIds.has(areaId)));
@@ -108,7 +127,11 @@ export function LayerPanel({
   const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
   const [collapsedAreaIds, setCollapsedAreaIds] = useState<Set<string>>(() => new Set());
   const [contextMenu, setContextMenu] = useState<LayerContextMenuState | null>(null);
+  const [panelView, setPanelView] = useState<LayerPanelView>('structure');
 
+  const reorderDisabled = !isLayerStackGraph(doc);
+  const showGraphTree = reorderDisabled && panelView === 'structure';
+  const graphTree = useMemo(() => (showGraphTree ? buildGraphLayerTree(doc) : null), [doc, showGraphTree]);
   const displayLayers = useMemo(
     () => [...doc.layers].reverse().filter((layer) => !isSceneModelInputLayer(layer, doc.graph)),
     [doc.layers, doc.graph],
@@ -123,14 +146,14 @@ export function LayerPanel({
     () => activeLayerPanelCollapsedAreaIds(collapsedAreaIds, graphAreas),
     [collapsedAreaIds, graphAreas],
   );
+  const treeDisplayLayers = useMemo(() => graphTreeDisplayLayers(graphTree, doc.layers), [doc.layers, graphTree]);
   const { selectedActionLayerIds, setSelectedLayerIds, handleSelectLayer } = useLayerSelection({
-    displayLayers,
+    displayLayers: treeDisplayLayers ?? displayLayers,
     layers: doc.layers,
     selectedLayerId,
     onSelectLayer,
   });
 
-  const reorderDisabled = !isLayerStackGraph(doc);
   const { dragOverTarget, handleDragStart, handleDragOverLayer, handleDrop, handleCancelDrag } = useLayerDragReorder({
     displayLayers,
     areasByLayerId,
@@ -143,9 +166,7 @@ export function LayerPanel({
     (id: string, event: ReactMouseEvent<HTMLElement>) => {
       event.preventDefault();
       const activeIds = selectedActionLayerIds.includes(id) ? selectedActionLayerIds : [id];
-      const returnFocusTarget =
-        event.currentTarget.closest('.layer-row')?.querySelector<HTMLElement>('.layer-row-selection-control') ??
-        event.currentTarget;
+      const returnFocusTarget = contextMenuReturnFocusTarget(event.currentTarget);
       setSelectedLayerIds(new Set(activeIds));
       onSelectLayer(id);
       setContextMenu({ x: event.clientX, y: event.clientY, ids: activeIds, returnFocusTarget });
@@ -218,6 +239,14 @@ export function LayerPanel({
     [areasByLayerId, onRemoveLayersFromAreas],
   );
 
+  const handleSelectGraphNode = useCallback(
+    (id: string) => {
+      setSelectedLayerIds(new Set());
+      onSelectLayer(id);
+    },
+    [onSelectLayer, setSelectedLayerIds],
+  );
+
   const handleClearLayerSelection = useCallback(() => {
     setSelectedLayerIds(new Set());
     onSelectLayer(null);
@@ -237,11 +266,12 @@ export function LayerPanel({
         onAddScene3D={onAddScene3D}
         onStartAiImage={onStartAiImage}
       />
+      {reorderDisabled ? <LayerPanelViewSwitch value={panelView} onChange={setPanelView} /> : null}
 
       <div
         className="layer-panel-list flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
-        role="list"
-        aria-label="Layer stack"
+        role={graphTree ? undefined : 'list'}
+        aria-label={graphTree ? undefined : 'Layer stack'}
       >
         <LayerPanelEmptyState visible={displayLayers.length === 0} />
         {reorderDisabled && displayLayers.length > 1 ? (
@@ -258,36 +288,56 @@ export function LayerPanel({
           onRemoveSelectionFromAreas={handleRemoveSelectionFromAreas}
           onClearSelection={handleClearLayerSelection}
         />
-        <Scene3DLayerRows doc={doc} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
-        {displayItems.map((item) => (
-          <LayerDisplayEntry
-            key={item.type === 'area' ? item.area.id : item.layer.id}
-            item={item}
-            activeCollapsedAreaIds={activeCollapsedAreaIds}
-            editingAreaId={editingAreaId}
+        {graphTree ? (
+          <GraphLayerTreeView
+            doc={doc}
+            tree={graphTree}
+            selectedLayerId={selectedLayerId}
             selectedActionLayerIds={selectedActionLayerIds}
-            dragOverTarget={dragOverTarget}
             editingId={editingId}
-            reorderDisabled={reorderDisabled}
-            onToggleAreaCollapsed={handleToggleAreaCollapsed}
-            onStartAreaEditing={setEditingAreaId}
-            onFinishAreaRename={handleFinishAreaRename}
-            onRemoveArea={onRemoveArea}
-            onToggleAreaVisible={handleToggleAreaVisible}
             onSelectLayer={handleSelectLayer}
+            onSelectNode={handleSelectGraphNode}
             onOpenLayerContextMenu={handleOpenLayerContextMenu}
             onStartEditing={setEditingId}
             onFinishRename={handleFinishRename}
-            onDragStart={handleDragStart}
-            onDragOverLayer={handleDragOverLayer}
-            onDropLayer={handleDrop}
-            onDragEnd={handleCancelDrag}
             onToggleVisible={onToggleVisible}
             onDuplicateLayer={onDuplicateLayer}
             onRemoveLayer={onRemoveLayer}
-            onRemoveNodesFromArea={onRemoveNodesFromArea}
           />
-        ))}
+        ) : (
+          <Scene3DLayerRows doc={doc} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
+        )}
+        {graphTree
+          ? null
+          : displayItems.map((item) => (
+              <LayerDisplayEntry
+                key={item.type === 'area' ? item.area.id : item.layer.id}
+                item={item}
+                activeCollapsedAreaIds={activeCollapsedAreaIds}
+                editingAreaId={editingAreaId}
+                selectedActionLayerIds={selectedActionLayerIds}
+                dragOverTarget={dragOverTarget}
+                editingId={editingId}
+                reorderDisabled={reorderDisabled}
+                onToggleAreaCollapsed={handleToggleAreaCollapsed}
+                onStartAreaEditing={setEditingAreaId}
+                onFinishAreaRename={handleFinishAreaRename}
+                onRemoveArea={onRemoveArea}
+                onToggleAreaVisible={handleToggleAreaVisible}
+                onSelectLayer={handleSelectLayer}
+                onOpenLayerContextMenu={handleOpenLayerContextMenu}
+                onStartEditing={setEditingId}
+                onFinishRename={handleFinishRename}
+                onDragStart={handleDragStart}
+                onDragOverLayer={handleDragOverLayer}
+                onDropLayer={handleDrop}
+                onDragEnd={handleCancelDrag}
+                onToggleVisible={onToggleVisible}
+                onDuplicateLayer={onDuplicateLayer}
+                onRemoveLayer={onRemoveLayer}
+                onRemoveNodesFromArea={onRemoveNodesFromArea}
+              />
+            ))}
       </div>
       <LayerContextMenu
         contextMenu={contextMenu}
@@ -383,6 +433,27 @@ function LayerPanelHeader({
         />
       </div>
     </div>
+  );
+}
+
+function LayerPanelViewSwitch({
+  value,
+  onChange,
+}: {
+  value: LayerPanelView;
+  onChange: (view: LayerPanelView) => void;
+}) {
+  return (
+    <Tabs value={value} onValueChange={(next) => onChange(next as LayerPanelView)} className="layer-panel-view-switch">
+      <TabsList aria-label="Layers view">
+        <TabsTrigger value="structure" title="Show how layers and nodes reach Output">
+          Structure
+        </TabsTrigger>
+        <TabsTrigger value="areas" title="Show layers grouped by area">
+          Areas
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
 }
 

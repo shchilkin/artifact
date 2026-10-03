@@ -67,7 +67,7 @@ const GRAPH_UTILITY_NODE_SELECTORS = [
   },
 ] satisfies Array<{
   kind: GraphUtilityNodeKind;
-  nodes: (graph: CanvasGraph) => Array<{ id: string }>;
+  nodes: (graph: CanvasGraph) => Array<{ id: string; name: string }>;
 }>;
 
 type GraphLayoutState = {

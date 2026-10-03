@@ -32,6 +32,7 @@ import {
   updateScene3DNodeInDocument,
 } from '../utils/documentCommands';
 import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
+import { graphUtilityNodeCollections, graphUtilityNodeKind } from '../utils/nodeGraph';
 import { getScene3DTarget, getSceneEnvironmentNode, getSceneModelLayer } from '../utils/scene3DInputs';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetHeader } from './editor-target/EditorTargetHeader';
@@ -562,6 +563,32 @@ function InspectorEmptyState() {
   );
 }
 
+/** A graph-only node selected from the Layers tree; its settings are edited in Nodes. */
+function selectedGraphOnlyNode(doc: CanvasDocument, id: string | null) {
+  if (!id || !doc.graph) return null;
+  const kind = graphUtilityNodeKind(doc.graph, id);
+  if (!kind || kind === 'scene3d') return null;
+  return (
+    graphUtilityNodeCollections(doc.graph)
+      .flat()
+      .find((node) => node.id === id) ?? null
+  );
+}
+
+function GraphNodeInspectorNotice({ node }: { node: { name: string } | null }) {
+  if (!node) return null;
+  return (
+    <>
+      <h2 className="sr-only">Layer settings</h2>
+      <EmptyState
+        className="layer-inspector-empty-state"
+        title={node.name}
+        body="This node's settings are edited in Nodes."
+      />
+    </>
+  );
+}
+
 function MobileActionBar({ content }: { content?: React.ReactNode }) {
   return content ? <div className="sidebar-mobile-bar">{content}</div> : null;
 }
@@ -605,6 +632,7 @@ export function Sidebar({
 }: Props) {
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
   const selectedScene = getScene3DTarget(doc, selectedLayerId);
+  const selectedGraphNode = selectedGraphOnlyNode(doc, selectedLayerId);
   const selectedTargetSummary = useMemo(() => selectedLayerTargetSummary(doc, selectedLayer), [doc, selectedLayer]);
   const selectedSceneSummary = useMemo(() => selectedSceneTargetSummary(doc, selectedScene), [doc, selectedScene]);
   const docRef = useDocumentRef(doc);
@@ -615,7 +643,7 @@ export function Sidebar({
     [doc, onDocChange],
   );
 
-  const hasInspectorContent = Boolean(showAiGeneration || selectedLayer || selectedScene);
+  const hasInspectorContent = Boolean(showAiGeneration || selectedLayer || selectedScene || selectedGraphNode);
 
   return (
     <>
@@ -658,6 +686,7 @@ export function Sidebar({
         aria-label="Layer settings"
       >
         {!hasInspectorContent && <InspectorEmptyState />}
+        <GraphNodeInspectorNotice node={selectedGraphNode} />
         <AiImageSection
           aspect={doc.global.aspect ?? '1:1'}
           show={showAiGeneration}
