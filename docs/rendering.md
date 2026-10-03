@@ -350,6 +350,13 @@ The thumbnail system:
 - calls `renderGraphTarget` or `renderDocument`
 - delays passive offscreen thumbnail work until the thumbnail frame is visible
   or near the viewport
+- renders at the smallest of `NODE_PREVIEW_RENDER_BUCKETS` (160, 320, 640, 1280
+  px) that covers the thumbnail's on-screen size at the current graph zoom, and
+  moves to a sharper bucket once a zoom gesture rests (`THUMB_ZOOM_SETTLE_MS`).
+  The bucket is part of the thumbnail and graph-node cache keys, so a frame is
+  never reused at another resolution. Effects still scale against the document
+  size (`effectResolution`); only thumbnail detail changes. Thumbnails wait for
+  React Flow's entry fit before rendering
 - keeps image-readiness invalidation scoped to images that are upstream of the
   thumbnail target
 

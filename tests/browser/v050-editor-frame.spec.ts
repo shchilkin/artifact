@@ -76,6 +76,35 @@ test('the first Nodes entry fits every node inside the graph viewport', async ({
   await expect.poll(() => countNodesOutsideViewport(page), { timeout: 10_000 }).toBe(0);
 });
 
+test('node thumbnails render near their on-screen size and re-render sharper after zooming in', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoDocument(page, frameDocument);
+  await switchToNodeView(page);
+  await expect(page.locator('.react-flow__node .node-thumbnail').first()).toHaveAttribute(
+    'data-canvas-chrome-state',
+    'ready',
+    { timeout: 15_000 },
+  );
+
+  const fitted = await readOnScreenThumbnailWidths(page);
+  expect(fitted.length).toBeGreaterThan(0);
+  // The fitted graph is zoomed out, so thumbnails render below the 1000 px document baseline.
+  expect(Math.max(...fitted)).toBeLessThan(1000);
+
+  const zoomIn = page.locator('.react-flow__controls-zoomin');
+  for (let step = 0; step < 6; step += 1) await zoomIn.click();
+  await expect
+    .poll(
+      async () => {
+        const widths = await readOnScreenThumbnailWidths(page);
+        return widths.length ? Math.min(...widths) : 0;
+      },
+      { timeout: 10_000 },
+    )
+    .toBeGreaterThan(Math.max(...fitted));
+  await expect(page.locator('.node-thumbnail[data-canvas-chrome-state="updating"]')).toHaveCount(0);
+});
+
 test('medium desktop command bar keeps one row without overlapping commands', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 760 });
   await gotoDocument(page, frameDocument);
@@ -154,4 +183,17 @@ function expectNoOverlap(commands: Awaited<ReturnType<typeof readCommandBarButto
       expect(width > 1 && height > 1, `${a.name} overlaps ${b.name}`).toBe(false);
     }
   }
+}
+
+// Backing-store widths of node thumbnails that are at least partly on screen inside the graph viewport.
+function readOnScreenThumbnailWidths(page: Page) {
+  return page.evaluate(() => {
+    const pane = document.querySelector('.react-flow')!.getBoundingClientRect();
+    return [...document.querySelectorAll<HTMLCanvasElement>('.react-flow__node .node-thumbnail-canvas')]
+      .filter((canvas) => {
+        const rect = canvas.getBoundingClientRect();
+        return rect.right > pane.left && rect.left < pane.right && rect.bottom > pane.top && rect.top < pane.bottom;
+      })
+      .map((canvas) => canvas.width);
+  });
 }

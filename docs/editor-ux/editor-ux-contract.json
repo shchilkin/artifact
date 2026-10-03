@@ -111,6 +111,12 @@
   ],
   "fixed": [
     {
+      "key": "desktop/*/node-preview/sliderSettleMs",
+      "owner": "#308",
+      "baseline": "68.3 / 177.3 ms",
+      "reason": "Node thumbnails reuse unchanged upstream branches through a content-addressed graph cache, and the selected and output previews queue without a debounce. Since #307 fits the graph on entry, thumbnails render near their on-screen size at the current zoom instead of at the document baseline."
+    },
+    {
       "key": "desktop/*/select-layer/frameMovePx",
       "owner": "#307",
       "baseline": "340 px",
@@ -189,12 +195,6 @@
       "max": 215,
       "owner": "#324",
       "reason": "The render above the edited layer runs two GPU effect passes of about 50 ms each on the CI runner, so the first paint lands at 120-150 ms."
-    },
-    {
-      "key": "desktop/*/node-preview/sliderSettleMs",
-      "max": 1050,
-      "owner": "#324",
-      "reason": "#308 made a Nodes slider edit re-render only downstream thumbnails (25 / 28 ms with the old fixed zoom). Since #307 fits the graph on entry, every downstream thumbnail is visible and renders at full size, five in effect-stack: 232 / 589 ms on the reference runner."
     }
   ]
 }

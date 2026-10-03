@@ -60,6 +60,14 @@ describe('createGraphNodeRenderCache', () => {
     expect(keysFor(reseeded).key('fill')).toBe(keysFor(doc).key('fill'));
   });
 
+  it('keeps node frames of different thumbnail render buckets apart', () => {
+    const doc = makeDoc([fill, grain]);
+    const small = createGraphNodeRenderCache(doc, doc.graph!, new Map(), new Map(), { width: 160, height: 160 });
+    const large = createGraphNodeRenderCache(doc, doc.graph!, new Map(), new Map(), { width: 640, height: 640 });
+
+    expect(small.namespace).not.toBe(large.namespace);
+  });
+
   it('changes an image node key when its image finishes loading', () => {
     const image = makeImageLayer('artifact-asset://cover', { id: 'cover' });
     const doc = makeDoc([image, grain]);

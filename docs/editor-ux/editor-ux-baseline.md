@@ -136,7 +136,6 @@ needed, so a fixed behavior cannot keep a stale allowance.
 | `desktop/default/slider-keypress/inputToPreviewMs` | 62.4 ms | 130 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 | `desktop/effect-stack/slider-keypress/inputToPreviewMs` | 121.8 ms | 215 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 | `desktop/*/slider-drag/mainThreadMs` | not measured | 480 | [#324](https://github.com/shchilkin/artifact/issues/324) |
-| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | 1050 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 
 Layout ceilings equal the measured value. Latency ceilings are about 1.75 times
 the baseline value to absorb what the speed scale does not: a slower runner of
@@ -166,6 +165,7 @@ baseline value they replaced. The v0.49.0 baseline still exceeds their budgets;
 
 | Metric | v0.49.0 | Fixed by |
 | --- | --- | --- |
+| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | [#308](https://github.com/shchilkin/artifact/issues/308), [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/select-layer/frameMovePx` | 340 px | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/switch-to-nodes/layoutShift` | 0.172 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/switch-to-nodes/frameMovePx` | 279.8 px | [#307](https://github.com/shchilkin/artifact/issues/307) |
@@ -260,25 +260,20 @@ On mobile the Layers and Nodes command bars still sit in different places by
 design (`frameMovePx` 330 px, not budgeted).
 
 Fitting the graph puts every node on screen, and thumbnails render only when
-visible. After #308 a Nodes slider edit re-renders only the thumbnails
-downstream of the edited node, but now all of them are visible and each renders
-at full size: one in `default` (Scanlines feeds Output) and five in
-`effect-stack`. `node-preview/sliderSettleMs` therefore went from 25.1 / 27.5 ms
-(#308, fixed zoom) back over its budget, and it moved from `fixed` to an
-exception owned by [#324](https://github.com/shchilkin/artifact/issues/324).
-`entrySettleMs` stays within budget.
-
-CI run [37128839586](https://github.com/shchilkin/artifact/actions/runs/37128839586)
-(speed 0.779), reference-machine milliseconds:
+visible, so after a Nodes slider edit every downstream thumbnail re-renders:
+one in `default` and five in `effect-stack`. Rendered at the document baseline
+(1000 px for `1:1`), that took 231.6 / 588.5 ms on the reference runner. Node
+thumbnails now render at the smallest of 160, 320, 640, or 1280 px that covers
+their on-screen size at the current zoom (device pixel ratio capped at 2), and
+move to a sharper size once a zoom gesture rests for 250 ms. The canvas preview,
+document render, and export are unchanged.
 
 | Metric | `default` | `effect-stack` | Budget |
 | --- | ---: | ---: | ---: |
-| `node-preview/entrySettleMs` | 620.2 | 1097.1 | 1200 |
-| `node-preview/sliderSettleMs` | 231.6 | 588.5 | 100 |
+| `node-preview/entrySettleMs` | 474.4 | 456.3 | 1200 |
+| `node-preview/sliderSettleMs` | 53.4 | 60.6 | 100 |
 
-The `sliderSettleMs` ceiling (1050) is about 1.75 times the `effect-stack`
-value. `entrySettleMs` has no exception, though effect-stack is within 9% of
-its budget.
+Values are from a local run (Apple Silicon, scaled).
 
 ## Changing A Budget Or Exception
 
