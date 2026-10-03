@@ -228,33 +228,34 @@ preview frames, so the preview keeps painting them (see
 
 ## After #324
 
-CI run [37135908817](https://github.com/shchilkin/artifact/actions/runs/37135908817)
-(matrix job 1, calibration 118.2 ms, speed 1.003, drag floor 665.5 ms,
-blank-page drag main-thread time 13.7 ms), reference-machine milliseconds,
-median of three samples:
+CI run [37136512732](https://github.com/shchilkin/artifact/actions/runs/37136512732)
+(calibration 142.5 ms, speed 0.832, drag floor 664.7 ms, blank-page drag
+main-thread time 21.4 ms), reference-machine milliseconds:
 
 | Metric | `default` | `effect-stack` | Budget |
 | --- | ---: | ---: | ---: |
-| `slider-keypress/inputToPreviewMs` | 31.3 | 35.1 | 50 |
-| `slider-drag/mainThreadMs` | 125.9 | 126.7 | 160 |
-| `slider-drag/settleMs` | 415.6 | 541.1 | 700 |
+| `slider-keypress/inputToPreviewMs` | 31.7 | 38.1 | 50 |
+| `slider-drag/mainThreadMs` | 128.3 | 121.4 | 160 |
+| `slider-drag/settleMs` | 413.8 | 578.7 | 700 |
+| `node-preview/entrySettleMs` | 429.2 | 525.5 | 1200 |
+| `node-preview/sliderSettleMs` | 23.3 | 22.5 | 100 |
 
-Across the four runners of that run (speed 0.83-1.09), keypress latency was
-27-31 / 30-41 ms and drag main-thread time 108-126 / 117-127 ms, with 9-10
-preview paints during the drag (3-4 after #308). The changes are described in
-[`../performance.md`](../performance.md).
+The drag painted the preview 10 / 9 times (3-4 after #308). In experiment run
+[37135908817](https://github.com/shchilkin/artifact/actions/runs/37135908817),
+four runners (speed 0.83-1.09) measured keypress latency of 24-33 / 30-41 ms
+and drag main-thread time of 108-126 / 117-127 ms with the same code. The
+changes are described in [`../performance.md`](../performance.md).
 
 Keypress render phases, milliseconds after the key (`name@start+duration`):
 
 | Run | `default` | `effect-stack` |
 | --- | --- | --- |
 | Before (development, [37128565147](https://github.com/shchilkin/artifact/actions/runs/37128565147), speed 0.831) | render 7+90; `rgbSplit` layer 12+85, of which GPU pass 23+74 (filter and readback 29+68) | render 10+176; `grain` 15+14; `rgbSplit` layer 29+89 with GPU pass 46+73; second GPU pass (halftone, vignette) 119+67 |
-| After (run above, speed 1.003) | render 6+24; `rgbSplit` layer 7+23, of which GPU pass 19+11 at 270 px | render 6+29; `grain` 8+0; `rgbSplit` Canvas 2D part 8+14; one merged GPU pass 22+13 at 270 px |
+| After (run above, speed 0.832) | render 7+30; `rgbSplit` layer 9+28, of which GPU pass at 270 px 20+16 (filter and readback 21+15) | render 7+35; `grain` 9+1; `rgbSplit` Canvas 2D part 9+11; one merged GPU pass at 270 px 21+21 |
 
 In both documents the GPU pass became smaller (270 px instead of 540 px:
-filter and readback 68 → 11 ms), `effect-stack` lost one of its two GPU passes,
-and its grain layer reuses its cached texture (14 → 0 ms). The first paint
-follows the end of the render by 1-4 ms.
+filter and readback about 68 → 15-20 ms), `effect-stack` lost one of its two
+GPU passes, and its grain layer reuses its cached texture (14 → 1 ms).
 
 ## Changing A Budget Or Exception
 
