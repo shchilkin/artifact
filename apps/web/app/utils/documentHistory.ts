@@ -59,3 +59,56 @@ export function redoHistory(stacks: HistoryStacks, currentDoc: CanvasDocument) {
     future: stacks.future.slice(1),
   };
 }
+
+export const HISTORY_DEBOUNCE_MS = 400;
+
+/** State and setters `commitDocumentWithHistory` works with; the editor passes its refs and React state setters. */
+export interface DocumentHistoryCommit {
+  docRef: { current: CanvasDocument };
+  pendingRef: { current: HistoryEntry | null };
+  timerRef: { current: ReturnType<typeof setTimeout> | undefined };
+  setDoc: (doc: CanvasDocument) => void;
+  setPast: (update: (past: HistoryEntry[]) => HistoryEntry[]) => void;
+  setFuture: (future: HistoryEntry[]) => void;
+}
+
+export function clearPendingDocumentHistory({ pendingRef, timerRef }: DocumentHistoryCommit) {
+  clearTimeout(timerRef.current);
+  pendingRef.current = null;
+}
+
+/**
+ * Commits a document change and records history for its update mode. `setPast` updaters may run later than the call
+ * (React defers them while other updates are queued), so every value they use is captured before they are queued.
+ */
+export function commitDocumentWithHistory(
+  newDoc: CanvasDocument,
+  mode: DocumentUpdateMode,
+  commit: DocumentHistoryCommit,
+) {
+  const { docRef, pendingRef, timerRef, setDoc, setPast, setFuture } = commit;
+  if (mode === 'snapshot') {
+    clearPendingDocumentHistory(commit);
+    const previous = docRef.current;
+    setPast((items) => pushSnapshotHistory({ past: items, future: [] }, previous).past);
+    setFuture([]);
+    setDoc(newDoc);
+    return;
+  }
+
+  if (mode === 'debounce') {
+    pendingRef.current = createPendingHistoryEntry(docRef.current, pendingRef.current);
+    setDoc(newDoc);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      const pending = pendingRef.current;
+      if (!pending) return;
+      pendingRef.current = null;
+      setPast((items) => flushPendingHistory({ past: items, future: [] }, pending).past);
+      setFuture([]);
+    }, HISTORY_DEBOUNCE_MS);
+    return;
+  }
+
+  setDoc(newDoc);
+}
