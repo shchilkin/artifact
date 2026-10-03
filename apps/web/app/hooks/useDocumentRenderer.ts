@@ -130,49 +130,38 @@ function hasVisibleContentLayer(doc: CanvasDocument): boolean {
   });
 }
 
-let blankSampleCanvas: HTMLCanvasElement | null = null;
+export function isLikelyBlankRender(canvas: HTMLCanvasElement, doc: CanvasDocument): boolean {
+  if (!hasVisibleContentLayer(doc)) return false;
 
-/**
- * Copies the BLANK_SAMPLE_STEPS x BLANK_SAMPLE_STEPS sample grid into a small canvas and reads that, so the check
- * does not read back the whole frame.
- */
-function readBlankSamples(canvas: HTMLCanvasElement): Uint8ClampedArray | null {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return false;
+
   const width = canvas.width;
   const height = canvas.height;
-  blankSampleCanvas ??= document.createElement('canvas');
-  blankSampleCanvas.width = BLANK_SAMPLE_STEPS;
-  blankSampleCanvas.height = BLANK_SAMPLE_STEPS;
-  const ctx = blankSampleCanvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return null;
-  ctx.clearRect(0, 0, BLANK_SAMPLE_STEPS, BLANK_SAMPLE_STEPS);
+  if (width <= 0 || height <= 0) return true;
+
+  let minChannel = 255;
+  let maxChannel = 0;
+  let alphaTotal = 0;
+  let luminanceTotal = 0;
+  let samples = 0;
+
+  const pixels = ctx.getImageData(0, 0, width, height).data;
   for (let yStep = 0; yStep < BLANK_SAMPLE_STEPS; yStep += 1) {
     for (let xStep = 0; xStep < BLANK_SAMPLE_STEPS; xStep += 1) {
       const x = Math.min(width - 1, Math.round((xStep / (BLANK_SAMPLE_STEPS - 1)) * (width - 1)));
       const y = Math.min(height - 1, Math.round((yStep / (BLANK_SAMPLE_STEPS - 1)) * (height - 1)));
-      ctx.drawImage(canvas, x, y, 1, 1, xStep, yStep, 1, 1);
+      const index = (y * width + x) * 4;
+      const r = pixels[index] ?? 0;
+      const g = pixels[index + 1] ?? 0;
+      const b = pixels[index + 2] ?? 0;
+      const a = pixels[index + 3] ?? 0;
+      minChannel = Math.min(minChannel, r, g, b);
+      maxChannel = Math.max(maxChannel, r, g, b);
+      alphaTotal += a;
+      luminanceTotal += 0.299 * r + 0.587 * g + 0.114 * b;
+      samples += 1;
     }
-  }
-  return ctx.getImageData(0, 0, BLANK_SAMPLE_STEPS, BLANK_SAMPLE_STEPS).data;
-}
-
-export function isLikelyBlankRender(canvas: HTMLCanvasElement, doc: CanvasDocument): boolean {
-  if (!hasVisibleContentLayer(doc)) return false;
-  if (canvas.width <= 0 || canvas.height <= 0) return true;
-
-  const pixels = readBlankSamples(canvas);
-  if (!pixels) return false;
-
-  let maxChannel = 0;
-  let alphaTotal = 0;
-  let luminanceTotal = 0;
-  const samples = BLANK_SAMPLE_STEPS * BLANK_SAMPLE_STEPS;
-  for (let index = 0; index < samples * 4; index += 4) {
-    const r = pixels[index] ?? 0;
-    const g = pixels[index + 1] ?? 0;
-    const b = pixels[index + 2] ?? 0;
-    maxChannel = Math.max(maxChannel, r, g, b);
-    alphaTotal += pixels[index + 3] ?? 0;
-    luminanceTotal += 0.299 * r + 0.587 * g + 0.114 * b;
   }
 
   const averageAlpha = alphaTotal / samples;

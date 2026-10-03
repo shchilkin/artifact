@@ -108,6 +108,20 @@
       "subjects": ["node-preview"]
     }
   ],
+  "fixed": [
+    {
+      "key": "desktop/*/slider-drag/durationMs",
+      "owner": "#308",
+      "baseline": "1095.3 / 1937.8 ms (769.6 / 1612.1 ms floor-corrected)",
+      "reason": "Preview renders are latest-wins with a cooldown during continuous input, GPU readback no longer blocks the main thread, and slider drags use a gesture draft."
+    },
+    {
+      "key": "desktop/*/node-preview/sliderSettleMs",
+      "owner": "#308",
+      "baseline": "68.3 / 177.3 ms",
+      "reason": "Node thumbnails reuse unchanged upstream branches through a content-addressed graph cache, and the selected and output previews queue without a debounce."
+    }
+  ],
   "exceptions": [
     {
       "key": "desktop/*/select-layer/frameMovePx",
@@ -176,28 +190,16 @@
       "reason": "After visiting Nodes, the Layers inspector renders the same slider at 129 px instead of 357 px."
     },
     {
-      "key": "desktop/*/slider-keypress/inputToPreviewMs",
+      "key": "desktop/default/slider-keypress/inputToPreviewMs",
+      "max": 130,
+      "owner": "#308",
+      "reason": "The preview render starts within 10 ms of the key, but one GPU effect pass takes about 50 ms on the CI runner, so the first paint lands at 65-86 ms."
+    },
+    {
+      "key": "desktop/effect-stack/slider-keypress/inputToPreviewMs",
       "max": 215,
       "owner": "#308",
-      "reason": "One slider step takes 62 ms (default) and 122 ms (effect-stack) to reach the preview."
-    },
-    {
-      "key": "desktop/default/slider-drag/durationMs",
-      "max": 1900,
-      "owner": "#308",
-      "reason": "Each drag step blocks the main thread for about three frames: a 20-step drag takes 1095 ms instead of about 340 ms."
-    },
-    {
-      "key": "desktop/effect-stack/slider-drag/durationMs",
-      "max": 3400,
-      "owner": "#308",
-      "reason": "Each drag step blocks the main thread for about six frames: a 20-step drag takes 1938 ms instead of about 340 ms."
-    },
-    {
-      "key": "desktop/*/node-preview/sliderSettleMs",
-      "max": 310,
-      "owner": "#308",
-      "reason": "Node thumbnails downstream of an edited effect take 68 ms (default) and 177 ms (effect-stack) to settle."
+      "reason": "The render above the edited layer runs two GPU effect passes of about 50 ms each on the CI runner, so the first paint lands at 120-150 ms."
     }
   ]
 }

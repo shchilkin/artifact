@@ -66,10 +66,36 @@ test('every exception has an owning issue, a reason, a ceiling above the budget,
   }
 });
 
-test('the checked-in baseline measures every budgeted metric and satisfies the contract', () => {
+test('the checked-in baseline measures every budgeted metric', () => {
   assert.deepEqual(baseline.viewports, contract.viewports);
   assert.deepEqual(baseline.documents, contract.documents);
-  assert.deepEqual(checkMeasurement(contract, baseline), []);
+  const missing = evaluate(contract, baseline).filter((row) => row.status === 'missing');
+  assert.deepEqual(
+    missing.map((row) => row.key),
+    [],
+  );
+});
+
+test('the baseline exceeds the contract only where a delivery issue fixed the metric', () => {
+  // The v0.49.0 baseline is the "before" measurement. A metric may exceed its budget there only after its exception
+  // was removed, and every such metric is recorded in `fixed` with the issue that fixed it.
+  const fixed = contract.fixed ?? [];
+  for (const row of evaluate(contract, baseline)) {
+    if (row.status === 'ok' || row.status === 'exception') continue;
+    const entry = fixed.find((item) => matchesKey(item.key, row.key));
+    assert.ok(entry, `${row.key}: baseline ${row.value} violates the contract but no fixed entry explains it`);
+    assert.match(entry.owner, /^#\d+$/);
+  }
+  for (const entry of fixed) {
+    assert.ok(
+      allKeys.some((key) => matchesKey(entry.key, key)),
+      `fixed entry ${entry.key} matches no budgeted metric`,
+    );
+    assert.ok(
+      contract.exceptions.every((exception) => !matchesKey(exception.key, entry.key)),
+      `${entry.key} is fixed but still has an exception`,
+    );
+  }
 });
 
 const fixtureContract = {
