@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import type { CanvasDocument } from '../types/config';
+import { gpuPassMsPerMegapixel } from '../utils/gpuPassCost';
 import { createLayerPreviewRenderCache } from '../utils/layerPreviewRenderCache';
 import { type RenderOptions, renderDocument } from '../utils/renderer';
 import { createPreviewRenderScheduler, type PreviewRenderScheduler } from './previewRenderScheduler';
@@ -20,6 +21,13 @@ const DEFAULT_DEFERRED_FULL_RENDER_TIMEOUT_MS = 3200;
 const BLANK_SAMPLE_STEPS = 9;
 const RENDER_TIMEOUT_MS = 1400;
 const RENDER_CACHE_LIMIT = 6;
+/** Interactive pass sizes, as fractions of the draft size. Few steps keep the layer prefix cache useful. */
+const INTERACTIVE_SCALE_STEPS = [1, 0.75, 0.5] as const;
+/** A larger interactive size is chosen again only once a pass there is expected to fit well within the budget. */
+const INTERACTIVE_SCALE_UP_HEADROOM = 0.7;
+const INTERACTIVE_WARMUP_IDLE_TIMEOUT_MS = 300;
+
+export type InteractiveScale = (typeof INTERACTIVE_SCALE_STEPS)[number];
 
 interface Options {
   /** While true, renderer skips GPU effect passes for fast pointer feedback. */
@@ -46,6 +54,12 @@ interface Options {
   deferredFullRenderMs?: number;
   /** requestIdleCallback timeout for the deferred full-quality pass. */
   deferredFullRenderTimeoutMs?: number;
+  /**
+   * Longest expected GPU effect pass at the interactive size. On a slower GPU (such as software WebGL) the
+   * interactive pass renders smaller, down to half the draft size, to stay within it; the full-quality pass is
+   * unaffected.
+   */
+  interactiveGpuPassBudgetMs?: number;
 }
 
 interface DocumentRenderState {
@@ -64,6 +78,25 @@ const lastGoodRenderCache = new Map<string, HTMLCanvasElement>();
 
 function makeRenderCacheKey(cacheKey: string | undefined, pw: number, ph: number): string | null {
   return cacheKey ? `${cacheKey}:${pw}x${ph}` : null;
+}
+
+/**
+ * The largest interactive scale whose expected GPU pass time fits the budget, given the device's GPU cost per
+ * megapixel and the pixel count of the draft size. Without a budget or a measurement the current scale stays.
+ */
+export function chooseInteractiveScale(
+  current: InteractiveScale,
+  msPerMegapixel: number | null,
+  draftPixels: number,
+  budgetMs: number | undefined,
+): InteractiveScale {
+  if (budgetMs === undefined || msPerMegapixel === null) return current;
+  const passMs = (scale: number) => (msPerMegapixel * draftPixels * scale * scale) / 1_000_000;
+  for (const scale of INTERACTIVE_SCALE_STEPS) {
+    const limit = scale > current ? budgetMs * INTERACTIVE_SCALE_UP_HEADROOM : budgetMs;
+    if (passMs(scale) <= limit) return scale;
+  }
+  return INTERACTIVE_SCALE_STEPS[INTERACTIVE_SCALE_STEPS.length - 1];
 }
 
 export function getRenderDimensions(
@@ -219,6 +252,12 @@ interface DocumentRendererRefs {
   deferredPreviewQualityRef: MutableRefObject<'draft' | 'full'>;
   draftUntilRef: MutableRefObject<number>;
   gpuFallbackUntilRef: MutableRefObject<number>;
+  interactiveGpuPassBudgetMsRef: MutableRefObject<number | undefined>;
+  interactiveScaleRef: MutableRefObject<InteractiveScale>;
+  /** Size of the last completed interactive pass: the layer prefix cache holds that size. */
+  warmInteractiveSizeRef: MutableRefObject<string | null>;
+  warmupAbortRef: MutableRefObject<AbortController | null>;
+  warmupIdleRef: MutableRefObject<{ cancel: () => void } | null>;
 }
 
 function markRenderStarted(setRenderState: RenderStateSetter) {
@@ -316,6 +355,39 @@ function renderDraftFallback(refs: DocumentRendererRefs, baseOptions: RenderOpti
   return withRenderTimeout(renderDocumentFrame(refs, fallbackWidth, fallbackHeight, fallbackOptions));
 }
 
+/** Interactive pass size: the draft size, scaled down while the GPU is too slow for it. */
+function interactiveRenderDimensions(refs: DocumentRendererRefs): [number, number] {
+  const [width, height] = getRenderDimensions(
+    refs.pwRef.current,
+    refs.phRef.current,
+    refs.draftRenderScaleRef.current,
+    refs.draftMaxRenderDimensionRef.current,
+  );
+  const scale = chooseInteractiveScale(
+    refs.interactiveScaleRef.current,
+    gpuPassMsPerMegapixel(),
+    width * height,
+    refs.interactiveGpuPassBudgetMsRef.current,
+  );
+  refs.interactiveScaleRef.current = scale;
+  if (scale === 1) return [width, height];
+  return [Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale))];
+}
+
+function frameRenderOptions(
+  refs: DocumentRendererRefs,
+  draftQuality: boolean,
+  abortController: AbortController,
+): RenderOptions {
+  return {
+    skipEffects: draftQuality,
+    draft: draftQuality,
+    graphMode: refs.graphModeRef.current,
+    primitiveViewStates: refs.primitiveViewStatesRef.current,
+    signal: abortController.signal,
+  };
+}
+
 function currentRenderPolicy(refs: DocumentRendererRefs, abortController: AbortController) {
   const now = performance.now();
   const inDeferredPreviewWindow = now < refs.draftUntilRef.current;
@@ -326,26 +398,59 @@ function currentRenderPolicy(refs: DocumentRendererRefs, abortController: AbortC
     inGpuFallbackWindow ||
     (inDeferredPreviewWindow && refs.deferredPreviewQualityRef.current === 'draft');
   const [targetWidth, targetHeight] = usePreviewSize
-    ? getRenderDimensions(
-        refs.pwRef.current,
-        refs.phRef.current,
-        refs.draftRenderScaleRef.current,
-        refs.draftMaxRenderDimensionRef.current,
-      )
+    ? interactiveRenderDimensions(refs)
     : [refs.renderWidthRef.current, refs.renderHeightRef.current];
 
   return {
     targetWidth,
     targetHeight,
     interactive: usePreviewSize,
-    renderOptions: {
-      skipEffects: useDraftQuality,
-      draft: useDraftQuality,
-      graphMode: refs.graphModeRef.current,
-      primitiveViewStates: refs.primitiveViewStatesRef.current,
-      signal: abortController.signal,
-    } satisfies RenderOptions,
+    renderOptions: frameRenderOptions(refs, useDraftQuality, abortController),
   };
+}
+
+function cancelInteractiveWarmup(refs: DocumentRendererRefs) {
+  refs.warmupIdleRef.current?.cancel();
+  refs.warmupIdleRef.current = null;
+  refs.warmupAbortRef.current?.abort();
+  refs.warmupAbortRef.current = null;
+}
+
+function onIdle(callback: () => void, timeoutMs: number): { cancel: () => void } {
+  if (typeof globalThis.requestIdleCallback === 'function') {
+    const handle = globalThis.requestIdleCallback(callback, { timeout: timeoutMs });
+    return { cancel: () => globalThis.cancelIdleCallback?.(handle) };
+  }
+  const handle = setTimeout(callback, 0);
+  return { cancel: () => clearTimeout(handle) };
+}
+
+/**
+ * When the interactive pass changed size since it last ran, renders it once in idle time without painting, so the
+ * layer prefix cache holds the new size and the next edit re-renders only the layers above it.
+ */
+function scheduleInteractiveWarmup(refs: DocumentRendererRefs) {
+  cancelInteractiveWarmup(refs);
+  if (refs.interactiveGpuPassBudgetMsRef.current === undefined || refs.graphModeRef.current !== 'stack') return;
+  refs.warmupIdleRef.current = onIdle(() => {
+    refs.warmupIdleRef.current = null;
+    if (!refs.canvasRef.current || refs.renderingRef.current) return;
+    if (performance.now() < refs.gpuFallbackUntilRef.current) return;
+    const [width, height] = interactiveRenderDimensions(refs);
+    const size = `${width}x${height}`;
+    if (size === refs.warmInteractiveSizeRef.current) return;
+    const abortController = new AbortController();
+    refs.warmupAbortRef.current = abortController;
+    const draftQuality = refs.fastRef.current || refs.deferredPreviewQualityRef.current === 'draft';
+    renderDocumentFrame(refs, width, height, frameRenderOptions(refs, draftQuality, abortController))
+      .then(() => {
+        if (!abortController.signal.aborted) refs.warmInteractiveSizeRef.current = size;
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (refs.warmupAbortRef.current === abortController) refs.warmupAbortRef.current = null;
+      });
+  }, INTERACTIVE_WARMUP_IDLE_TIMEOUT_MS);
 }
 
 function timedPrimaryRender(refs: DocumentRendererRefs, renderOptions: RenderOptions, width: number, height: number) {
@@ -427,6 +532,7 @@ function cleanupMountedRenderCanvas({
 }) {
   cancelDeferredFullRender();
   cancelScheduledRender();
+  cancelInteractiveWarmup(refs);
   refs.activeAbortRef.current?.abort();
   refs.activeAbortRef.current = null;
   refs.canvasRef.current = null;
@@ -586,6 +692,11 @@ export function useDocumentRenderer(
   );
   const draftUntilRef = useRef(0);
   const gpuFallbackUntilRef = useRef(0);
+  const interactiveGpuPassBudgetMsRef = useRef(options.interactiveGpuPassBudgetMs);
+  const interactiveScaleRef = useRef<InteractiveScale>(1);
+  const warmInteractiveSizeRef = useRef<string | null>(null);
+  const warmupAbortRef = useRef<AbortController | null>(null);
+  const warmupIdleRef = useRef<{ cancel: () => void } | null>(null);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deferredFullRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deferredFullRenderIdleRef = useRef<number | null>(null);
@@ -619,6 +730,11 @@ export function useDocumentRenderer(
     deferredPreviewQualityRef,
     draftUntilRef,
     gpuFallbackUntilRef,
+    interactiveGpuPassBudgetMsRef,
+    interactiveScaleRef,
+    warmInteractiveSizeRef,
+    warmupAbortRef,
+    warmupIdleRef,
   });
   const mountOptions: RenderCanvasMountOptions = useMemo(
     () => ({
@@ -666,6 +782,7 @@ export function useDocumentRenderer(
     deferredFullRenderMsRef.current = options.deferredFullRenderMs ?? DEFAULT_DEFERRED_FULL_RENDER_MS;
     deferredFullRenderTimeoutMsRef.current =
       options.deferredFullRenderTimeoutMs ?? DEFAULT_DEFERRED_FULL_RENDER_TIMEOUT_MS;
+    interactiveGpuPassBudgetMsRef.current = options.interactiveGpuPassBudgetMs;
   }, [
     doc,
     imageCache,
@@ -682,6 +799,7 @@ export function useDocumentRenderer(
     options.deferredPreviewQuality,
     options.deferredFullRenderMs,
     options.deferredFullRenderTimeoutMs,
+    options.interactiveGpuPassBudgetMs,
   ]);
 
   const cancelDeferredFullRender = useCallback(() => {
@@ -703,6 +821,7 @@ export function useDocumentRenderer(
     }
 
     rendererRefs.supersededRef.current = false;
+    cancelInteractiveWarmup(rendererRefs);
     rendererRefs.activeAbortRef.current?.abort();
     const abortController = new AbortController();
     rendererRefs.activeAbortRef.current = abortController;
@@ -718,9 +837,11 @@ export function useDocumentRenderer(
     rendererRefs.renderingRef.current = true;
     markRenderStarted(setRenderState);
     timedPrimaryRender(rendererRefs, renderOptions, targetWidth, targetHeight)
-      .then((result) =>
-        handlePrimaryRenderSuccess(result, rendererRefs, renderOptions, abortController, setRenderState, finishRender),
-      )
+      .then((result) => {
+        if (interactive) rendererRefs.warmInteractiveSizeRef.current = `${targetWidth}x${targetHeight}`;
+        handlePrimaryRenderSuccess(result, rendererRefs, renderOptions, abortController, setRenderState, finishRender);
+        if (!interactive && !rendererRefs.supersededRef.current) scheduleInteractiveWarmup(rendererRefs);
+      })
       .catch((error) =>
         handlePrimaryRenderFailure(error, rendererRefs, renderOptions, abortController, setRenderState, finishRender),
       );
@@ -839,6 +960,7 @@ export function useDocumentRenderer(
     () => () => {
       cancelScheduledRender();
       clearRenderTimer(settleTimerRef);
+      cancelInteractiveWarmup(rendererRefsRef.current);
       activeAbortRef.current?.abort();
       activeAbortRef.current = null;
       cancelDeferredFullRender();

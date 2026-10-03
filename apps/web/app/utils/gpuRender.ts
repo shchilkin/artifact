@@ -1,5 +1,6 @@
 import type { Filter } from 'pixi.js';
 import { Container, FORMATS, Renderer, RenderTexture, Sprite, Texture } from 'pixi.js';
+import { recordGpuPass } from './gpuPassCost';
 
 type GpuReadback = 'async' | 'sync';
 
@@ -369,7 +370,10 @@ export async function gpuRenderToCanvas({
       const shared = getSharedRenderer(W, H);
       if (shared) {
         try {
-          return await renderWithRenderer(shared, W, H, source, filters, readback);
+          const startedAt = now();
+          const output = await renderWithRenderer(shared, W, H, source, filters, readback);
+          recordGpuPass(now() - startedAt, W, H);
+          return output;
         } catch {
           disposeShared();
         }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { type CanvasDocument, makeSourceLayer } from '../types/config';
-import { getRenderDimensions, isLikelyBlankRender } from './useDocumentRenderer';
+import { chooseInteractiveScale, getRenderDimensions, isLikelyBlankRender } from './useDocumentRenderer';
 
 function makeDoc(layers: CanvasDocument['layers']): CanvasDocument {
   return {
@@ -50,5 +50,36 @@ describe('getRenderDimensions', () => {
 
   it('keeps draft preview renders at the display aspect when scale is one', () => {
     expect(getRenderDimensions(540, 960, 1, 540)).toEqual([304, 540]);
+  });
+});
+
+describe('chooseInteractiveScale', () => {
+  const draftPixels = 540 * 540;
+
+  it('keeps the current scale without a budget or a GPU measurement', () => {
+    expect(chooseInteractiveScale(1, 120, draftPixels, undefined)).toBe(1);
+    expect(chooseInteractiveScale(0.5, null, draftPixels, 12)).toBe(0.5);
+  });
+
+  it('keeps the draft size when a GPU pass there fits the budget', () => {
+    // A hardware GPU: about 4 ms for a 540 px pass.
+    expect(chooseInteractiveScale(1, 14, draftPixels, 12)).toBe(1);
+  });
+
+  it('halves the interactive size on software WebGL', () => {
+    // The CI runner: about 34 ms for a 540 px pass, 8.5 ms at 270 px.
+    expect(chooseInteractiveScale(1, 117, draftPixels, 12)).toBe(0.5);
+  });
+
+  it('uses the middle size when it fits and never goes below half', () => {
+    expect(chooseInteractiveScale(1, 60, draftPixels, 12)).toBe(0.75);
+    expect(chooseInteractiveScale(1, 1000, draftPixels, 12)).toBe(0.5);
+  });
+
+  it('only grows again with headroom, so the size does not flip at the threshold', () => {
+    // 540 px would take 11.7 ms: within the budget, but not within 70% of it.
+    expect(chooseInteractiveScale(0.75, 40, draftPixels, 12)).toBe(0.75);
+    expect(chooseInteractiveScale(1, 40, draftPixels, 12)).toBe(1);
+    expect(chooseInteractiveScale(0.75, 25, draftPixels, 12)).toBe(1);
   });
 });
