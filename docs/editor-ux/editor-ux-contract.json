@@ -114,64 +114,58 @@
       "key": "desktop/*/node-preview/sliderSettleMs",
       "owner": "#308",
       "baseline": "68.3 / 177.3 ms",
-      "reason": "Node thumbnails reuse unchanged upstream branches through a content-addressed graph cache, and the selected and output previews queue without a debounce."
-    }
-  ],
-  "exceptions": [
+      "reason": "Node thumbnails reuse unchanged upstream branches through a content-addressed graph cache, and the selected and output previews queue without a debounce. Since #307 fits the graph on entry, thumbnails render near their on-screen size at the current zoom instead of at the document baseline."
+    },
     {
       "key": "desktop/*/select-layer/frameMovePx",
-      "max": 340,
       "owner": "#307",
-      "reason": "Selecting a layer opens the inspector column, moves the preview 170 px left, and narrows the command bar by 340 px."
+      "baseline": "340 px",
+      "reason": "The inspector column is always reserved, so selecting a layer no longer moves the preview or narrows the command bar."
     },
     {
       "key": "desktop/*/switch-to-nodes/layoutShift",
-      "max": 0.172,
       "owner": "#307",
-      "reason": "Entering Nodes replaces the full-width command bar with a narrower one at a different position."
+      "baseline": "0.172",
+      "reason": "Layers and Nodes share one full-width command-bar row, and main remounts per mode."
     },
     {
       "key": "desktop/*/switch-to-nodes/frameMovePx",
-      "max": 290,
       "owner": "#307",
-      "reason": "The command bar changes position and width between Layers and Nodes."
+      "baseline": "279.8 px",
+      "reason": "Layers and Nodes share one full-width command-bar row."
     },
     {
       "key": "desktop/*/switch-to-layers/layoutShift",
-      "max": 0.534,
       "owner": "#307",
-      "reason": "Returning to Layers re-lays out the canvas area and the command bar."
+      "baseline": "0.534",
+      "reason": "Layers and Nodes share one full-width command-bar row, and main remounts per mode."
     },
     {
       "key": "desktop/*/switch-to-layers/frameMovePx",
-      "max": 290,
       "owner": "#307",
-      "reason": "The command bar changes position and width between Nodes and Layers."
+      "baseline": "279.8 px",
+      "reason": "Layers and Nodes share one full-width command-bar row."
     },
     {
-      "key": "desktop/default/nodes-entry/nodesOutsideViewport",
-      "max": 5,
+      "key": "desktop/*/nodes-entry/nodesOutsideViewport",
       "owner": "#307",
-      "reason": "Nodes opens at a fixed zoom instead of fitting the graph: 5 of 7 nodes start outside the viewport."
-    },
-    {
-      "key": "desktop/effect-stack/nodes-entry/nodesOutsideViewport",
-      "max": 7,
-      "owner": "#307",
-      "reason": "Nodes opens at a fixed zoom instead of fitting the graph: 7 of 9 nodes start outside the viewport."
+      "baseline": "5 of 7 / 7 of 9",
+      "reason": "Nodes fits the whole graph on entry once React Flow has measured the nodes."
     },
     {
       "key": "mobile/*/command-bar/obscuredCommands",
-      "max": 1,
       "owner": "#307",
-      "reason": "Randomize is covered by More at 375 px."
+      "baseline": "1",
+      "reason": "The mobile Layers command bar lays out as two rows."
     },
     {
       "key": "mobile/*/command-bar/overlappingCommands",
-      "max": 2,
       "owner": "#307",
-      "reason": "Randomize overlaps More and Projects at 375 px."
-    },
+      "baseline": "2",
+      "reason": "The mobile Layers command bar lays out as two rows."
+    }
+  ],
+  "exceptions": [
     {
       "key": "desktop/*/inspector/sliderWidthDeltaPx",
       "max": 39.5,

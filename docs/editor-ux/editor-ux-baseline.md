@@ -131,24 +131,13 @@ needed, so a fixed behavior cannot keep a stale allowance.
 
 | Metric | v0.49.0 | Ceiling | Owner |
 | --- | --- | --- | --- |
-| `desktop/*/select-layer/frameMovePx` | 340 px | 340 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/*/switch-to-nodes/layoutShift` | 0.172 | 0.172 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/*/switch-to-nodes/frameMovePx` | 279.8 px | 290 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/*/switch-to-layers/layoutShift` | 0.534 | 0.534 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/*/switch-to-layers/frameMovePx` | 279.8 px | 290 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/default/nodes-entry/nodesOutsideViewport` | 5 of 7 | 5 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `desktop/effect-stack/nodes-entry/nodesOutsideViewport` | 7 of 9 | 7 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `mobile/*/command-bar/obscuredCommands` | 1 | 1 | [#307](https://github.com/shchilkin/artifact/issues/307) |
-| `mobile/*/command-bar/overlappingCommands` | 2 | 2 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/inspector/sliderWidthDeltaPx` | 39.5 px | 39.5 | [#309](https://github.com/shchilkin/artifact/issues/309) |
 | `mobile/*/inspector/sliderWidthDeltaPx` | 228 px | 228 | [#309](https://github.com/shchilkin/artifact/issues/309) |
 | `desktop/default/slider-keypress/inputToPreviewMs` | 62.4 ms | 130 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 | `desktop/effect-stack/slider-keypress/inputToPreviewMs` | 121.8 ms | 215 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 | `desktop/*/slider-drag/mainThreadMs` | not measured | 480 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 
-Layout ceilings equal the measured value. The command bar is a few pixels
-narrower with the CI fonts (279.8 px) than on macOS (288.4 px), so the two
-mode-switch `frameMovePx` ceilings are 290. Latency ceilings are about 1.75 times
+Layout ceilings equal the measured value. Latency ceilings are about 1.75 times
 the baseline value to absorb what the speed scale does not: a slower runner of
 the same class (calibration 142.8 ms) still reported scaled values 24-28% above
 the baseline.
@@ -176,12 +165,15 @@ baseline value they replaced. The v0.49.0 baseline still exceeds their budgets;
 
 | Metric | v0.49.0 | Fixed by |
 | --- | --- | --- |
-| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | [#308](https://github.com/shchilkin/artifact/issues/308) |
-
-Selecting a layer already meets the layout-shift budget (0.035) because the
-shift score weighs the moved area, but it moves the preview 170 px and narrows
-the command bar by 340 px; `frameMovePx` is the metric that holds that behavior
-to account.
+| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | [#308](https://github.com/shchilkin/artifact/issues/308), [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `desktop/*/select-layer/frameMovePx` | 340 px | [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `desktop/*/switch-to-nodes/layoutShift` | 0.172 | [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `desktop/*/switch-to-nodes/frameMovePx` | 279.8 px | [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `desktop/*/switch-to-layers/layoutShift` | 0.534 | [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `desktop/*/switch-to-layers/frameMovePx` | 279.8 px | [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `desktop/*/nodes-entry/nodesOutsideViewport` | 5 of 7 / 7 of 9 | [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `mobile/*/command-bar/obscuredCommands` | 1 | [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `mobile/*/command-bar/overlappingCommands` | 2 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 
 ## v0.49.0 Baseline
 
@@ -212,6 +204,11 @@ Layout values are the same for both documents except the node count:
 
 On mobile, Randomize is covered by More and overlaps More and Projects.
 
+Selecting a layer already met the layout-shift budget (0.035) because the shift
+score weighs the moved area, but it moved the preview 170 px and narrowed the
+command bar by 340 px; `frameMovePx` is the metric that held that behavior to
+account.
+
 ## After #308
 
 CI run [37126258008](https://github.com/shchilkin/artifact/actions/runs/37126258008)
@@ -237,6 +234,54 @@ With superseded interactive passes dropped instead of painted (run
 speed 0.997), main-thread time was 302.2 / 313.2 ms but the drag painted 0 / 0-1
 preview frames, so the preview keeps painting them (see
 [`../performance.md`](../performance.md)).
+
+## After The Stable Editor Frame
+
+[#307](https://github.com/shchilkin/artifact/issues/307) gives the desktop
+editor a fixed frame: the layer list, the canvas, and an inspector column that
+is always reserved (with an empty state when nothing is selected) sit above one
+full-width command-bar row that both modes share. Nodes fits the whole graph on
+entry, and the mobile command bar lays out in two rows.
+
+| Interaction | Desktop `layoutShift` | Desktop `frameMovePx` | Mobile `layoutShift` |
+| --- | ---: | ---: | ---: |
+| `select-layer` | 0 | 0 | 0 |
+| `switch-to-nodes` | 0 | 0 | 0 |
+| `switch-to-layers` | 0 | 0 | 0 |
+| `open-add-library` | 0 | 0 | 0 |
+
+| Metric | `default` | `effect-stack` |
+| --- | ---: | ---: |
+| `nodes-entry/nodesOutsideViewport` | 0 of 7 | 0 of 9 |
+| mobile `command-bar/obscuredCommands` | 0 | 0 |
+| mobile `command-bar/overlappingCommands` | 0 | 0 |
+
+On mobile the Layers and Nodes command bars still sit in different places by
+design (`frameMovePx` 330 px, not budgeted).
+
+Fitting the graph puts every node on screen, and thumbnails render only when
+visible, so after a Nodes slider edit every downstream thumbnail re-renders:
+one in `default` and five in `effect-stack`. Rendered at the document baseline
+(1000 px for `1:1`), that took 231.6 / 588.5 ms on the reference runner. Node
+thumbnails other than the selected one now render at the smallest of 160, 320,
+640, or 1280 px that covers their on-screen size at the current zoom (device
+pixel ratio capped at 2), and move to a sharper size once a zoom gesture rests
+for 250 ms. The selected preview keeps the document baseline. Keeping Output at
+the baseline as well measured 86.8 / 179.6 ms locally, because Output then
+re-renders the whole downstream chain at full size after each edit. The canvas preview,
+document render, and export are unchanged.
+
+CI run [37149562758](https://github.com/shchilkin/artifact/actions/runs/37149562758)
+(speed 0.831), reference-machine milliseconds:
+
+| Metric | `default` | `effect-stack` | Budget |
+| --- | ---: | ---: | ---: |
+| `node-preview/entrySettleMs` | 452.5 | 616.2 | 1200 |
+| `node-preview/sliderSettleMs` | 56.8 | 73.5 | 100 |
+
+Both are within budget without an exception. `sliderSettleMs` stays above the
+#308 values measured with the old fixed zoom (25.1 / 27.5 ms) because more
+downstream thumbnails are on screen, and each of those still renders.
 
 ## Changing A Budget Or Exception
 

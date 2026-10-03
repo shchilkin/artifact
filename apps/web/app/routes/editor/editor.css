@@ -14,6 +14,11 @@
 /* ─── APP SHELL ──────────────────────────────────── */
 
 .app {
+  /* Where the stage content sits inside `.main`: Layers keeps it clear of the layer list and inspector. */
+  --editor-stage-left: 0px;
+  --editor-stage-right: 0px;
+  --editor-stage-bottom: 0px;
+  position: relative;
   display: flex;
   flex-direction: column; /* Mobile: canvas top, sidebar bottom */
   width: 100%;
@@ -64,8 +69,38 @@
     padding-top: var(--editor-compact-nav-offset);
   }
 
+  /* Fixed editor frame: layer list, stage, and a reserved inspector column above one command-bar row. `.main`
+     covers the whole stage row in both modes, so switching modes never moves it; in Layers its content is inset
+     clear of the layer list and inspector, which sit above it. */
   .app {
-    flex-direction: row;
+    --editor-stage-left: var(--sidebar-w);
+    --editor-stage-right: var(--editor-inspector-w);
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--editor-inspector-w);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "layers stage inspector"
+      "commands commands commands";
+  }
+
+  .app-nodes {
+    --editor-stage-left: 0px;
+    --editor-stage-right: 0px;
+    --editor-stage-bottom: 0px;
+  }
+}
+
+/* Narrow desktop: the inspector is a reserved row under the canvas, so the canvas column stays usable. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app {
+    --editor-stage-right: 0px;
+    --editor-stage-bottom: var(--editor-inspector-h);
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) var(--editor-inspector-h) auto;
+    grid-template-areas:
+      "layers stage"
+      "layers inspector"
+      "commands commands";
   }
 }
 
@@ -221,21 +256,43 @@
   font-size: var(--type-ui-sm);
 }
 
+/* Mobile shows the inspector only when it has content; desktop always reserves its column. */
+.layer-inspector-drawer--empty {
+  display: none;
+}
+
+.layer-inspector-empty-state {
+  margin: auto 0;
+  padding: var(--space-6) var(--space-4);
+}
+
 @media (min-width: 768px) {
+  /* Positioned so they paint above `.main`, which covers their cells. */
   .sidebar {
-    order: 1;
-    flex: none;
-    width: var(--sidebar-w);
+    position: relative;
+    grid-area: layers;
+    min-width: 0;
     border-top: none;
     border-right: 1px solid var(--line-strong);
   }
 
   .layer-inspector-drawer {
-    order: 3;
-    flex: none;
-    width: min(340px, 28vw);
+    position: relative;
+    grid-area: inspector;
+    min-width: 0;
     border-top: none;
     border-left: 1px solid var(--line-strong);
+  }
+
+  .layer-inspector-drawer--empty {
+    display: flex;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .layer-inspector-drawer {
+    border-top: 1px solid var(--line-strong);
+    border-left: none;
   }
 }
 
@@ -376,55 +433,48 @@
   }
 }
 
-/* Desktop bottom bar is inside .main — hidden on mobile */
+/* ─── COMMAND BAR PLACEMENT ──────────────────────── */
+/* Desktop: the command bar is the bottom row of the editor frame in both modes, so selecting a layer or
+   switching modes never moves it. Mobile: Layers shows it in the layer panel and Nodes floats it over the graph. */
 
-.main > .bottom-bar {
+.app > .bottom-bar {
   display: none;
-}
-
-.main-nodes > .bottom-bar {
-  position: absolute;
-  right: auto;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
-  left: 50%;
-  z-index: var(--z-floating);
-  display: flex;
-  width: auto;
-  max-width: calc(100% - 32px);
-  align-items: center;
-  gap: 2px;
-  transform: translateX(-50%);
-  border: 1px solid color-mix(in oklch, var(--line-strong) 62%, transparent);
-  border-radius: var(--radius-lg);
-  background: color-mix(in oklch, var(--surface-panel) 92%, var(--surface-control));
-  box-shadow:
-    0 0 0 1px color-mix(in oklch, var(--surface-app) 88%, transparent),
-    0 8px 0 color-mix(in oklch, var(--surface-app) 22%, transparent);
-  padding: 3px;
-}
-
-.main-nodes:has(.node-props-panel-open) > .bottom-bar {
-  left: calc((100% - min(340px, 32vw)) / 2);
-  max-width: calc(100% - min(340px, 32vw) - 32px);
 }
 
 @media (min-width: 768px) {
   .main {
-    order: 2;
-    flex: 1;
-    gap: 16px;
-    padding: 20px;
-  }
-  .main > .bottom-bar {
-    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 1 / span 1;
+    gap: var(--space-4);
+    padding: var(--space-6) calc(var(--editor-stage-right) + var(--space-6))
+      calc(var(--editor-stage-bottom) + var(--space-6)) calc(var(--editor-stage-left) + var(--space-6));
   }
 
   .main-nodes {
     padding: 0;
   }
 
-  .main-nodes > .bottom-bar {
-    bottom: 18px;
+  /* Overlays positioned inside `.main` follow the stage inset. */
+  .main > .storage-warning-strip {
+    right: calc(var(--editor-stage-right) + var(--space-3));
+    left: calc(var(--editor-stage-left) + var(--space-3));
+  }
+
+  .main .empty-canvas-start {
+    bottom: calc(var(--editor-stage-bottom) + var(--touch) + var(--space-6));
+    left: calc(var(--editor-stage-left) + (100% - var(--editor-stage-left) - var(--editor-stage-right)) / 2);
+    width: min(560px, calc(100% - var(--editor-stage-left) - var(--editor-stage-right) - var(--space-8)));
+  }
+
+  .app > .bottom-bar {
+    display: grid;
+    grid-area: commands;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .main {
+    grid-row: 1 / span 2;
   }
 }
 
@@ -828,7 +878,7 @@
   align-items: center;
 }
 
-.main > .bottom-bar,
+.app > .bottom-bar,
 .sidebar-mobile-bar .bottom-bar {
   border: 0;
   border-top: 1px solid color-mix(in oklch, var(--line-default) 74%, transparent);
@@ -904,34 +954,6 @@
   color: var(--text-primary);
 }
 
-.main-nodes > .bottom-bar .bottom-history-group,
-.main-nodes > .bottom-bar .bottom-secondary-group,
-.main-nodes > .bottom-bar .bottom-primary-group {
-  border-right: 1px solid color-mix(in oklch, var(--line-default) 58%, transparent);
-  padding-right: 2px;
-}
-
-.main-nodes > .bottom-bar .bottom-primary-group {
-  border-right: 0;
-  padding-right: 0;
-}
-
-.main-nodes > .bottom-bar .ui-command {
-  height: var(--touch);
-  min-height: var(--touch);
-  min-width: var(--touch);
-  padding: 0 12px;
-  border-radius: var(--control-radius);
-  font-size: var(--type-ui-sm);
-  letter-spacing: var(--tracking-command);
-}
-
-.main-nodes > .bottom-bar .bottom-icon-command {
-  gap: 4px;
-  width: var(--touch);
-  padding: 0;
-}
-
 .bottom-command-badge {
   min-width: 12px;
   padding: 1px 3px;
@@ -944,58 +966,93 @@
   line-height: 1;
 }
 
-.main-nodes > .bottom-bar .rand-btn {
-  color: color-mix(in oklch, var(--text-secondary) 86%, var(--text-primary));
-}
-
 @media (max-width: 767px) {
-  .main-nodes > .bottom-bar {
-    right: 16px;
-    left: 74px;
+  .app-nodes > .bottom-bar {
+    position: absolute;
+    right: var(--space-4);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-3));
+    /* Clear of the React Flow zoom controls on the left. */
+    left: calc(var(--touch) + var(--space-8));
+    z-index: var(--z-floating);
     display: grid;
+    width: auto;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto;
-    width: auto;
-    max-width: none;
-    justify-content: stretch;
-    overflow: visible;
-    transform: none;
-    row-gap: 6px;
+    row-gap: var(--space-1);
+    border: 1px solid color-mix(in oklch, var(--line-strong) 62%, transparent);
+    border-radius: var(--radius-lg);
+    background: color-mix(in oklch, var(--surface-panel) 92%, var(--surface-control));
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--surface-app) 88%, transparent),
+      0 8px 0 color-mix(in oklch, var(--surface-app) 22%, transparent);
+    padding: var(--space-1);
   }
 
-  .main-nodes:has(.node-props-panel-open) > .bottom-bar {
+  .app-nodes > .bottom-bar .bottom-history-group,
+  .app-nodes > .bottom-bar .bottom-secondary-group,
+  .app-nodes > .bottom-bar .bottom-primary-group {
+    border-right: 1px solid color-mix(in oklch, var(--line-default) 58%, transparent);
+    padding-right: var(--space-1);
+  }
+
+  .app-nodes > .bottom-bar .bottom-primary-group {
+    border-right: 0;
+    padding-right: 0;
+  }
+
+  .app-nodes > .bottom-bar .ui-command {
+    height: var(--touch);
+    min-height: var(--touch);
+    min-width: var(--touch);
+    padding: 0 var(--space-3);
+    border-radius: var(--control-radius);
+    font-size: var(--type-ui-sm);
+    letter-spacing: var(--tracking-command);
+  }
+
+  .app-nodes > .bottom-bar .bottom-icon-command {
+    gap: 4px;
+    width: var(--touch);
+    padding: 0;
+  }
+
+  .app-nodes > .bottom-bar .rand-btn {
+    color: color-mix(in oklch, var(--text-secondary) 86%, var(--text-primary));
+  }
+
+  .app-nodes:has(.node-props-panel-open) > .bottom-bar {
     opacity: 0;
     pointer-events: none;
   }
 
-  .main-nodes > .bottom-bar .bottom-history-group,
-  .main-nodes > .bottom-bar .bottom-primary-group {
+  .app-nodes > .bottom-bar .bottom-history-group,
+  .app-nodes > .bottom-bar .bottom-primary-group {
     grid-column: 1;
     width: 100%;
     min-width: 0;
   }
 
-  .main-nodes > .bottom-bar .bottom-history-group {
+  .app-nodes > .bottom-bar .bottom-history-group {
     grid-row: 1;
     gap: 6px;
   }
 
-  .main-nodes > .bottom-bar .bottom-secondary-group {
+  .app-nodes > .bottom-bar .bottom-secondary-group {
     display: none;
   }
 
-  .main-nodes > .bottom-bar .bottom-more-menu-trigger {
+  .app-nodes > .bottom-bar .bottom-more-menu-trigger {
     display: inline-flex;
   }
 
-  .main-nodes > .bottom-bar .bottom-primary-group {
+  .app-nodes > .bottom-bar .bottom-primary-group {
     grid-row: 2;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
   }
 
-  .main-nodes > .bottom-bar .bottom-primary-group .ui-command {
+  .app-nodes > .bottom-bar .bottom-primary-group .ui-command {
     min-width: 0;
     padding-right: 10px;
     padding-left: 10px;
@@ -1003,6 +1060,7 @@
   }
 
   .sidebar-mobile-bar .bottom-bar {
+    display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: auto auto;
     border-bottom: 1px solid color-mix(in oklch, var(--line-default) 62%, transparent);
@@ -1104,28 +1162,15 @@
   }
 }
 
+@media (min-width: 768px) {
+  .app > .bottom-bar {
+    padding: var(--space-2) var(--space-6);
+  }
+}
+
 @media (min-width: 768px) and (max-width: 1180px) {
-  .bottom-bar {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-    align-items: end;
-    row-gap: 8px;
-  }
-
-  .bottom-history-group {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .bottom-secondary-group {
+  .bottom-bar .bottom-secondary-group {
     display: none;
-  }
-
-  .bottom-primary-group {
-    grid-column: 1;
-    grid-row: 2;
-    align-self: end;
-    justify-content: flex-end;
   }
 
   .bottom-bar .bottom-more-menu-trigger {
@@ -1135,50 +1180,6 @@
   .bottom-bar .ui-command {
     padding-right: 14px;
     padding-left: 14px;
-  }
-}
-
-@media (min-width: 768px) {
-  .main-nodes > .bottom-bar {
-    display: flex;
-    width: fit-content;
-    max-width: calc(100% - 32px);
-    align-items: center;
-    justify-content: flex-start;
-    gap: 2px;
-  }
-
-  .main-nodes > .bottom-bar .bottom-history-group,
-  .main-nodes > .bottom-bar .bottom-secondary-group,
-  .main-nodes > .bottom-bar .bottom-primary-group {
-    grid-column: auto;
-    grid-row: auto;
-    flex: 0 0 auto;
-    min-width: 0;
-  }
-
-  .main-nodes > .bottom-bar .bottom-history-group {
-    gap: 2px;
-  }
-
-  .main-nodes > .bottom-bar .bottom-primary-group {
-    align-self: center;
-    justify-content: flex-end;
-    gap: 2px;
-  }
-}
-
-@media (min-width: 768px) and (max-width: 1180px) {
-  .main-nodes > .bottom-bar {
-    width: fit-content;
-  }
-
-  .main-nodes > .bottom-bar .bottom-secondary-group {
-    display: none;
-  }
-
-  .main-nodes > .bottom-bar .bottom-more-menu-trigger {
-    display: inline-flex;
   }
 }
 

@@ -39,9 +39,20 @@ export interface InsertConnectionConfig {
   replaceEdgeId?: string;
 }
 
+/** Graph viewport (pan and zoom), kept by the editor as UI state outside the document. */
+export interface NodeCanvasViewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
 export interface NodeCanvasProps {
   doc: CanvasDocument;
   imageCache: Map<string, HTMLImageElement>;
+  /** Viewport to restore on entry. Without it, the first entry fits the graph. */
+  initialViewport?: NodeCanvasViewport | null;
+  /** Reports the viewport after the user pans or zooms and when Nodes closes. */
+  onViewportChange?: (viewport: NodeCanvasViewport) => void;
   initialPrimitiveViewStates?: Record<string, PrimitiveViewportState>;
   onPrimitiveViewStatesChange?: (viewStates: Record<string, PrimitiveViewportState>, mode?: DocumentUpdateMode) => void;
   selectedLayerId: string | null;

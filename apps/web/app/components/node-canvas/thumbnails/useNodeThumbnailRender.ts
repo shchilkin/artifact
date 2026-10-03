@@ -1,3 +1,4 @@
+import { useStore } from '@xyflow/react';
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type {
@@ -16,7 +17,7 @@ import { preloadImageSources } from '../../../utils/preloadImageSources';
 import { renderGraphTarget } from '../../../utils/renderer';
 import { edgeRenderSig, graphNodeRenderSigs, layerRenderSig, viewStateRenderSig } from '../../../utils/renderSignature';
 import { useNodeCanvasPreview } from '../context';
-import { getNodePreviewSize, NODE_PREVIEW_PASSIVE_RENDER_SCALE, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
+import { getNodePreviewSize, nodePreviewOnScreenPx, nodePreviewRenderBucket } from './previewSizing';
 import {
   scheduleThumbnailRender,
   THUMB_DEBOUNCE_MS,
@@ -28,6 +29,8 @@ import {
 const THUMBNAIL_CACHE_LIMIT = 48;
 // Passive previews on screen wait for a short pause in editing; previews just outside it wait longer.
 const VISIBLE_THUMB_DEBOUNCE_MS = 32;
+// A zoom gesture changes the render bucket once it has rested this long, so it does not start a render per step.
+export const THUMB_ZOOM_SETTLE_MS = 250;
 const thumbnailResultCache = new Map<string, HTMLCanvasElement>();
 const thumbnailInflightCache = new Map<string, Promise<HTMLCanvasElement>>();
 const thumbnailGraphRenderChainCache = new Map<string, Promise<HTMLCanvasElement>>();
@@ -48,7 +51,11 @@ function rememberThumbnail(key: string, canvas: HTMLCanvasElement) {
   if (oldestKey) thumbnailResultCache.delete(oldestKey);
 }
 
+// The canvas backing store follows the drawn render, so a resolution change keeps the previous frame until the new
+// one is ready instead of clearing it.
 function drawCanvas(target: HTMLCanvasElement, source: HTMLCanvasElement, width: number, height: number) {
+  if (target.width !== width) target.width = width;
+  if (target.height !== height) target.height = height;
   const ctx = target.getContext('2d');
   if (!ctx) return false;
   ctx.clearRect(0, 0, width, height);
@@ -139,7 +146,7 @@ interface ThumbnailRenderSnapshot {
   graph: CanvasGraph;
   imageCache: Map<string, HTMLImageElement>;
   previewKey: string;
-  renderStabilityKey: string;
+  contentKey: string;
   previewSize: PreviewSize;
   isExportPreview: boolean;
   previewTargetId: string;
@@ -154,33 +161,40 @@ function thumbnailEffectShouldPause(
   isFrameVisible: boolean,
   priority: boolean,
   isGraphDraggingRef: { current: boolean },
+  viewportPending: boolean,
 ) {
-  return (!isFrameVisible && !priority) || isGraphDraggingRef.current;
+  return (!isFrameVisible && !priority) || isGraphDraggingRef.current || viewportPending;
+}
+
+/** Thumbnail cache key: content plus render size, so a frame is never reused at a different resolution. */
+export function thumbnailPreviewKey(contentKey: string, previewSize: PreviewSize) {
+  return `${contentKey}::render:${previewSize.render.width}x${previewSize.render.height}`;
 }
 
 function drawCachedThumbnail(
   previewKey: string,
+  contentKey: string,
   canvasRef: ThumbnailCanvasRef,
   previewSize: PreviewSize,
   setHasRendered: (rendered: boolean) => void,
-  setRenderedPreviewKey: (key: string) => void,
+  setRenderedContentKey: (key: string) => void,
 ) {
   const cached = thumbnailResultCache.get(previewKey);
   if (!cached || !canvasRef.current) return false;
   const drawn = drawCanvas(canvasRef.current, cached, previewSize.render.width, previewSize.render.height);
   if (!drawn) return false;
-  commitThumbnailReady(setHasRendered, setRenderedPreviewKey, previewKey);
+  commitThumbnailReady(setHasRendered, setRenderedContentKey, contentKey);
   return true;
 }
 
 function commitThumbnailReady(
   setHasRendered: (rendered: boolean) => void,
-  setRenderedPreviewKey: (key: string) => void,
+  setRenderedContentKey: (key: string) => void,
   previewKey: string,
 ) {
   const commit = () => {
     setHasRendered(true);
-    setRenderedPreviewKey(previewKey);
+    setRenderedContentKey(previewKey);
   };
   if (typeof window === 'undefined') {
     queueMicrotask(commit);
@@ -208,11 +222,7 @@ function thumbnailRenderStale(
   canvasRef: ThumbnailCanvasRef,
   isGraphDraggingRef: { current: boolean },
 ) {
-  return (
-    latestRef.current.renderStabilityKey !== snapshot.renderStabilityKey ||
-    !canvasRef.current ||
-    isGraphDraggingRef.current
-  );
+  return latestRef.current.previewKey !== snapshot.previewKey || !canvasRef.current || isGraphDraggingRef.current;
 }
 
 function createThumbnailRenderPromise(
@@ -275,12 +285,12 @@ async function runThumbnailRenderJob({
   latestRef,
   canvasRef,
   setHasRendered,
-  setRenderedPreviewKey,
+  setRenderedContentKey,
 }: {
   latestRef: ThumbnailLatestRef;
   canvasRef: ThumbnailCanvasRef;
   setHasRendered: (rendered: boolean) => void;
-  setRenderedPreviewKey: (key: string) => void;
+  setRenderedContentKey: (key: string) => void;
 }) {
   const snapshot = latestRef.current;
   if (thumbnailRenderStale(latestRef, snapshot, canvasRef, snapshot.isGraphDraggingRef)) return;
@@ -299,7 +309,7 @@ async function runThumbnailRenderJob({
 
   const result = await thumbnailRenderPromise(snapshot, effectiveImageCache);
   if (thumbnailRenderStale(latestRef, snapshot, canvasRef, snapshot.isGraphDraggingRef)) return;
-  drawRenderedThumbnail(result, snapshot, canvasRef, setHasRendered, setRenderedPreviewKey);
+  drawRenderedThumbnail(result, snapshot, canvasRef, setHasRendered, setRenderedContentKey);
 }
 
 function drawRenderedThumbnail(
@@ -307,21 +317,64 @@ function drawRenderedThumbnail(
   snapshot: ThumbnailRenderSnapshot,
   canvasRef: ThumbnailCanvasRef,
   setHasRendered: (rendered: boolean) => void,
-  setRenderedPreviewKey: (key: string) => void,
+  setRenderedContentKey: (key: string) => void,
 ) {
   const didDraw = measurePerformancePhaseSync(THUMBNAIL_DRAW_MEASURE, () =>
     drawCanvas(canvasRef.current!, result, snapshot.previewSize.render.width, snapshot.previewSize.render.height),
   );
   if (!didDraw) return;
-  commitThumbnailReady(setHasRendered, setRenderedPreviewKey, snapshot.previewKey);
+  commitThumbnailReady(setHasRendered, setRenderedContentKey, snapshot.contentKey);
 }
 
 function selectPreviewValue<T>(priority: boolean, current: T, deferred: T) {
   return priority ? current : deferred;
 }
 
-function thumbnailRenderScale(priority: boolean) {
-  return priority ? NODE_PREVIEW_RENDER_SCALE : NODE_PREVIEW_PASSIVE_RENDER_SCALE;
+function currentDevicePixelRatio() {
+  return typeof window === 'undefined' ? 1 : window.devicePixelRatio;
+}
+
+/** Device pixel ratio that follows moves between displays and browser zoom. */
+function useDevicePixelRatio() {
+  const [ratio, setRatio] = useState(currentDevicePixelRatio);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const query = window.matchMedia(`(resolution: ${ratio}dppx)`);
+    const update = () => setRatio(currentDevicePixelRatio());
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, [ratio]);
+  return ratio;
+}
+
+/**
+ * Render bucket for the current graph zoom. A zoom change, including an animated toolbar fit, moves to a new bucket
+ * once the zoom rests for THUMB_ZOOM_SETTLE_MS, so the render runs once at the final size. The fit React Flow runs on
+ * the first Nodes entry is different: thumbnails wait for it (`viewportPending`) and adopt its zoom at once, so entry
+ * renders once at the fitted size.
+ */
+function useThumbnailRenderBucket() {
+  const devicePixelRatio = useDevicePixelRatio();
+  const bucket = useStore((state) =>
+    nodePreviewRenderBucket(nodePreviewOnScreenPx(state.transform[2], devicePixelRatio)),
+  );
+  const viewportPending = useStore((state) => state.fitViewQueued);
+  const [settled, setSettled] = useState(() => ({ bucket, viewportPending, entryFitPending: viewportPending }));
+  let renderBucket = settled.bucket;
+  // The entry fit is queued from mount; the bucket follows the zoom until the render where that fit resolves.
+  const adoptNow = settled.entryFitPending;
+  if (settled.viewportPending !== viewportPending || (adoptNow && settled.bucket !== bucket)) {
+    renderBucket = adoptNow ? bucket : settled.bucket;
+    setSettled({ bucket: renderBucket, viewportPending, entryFitPending: adoptNow && viewportPending });
+  }
+
+  useEffect(() => {
+    if (bucket === renderBucket) return undefined;
+    const timer = setTimeout(() => setSettled((current) => ({ ...current, bucket })), THUMB_ZOOM_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [bucket, renderBucket]);
+
+  return { renderBucket, viewportPending };
 }
 
 function hasMissingRequiredSource(doc: CanvasDocument, graph: CanvasGraph, previewTargetId: string) {
@@ -417,10 +470,17 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const renderDoc = selectPreviewValue(priority, doc, deferredDoc);
   const renderGraph = selectPreviewValue(priority, graph, deferredGraph);
   const renderPrimitiveViewStates = selectPreviewValue(priority, primitiveViewStates, deferredPrimitiveViewStates);
-  const renderScale = thumbnailRenderScale(priority);
+  const { renderBucket, viewportPending } = useThumbnailRenderBucket();
+  // The selected preview keeps the document-baseline resolution; other thumbnails, Output included, follow the zoom.
+  // Output at baseline would re-render the whole downstream chain at full size after every edit, because it
+  // cannot reuse the zoom-bucket frames of the nodes before it.
+  const baselineResolution = priority;
   const previewSize = useMemo(
-    () => getNodePreviewSize(renderDoc.global.aspect ?? '1:1', undefined, renderScale),
-    [renderDoc.global.aspect, renderScale],
+    () =>
+      getNodePreviewSize(renderDoc.global.aspect ?? '1:1', {
+        renderBucket: baselineResolution ? undefined : renderBucket,
+      }),
+    [baselineResolution, renderDoc.global.aspect, renderBucket],
   );
 
   const signatureData = useMemo(() => {
@@ -441,9 +501,8 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       edgeSignatures,
     } = collectThumbnailSignatureParts(previewTargetId, renderDoc, renderGraph);
 
-    const basePreviewKeyParts = [
+    const contentKeyParts = [
       previewTargetId,
-      `${previewSize.render.width}x${previewSize.render.height}`,
       `display:${previewSize.display.width}x${previewSize.display.height}`,
       renderDoc.global.bg,
       renderDoc.global.seed,
@@ -463,12 +522,12 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       primitiveViewSignature(layers, renderGraph, renderPrimitiveViewStates),
       imageCacheSignature(upstreamImageLayers, imageCache),
     ];
-    const previewKey = [...basePreviewKeyParts].join('::');
-    const renderStabilityKey = [...basePreviewKeyParts].join('::');
+    const contentKey = contentKeyParts.join('::');
+    const previewKey = thumbnailPreviewKey(contentKey, previewSize);
 
     return {
       previewKey,
-      renderStabilityKey,
+      contentKey,
       layerSignatures,
       mergeSignatures,
       colorSignatures,
@@ -481,7 +540,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       edgeSignatures,
     };
   }, [renderDoc, renderGraph, previewSize, previewTargetId, renderPrimitiveViewStates, imageCache]);
-  const { previewKey, renderStabilityKey } = signatureData;
+  const { previewKey, contentKey } = signatureData;
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -572,7 +631,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     graph: renderGraph,
     imageCache,
     previewKey,
-    renderStabilityKey,
+    contentKey,
     previewSize,
     isExportPreview,
     previewTargetId,
@@ -586,7 +645,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       graph: renderGraph,
       imageCache,
       previewKey,
-      renderStabilityKey,
+      contentKey,
       previewSize,
       isExportPreview,
       previewTargetId,
@@ -594,11 +653,11 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       isGraphDraggingRef,
     };
   }, [
+    contentKey,
     imageCache,
     isExportPreview,
     isGraphDraggingRef,
     previewKey,
-    renderStabilityKey,
     previewSize,
     previewTargetId,
     renderDoc,
@@ -607,9 +666,10 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   ]);
 
   const [hasRendered, setHasRendered] = useState(false);
-  const [renderedPreviewKey, setRenderedPreviewKey] = useState<string | null>(null);
+  // Content of the frame on the canvas: a resolution-only change keeps it ready while the sharper frame renders.
+  const [renderedContentKey, setRenderedContentKey] = useState<string | null>(null);
   const [failedPreviewKey, setFailedPreviewKey] = useState<string | null>(null);
-  const ready = renderedPreviewKey === previewKey;
+  const ready = renderedContentKey === contentKey;
   const renderFailed = failedPreviewKey === previewKey;
   const missingRequiredSource = useMemo(
     () => hasMissingRequiredSource(doc, graph, previewTargetId),
@@ -619,8 +679,10 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
-    if (thumbnailEffectShouldPause(isFrameVisible, priority, isGraphDraggingRef)) return () => undefined;
-    if (drawCachedThumbnail(previewKey, canvasRef, previewSize, setHasRendered, setRenderedPreviewKey)) {
+    if (thumbnailEffectShouldPause(isFrameVisible, priority, isGraphDraggingRef, viewportPending)) {
+      return () => undefined;
+    }
+    if (drawCachedThumbnail(previewKey, contentKey, canvasRef, previewSize, setHasRendered, setRenderedContentKey)) {
       setFailedPreviewKey(null);
       return () => undefined;
     }
@@ -636,7 +698,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
                 latestRef,
                 canvasRef,
                 setHasRendered,
-                setRenderedPreviewKey,
+                setRenderedContentKey,
               });
               setFailedPreviewKey(null);
             } catch {
@@ -651,6 +713,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
 
     return () => clearTimeout(debounceRef.current);
   }, [
+    contentKey,
     isFrameVisible,
     isInViewport,
     isExportPreview,
@@ -659,6 +722,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     previewKey,
     previewSize,
     previewTargetId,
+    viewportPending,
   ]);
 
   return {

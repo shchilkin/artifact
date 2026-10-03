@@ -16,8 +16,11 @@ Size and antialiasing can differ, especially with WebGL, but the render path and
 
 Node previews use `apps/web/app/components/node-canvas/thumbnails/previewSizing.ts` to
 derive both CSS display size and internal render size from `doc.global.aspect`.
-Use that helper for new thumbnail-like surfaces so `16:9`, `9:16`, `4:5`, and
-`1:1` documents keep the same composition shape across nodes and export.
+`getNodePreviewSize(aspect, options)` renders at the document baseline by
+default; graph thumbnails pass a zoom `renderBucket` instead (see
+[Node thumbnails](#node-thumbnails)). Use that helper for new thumbnail-like
+surfaces so `16:9`, `9:16`, `4:5`, and `1:1` documents keep the same composition
+shape across nodes and export.
 
 The layer preview still uses `getPreviewDims(...)` for its CSS geometry, but
 `useDocumentRenderer` can render above that display size through
@@ -350,6 +353,16 @@ The thumbnail system:
 - calls `renderGraphTarget` or `renderDocument`
 - delays passive offscreen thumbnail work until the thumbnail frame is visible
   or near the viewport
+- renders the selected preview at the document baseline, without a debounce
+  and ahead of other previews. Every other thumbnail, Output included, renders at the
+  smallest of `NODE_PREVIEW_RENDER_BUCKETS` (160, 320, 640, 1280 px) that covers
+  its on-screen size at the current graph zoom, and moves to a sharper bucket
+  once the zoom rests for `THUMB_ZOOM_SETTLE_MS`, including after an animated
+  fit. This replaces the earlier split between a priority render scale and a
+  passive one. The bucket is part of the thumbnail and graph-node cache keys,
+  so a frame is never reused at another resolution. Effects still scale against
+  the document size (`effectResolution`); only thumbnail detail changes.
+  Thumbnails wait for the fit on the first Nodes entry before rendering.
 - keeps image-readiness invalidation scoped to images that are upstream of the
   thumbnail target
 
