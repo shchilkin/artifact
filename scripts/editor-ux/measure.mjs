@@ -422,6 +422,12 @@ async function measureLatency(browser, origin, viewport, reference) {
 function flatten(results, speed) {
   const metrics = {};
   const reference = (value) => (value === null ? null : round(value * speed));
+  // The drag loop cannot run faster than the platform's frame pacing (environment.dragFloorMs). Only the time above
+  // that floor depends on the app and the CPU, so only that part is scaled, on top of the reference floor.
+  const dragReference = (value) =>
+    value === null
+      ? null
+      : round(contract.calibration.dragFloorMs + Math.max(0, value - environment.dragFloorMs) * speed);
   for (const [viewport, documents] of Object.entries(results)) {
     for (const [document, result] of Object.entries(documents)) {
       const prefix = `${viewport}/${document}`;
@@ -437,7 +443,7 @@ function flatten(results, speed) {
       metrics[`${prefix}/slider-keypress/inputToPreviewMs`] = reference(
         result.latency['slider-keypress'].inputToPreviewMs,
       );
-      metrics[`${prefix}/slider-drag/durationMs`] = reference(result.latency['slider-drag'].durationMs);
+      metrics[`${prefix}/slider-drag/durationMs`] = dragReference(result.latency['slider-drag'].durationMs);
       metrics[`${prefix}/slider-drag/settleMs`] = reference(result.latency['slider-drag'].settleMs);
       metrics[`${prefix}/node-preview/entrySettleMs`] = reference(result.latency['node-preview'].entrySettleMs);
       metrics[`${prefix}/node-preview/sliderSettleMs`] = reference(result.latency['node-preview'].sliderSettleMs);

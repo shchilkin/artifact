@@ -9,7 +9,8 @@
  * - After a render that asks for a cooldown, the next one waits until the main thread has been free for
  *   `cooldownRatio` times that render's duration (at most `maxCooldownMs`), so input keeps flowing while renders are
  *   expensive. The wait ends early once requests stop for twice their recent interval (at least `quietMs`): when a
- *   gesture ends, its last state renders at once. A request after an idle period starts on the next microtask.
+ *   gesture ends, its last state renders at once. A request more than `freshGapMs` after the previous one starts a
+ *   new burst without a cooldown, such as an edit after a pause or the full-quality pass that follows a gesture.
  */
 export interface PreviewRenderSchedulerOptions {
   /**
@@ -24,6 +25,8 @@ export interface PreviewRenderSchedulerOptions {
   maxCooldownMs?: number;
   /** Shortest gap between requests that counts as the end of continuous input. */
   quietMs?: number;
+  /** A request this long after the previous one starts a new burst, without a cooldown. */
+  freshGapMs?: number;
   now?: () => number;
   setTimer?: (callback: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
@@ -41,6 +44,7 @@ export interface PreviewRenderScheduler {
 export const DEFAULT_PREVIEW_COOLDOWN_RATIO = 2;
 const DEFAULT_MAX_COOLDOWN_MS = 250;
 const DEFAULT_QUIET_MS = 34;
+const DEFAULT_FRESH_GAP_MS = 120;
 
 export function createPreviewRenderScheduler({
   run,
@@ -48,6 +52,7 @@ export function createPreviewRenderScheduler({
   cooldownRatio = DEFAULT_PREVIEW_COOLDOWN_RATIO,
   maxCooldownMs = DEFAULT_MAX_COOLDOWN_MS,
   quietMs = DEFAULT_QUIET_MS,
+  freshGapMs = DEFAULT_FRESH_GAP_MS,
   now = () => performance.now(),
   setTimer = (callback, ms) => setTimeout(callback, ms),
   clearTimer = (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
@@ -62,6 +67,8 @@ export function createPreviewRenderScheduler({
   let cooldownUntil = Number.NEGATIVE_INFINITY;
   let lastRequestAt = Number.NEGATIVE_INFINITY;
   let requestIntervalMs = 0;
+  // The newest request followed a quiet gap, so the render it asks for skips the cooldown.
+  let freshBurst = false;
 
   function start(scheduledGeneration: number) {
     if (scheduledGeneration !== generation || !scheduled) return;
@@ -80,9 +87,10 @@ export function createPreviewRenderScheduler({
   function finish(cooldown: boolean) {
     running = false;
     const endedAt = now();
-    cooldownUntil = cooldown
-      ? endedAt + Math.min(maxCooldownMs, Math.max(0, endedAt - startedAt) * cooldownRatio)
-      : Number.NEGATIVE_INFINITY;
+    cooldownUntil =
+      cooldown && !freshBurst
+        ? endedAt + Math.min(maxCooldownMs, Math.max(0, endedAt - startedAt) * cooldownRatio)
+        : Number.NEGATIVE_INFINITY;
     if (!pending) return;
     pending = false;
     schedule();
@@ -92,7 +100,7 @@ export function createPreviewRenderScheduler({
   function waitMs() {
     const current = now();
     if (current >= cooldownUntil) return 0;
-    const quietAt = lastRequestAt + Math.max(quietMs, requestIntervalMs * 2);
+    const quietAt = lastRequestAt + quietGapMs();
     return current >= quietAt ? 0 : Math.min(cooldownUntil, quietAt) - current;
   }
 
@@ -118,11 +126,22 @@ export function createPreviewRenderScheduler({
     enqueueMicrotask(() => start(scheduledGeneration));
   }
 
+  function quietGapMs() {
+    return Math.max(quietMs, requestIntervalMs * 2);
+  }
+
   function request() {
     const requestedAt = now();
     const interval = requestedAt - lastRequestAt;
-    // Smoothed gap between requests of the current burst; a long gap starts a new burst.
-    requestIntervalMs = interval > maxCooldownMs ? 0 : requestIntervalMs * 0.7 + interval * 0.3;
+    if (interval > Math.max(freshGapMs, quietGapMs())) {
+      // Input had gone quiet: this request starts a new burst, and its render does not wait for a cooldown.
+      requestIntervalMs = 0;
+      cooldownUntil = Number.NEGATIVE_INFINITY;
+      freshBurst = true;
+    } else {
+      requestIntervalMs = requestIntervalMs * 0.7 + interval * 0.3;
+      freshBurst = false;
+    }
     lastRequestAt = requestedAt;
     if (running) {
       pending = true;

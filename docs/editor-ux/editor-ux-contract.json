@@ -15,7 +15,8 @@
   "documents": ["default", "effect-stack"],
   "calibration": {
     "referenceMs": 118.6,
-    "$comment": "Duration of the fixed Canvas 2D calibration workload on the v0.49.0 baseline run (GitHub-hosted ubuntu-latest, 4 CPUs). Latency metrics are scaled by referenceMs / measured calibration before they are checked, so budgets are in reference-machine milliseconds."
+    "dragFloorMs": 340,
+    "$comment": "referenceMs: duration of the fixed Canvas 2D calibration workload on the v0.49.0 baseline run (GitHub-hosted ubuntu-latest, 4 CPUs). Latency metrics are scaled by referenceMs / measured calibration before they are checked, so budgets are in reference-machine milliseconds. dragFloorMs: the 20-step drag loop with nothing on the main thread, one step per 60 Hz frame. slider-drag/durationMs is reported as dragFloorMs plus the scaled time above the floor measured on the same machine, because the floor follows frame pacing (665.7 ms on the CI runner, 333 ms on macOS) rather than CPU speed."
   },
   "budgets": [
     {

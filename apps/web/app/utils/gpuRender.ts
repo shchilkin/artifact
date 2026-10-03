@@ -144,8 +144,24 @@ interface StagePixels {
 
 const SYNC_POLL_TIMEOUT_MS = 2000;
 
+let pollChannel: MessageChannel | null = null;
+const pollWaiters: Array<() => void> = [];
+
+/**
+ * Resolves on the next task. A message-channel task is not clamped like nested `setTimeout(0)` (4 ms), so the
+ * readback continues as soon as the GPU is done.
+ */
 function nextTask() {
-  return new Promise<void>((resolve) => setTimeout(resolve, 0));
+  if (typeof MessageChannel === 'undefined') return new Promise<void>((resolve) => setTimeout(resolve, 0));
+  if (!pollChannel) {
+    pollChannel = new MessageChannel();
+    pollChannel.port1.onmessage = () => pollWaiters.shift()?.();
+  }
+  const channel = pollChannel;
+  return new Promise<void>((resolve) => {
+    pollWaiters.push(resolve);
+    channel.port2.postMessage(null);
+  });
 }
 
 /** Resolves once the GPU has executed every command issued before the fence, without blocking the main thread. */

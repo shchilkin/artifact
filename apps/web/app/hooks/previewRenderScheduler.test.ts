@@ -2,12 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createPreviewRenderScheduler } from './previewRenderScheduler';
 
+type Done = (options?: { cooldown?: boolean }) => void;
+
 function setup(cooldownRatio = 2) {
   let clock = 0;
   const microtasks: Array<() => void> = [];
   const timers: Array<{ at: number; callback: () => void; cleared: boolean }> = [];
-  const finishers: Array<(options?: { cooldown?: boolean }) => void> = [];
-  const run = vi.fn((done: (options?: { cooldown?: boolean }) => void) => {
+  const finishers: Done[] = [];
+  const run = vi.fn((done: Done) => {
     finishers.push(done);
   });
   const onSupersede = vi.fn();
@@ -28,23 +30,41 @@ function setup(cooldownRatio = 2) {
     queueMicrotask: (callback) => microtasks.push(callback),
   });
 
+  const flushMicrotasks = () => {
+    while (microtasks.length) microtasks.shift()?.();
+  };
+  /** Moves the clock to `time`, firing due timers in order. */
+  const advanceTo = (time: number) => {
+    while (true) {
+      const due = timers.filter((item) => !item.cleared && item.at <= time).sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      clock = Math.max(clock, due.at);
+      due.cleared = true;
+      due.callback();
+      flushMicrotasks();
+    }
+    clock = time;
+    flushMicrotasks();
+  };
+
   return {
     scheduler,
     run,
     onSupersede,
-    flushMicrotasks() {
-      while (microtasks.length) microtasks.shift()?.();
-    },
-    advance(ms: number) {
-      clock += ms;
-      for (const timer of timers.filter((item) => !item.cleared && item.at <= clock)) {
-        timer.cleared = true;
-        timer.callback();
+    flushMicrotasks,
+    advanceTo,
+    /** Requests at `from`, `from + every`, ... up to and including `to`. */
+    requestEvery(from: number, to: number, every: number) {
+      for (let time = from; time <= to; time += every) {
+        advanceTo(time);
+        scheduler.request();
+        flushMicrotasks();
       }
     },
-    finishRender(afterMs: number, options?: { cooldown?: boolean }) {
-      clock += afterMs;
+    finishRenderAt(time: number, options?: { cooldown?: boolean }) {
+      advanceTo(time);
       finishers.shift()?.(options);
+      flushMicrotasks();
     },
   };
 }
@@ -63,110 +83,107 @@ describe('createPreviewRenderScheduler', () => {
   });
 
   it('keeps one pending render however many requests arrive while a render runs', () => {
-    const { scheduler, run, onSupersede, flushMicrotasks, finishRender, advance } = setup(0);
+    const { scheduler, run, onSupersede, requestEvery, finishRenderAt, advanceTo } = setup(0);
 
-    scheduler.request();
-    flushMicrotasks();
-    for (let step = 0; step < 20; step += 1) scheduler.request();
-
+    requestEvery(0, 200, 10);
+    expect(run).toHaveBeenCalledTimes(1);
     expect(onSupersede).toHaveBeenCalledTimes(20);
     expect(scheduler.pending).toBe(true);
-    expect(run).toHaveBeenCalledTimes(1);
 
-    finishRender(30);
-    advance(0);
-    flushMicrotasks();
+    finishRenderAt(210);
     expect(run).toHaveBeenCalledTimes(2);
 
-    finishRender(30);
-    flushMicrotasks();
+    finishRenderAt(260);
+    advanceTo(1000);
     expect(run).toHaveBeenCalledTimes(2);
     expect(scheduler.pending).toBe(false);
   });
 
-  it('holds the next render for the cooldown during continuous input', () => {
-    const { scheduler, run, flushMicrotasks, finishRender, advance } = setup(2);
+  it('holds the next render for the cooldown while input keeps arriving', () => {
+    const { run, requestEvery, finishRenderAt } = setup(2);
 
-    scheduler.request();
-    flushMicrotasks();
-    finishRender(40);
-    // 80 ms cooldown; input arrives every 16 ms.
-    scheduler.request();
-    for (let step = 0; step < 4; step += 1) {
-      advance(16);
-      scheduler.request();
-    }
-    flushMicrotasks();
+    requestEvery(0, 32, 16);
+    // A 40 ms render leaves 80 ms free before the next one.
+    finishRenderAt(40);
+    requestEvery(48, 112, 16);
     expect(run).toHaveBeenCalledTimes(1);
 
-    advance(16);
+    requestEvery(128, 128, 16);
     expect(run).toHaveBeenCalledTimes(2);
   });
 
   it('renders the last state soon after input stops, without waiting out the cooldown', () => {
-    const { scheduler, run, flushMicrotasks, finishRender, advance } = setup(2);
+    const { run, requestEvery, finishRenderAt, advanceTo } = setup(2);
 
-    scheduler.request();
-    flushMicrotasks();
-    scheduler.request();
-    finishRender(200);
+    requestEvery(0, 96, 16);
+    // A 100 ms render: the cooldown would last until 300 ms.
+    finishRenderAt(100);
+    requestEvery(112, 144, 16);
+    expect(run).toHaveBeenCalledTimes(1);
 
-    // The pending request is 200 ms old, so input is already quiet.
-    flushMicrotasks();
+    // Input stopped at 144 ms; it counts as quiet after 34 ms.
+    advanceTo(177);
+    expect(run).toHaveBeenCalledTimes(1);
+    advanceTo(178);
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it('starts a request that follows a pause without a cooldown, even when it arrived during a render', () => {
+    const { scheduler, run, requestEvery, finishRenderAt, advanceTo } = setup(2);
+
+    requestEvery(0, 64, 16);
+    finishRenderAt(80);
+    advanceTo(1000);
     expect(run).toHaveBeenCalledTimes(2);
 
-    finishRender(200);
+    // The full-quality pass asks again 240 ms after the gesture's last input, while a render runs.
+    advanceTo(1100);
     scheduler.request();
-    advance(33);
-    expect(run).toHaveBeenCalledTimes(2);
-    advance(1);
+    requestEvery(1340, 1340, 1);
+    finishRenderAt(1400);
     expect(run).toHaveBeenCalledTimes(3);
   });
 
   it('caps the cooldown after a very slow render', () => {
-    const { scheduler, run, flushMicrotasks, finishRender, advance } = setup(2);
+    const { run, requestEvery, finishRenderAt } = setup(2);
 
-    scheduler.request();
-    flushMicrotasks();
-    finishRender(1000);
-    for (let elapsed = 0; elapsed < 250; elapsed += 10) {
-      scheduler.request();
-      advance(10);
-    }
+    requestEvery(0, 990, 10);
+    finishRenderAt(1000);
+    requestEvery(1010, 1240, 10);
+    expect(run).toHaveBeenCalledTimes(1);
+
+    requestEvery(1250, 1250, 10);
     expect(run).toHaveBeenCalledTimes(2);
   });
 
   it('does not cool down after a render that opts out', () => {
-    const { scheduler, run, flushMicrotasks, finishRender } = setup(2);
+    const { run, requestEvery, finishRenderAt } = setup(2);
 
-    scheduler.request();
-    flushMicrotasks();
-    finishRender(400, { cooldown: false });
-    scheduler.request();
-    flushMicrotasks();
+    requestEvery(0, 32, 16);
+    finishRenderAt(400, { cooldown: false });
 
     expect(run).toHaveBeenCalledTimes(2);
   });
 
   it('drops a scheduled start when cancelled', () => {
-    const { scheduler, run, flushMicrotasks, finishRender, advance } = setup(2);
+    const { scheduler, run, requestEvery, finishRenderAt, advanceTo } = setup(2);
 
-    scheduler.request();
-    flushMicrotasks();
-    finishRender(40);
-    scheduler.request();
+    requestEvery(0, 32, 16);
+    finishRenderAt(40);
+    requestEvery(48, 48, 16);
     scheduler.cancelScheduled();
-    advance(1000);
-    flushMicrotasks();
+    advanceTo(1000);
 
     expect(run).toHaveBeenCalledTimes(1);
     expect(scheduler.pending).toBe(false);
   });
 
   it('ignores a render that reports completion twice', () => {
-    const finishers: Array<() => void> = [];
+    const finishers: Done[] = [];
     const microtasks: Array<() => void> = [];
-    const run = vi.fn((done: () => void) => finishers.push(done));
+    const run = vi.fn((done: Done) => {
+      finishers.push(done);
+    });
     const scheduler = createPreviewRenderScheduler({
       run,
       cooldownRatio: 0,

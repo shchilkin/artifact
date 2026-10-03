@@ -36,6 +36,7 @@ test('slider input-to-preview latency and node-preview settle time are budgeted'
 
 test('latency is scaled to the baseline run, which is the reference machine', () => {
   assert.ok(contract.calibration.referenceMs > 0);
+  assert.ok(contract.calibration.dragFloorMs > 0);
   assert.equal(baseline.environment.calibrationMs, contract.calibration.referenceMs);
   assert.equal(baseline.environment.speed, 1);
 });

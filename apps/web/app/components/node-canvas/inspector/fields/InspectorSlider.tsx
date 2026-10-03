@@ -99,7 +99,7 @@ function SliderInputs({
   step: number;
   value: number;
 }) {
-  const { draftValue, onPointerDown, change } = useSliderGestureDraft(onChange);
+  const { draftValue, onPointerDown, change } = useSliderGestureDraft(sliderValue, onChange);
   return (
     <div className="node-slider-row">
       <input
@@ -149,16 +149,19 @@ function SliderInputs({
 /**
  * Gesture draft for a pointer drag on the range input: the thumb follows a local draft value, and each document
  * update is a transition, so React can drop intermediate states when the editor is busy. Pointer-up commits the
- * last value as a normal update. Keyboard and other discrete changes go straight to `onChange`.
+ * last value as a normal update unless the document already has it. Keyboard and other discrete changes go
+ * straight to `onChange`.
  */
-function useSliderGestureDraft(onChange: (value: number) => void) {
+function useSliderGestureDraft(committedValue: number, onChange: (value: number) => void) {
   const [draftValue, setDraftValue] = useState<number | null>(null);
   const gestureRef = useRef<{ last: number | null; end: () => void } | null>(null);
   const onChangeRef = useRef(onChange);
+  const committedValueRef = useRef(committedValue);
 
   useEffect(() => {
     onChangeRef.current = onChange;
-  }, [onChange]);
+    committedValueRef.current = committedValue;
+  }, [onChange, committedValue]);
 
   useEffect(() => () => gestureRef.current?.end(), []);
 
@@ -170,7 +173,7 @@ function useSliderGestureDraft(onChange: (value: number) => void) {
       window.removeEventListener('pointercancel', end);
       const gesture = gestureRef.current;
       gestureRef.current = null;
-      if (gesture?.last != null) onChangeRef.current(gesture.last);
+      if (gesture?.last != null && gesture.last !== committedValueRef.current) onChangeRef.current(gesture.last);
       setDraftValue(null);
     };
     gestureRef.current = { last: null, end };
