@@ -7,9 +7,9 @@
  *   pending render, which starts when the running one finishes. A continuous gesture therefore never has more than
  *   one render in flight and one waiting, however many inputs it delivers.
  * - After a render that asks for a cooldown, the next one waits until the main thread has been free for
- *   `cooldownRatio` times that render's duration (at most `maxCooldownMs`), so input keeps flowing while renders are
- *   expensive. The wait ends early once requests stop for twice their recent interval (at least `quietMs`): when a
- *   gesture ends, its last state renders at once. A request more than `freshGapMs` after the previous one starts a
+ *   `cooldownRatio` times that render's duration (at most 250 ms), so input keeps flowing while renders are
+ *   expensive. The wait ends early once requests stop for twice their recent interval (at least two frames): when a
+ *   gesture ends, its last state renders at once. A request more than 120 ms after the previous one starts a
  *   new burst without a cooldown, such as an edit after a pause or the full-quality pass that follows a gesture.
  */
 export interface PreviewRenderSchedulerOptions {
@@ -22,11 +22,6 @@ export interface PreviewRenderSchedulerOptions {
   onSupersede?: () => void;
   /** Free time left between consecutive renders, as a multiple of the previous render's duration. */
   cooldownRatio?: number;
-  maxCooldownMs?: number;
-  /** Shortest gap between requests that counts as the end of continuous input. */
-  quietMs?: number;
-  /** A request this long after the previous one starts a new burst, without a cooldown. */
-  freshGapMs?: number;
   now?: () => number;
   setTimer?: (callback: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
@@ -42,17 +37,17 @@ export interface PreviewRenderScheduler {
 }
 
 export const DEFAULT_PREVIEW_COOLDOWN_RATIO = 2;
-const DEFAULT_MAX_COOLDOWN_MS = 250;
-const DEFAULT_QUIET_MS = 34;
-const DEFAULT_FRESH_GAP_MS = 120;
+/** Longest cooldown after one render. */
+const MAX_COOLDOWN_MS = 250;
+/** Shortest gap between requests that counts as the end of continuous input. */
+const QUIET_MS = 34;
+/** A request this long after the previous one starts a new burst, without a cooldown. */
+const FRESH_GAP_MS = 120;
 
 export function createPreviewRenderScheduler({
   run,
   onSupersede,
   cooldownRatio = DEFAULT_PREVIEW_COOLDOWN_RATIO,
-  maxCooldownMs = DEFAULT_MAX_COOLDOWN_MS,
-  quietMs = DEFAULT_QUIET_MS,
-  freshGapMs = DEFAULT_FRESH_GAP_MS,
   now = () => performance.now(),
   setTimer = (callback, ms) => setTimeout(callback, ms),
   clearTimer = (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
@@ -89,7 +84,7 @@ export function createPreviewRenderScheduler({
     const endedAt = now();
     cooldownUntil =
       cooldown && !freshBurst
-        ? endedAt + Math.min(maxCooldownMs, Math.max(0, endedAt - startedAt) * cooldownRatio)
+        ? endedAt + Math.min(MAX_COOLDOWN_MS, Math.max(0, endedAt - startedAt) * cooldownRatio)
         : Number.NEGATIVE_INFINITY;
     if (!pending) return;
     pending = false;
@@ -127,13 +122,13 @@ export function createPreviewRenderScheduler({
   }
 
   function quietGapMs() {
-    return Math.max(quietMs, requestIntervalMs * 2);
+    return Math.max(QUIET_MS, requestIntervalMs * 2);
   }
 
   function request() {
     const requestedAt = now();
     const interval = requestedAt - lastRequestAt;
-    if (interval > Math.max(freshGapMs, quietGapMs())) {
+    if (interval > Math.max(FRESH_GAP_MS, quietGapMs())) {
       // Input had gone quiet: this request starts a new burst, and its render does not wait for a cooldown.
       requestIntervalMs = 0;
       cooldownUntil = Number.NEGATIVE_INFINITY;

@@ -8,26 +8,13 @@ import type {
   PrimitiveViewportStateConfig,
 } from '../../../types/config';
 import { logThumbnailInvalidation } from '../../../utils/devLogging';
-import { createGraphNodeRenderCache } from '../../../utils/graphNodeRenderCache';
+import { createGraphNodeRenderCache, GRAPH_NODE_RENDER_CACHE_LIMIT } from '../../../utils/graphNodeRenderCache';
 import { imageCacheSignature } from '../../../utils/imageCacheSignature';
 import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { measurePerformancePhase, measurePerformancePhaseSync } from '../../../utils/performanceMeasure';
 import { preloadImageSources } from '../../../utils/preloadImageSources';
 import { renderGraphTarget } from '../../../utils/renderer';
-import {
-  colorNodeRenderSig,
-  edgeRenderSig,
-  environmentNodeRenderSig,
-  grimeShadowNodeRenderSig,
-  layerRenderSig,
-  maskNodeRenderSig,
-  materialNodeRenderSig,
-  mergeNodeRenderSig,
-  repeatNodeRenderSig,
-  scene3DNodeRenderSig,
-  shaderNodeRenderSig,
-  transformNodeRenderSig,
-} from '../../../utils/renderSignature';
+import { edgeRenderSig, graphNodeRenderSigs, layerRenderSig, viewStateRenderSig } from '../../../utils/renderSignature';
 import { useNodeCanvasPreview } from '../context';
 import { getNodePreviewSize, NODE_PREVIEW_PASSIVE_RENDER_SCALE, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
 import {
@@ -41,7 +28,6 @@ import {
 const THUMBNAIL_CACHE_LIMIT = 48;
 // Passive previews on screen wait for a short pause in editing; previews just outside it wait longer.
 const VISIBLE_THUMB_DEBOUNCE_MS = 32;
-const GRAPH_RENDER_CHAIN_CACHE_LIMIT = 192;
 const thumbnailResultCache = new Map<string, HTMLCanvasElement>();
 const thumbnailInflightCache = new Map<string, Promise<HTMLCanvasElement>>();
 const thumbnailGraphRenderChainCache = new Map<string, Promise<HTMLCanvasElement>>();
@@ -83,14 +69,7 @@ function primitiveViewSignature(
     ...layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id),
     ...(graph.scene3dNodes ?? []).map((node) => node.id),
   ];
-  return ids
-    .map((id) => {
-      const view = primitiveViewStates[id];
-      return view
-        ? `${id}:${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}`
-        : `${id}:default`;
-    })
-    .join('|');
+  return ids.map((id) => `${id}:${viewStateRenderSig(primitiveViewStates[id])}`).join('|');
 }
 
 function layerSignatures(layers: Layer[]) {
@@ -102,23 +81,20 @@ function layerSignatures(layers: Layer[]) {
 }
 
 function graphSignatureParts(graph: CanvasGraph) {
+  const nodes = graphNodeRenderSigs(graph);
   return {
-    mergeSignatures: renderSignatures(graph.mergeNodes, mergeNodeRenderSig),
-    colorSignatures: renderSignatures(graph.colorNodes, colorNodeRenderSig),
-    repeatSignatures: renderSignatures(graph.repeatNodes, repeatNodeRenderSig),
-    materialSignatures: renderSignatures(graph.materialNodes, materialNodeRenderSig),
-    maskSignatures: renderSignatures(graph.maskNodes, maskNodeRenderSig),
-    transformSignatures: renderSignatures(graph.transformNodes, transformNodeRenderSig),
-    grimeShadowSignatures: renderSignatures(graph.grimeShadowNodes, grimeShadowNodeRenderSig),
-    scene3DSignatures: renderSignatures(graph.scene3dNodes, scene3DNodeRenderSig),
-    environmentSignatures: renderSignatures(graph.environmentNodes, environmentNodeRenderSig),
-    shaderSignatures: renderSignatures(graph.shaderNodes, shaderNodeRenderSig),
-    edgeSignatures: renderSignatures(graph.edges, edgeRenderSig),
+    mergeSignatures: nodes.merge,
+    colorSignatures: nodes.color,
+    repeatSignatures: nodes.repeat,
+    materialSignatures: nodes.material,
+    maskSignatures: nodes.mask,
+    transformSignatures: nodes.transform,
+    grimeShadowSignatures: nodes.grimeShadow,
+    scene3DSignatures: nodes.scene3d,
+    environmentSignatures: nodes.environment,
+    shaderSignatures: nodes.shader,
+    edgeSignatures: graph.edges.map((edge) => ({ id: edge.id, sig: edgeRenderSig(edge) })),
   };
-}
-
-function renderSignatures<T extends { id: string }>(items: T[] | undefined, signature: (item: T) => string) {
-  return (items ?? []).map((item) => ({ id: item.id, sig: signature(item) }));
 }
 
 function collectThumbnailSignatureParts(previewTargetId: string, renderDoc: CanvasDocument, renderGraph: CanvasGraph) {
@@ -255,7 +231,7 @@ function createThumbnailRenderPromise(
       height: snapshot.previewSize.render.height,
       effectResolution: snapshot.previewSize.aspect,
       primitiveViewStates: snapshot.primitiveViewStates,
-      limit: GRAPH_RENDER_CHAIN_CACHE_LIMIT,
+      limit: GRAPH_NODE_RENDER_CACHE_LIMIT,
     },
   );
 

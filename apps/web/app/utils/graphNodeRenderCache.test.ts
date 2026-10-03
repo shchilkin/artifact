@@ -10,6 +10,7 @@ import {
 } from '../types/config';
 import { createGraphNodeRenderCache } from './graphNodeRenderCache';
 import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
+import { markRenderAssetFallback } from './renderAssetEpoch';
 
 const SIZE = { width: 280, height: 280 };
 
@@ -86,5 +87,13 @@ describe('createGraphNodeRenderCache', () => {
     const second = keysFor(doc).key('missing-node');
 
     expect(first).not.toBe(second);
+  });
+
+  it('starts a new namespace after a render fell back for a missing asset', () => {
+    const doc = makeDoc([fill, grain]);
+    const before = keysFor(doc).cache.namespace;
+    markRenderAssetFallback();
+
+    expect(keysFor(doc).cache.namespace).not.toBe(before);
   });
 });

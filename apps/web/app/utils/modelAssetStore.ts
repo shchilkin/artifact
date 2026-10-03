@@ -1,6 +1,7 @@
 import type { CanvasDocument, ModelLayer, PortableModelAsset } from '../types/config';
 import { mapDocumentModelSources } from './documentSourceMapping';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
+import { markRenderAssetFallback } from './renderAssetEpoch';
 import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
 const DB_NAME = 'artifact-local-model-assets';
@@ -94,7 +95,9 @@ async function loadModelAsset(src: string): Promise<StoredModelAsset | null> {
 
 export async function resolveModelSource(src: string): Promise<string | null> {
   if (!isModelUri(src)) return src;
-  return (await loadModelAsset(src))?.dataUrl ?? null;
+  const resolved = (await loadModelAsset(src))?.dataUrl ?? null;
+  if (!resolved) markRenderAssetFallback();
+  return resolved;
 }
 
 export interface StoreDocumentModelAssetOptions {

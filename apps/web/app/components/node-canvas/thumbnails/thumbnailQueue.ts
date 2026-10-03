@@ -19,12 +19,13 @@ export interface ThumbnailQueueSnapshot {
   averageDurationMs: number;
 }
 
-/** Selected and output previews first, then previews in the viewport, then previews near it. */
-type ThumbnailRank = 0 | 1 | 2;
+/** Drain order: selected and output previews, then previews in the viewport, then previews only near it. */
+const ThumbnailTier = { Nearby: 0, Visible: 1, Active: 2 } as const;
+type ThumbnailTier = (typeof ThumbnailTier)[keyof typeof ThumbnailTier];
 
 interface QueuedThumbnailRender {
   task: ThumbnailRenderTask;
-  rank: ThumbnailRank;
+  tier: ThumbnailTier;
   order: number;
 }
 
@@ -79,9 +80,10 @@ function emitThumbnailQueueChange() {
   thumbnailQueueListeners.forEach((listener) => listener());
 }
 
-function queueHasUrgentWork() {
+/** Whether queued work should drain on the next task rather than wait for an idle slot. */
+function queueHasEagerWork() {
   for (const queued of thumbnailRenderQueue.values()) {
-    if (queued.rank > 0) return true;
+    if (queued.tier !== ThumbnailTier.Nearby) return true;
   }
   return false;
 }
@@ -90,7 +92,7 @@ function pickNextTask() {
   let next: [string, QueuedThumbnailRender] | undefined;
   for (const entry of thumbnailRenderQueue.entries()) {
     const [, queued] = entry;
-    if (!next || queued.rank > next[1].rank || (queued.rank === next[1].rank && queued.order < next[1].order)) {
+    if (!next || queued.tier > next[1].tier || (queued.tier === next[1].tier && queued.order < next[1].order)) {
       next = entry;
     }
   }
@@ -105,15 +107,15 @@ function requestIdleDrain(callback: () => void) {
   setTimeout(callback, 48);
 }
 
-function scheduleThumbnailQueueDrain(urgent = false) {
+function scheduleThumbnailQueueDrain(eager = false) {
   if (thumbnailRenderActive || thumbnailRenderQueue.size === 0) return;
-  if (thumbnailDrainScheduled && !urgent) return;
+  if (thumbnailDrainScheduled && !eager) return;
   thumbnailDrainScheduled = true;
   const run = () => {
     thumbnailDrainScheduled = false;
     drainThumbnailRenderQueue();
   };
-  if (urgent) {
+  if (eager) {
     setTimeout(run, 0);
     return;
   }
@@ -139,13 +141,13 @@ function drainThumbnailRenderQueue() {
       thumbnailRenderActive = false;
       thumbnailActiveTaskKey = null;
       emitThumbnailQueueChange();
-      scheduleThumbnailQueueDrain(queueHasUrgentWork());
+      scheduleThumbnailQueueDrain(queueHasEagerWork());
     });
 }
 
 /**
  * Queues a thumbnail render; a newer task for the same key replaces the queued one. `priority` marks the selected or
- * output preview and `visible` a preview inside the viewport: both drain on the next task, highest rank first.
+ * output preview and `visible` a preview inside the viewport: both drain on the next task, highest tier first.
  * Other previews wait for an idle slot.
  */
 export function scheduleThumbnailRender(
@@ -155,15 +157,19 @@ export function scheduleThumbnailRender(
 ) {
   const existing = thumbnailRenderQueue.get(taskKey);
   if (!existing) thumbnailTotalScheduled += 1;
-  const requestedRank: ThumbnailRank = options.priority ? 2 : options.visible ? 1 : 0;
-  const rank: ThumbnailRank = existing && existing.rank > requestedRank ? existing.rank : requestedRank;
+  const requestedTier: ThumbnailTier = options.priority
+    ? ThumbnailTier.Active
+    : options.visible
+      ? ThumbnailTier.Visible
+      : ThumbnailTier.Nearby;
+  const tier = existing && existing.tier > requestedTier ? existing.tier : requestedTier;
   thumbnailRenderQueue.set(taskKey, {
     task,
-    rank,
+    tier,
     order: existing?.order ?? thumbnailRenderOrder++,
   });
   emitThumbnailQueueChange();
-  scheduleThumbnailQueueDrain(rank > 0);
+  scheduleThumbnailQueueDrain(tier !== ThumbnailTier.Nearby);
 }
 
 async function measureThumbnailTask(taskKey: string, task: ThumbnailRenderTask) {
