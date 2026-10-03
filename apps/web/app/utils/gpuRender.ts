@@ -157,6 +157,10 @@ interface StagePixels {
 }
 
 const SYNC_POLL_TIMEOUT_MS = 2000;
+/** Fence polls back to back for this long, which is all a hardware GPU usually needs. */
+const FENCE_SPIN_MS = 2;
+/** Interval between fence polls after that, while a slow GPU (such as software WebGL) is still working. */
+const FENCE_BACKOFF_MS = 1;
 
 let pollChannel: MessageChannel | null = null;
 const pollWaiters: Array<() => void> = [];
@@ -178,15 +182,28 @@ function nextTask() {
   });
 }
 
-/** Resolves once the GPU has executed every command issued before the fence, without blocking the main thread. */
+/**
+ * Resolves after about `ms` with the main thread idle in between. The timer is set from a message-channel task, so
+ * nested waits are not clamped to 4 ms.
+ */
+function idleWait(ms: number) {
+  return nextTask().then(() => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+}
+
+/**
+ * Resolves once the GPU has executed every command issued before the fence, without blocking the main thread.
+ * Polling on back-to-back tasks keeps the main thread busy for as long as the GPU works, so after a short spin the
+ * polls are spaced out and the main thread stays free for input.
+ */
 async function waitForFence(gl: WebGL2RenderingContext, sync: WebGLSync) {
   gl.flush();
   const startedAt = now();
   while (true) {
     const status = gl.clientWaitSync(sync, 0, 0);
     if (status === gl.ALREADY_SIGNALED || status === gl.CONDITION_SATISFIED) return true;
-    if (status === gl.WAIT_FAILED || now() - startedAt > SYNC_POLL_TIMEOUT_MS) return false;
-    await nextTask();
+    const elapsed = now() - startedAt;
+    if (status === gl.WAIT_FAILED || elapsed > SYNC_POLL_TIMEOUT_MS) return false;
+    await (elapsed < FENCE_SPIN_MS ? nextTask() : idleWait(FENCE_BACKOFF_MS));
   }
 }
 
