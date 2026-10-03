@@ -1067,7 +1067,12 @@ async function renderGraphNode(
   const sizedNodeCacheKey = W === rootSize.width && H === rootSize.height ? nodeCacheKey : `${nodeCacheKey}@${W}x${H}`;
   const cacheKey = cacheNamespace ? `${cacheNamespace}:${sizedNodeCacheKey}` : sizedNodeCacheKey;
   const cached = cache.get(cacheKey);
-  if (cached) return cached.then((canvas) => normalizeRenderedCanvas(canvas, W, H));
+  if (cached) {
+    // Least recently used goes first: a hit moves the entry to the end of the pruning order.
+    cache.delete(cacheKey);
+    cache.set(cacheKey, cached);
+    return cached.then((canvas) => normalizeRenderedCanvas(canvas, W, H));
+  }
   const renderDependency = (dependencyId: string, size?: { width: number; height: number }) =>
     renderGraphNode(
       doc,

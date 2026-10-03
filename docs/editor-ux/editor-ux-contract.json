@@ -15,7 +15,8 @@
   "documents": ["default", "effect-stack"],
   "calibration": {
     "referenceMs": 118.6,
-    "$comment": "Duration of the fixed Canvas 2D calibration workload on the v0.49.0 baseline run (GitHub-hosted ubuntu-latest, 4 CPUs). Latency metrics are scaled by referenceMs / measured calibration before they are checked, so budgets are in reference-machine milliseconds."
+    "dragFloorMs": 340,
+    "$comment": "referenceMs: duration of the fixed Canvas 2D calibration workload on the v0.49.0 baseline run (GitHub-hosted ubuntu-latest, 4 CPUs). Latency metrics are scaled by referenceMs / measured calibration before they are checked, so budgets are in reference-machine milliseconds. dragFloorMs: the 20-step drag loop with nothing on the main thread, one step per 60 Hz frame. slider-drag/durationMs is reported as dragFloorMs plus the scaled time above the floor measured on the same machine, because the floor follows frame pacing (665.7 ms on the CI runner, 333 ms on macOS) rather than CPU speed."
   },
   "budgets": [
     {
@@ -75,10 +76,11 @@
       "subjects": ["slider-keypress"]
     },
     {
-      "metric": "durationMs",
-      "max": 500,
+      "metric": "mainThreadMs",
+      "max": 160,
       "unit": "ms",
       "deterministic": false,
+      "since": "#308",
       "viewports": ["desktop"],
       "subjects": ["slider-drag"]
     },
@@ -107,6 +109,56 @@
       "subjects": ["node-preview"]
     }
   ],
+  "fixed": [
+    {
+      "key": "desktop/*/select-layer/frameMovePx",
+      "owner": "#307",
+      "baseline": "340 px",
+      "reason": "The inspector column is always reserved, so selecting a layer no longer moves the preview or narrows the command bar."
+    },
+    {
+      "key": "desktop/*/switch-to-nodes/layoutShift",
+      "owner": "#307",
+      "baseline": "0.172",
+      "reason": "Layers and Nodes share one full-width command-bar row, and main remounts per mode."
+    },
+    {
+      "key": "desktop/*/switch-to-nodes/frameMovePx",
+      "owner": "#307",
+      "baseline": "279.8 px",
+      "reason": "Layers and Nodes share one full-width command-bar row."
+    },
+    {
+      "key": "desktop/*/switch-to-layers/layoutShift",
+      "owner": "#307",
+      "baseline": "0.534",
+      "reason": "Layers and Nodes share one full-width command-bar row, and main remounts per mode."
+    },
+    {
+      "key": "desktop/*/switch-to-layers/frameMovePx",
+      "owner": "#307",
+      "baseline": "279.8 px",
+      "reason": "Layers and Nodes share one full-width command-bar row."
+    },
+    {
+      "key": "desktop/*/nodes-entry/nodesOutsideViewport",
+      "owner": "#307",
+      "baseline": "5 of 7 / 7 of 9",
+      "reason": "Nodes fits the whole graph on entry once React Flow has measured the nodes."
+    },
+    {
+      "key": "mobile/*/command-bar/obscuredCommands",
+      "owner": "#307",
+      "baseline": "1",
+      "reason": "The mobile Layers command bar lays out as two rows."
+    },
+    {
+      "key": "mobile/*/command-bar/overlappingCommands",
+      "owner": "#307",
+      "baseline": "2",
+      "reason": "The mobile Layers command bar lays out as two rows."
+    }
+  ],
   "exceptions": [
     {
       "key": "desktop/*/inspector/sliderWidthDeltaPx",
@@ -121,34 +173,28 @@
       "reason": "After visiting Nodes, the Layers inspector renders the same slider at 129 px instead of 357 px."
     },
     {
-      "key": "desktop/*/slider-keypress/inputToPreviewMs",
+      "key": "desktop/*/slider-drag/mainThreadMs",
+      "max": 480,
+      "owner": "#324",
+      "reason": "A 20-step drag keeps the main thread busy for about 300 ms: the editor re-renders on every pointer move and the preview renders every few steps."
+    },
+    {
+      "key": "desktop/default/slider-keypress/inputToPreviewMs",
+      "max": 130,
+      "owner": "#324",
+      "reason": "The preview render starts within 10 ms of the key, but one GPU effect pass takes about 50 ms on the CI runner, so the first paint lands at 65-86 ms."
+    },
+    {
+      "key": "desktop/effect-stack/slider-keypress/inputToPreviewMs",
       "max": 215,
-      "owner": "#308",
-      "reason": "One slider step takes 62 ms (default) and 122 ms (effect-stack) to reach the preview."
-    },
-    {
-      "key": "desktop/default/slider-drag/durationMs",
-      "max": 1900,
-      "owner": "#308",
-      "reason": "Each drag step blocks the main thread for about three frames: a 20-step drag takes 1095 ms instead of about 340 ms."
-    },
-    {
-      "key": "desktop/effect-stack/slider-drag/durationMs",
-      "max": 3400,
-      "owner": "#308",
-      "reason": "Each drag step blocks the main thread for about six frames: a 20-step drag takes 1938 ms instead of about 340 ms."
+      "owner": "#324",
+      "reason": "The render above the edited layer runs two GPU effect passes of about 50 ms each on the CI runner, so the first paint lands at 120-150 ms."
     },
     {
       "key": "desktop/*/node-preview/sliderSettleMs",
-      "max": 1300,
-      "owner": "#308",
-      "reason": "Node thumbnails downstream of an edited effect took 68 ms (default) and 177 ms (effect-stack) to settle at v0.49.0. Since #307 fits the graph on Nodes entry, every downstream thumbnail is on screen and re-renders: 307 ms and 724 ms on the reference runner."
-    },
-    {
-      "key": "desktop/effect-stack/node-preview/entrySettleMs",
-      "max": 2200,
-      "owner": "#308",
-      "reason": "Since #307 fits the graph on Nodes entry, all nine node thumbnails render on entry instead of the two that were on screen: 1245 ms on the reference runner (553 ms at v0.49.0)."
+      "max": 600,
+      "owner": "#324",
+      "reason": "#308 made a Nodes slider edit re-render only downstream thumbnails (20 / 22 ms with the old fixed zoom). Since #307 fits the graph on entry, every downstream thumbnail is visible and renders at full size: five in effect-stack."
     }
   ]
 }

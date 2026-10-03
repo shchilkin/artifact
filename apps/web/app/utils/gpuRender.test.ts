@@ -42,3 +42,33 @@ describe('gpuRenderToCanvas', () => {
     expect(Array.from(output.getContext('2d')!.getImageData(0, 0, 1, 1).data)).toEqual([255, 0, 0, 255]);
   });
 });
+
+describe('unpremultiplyAlpha', () => {
+  // Pixi's Extract._unpremultiplyAlpha, the reference the async readback must match byte for byte.
+  function pixiUnpremultiply(pixels: Uint8Array) {
+    for (let i = 0; i < pixels.length; i += 4) {
+      const alpha = pixels[i + 3];
+      if (alpha !== 0) {
+        const a = 255.001 / alpha;
+        pixels[i] = pixels[i] * a + 0.5;
+        pixels[i + 1] = pixels[i + 1] * a + 0.5;
+        pixels[i + 2] = pixels[i + 2] * a + 0.5;
+      }
+    }
+  }
+
+  it('matches Pixi for every premultiplied channel and alpha value', async () => {
+    const { unpremultiplyAlpha } = await import('./gpuRender');
+    const pixels: number[] = [];
+    for (let alpha = 0; alpha < 256; alpha += 1) {
+      for (let channel = 0; channel <= alpha; channel += 1) pixels.push(channel, alpha - channel, channel >> 1, alpha);
+    }
+    const ours = new Uint8Array(pixels);
+    const reference = new Uint8Array(pixels);
+
+    unpremultiplyAlpha(ours);
+    pixiUnpremultiply(reference);
+
+    expect(Array.from(ours)).toEqual(Array.from(reference));
+  });
+});

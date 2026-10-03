@@ -6,6 +6,7 @@ import {
   pickGoogleFontFace,
 } from './googleFonts';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
+import { markRenderAssetFallback } from './renderAssetEpoch';
 import { blobToBase64DataUrl, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
 const DB_NAME = 'artifact-local-fonts';
@@ -266,7 +267,10 @@ export function getCachedImportedFont(font: string): ImportedFontAsset | null {
 
 export async function ensureImportedFontLoaded(font: string): Promise<ImportedFontAsset | null> {
   const asset = await loadImportedFontAsset(font);
-  if (!asset) return null;
+  if (!asset) {
+    markRenderAssetFallback();
+    return null;
+  }
   if (loadedFontFaces.has(asset.id)) return asset;
   if (typeof FontFace === 'undefined' || typeof document === 'undefined' || !('fonts' in document)) return asset;
 
@@ -278,6 +282,7 @@ export async function ensureImportedFontLoaded(font: string): Promise<ImportedFo
   } catch {
     // Imported font rendering should degrade to the fallback stack instead of
     // blocking preview/export.
+    markRenderAssetFallback();
   }
   return asset;
 }

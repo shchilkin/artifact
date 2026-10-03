@@ -31,9 +31,11 @@ const DRAG_STEPS = 20;
 // the browser timestamps of slider input.
 function instrument() {
   const ux = {
+    since: 0,
     shifts: [],
     paints: [],
     thumbnails: [],
+    renders: [],
     inputs: [],
   };
   window.__editorUx = ux;
@@ -48,6 +50,10 @@ function instrument() {
   new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
       if (entry.name === 'artifact:thumbnail-render') ux.thumbnails.push(entry.startTime + entry.duration);
+      // Render phases, kept for the keypress trace in the measurement details.
+      if (/^artifact:(document-render|gpu-render|gpu-filter-extract|layer-render:)/.test(entry.name)) {
+        ux.renders.push([entry.name.replace('artifact:', ''), entry.startTime, entry.duration]);
+      }
     }
   }).observe({ type: 'measure' });
   const drawImage = CanvasRenderingContext2D.prototype.drawImage;
@@ -59,7 +65,9 @@ function instrument() {
   for (const type of ['keydown', 'pointermove', 'pointerdown']) {
     window.addEventListener(type, (event) => ux.inputs.push(event.timeStamp), { capture: true, passive: true });
   }
-  ux.lastActivity = () => Math.max(0, ux.paints.at(-1) ?? 0, ux.thumbnails.at(-1) ?? 0);
+  // Quiet is measured from the last reset at the earliest, so an interaction that has not produced its first paint or
+  // thumbnail yet does not count as idle.
+  ux.lastActivity = () => Math.max(ux.since, ux.paints.at(-1) ?? 0, ux.thumbnails.at(-1) ?? 0);
   ux.busy = () => Boolean(document.querySelector('.canvas-wrapper [aria-busy="true"]'));
 }
 
@@ -98,6 +106,44 @@ function calibrationWorkload() {
     context.putImageData(image, 0, 0);
   }
   return performance.now() - startedAt;
+}
+
+/** Main-thread task time of the page so far (Chromium's TaskDuration metric), in milliseconds. */
+async function mainThreadTaskMs(cdp) {
+  const { metrics } = await cdp.send('Performance.getMetrics');
+  return (metrics.find((metric) => metric.name === 'TaskDuration')?.value ?? 0) * 1000;
+}
+
+/**
+ * The slider-drag loop against a bare range input in a blank page: the time the harness itself needs to deliver 20
+ * steps, one per animation frame, with nothing else on the main thread. It depends on the platform's frame pacing,
+ * not on CPU speed.
+ */
+async function measureDragFloor(browser) {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await page.setContent('<input type="range" min="0" max="100" value="20" style="width: 600px; margin: 100px">');
+  const box = await page.locator('input').boundingBox();
+  const y = box.y + box.height / 2;
+  const startX = box.x + box.width * 0.2;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Performance.enable');
+  const durations = [];
+  const taskTimes = [];
+  for (let run = 0; run < 6; run += 1) {
+    await page.mouse.move(startX, y);
+    await page.mouse.down();
+    const taskBefore = await mainThreadTaskMs(cdp);
+    const startedAt = await page.evaluate(() => performance.now());
+    for (let step = 1; step <= DRAG_STEPS; step += 1) {
+      await page.mouse.move(startX + step * 3, y);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+    }
+    durations.push((await page.evaluate(() => performance.now())) - startedAt);
+    taskTimes.push((await mainThreadTaskMs(cdp)) - taskBefore);
+    await page.mouse.up();
+  }
+  await page.close();
+  return { durationMs: median(durations.slice(1)), mainThreadMs: median(taskTimes.slice(1)) };
 }
 
 /** Median duration of the calibration workload on this machine, after a warm-up run. */
@@ -283,8 +329,10 @@ async function measureLayout(browser, origin, viewport, reference) {
 const resetTimeline = (page) =>
   page.evaluate(() => {
     const ux = window.__editorUx;
+    ux.since = performance.now();
     ux.paints.length = 0;
     ux.thumbnails.length = 0;
+    ux.renders.length = 0;
     ux.inputs.length = 0;
   });
 
@@ -293,7 +341,16 @@ async function measureKeypress(page, slider) {
   await resetTimeline(page);
   await slider.press('ArrowRight');
   await page.waitForFunction(() => window.__editorUx.paints.length > 0, null, { timeout: 10_000 });
-  return page.evaluate(() => window.__editorUx.paints[0] - window.__editorUx.inputs[0]);
+  return page.evaluate(() => {
+    const ux = window.__editorUx;
+    const [input] = ux.inputs;
+    const [paint] = ux.paints;
+    // Render phases that started before the first paint, as `name@start+duration` relative to the input.
+    const trace = ux.renders
+      .filter(([, start]) => start < paint)
+      .map(([name, start, duration]) => `${name}@${Math.round(start - input)}+${Math.round(duration)}`);
+    return { inputToPreviewMs: paint - input, trace };
+  });
 }
 
 async function measureDrag(page, slider) {
@@ -305,13 +362,17 @@ async function measureDrag(page, slider) {
   const stepPx = Math.min(3, (box.x + box.width - 4 - startX) / DRAG_STEPS);
   await page.mouse.move(startX, y);
   await resetTimeline(page);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Performance.enable');
   await page.mouse.down();
+  const taskBefore = await mainThreadTaskMs(cdp);
   const startedAt = await page.evaluate(() => performance.now());
   for (let step = 1; step <= DRAG_STEPS; step += 1) {
     await page.mouse.move(startX + stepPx * step, y);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
   }
   const endedAt = await page.evaluate(() => performance.now());
+  const mainThreadMs = (await mainThreadTaskMs(cdp)) - taskBefore;
   await page.mouse.up();
   // A full second of quiet, so the full-quality pass that follows the draft frames is part of the settle time.
   await waitForIdle(page, 1_000);
@@ -321,6 +382,7 @@ async function measureDrag(page, slider) {
   }));
   const lastInput = Math.max(...inputs.filter((time) => time <= endedAt));
   return {
+    mainThreadMs,
     durationMs: endedAt - startedAt,
     settleMs: paints.length ? Math.max(...paints) - lastInput : null,
     paintsDuringDrag: paints.filter((time) => time <= endedAt).length,
@@ -332,6 +394,7 @@ async function measureNodeEntry(page) {
   await resetTimeline(page);
   const startedAt = await page.evaluate(() => performance.now());
   await switchToNodes(page);
+  await page.waitForFunction(() => window.__editorUx.thumbnails.length > 0, null, { timeout: 10_000 });
   await waitForIdle(page, 800);
   const thumbnails = await page.evaluate(() => window.__editorUx.thumbnails);
   return thumbnails.length ? Math.max(...thumbnails) - startedAt : null;
@@ -351,26 +414,29 @@ async function measureNodeSlider(page) {
 /** Latency pass: desktop only, one fresh page per sample; the reported value is the median. */
 async function measureLatency(browser, origin, viewport, reference) {
   const runs = [];
+  const keypressTraces = [];
   for (let sample = 0; sample < samples; sample += 1) {
     const { context, page } = await openEditor(browser, origin, viewport, reference);
     await layerName(page, reference.sliderLayerId).click();
     const slider = page.locator('.layer-inspector-drawer input[type="range"]').first();
     await slider.waitFor({ timeout: 10_000 });
     await slider.focus();
-    const inputToPreviewMs = await measureKeypress(page, slider);
+    const { inputToPreviewMs, trace: keypressTrace } = await measureKeypress(page, slider);
     const drag = await measureDrag(page, slider);
     const nodeEntrySettleMs = await measureNodeEntry(page);
     const nodeSliderSettleMs = await measureNodeSlider(page);
     runs.push({ inputToPreviewMs, ...drag, nodeEntrySettleMs, nodeSliderSettleMs });
+    keypressTraces.push(keypressTrace);
     await context.close();
   }
   const pick = (key) => runs.map((run) => run[key]);
   const medianOf = (key) => (pick(key).includes(null) ? null : round(median(pick(key))));
   return {
     samples,
-    'slider-keypress': { inputToPreviewMs: medianOf('inputToPreviewMs') },
+    'slider-keypress': { inputToPreviewMs: medianOf('inputToPreviewMs'), traces: keypressTraces },
     'slider-drag': {
       steps: DRAG_STEPS,
+      mainThreadMs: medianOf('mainThreadMs'),
       durationMs: medianOf('durationMs'),
       settleMs: medianOf('settleMs'),
       paintsDuringDrag: median(pick('paintsDuringDrag')),
@@ -390,6 +456,12 @@ async function measureLatency(browser, origin, viewport, reference) {
 function flatten(results, speed) {
   const metrics = {};
   const reference = (value) => (value === null ? null : round(value * speed));
+  // The drag loop cannot run faster than the platform's frame pacing (environment.dragFloorMs). Only the time above
+  // that floor depends on the app and the CPU, so only that part is scaled, on top of the reference floor.
+  const dragReference = (value) =>
+    value === null
+      ? null
+      : round(contract.calibration.dragFloorMs + Math.max(0, value - environment.dragFloorMs) * speed);
   for (const [viewport, documents] of Object.entries(results)) {
     for (const [document, result] of Object.entries(documents)) {
       const prefix = `${viewport}/${document}`;
@@ -405,7 +477,9 @@ function flatten(results, speed) {
       metrics[`${prefix}/slider-keypress/inputToPreviewMs`] = reference(
         result.latency['slider-keypress'].inputToPreviewMs,
       );
-      metrics[`${prefix}/slider-drag/durationMs`] = reference(result.latency['slider-drag'].durationMs);
+      metrics[`${prefix}/slider-drag/mainThreadMs`] = reference(result.latency['slider-drag'].mainThreadMs);
+      // Secondary, not budgeted: the drag loop's duration above the frame-paced floor.
+      metrics[`${prefix}/slider-drag/durationMs`] = dragReference(result.latency['slider-drag'].durationMs);
       metrics[`${prefix}/slider-drag/settleMs`] = reference(result.latency['slider-drag'].settleMs);
       metrics[`${prefix}/node-preview/entrySettleMs`] = reference(result.latency['node-preview'].entrySettleMs);
       metrics[`${prefix}/node-preview/sliderSettleMs`] = reference(result.latency['node-preview'].sliderSettleMs);
@@ -419,6 +493,9 @@ async function measure(origin) {
   const browser = await chromium.launch();
   environment.chromium = browser.version();
   const calibrations = [await calibrate(browser)];
+  const floor = await measureDragFloor(browser);
+  environment.dragFloorMs = round(floor.durationMs);
+  environment.dragMainThreadFloorMs = round(floor.mainThreadMs);
   const results = {};
   for (const viewport of VIEWPORTS) {
     results[viewport.name] = {};
