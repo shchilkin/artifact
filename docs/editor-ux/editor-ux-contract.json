@@ -115,6 +115,12 @@
       "owner": "#308",
       "baseline": "68.3 / 177.3 ms",
       "reason": "Node thumbnails reuse unchanged upstream branches through a content-addressed graph cache, and the selected and output previews queue without a debounce."
+    },
+    {
+      "key": "desktop/*/slider-keypress/inputToPreviewMs",
+      "owner": "#324",
+      "baseline": "62.4 / 121.8 ms",
+      "reason": "On a GPU where one effect pass at the draft size would exceed 12 ms (software WebGL), the interactive preview frame renders at 3/4 or 1/2 of the draft size and merges an effect layer's GPU filters into the next GPU pass; the full-quality pass that replaces it is unchanged."
     }
   ],
   "exceptions": [
@@ -183,24 +189,6 @@
       "max": 228,
       "owner": "#309",
       "reason": "After visiting Nodes, the Layers inspector renders the same slider at 129 px instead of 357 px."
-    },
-    {
-      "key": "desktop/*/slider-drag/mainThreadMs",
-      "max": 480,
-      "owner": "#324",
-      "reason": "A 20-step drag keeps the main thread busy for about 300 ms: the editor re-renders on every pointer move and the preview renders every few steps."
-    },
-    {
-      "key": "desktop/default/slider-keypress/inputToPreviewMs",
-      "max": 130,
-      "owner": "#324",
-      "reason": "The preview render starts within 10 ms of the key, but one GPU effect pass takes about 50 ms on the CI runner, so the first paint lands at 65-86 ms."
-    },
-    {
-      "key": "desktop/effect-stack/slider-keypress/inputToPreviewMs",
-      "max": 215,
-      "owner": "#324",
-      "reason": "The render above the edited layer runs two GPU effect passes of about 50 ms each on the CI runner, so the first paint lands at 120-150 ms."
     }
   ]
 }

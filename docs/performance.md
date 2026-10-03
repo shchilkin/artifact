@@ -186,6 +186,33 @@ Recent manual profiling notes:
     queue with no debounce, previews in the viewport after a 32 ms pause and
     ahead of previews that are only near the viewport (120 ms and an idle
     slot).
+- v0.50 (#324) brought a slider keypress and a 20-step slider drag within their
+  budgets on the CI runner, where WebGL is software-rendered. One GPU effect pass
+  there costs about 34 ms at 540 px even with no filters (canvas upload, blit,
+  and readback), against 1-3 ms on a hardware GPU. Preview, thumbnail, and
+  export output did not change.
+  - The readback fence polls back to back for 2 ms, then every 1 ms on timers.
+    Back-to-back polling had kept the main thread busy for the whole GPU pass.
+  - The editor commits once per edit instead of three times. Autosave status
+    only changes when its outcome changes, and the storage summary follows the
+    document after an edit settles. Only the edited layer row re-renders.
+  - Inspector sliders show every value at once and update the document at most
+    every 66 ms during a drag; a change after a pause, and the value on release,
+    go through at once.
+  - Grain textures are cached by seed, size, and amount.
+  - The interactive preview frame is sized to the GPU: 3/4 or 1/2 of the draft
+    size when a pass at the draft size would exceed 12 ms (see
+    [`rendering.md`](./rendering.md)). It merges an effect layer's GPU filters
+    into the next GPU-only pass. When its size changes, one unpainted render in
+    idle time fills the layer prefix cache at the new size.
+  - The display canvas takes each frame's own size. Upscaling a small frame into
+    the 1080 px canvas cost a full-resolution raster per paint.
+  - Interactive renders within one burst of input start at least 66 ms apart
+    (about 15 preview frames per second during a drag). A first edit, and the
+    last state after input stops, still render at once. While a frame is
+    showing, only a full-quality pass marks the preview busy.
+  - Keypress traces, before and after, are in
+    [`editor-ux/editor-ux-baseline.md`](./editor-ux/editor-ux-baseline.md).
 - Node thumbnails share a graph render cache for upstream branches (keyed by
   content since v0.50, see [`rendering.md`](./rendering.md)). When several
   visible thumbnails depend on the same upstream source/effect chain, the

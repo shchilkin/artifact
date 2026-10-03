@@ -142,23 +142,10 @@ needed, so a fixed behavior cannot keep a stale allowance.
 | `mobile/*/command-bar/overlappingCommands` | 2 | 2 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/inspector/sliderWidthDeltaPx` | 39.5 px | 39.5 | [#309](https://github.com/shchilkin/artifact/issues/309) |
 | `mobile/*/inspector/sliderWidthDeltaPx` | 228 px | 228 | [#309](https://github.com/shchilkin/artifact/issues/309) |
-| `desktop/default/slider-keypress/inputToPreviewMs` | 62.4 ms | 130 | [#324](https://github.com/shchilkin/artifact/issues/324) |
-| `desktop/effect-stack/slider-keypress/inputToPreviewMs` | 121.8 ms | 215 | [#324](https://github.com/shchilkin/artifact/issues/324) |
-| `desktop/*/slider-drag/mainThreadMs` | not measured | 480 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 
 Layout ceilings equal the measured value. The command bar is a few pixels
 narrower with the CI fonts (279.8 px) than on macOS (288.4 px), so the two
-mode-switch `frameMovePx` ceilings are 290. Latency ceilings are about 1.75 times
-the baseline value to absorb what the speed scale does not: a slower runner of
-the same class (calibration 142.8 ms) still reported scaled values 24-28% above
-the baseline.
-
-Keypress latency is bounded by the render itself: after #308 the preview render
-starts within 10 ms of the key, but each GPU effect pass takes about 50 ms on
-the CI runner (software WebGL), and the render above the edited layer runs one
-pass in `default` and two in `effect-stack`. Meeting the 50 ms budget there
-needs a cheaper render, which
-[#324](https://github.com/shchilkin/artifact/issues/324) owns.
+mode-switch `frameMovePx` ceilings are 290.
 
 `slider-drag/mainThreadMs` replaced the budgeted `slider-drag/durationMs` in
 #308. On the CI runner the drag loop cannot run faster than two frames per step
@@ -177,6 +164,7 @@ baseline value they replaced. The v0.49.0 baseline still exceeds their budgets;
 | Metric | v0.49.0 | Fixed by |
 | --- | --- | --- |
 | `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/*/slider-keypress/inputToPreviewMs` | 62.4 / 121.8 ms | [#324](https://github.com/shchilkin/artifact/issues/324) |
 
 Selecting a layer already meets the layout-shift budget (0.035) because the
 shift score weighs the moved area, but it moves the preview 170 px and narrows
@@ -237,6 +225,36 @@ With superseded interactive passes dropped instead of painted (run
 speed 0.997), main-thread time was 302.2 / 313.2 ms but the drag painted 0 / 0-1
 preview frames, so the preview keeps painting them (see
 [`../performance.md`](../performance.md)).
+
+## After #324
+
+CI run [37135908817](https://github.com/shchilkin/artifact/actions/runs/37135908817)
+(matrix job 1, calibration 118.2 ms, speed 1.003, drag floor 665.5 ms,
+blank-page drag main-thread time 13.7 ms), reference-machine milliseconds,
+median of three samples:
+
+| Metric | `default` | `effect-stack` | Budget |
+| --- | ---: | ---: | ---: |
+| `slider-keypress/inputToPreviewMs` | 31.3 | 35.1 | 50 |
+| `slider-drag/mainThreadMs` | 125.9 | 126.7 | 160 |
+| `slider-drag/settleMs` | 415.6 | 541.1 | 700 |
+
+Across the four runners of that run (speed 0.83-1.09), keypress latency was
+27-31 / 30-41 ms and drag main-thread time 108-126 / 117-127 ms, with 9-10
+preview paints during the drag (3-4 after #308). The changes are described in
+[`../performance.md`](../performance.md).
+
+Keypress render phases, milliseconds after the key (`name@start+duration`):
+
+| Run | `default` | `effect-stack` |
+| --- | --- | --- |
+| Before (development, [37128565147](https://github.com/shchilkin/artifact/actions/runs/37128565147), speed 0.831) | render 7+90; `rgbSplit` layer 12+85, of which GPU pass 23+74 (filter and readback 29+68) | render 10+176; `grain` 15+14; `rgbSplit` layer 29+89 with GPU pass 46+73; second GPU pass (halftone, vignette) 119+67 |
+| After (run above, speed 1.003) | render 6+24; `rgbSplit` layer 7+23, of which GPU pass 19+11 at 270 px | render 6+29; `grain` 8+0; `rgbSplit` Canvas 2D part 8+14; one merged GPU pass 22+13 at 270 px |
+
+In both documents the GPU pass became smaller (270 px instead of 540 px:
+filter and readback 68 → 11 ms), `effect-stack` lost one of its two GPU passes,
+and its grain layer reuses its cached texture (14 → 0 ms). The first paint
+follows the end of the render by 1-4 ms.
 
 ## Changing A Budget Or Exception
 
