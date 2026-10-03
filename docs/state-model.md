@@ -134,6 +134,12 @@ Current examples:
 
 - text/image node local transform draft
 - active primitive drag ref
+- inspector slider pointer drag (`InspectorSlider`): the thumb follows a local
+  draft value; each document update during the drag is a React transition, so
+  React can drop intermediate states when the editor is busy; pointer-up
+  commits the last value as a normal update unless the document already has
+  it. The preview and thumbnails follow the transitions live. Keyboard steps
+  update the document directly.
 
 Rules:
 

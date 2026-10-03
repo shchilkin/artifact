@@ -105,10 +105,16 @@ Graph mode renders from `CanvasDocument.graph`. Nodes can be:
 
 `renderGraphTarget` recursively renders upstream dependencies and composes the result.
 Within one graph render call it caches node results by node id. Thumbnail
-rendering can also pass an external render-session cache so sibling thumbnails
-reuse shared upstream branch results. That cache stores canvases/promises
-outside `CanvasDocument` and is invalidated by a render-session key derived from
-document, graph, render size, image availability, and primitive camera state.
+rendering can also pass an external cache so sibling thumbnails reuse shared
+upstream branch results. That cache stores canvases/promises outside
+`CanvasDocument`. Node thumbnails key it by content
+(`apps/web/app/utils/graphNodeRenderCache.ts`): a node's key hashes its own
+render signature, image availability, and primitive camera state with the keys
+of every node feeding it, and the namespace carries render size, effect
+resolution, seed, background, and aspect. An edit therefore re-renders only the
+edited node and what is downstream of it; unchanged upstream branches are
+reused across edits. A node without a stable key (unknown kind or a cycle) is
+cached for one render only.
 Gallery previews and generated preset/example thumbnails use the same optional
 cache boundary so repeated graph branches are not recomputed while browsing or
 opening a high-resolution preview.

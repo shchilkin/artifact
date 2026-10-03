@@ -35,6 +35,7 @@ function instrument() {
     shifts: [],
     paints: [],
     thumbnails: [],
+    renders: [],
     inputs: [],
   };
   window.__editorUx = ux;
@@ -49,6 +50,10 @@ function instrument() {
   new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
       if (entry.name === 'artifact:thumbnail-render') ux.thumbnails.push(entry.startTime + entry.duration);
+      // Render phases, kept for the keypress trace in the measurement details.
+      if (/^artifact:(document-render|gpu-render|gpu-filter-extract|layer-render:)/.test(entry.name)) {
+        ux.renders.push([entry.name.replace('artifact:', ''), entry.startTime, entry.duration]);
+      }
     }
   }).observe({ type: 'measure' });
   const drawImage = CanvasRenderingContext2D.prototype.drawImage;
@@ -316,6 +321,7 @@ const resetTimeline = (page) =>
     ux.since = performance.now();
     ux.paints.length = 0;
     ux.thumbnails.length = 0;
+    ux.renders.length = 0;
     ux.inputs.length = 0;
   });
 
@@ -324,7 +330,16 @@ async function measureKeypress(page, slider) {
   await resetTimeline(page);
   await slider.press('ArrowRight');
   await page.waitForFunction(() => window.__editorUx.paints.length > 0, null, { timeout: 10_000 });
-  return page.evaluate(() => window.__editorUx.paints[0] - window.__editorUx.inputs[0]);
+  return page.evaluate(() => {
+    const ux = window.__editorUx;
+    const [input] = ux.inputs;
+    const [paint] = ux.paints;
+    // Render phases that started before the first paint, as `name@start+duration` relative to the input.
+    const trace = ux.renders
+      .filter(([, start]) => start < paint)
+      .map(([name, start, duration]) => `${name}@${Math.round(start - input)}+${Math.round(duration)}`);
+    return { inputToPreviewMs: paint - input, trace };
+  });
 }
 
 async function measureDrag(page, slider) {
@@ -383,24 +398,26 @@ async function measureNodeSlider(page) {
 /** Latency pass: desktop only, one fresh page per sample; the reported value is the median. */
 async function measureLatency(browser, origin, viewport, reference) {
   const runs = [];
+  const keypressTraces = [];
   for (let sample = 0; sample < samples; sample += 1) {
     const { context, page } = await openEditor(browser, origin, viewport, reference);
     await layerName(page, reference.sliderLayerId).click();
     const slider = page.locator('.layer-inspector-drawer input[type="range"]').first();
     await slider.waitFor({ timeout: 10_000 });
     await slider.focus();
-    const inputToPreviewMs = await measureKeypress(page, slider);
+    const { inputToPreviewMs, trace: keypressTrace } = await measureKeypress(page, slider);
     const drag = await measureDrag(page, slider);
     const nodeEntrySettleMs = await measureNodeEntry(page);
     const nodeSliderSettleMs = await measureNodeSlider(page);
     runs.push({ inputToPreviewMs, ...drag, nodeEntrySettleMs, nodeSliderSettleMs });
+    keypressTraces.push(keypressTrace);
     await context.close();
   }
   const pick = (key) => runs.map((run) => run[key]);
   const medianOf = (key) => (pick(key).includes(null) ? null : round(median(pick(key))));
   return {
     samples,
-    'slider-keypress': { inputToPreviewMs: medianOf('inputToPreviewMs') },
+    'slider-keypress': { inputToPreviewMs: medianOf('inputToPreviewMs'), traces: keypressTraces },
     'slider-drag': {
       steps: DRAG_STEPS,
       durationMs: medianOf('durationMs'),
