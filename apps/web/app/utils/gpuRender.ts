@@ -1,5 +1,5 @@
 import type { Filter } from 'pixi.js';
-import { Container, Renderer, RenderTexture, Sprite, Texture } from 'pixi.js';
+import { Container, FORMATS, Renderer, RenderTexture, Sprite, Texture } from 'pixi.js';
 
 interface GpuRenderOptions {
   width: number;
@@ -136,6 +136,123 @@ function measureGpuPhaseSync<T>(measureName: string, task: () => T) {
   }
 }
 
+interface StagePixels {
+  pixels: Uint8Array<ArrayBuffer>;
+  width: number;
+  height: number;
+}
+
+const SYNC_POLL_TIMEOUT_MS = 2000;
+
+function nextTask() {
+  return new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+/** Resolves once the GPU has executed every command issued before the fence, without blocking the main thread. */
+async function waitForFence(gl: WebGL2RenderingContext, sync: WebGLSync) {
+  gl.flush();
+  const startedAt = now();
+  while (true) {
+    const status = gl.clientWaitSync(sync, 0, 0);
+    if (status === gl.ALREADY_SIGNALED || status === gl.CONDITION_SATISFIED) return true;
+    if (status === gl.WAIT_FAILED || now() - startedAt > SYNC_POLL_TIMEOUT_MS) return false;
+    await nextTask();
+  }
+}
+
+/**
+ * Same pixels as `renderer.extract.canvas(stage)`, read back through a pixel-pack buffer and a fence so the main
+ * thread does not stall in `readPixels` while the GPU executes the filters. Returns null when the context is not
+ * WebGL2 or the readback cannot complete, so the caller falls back to the synchronous extract.
+ */
+async function readStagePixelsAsync(renderer: Renderer, stage: Container): Promise<StagePixels | null> {
+  const gl = renderer.gl;
+  if (typeof WebGL2RenderingContext === 'undefined' || !(gl instanceof WebGL2RenderingContext)) return null;
+
+  // Mirrors Extract._rawPixels for a display-object target.
+  const renderTexture = renderer.generateTexture(stage, {
+    resolution: renderer.resolution,
+    multisample: renderer.multisample,
+  });
+  const { frame, baseTexture } = renderTexture;
+  const resolution = baseTexture.resolution;
+  const width = Math.max(Math.round(frame.width * resolution), 1);
+  const height = Math.max(Math.round(frame.height * resolution), 1);
+  const premultipliedAlpha = baseTexture.alphaMode > 0 && baseTexture.format === FORMATS.RGBA;
+  const byteLength = 4 * width * height;
+  const buffer = gl.createBuffer();
+  if (!buffer) {
+    renderTexture.destroy(true);
+    return null;
+  }
+
+  let sync: WebGLSync | null;
+  try {
+    renderer.renderTexture.bind(renderTexture);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
+    gl.bufferData(gl.PIXEL_PACK_BUFFER, byteLength, gl.STREAM_READ);
+    gl.readPixels(
+      Math.round(frame.x * resolution),
+      Math.round(frame.y * resolution),
+      width,
+      height,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      0,
+    );
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+  } catch (error) {
+    gl.deleteBuffer(buffer);
+    throw error;
+  } finally {
+    // The readback is queued, so the texture can go before the GPU has executed it.
+    renderTexture.destroy(true);
+  }
+
+  try {
+    if (!sync || !(await waitForFence(gl, sync)) || gl.isContextLost()) return null;
+    const pixels = new Uint8Array(byteLength);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
+    gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, pixels);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    if (premultipliedAlpha) unpremultiplyAlpha(pixels);
+    return { pixels, width, height };
+  } finally {
+    if (sync) gl.deleteSync(sync);
+    gl.deleteBuffer(buffer);
+  }
+}
+
+/**
+ * Pixi's Extract._unpremultiplyAlpha (private there), with the same rounding so output stays byte-identical.
+ * Opaque pixels are skipped: for alpha 255 the formula maps every channel value to itself.
+ */
+export function unpremultiplyAlpha(pixels: Uint8Array) {
+  for (let i = 0; i < pixels.length; i += 4) {
+    const alpha = pixels[i + 3];
+    if (alpha === 0 || alpha === 255) continue;
+    const scale = 255.001 / alpha;
+    pixels[i] = pixels[i] * scale + 0.5;
+    pixels[i + 1] = pixels[i + 1] * scale + 0.5;
+    pixels[i + 2] = pixels[i + 2] * scale + 0.5;
+  }
+}
+
+/** Matches the extract path: putImageData into a canvas, which the caller receives as a detached copy. */
+function pixelsToCanvas({ pixels, width, height }: StagePixels, W: number, H: number): HTMLCanvasElement {
+  const extracted = document.createElement('canvas');
+  extracted.width = width;
+  extracted.height = height;
+  extracted.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(pixels.buffer), width, height), 0, 0);
+  if (width === W && height === H) return extracted;
+  const copy = document.createElement('canvas');
+  copy.width = W;
+  copy.height = H;
+  copy.getContext('2d')!.drawImage(extracted, 0, 0, W, H);
+  return copy;
+}
+
 async function renderWithRenderer(
   renderer: Renderer,
   W: number,
@@ -164,6 +281,9 @@ async function renderWithRenderer(
     stage.addChild(displaySprite);
 
     return await measureGpuPhase(GPU_FILTER_EXTRACT_MEASURE, async () => {
+      const asyncPixels = await readStagePixelsAsync(renderer, stage);
+      if (asyncPixels) return pixelsToCanvas(asyncPixels, W, H);
+
       // Yield to the event loop so the GPU commands are flushed
       await new Promise<void>((r) => setTimeout(r, 0));
 

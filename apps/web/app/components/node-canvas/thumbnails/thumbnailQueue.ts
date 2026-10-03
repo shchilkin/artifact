@@ -19,9 +19,12 @@ export interface ThumbnailQueueSnapshot {
   averageDurationMs: number;
 }
 
+/** Selected and output previews first, then previews in the viewport, then previews near it. */
+type ThumbnailRank = 0 | 1 | 2;
+
 interface QueuedThumbnailRender {
   task: ThumbnailRenderTask;
-  priority: boolean;
+  rank: ThumbnailRank;
   order: number;
 }
 
@@ -76,23 +79,22 @@ function emitThumbnailQueueChange() {
   thumbnailQueueListeners.forEach((listener) => listener());
 }
 
-function queueHasPriorityWork() {
+function queueHasUrgentWork() {
   for (const queued of thumbnailRenderQueue.values()) {
-    if (queued.priority) return true;
+    if (queued.rank > 0) return true;
   }
   return false;
 }
 
 function pickNextTask() {
-  let fallback: [string, QueuedThumbnailRender] | undefined;
-  let priority: [string, QueuedThumbnailRender] | undefined;
-
+  let next: [string, QueuedThumbnailRender] | undefined;
   for (const entry of thumbnailRenderQueue.entries()) {
-    if (!fallback || entry[1].order < fallback[1].order) fallback = entry;
-    if (entry[1].priority && (!priority || entry[1].order < priority[1].order)) priority = entry;
+    const [, queued] = entry;
+    if (!next || queued.rank > next[1].rank || (queued.rank === next[1].rank && queued.order < next[1].order)) {
+      next = entry;
+    }
   }
-
-  return priority ?? fallback;
+  return next;
 }
 
 function requestIdleDrain(callback: () => void) {
@@ -103,15 +105,15 @@ function requestIdleDrain(callback: () => void) {
   setTimeout(callback, 48);
 }
 
-function scheduleThumbnailQueueDrain(priority = false) {
+function scheduleThumbnailQueueDrain(urgent = false) {
   if (thumbnailRenderActive || thumbnailRenderQueue.size === 0) return;
-  if (thumbnailDrainScheduled && !priority) return;
+  if (thumbnailDrainScheduled && !urgent) return;
   thumbnailDrainScheduled = true;
   const run = () => {
     thumbnailDrainScheduled = false;
     drainThumbnailRenderQueue();
   };
-  if (priority) {
+  if (urgent) {
     setTimeout(run, 0);
     return;
   }
@@ -137,24 +139,31 @@ function drainThumbnailRenderQueue() {
       thumbnailRenderActive = false;
       thumbnailActiveTaskKey = null;
       emitThumbnailQueueChange();
-      scheduleThumbnailQueueDrain(queueHasPriorityWork());
+      scheduleThumbnailQueueDrain(queueHasUrgentWork());
     });
 }
 
+/**
+ * Queues a thumbnail render; a newer task for the same key replaces the queued one. `priority` marks the selected or
+ * output preview and `visible` a preview inside the viewport: both drain on the next task, highest rank first.
+ * Other previews wait for an idle slot.
+ */
 export function scheduleThumbnailRender(
   taskKey: string,
   task: ThumbnailRenderTask,
-  options: { priority?: boolean } = {},
+  options: { priority?: boolean; visible?: boolean } = {},
 ) {
   const existing = thumbnailRenderQueue.get(taskKey);
   if (!existing) thumbnailTotalScheduled += 1;
+  const requestedRank: ThumbnailRank = options.priority ? 2 : options.visible ? 1 : 0;
+  const rank: ThumbnailRank = existing && existing.rank > requestedRank ? existing.rank : requestedRank;
   thumbnailRenderQueue.set(taskKey, {
     task,
-    priority: Boolean(options.priority) || Boolean(existing?.priority),
+    rank,
     order: existing?.order ?? thumbnailRenderOrder++,
   });
   emitThumbnailQueueChange();
-  scheduleThumbnailQueueDrain(Boolean(options.priority));
+  scheduleThumbnailQueueDrain(rank > 0);
 }
 
 async function measureThumbnailTask(taskKey: string, task: ThumbnailRenderTask) {

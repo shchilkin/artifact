@@ -54,6 +54,42 @@ describe('thumbnail render queue', () => {
     expect(calls).toEqual(['active', 'passive']);
   });
 
+  it('runs previews in the viewport right after priority work and before previews near it', async () => {
+    const calls: string[] = [];
+    const record = (name: string) => async () => {
+      calls.push(name);
+    };
+
+    scheduleThumbnailRender('near', record('near'));
+    scheduleThumbnailRender('visible', record('visible'), { visible: true });
+    scheduleThumbnailRender('active', record('active'), { priority: true });
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toEqual(['active', 'visible']);
+
+    await vi.advanceTimersByTimeAsync(48);
+    expect(calls).toEqual(['active', 'visible', 'near']);
+  });
+
+  it('keeps one queued render per preview and runs its latest task', async () => {
+    const calls: string[] = [];
+
+    scheduleThumbnailRender('node', async () => {
+      calls.push('first');
+    });
+    scheduleThumbnailRender(
+      'node',
+      async () => {
+        calls.push('latest');
+      },
+      { visible: true },
+    );
+
+    expect(getThumbnailQueueSnapshot().queued).toBe(1);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toEqual(['latest']);
+  });
+
   it('publishes queue diagnostics for loading and debug overlays', async () => {
     const changes: number[] = [];
     const unsubscribe = subscribeThumbnailQueue(() => changes.push(getThumbnailQueueSnapshot().queued));

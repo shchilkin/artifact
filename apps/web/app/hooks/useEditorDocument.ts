@@ -93,7 +93,7 @@ function isUndoShortcut(event: KeyboardEvent) {
 }
 
 export function useEditorDocument(nodeModeEnabled: boolean) {
-  const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
+  const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument);
   const [documentSaveStatus, setDocumentSaveStatus] = useState<{ ok: boolean; savedAt: string | null }>({
     ok: true,
     savedAt: null,
