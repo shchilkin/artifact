@@ -161,9 +161,8 @@ Recent manual profiling notes:
   changing render output:
   - The layer preview schedules renders latest-wins
     (`apps/web/app/hooks/previewRenderScheduler.ts`): one render in flight and
-    at most one waiting. A newer request aborts a running full-quality pass;
-    an interactive pass finishes and paints, so a continuous drag keeps
-    showing frames. While input keeps arriving, the next interactive render
+    at most one waiting. A newer request aborts the running render and its
+    result is dropped, never painted. While input keeps arriving, the next interactive render
     waits until the main thread has been free for twice the previous render's
     duration (at most 250 ms). The wait ends once input has been quiet for
     twice its recent interval, and a request after a 120 ms pause (an edit
@@ -183,12 +182,13 @@ Recent manual profiling notes:
     slot).
   - Inspector slider drags use a gesture draft (see
     [`state-model.md`](./state-model.md)).
-- Node thumbnails now share a render-session cache for graph branches. When
-  several visible thumbnails depend on the same upstream source/effect chain,
-  the renderer can reuse in-flight or completed upstream canvases instead of
+- Node thumbnails share a graph render cache for upstream branches (keyed by
+  content since v0.50, see [`rendering.md`](./rendering.md)). When several
+  visible thumbnails depend on the same upstream source/effect chain, the
+  renderer reuses in-flight or completed upstream canvases instead of
   recomputing the same branch for every thumbnail.
   In one local benchmark run, initial thumbnail render time dropped from roughly
-  `1360ms` total to roughly `107ms` total after this cache boundary.
+  `1360ms` total to roughly `107ms` total after this cache boundary was added.
 - Gallery previews and generated preset/example thumbnails can now pass the
   same external graph render cache through `renderDocument`, so the cache
   boundary is not limited to node cards. Generated thumbnail data URLs are also

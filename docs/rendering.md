@@ -114,7 +114,11 @@ of every node feeding it, and the namespace carries render size, effect
 resolution, seed, background, and aspect. An edit therefore re-renders only the
 edited node and what is downstream of it; unchanged upstream branches are
 reused across edits. A node without a stable key (unknown kind or a cycle) is
-cached for one render only.
+cached for one render only. The namespace also carries a render-asset epoch
+(`apps/web/app/utils/renderAssetEpoch.ts`) that advances whenever a render falls
+back for a missing image, environment, or model asset or a font that did not
+load, so a fallback frame is not reused once the asset may be available.
+Entries are pruned least recently used first.
 Gallery previews and generated preset/example thumbnails use the same optional
 cache boundary so repeated graph branches are not recomputed while browsing or
 opening a high-resolution preview.

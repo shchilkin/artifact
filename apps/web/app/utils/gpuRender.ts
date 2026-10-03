@@ -1,11 +1,25 @@
 import type { Filter } from 'pixi.js';
 import { Container, FORMATS, Renderer, RenderTexture, Sprite, Texture } from 'pixi.js';
 
+type GpuReadback = 'async' | 'sync';
+
 interface GpuRenderOptions {
   width: number;
   height: number;
   source: HTMLCanvasElement;
   filters: Filter[];
+  /** `sync` reads the result back with the blocking `extract.canvas`; the default follows `setGpuReadback`. */
+  readback?: GpuReadback;
+}
+
+let defaultReadback: GpuReadback = 'async';
+
+/**
+ * Readback for renders that do not pass `readback`. Both modes produce the same pixels; `sync` is the blocking
+ * `extract.canvas` path that came before the non-blocking readback, kept for parity checks and diagnostics.
+ */
+export function setGpuReadback(readback: GpuReadback) {
+  defaultReadback = readback;
 }
 
 const GPU_RENDER_MEASURE = 'artifact:gpu-render';
@@ -275,6 +289,7 @@ async function renderWithRenderer(
   H: number,
   source: HTMLCanvasElement,
   filters: Filter[],
+  readback: GpuReadback,
 ): Promise<HTMLCanvasElement> {
   const canvasTex = measureGpuPhaseSync(GPU_UPLOAD_MEASURE, () => Texture.from(source));
   const gpuTex = RenderTexture.create({ width: W, height: H });
@@ -297,7 +312,7 @@ async function renderWithRenderer(
     stage.addChild(displaySprite);
 
     return await measureGpuPhase(GPU_FILTER_EXTRACT_MEASURE, async () => {
-      const asyncPixels = await readStagePixelsAsync(renderer, stage);
+      const asyncPixels = readback === 'async' ? await readStagePixelsAsync(renderer, stage) : null;
       if (asyncPixels) return pixelsToCanvas(asyncPixels, W, H);
 
       // Yield to the event loop so the GPU commands are flushed
@@ -330,13 +345,14 @@ export async function gpuRenderToCanvas({
   height: H,
   source,
   filters,
+  readback = defaultReadback,
 }: GpuRenderOptions): Promise<HTMLCanvasElement> {
   return enqueueRender(async () => {
     return await measureGpuPhase(GPU_RENDER_MEASURE, async () => {
       const shared = getSharedRenderer(W, H);
       if (shared) {
         try {
-          return await renderWithRenderer(shared, W, H, source, filters);
+          return await renderWithRenderer(shared, W, H, source, filters, readback);
         } catch {
           disposeShared();
         }
@@ -352,7 +368,7 @@ export async function gpuRenderToCanvas({
         return cloneSourceCanvas(source, W, H);
       }
       try {
-        return await renderWithRenderer(renderer, W, H, source, filters);
+        return await renderWithRenderer(renderer, W, H, source, filters, readback);
       } finally {
         try {
           renderer.destroy(true);
