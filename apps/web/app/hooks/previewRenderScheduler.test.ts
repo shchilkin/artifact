@@ -182,7 +182,7 @@ describe('createPreviewRenderScheduler', () => {
     const scheduler = createPreviewRenderScheduler({
       run,
       cooldownRatio: 0,
-      now: () => 0,
+      clock: createFakeTimerClock().clock,
       queueMicrotask: (callback) => microtasks.push(callback),
     });
 
