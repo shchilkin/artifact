@@ -1,4 +1,4 @@
-import { type ComponentPropsWithoutRef, useRef } from 'react';
+import { type ComponentPropsWithoutRef, type PointerEvent, startTransition, useEffect, useRef, useState } from 'react';
 
 import { PropertyRow } from '../../../inspector-system';
 import { stopNodeEvent } from '../../helpers';
@@ -99,6 +99,7 @@ function SliderInputs({
   step: number;
   value: number;
 }) {
+  const { draftValue, onPointerDown, change } = useSliderGestureDraft(onChange);
   return (
     <div className="node-slider-row">
       <input
@@ -110,14 +111,14 @@ function SliderInputs({
         min={min}
         max={max}
         step={step}
-        value={sliderValue}
+        value={draftValue ?? sliderValue}
         disabled={disabled}
-        onPointerDown={stopNodeEvent}
+        onPointerDown={onPointerDown}
         onMouseDown={stopNodeEvent}
         onClick={stopNodeEvent}
         onDoubleClick={stopNodeEvent}
         onWheel={stopNodeEvent}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onChange={(event) => change(Number(event.target.value))}
       />
       {overrideMax ? (
         <input
@@ -143,4 +144,50 @@ function SliderInputs({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Gesture draft for a pointer drag on the range input: the thumb follows a local draft value, and each document
+ * update is a transition, so React can drop intermediate states when the editor is busy. Pointer-up commits the
+ * last value as a normal update. Keyboard and other discrete changes go straight to `onChange`.
+ */
+function useSliderGestureDraft(onChange: (value: number) => void) {
+  const [draftValue, setDraftValue] = useState<number | null>(null);
+  const gestureRef = useRef<{ last: number | null; end: () => void } | null>(null);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => () => gestureRef.current?.end(), []);
+
+  function onPointerDown(event: PointerEvent<HTMLInputElement>) {
+    stopNodeEvent(event);
+    gestureRef.current?.end();
+    const end = () => {
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      const gesture = gestureRef.current;
+      gestureRef.current = null;
+      if (gesture?.last != null) onChangeRef.current(gesture.last);
+      setDraftValue(null);
+    };
+    gestureRef.current = { last: null, end };
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  }
+
+  function change(value: number) {
+    const gesture = gestureRef.current;
+    if (!gesture) {
+      onChange(value);
+      return;
+    }
+    gesture.last = value;
+    setDraftValue(value);
+    startTransition(() => onChange(value));
+  }
+
+  return { draftValue, onPointerDown, change };
 }

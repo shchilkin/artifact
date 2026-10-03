@@ -8,8 +8,8 @@
  *   one render in flight and one waiting, however many inputs it delivers.
  * - After a render that asks for a cooldown, the next one waits until the main thread has been free for
  *   `cooldownRatio` times that render's duration (at most `maxCooldownMs`), so input keeps flowing while renders are
- *   expensive. The wait ends early once requests stop for `quietMs`: when a gesture ends, its last state renders at
- *   once. A request after an idle period starts on the next microtask.
+ *   expensive. The wait ends early once requests stop for twice their recent interval (at least `quietMs`): when a
+ *   gesture ends, its last state renders at once. A request after an idle period starts on the next microtask.
  */
 export interface PreviewRenderSchedulerOptions {
   /**
@@ -22,7 +22,7 @@ export interface PreviewRenderSchedulerOptions {
   /** Free time left between consecutive renders, as a multiple of the previous render's duration. */
   cooldownRatio?: number;
   maxCooldownMs?: number;
-  /** Requests this far apart count as the end of continuous input. */
+  /** Shortest gap between requests that counts as the end of continuous input. */
   quietMs?: number;
   now?: () => number;
   setTimer?: (callback: () => void, ms: number) => unknown;
@@ -61,6 +61,7 @@ export function createPreviewRenderScheduler({
   let startedAt = 0;
   let cooldownUntil = Number.NEGATIVE_INFINITY;
   let lastRequestAt = Number.NEGATIVE_INFINITY;
+  let requestIntervalMs = 0;
 
   function start(scheduledGeneration: number) {
     if (scheduledGeneration !== generation || !scheduled) return;
@@ -91,7 +92,7 @@ export function createPreviewRenderScheduler({
   function waitMs() {
     const current = now();
     if (current >= cooldownUntil) return 0;
-    const quietAt = lastRequestAt + quietMs;
+    const quietAt = lastRequestAt + Math.max(quietMs, requestIntervalMs * 2);
     return current >= quietAt ? 0 : Math.min(cooldownUntil, quietAt) - current;
   }
 
@@ -118,7 +119,11 @@ export function createPreviewRenderScheduler({
   }
 
   function request() {
-    lastRequestAt = now();
+    const requestedAt = now();
+    const interval = requestedAt - lastRequestAt;
+    // Smoothed gap between requests of the current burst; a long gap starts a new burst.
+    requestIntervalMs = interval > maxCooldownMs ? 0 : requestIntervalMs * 0.7 + interval * 0.3;
+    lastRequestAt = requestedAt;
     if (running) {
       pending = true;
       onSupersede?.();
