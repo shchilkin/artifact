@@ -95,6 +95,8 @@ function isUndoShortcut(event: KeyboardEvent) {
 
 export function useEditorDocument(nodeModeEnabled: boolean) {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument);
+  // Changes when the whole document is replaced (load, starter, new blank), so per-document UI state can reset.
+  const [documentSessionId, setDocumentSessionId] = useState(0);
   const [documentSaveStatus, setDocumentSaveStatus] = useState<DocumentSaveStatus>({ ok: true });
   const [fromDocParam] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc'),
@@ -179,6 +181,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     (nextDoc: CanvasDocument) => {
       commitDocument(normalizeDocument(nextDoc), 'snapshot');
       setSelectedLayerId(null);
+      setDocumentSessionId((id) => id + 1);
     },
     [commitDocument],
   );
@@ -515,6 +518,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     }
     commitDocument(createBlankDocument({ aspect: current.global.aspect, seed: current.global.seed }), 'snapshot');
     setSelectedLayerId(null);
+    setDocumentSessionId((id) => id + 1);
   }, [commitDocument]);
 
   const saveRecoveryDraft = useCallback(async () => {
@@ -589,6 +593,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     handleExportConfigChange,
     handleCopyLink,
     loadDocument: replaceDocument,
+    documentSessionId,
     setDoc,
     setSeed,
     setAspect,

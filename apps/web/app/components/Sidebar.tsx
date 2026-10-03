@@ -42,6 +42,7 @@ import { LayerPanel } from './layers-panel/LayerPanel';
 import { EnvironmentInspector } from './node-canvas/inspector/EnvironmentInspector';
 import { InspectorReadout, InspectorToggle } from './node-canvas/inspector/fields';
 import { Scene3DInspector } from './node-canvas/inspector/Scene3DInspector';
+import { EmptyState } from './ui/EmptyState';
 
 type SidebarLayerPanelProps = Pick<
   LayerPanelProps,
@@ -548,6 +549,19 @@ function EmojiSetSection({
   );
 }
 
+function InspectorEmptyState() {
+  return (
+    <>
+      <h2 className="sr-only">Layer settings</h2>
+      <EmptyState
+        className="layer-inspector-empty-state"
+        title="No layer selected"
+        body="Select a layer to edit its settings."
+      />
+    </>
+  );
+}
+
 function MobileActionBar({ content }: { content?: React.ReactNode }) {
   return content ? <div className="sidebar-mobile-bar">{content}</div> : null;
 }
@@ -638,28 +652,31 @@ export function Sidebar({
         </div>
       </aside>
 
-      {hasInspectorContent && (
-        <aside className="layer-inspector-drawer" aria-label="Layer settings">
-          <AiImageSection
-            aspect={doc.global.aspect ?? '1:1'}
-            show={showAiGeneration}
-            onGeneratedImageSource={onGeneratedImageSource}
-          />
-          <SelectedLayerSections
-            doc={doc}
-            docRef={docRef}
-            selectedLayer={selectedLayer}
-            selectedTargetSummary={selectedTargetSummary}
-            onDocChange={onDocChange}
-          />
-          <SelectedScene3DSections
-            doc={doc}
-            scene={selectedScene}
-            selectedTargetSummary={selectedSceneSummary}
-            onDocChange={onDocChange}
-          />
-        </aside>
-      )}
+      {/* Always rendered: desktop reserves the inspector column even when nothing is selected. */}
+      <aside
+        className={`layer-inspector-drawer${hasInspectorContent ? '' : ' layer-inspector-drawer--empty'}`}
+        aria-label="Layer settings"
+      >
+        {!hasInspectorContent && <InspectorEmptyState />}
+        <AiImageSection
+          aspect={doc.global.aspect ?? '1:1'}
+          show={showAiGeneration}
+          onGeneratedImageSource={onGeneratedImageSource}
+        />
+        <SelectedLayerSections
+          doc={doc}
+          docRef={docRef}
+          selectedLayer={selectedLayer}
+          selectedTargetSummary={selectedTargetSummary}
+          onDocChange={onDocChange}
+        />
+        <SelectedScene3DSections
+          doc={doc}
+          scene={selectedScene}
+          selectedTargetSummary={selectedSceneSummary}
+          onDocChange={onDocChange}
+        />
+      </aside>
     </>
   );
 }

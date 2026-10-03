@@ -19,6 +19,7 @@ Artifact's print-like visual language.
 | Accessible mechanics, Artifact visuals | Radix/shadcn can provide behavior and accessibility, but Artifact tokens define the appearance. |
 | Style guide before broad migration | New or migrated primitives should be visible in a deterministic style-guide route before broad editor adoption. |
 | UI copy is product copy | Internal migration plans, QA strategy, release-plan notes, and agent workflow text live in `docs/`, not in app surfaces. |
+| Stable editor frame | On desktop the editor is a fixed grid: layer list, canvas, and a reserved inspector (`--editor-inspector-w`; a row of `--editor-inspector-h` under the canvas below 1024 px) above one full-width command-bar row. `.main` covers the whole stage in both modes and Layers insets its content, so selecting a layer or switching Layers/Nodes moves neither the canvas nor the command bar. `npm run ux:gate` enforces this. |
 
 ## Token Families
 

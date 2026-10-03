@@ -49,7 +49,7 @@ test('active project save updates the current project after edits', async ({ pag
   await expect(projects.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeDisabled();
 
   await projects.getByRole('button', { name: 'Close projects' }).click();
-  await page.locator('main .bottom-bar .rand-btn').click();
+  await page.locator('.app > .bottom-bar .rand-btn').click();
   await openProjectsPanel(page);
   await expect(page.getByRole('dialog', { name: 'PROJECTS' })).toContainText('Unsaved project');
   await expect(page.getByRole('button', { name: 'Save active project Saved State Renamed' })).toBeEnabled();
