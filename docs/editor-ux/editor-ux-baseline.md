@@ -268,12 +268,17 @@ their on-screen size at the current zoom (device pixel ratio capped at 2), and
 move to a sharper size once a zoom gesture rests for 250 ms. The canvas preview,
 document render, and export are unchanged.
 
+CI run [37131797552](https://github.com/shchilkin/artifact/actions/runs/37131797552)
+(speed 0.831), reference-machine milliseconds:
+
 | Metric | `default` | `effect-stack` | Budget |
 | --- | ---: | ---: | ---: |
-| `node-preview/entrySettleMs` | 474.4 | 456.3 | 1200 |
-| `node-preview/sliderSettleMs` | 53.4 | 60.6 | 100 |
+| `node-preview/entrySettleMs` | 377.3 | 388.0 | 1200 |
+| `node-preview/sliderSettleMs` | 58.3 | 72.9 | 100 |
 
-Values are from a local run (Apple Silicon, scaled).
+Both are within budget without an exception. `sliderSettleMs` stays above the
+#308 values measured with the old fixed zoom (25.1 / 27.5 ms) because more
+downstream thumbnails are on screen, and each of those still renders.
 
 ## Changing A Budget Or Exception
 
