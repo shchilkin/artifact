@@ -273,17 +273,20 @@ downstream thumbnails are on screen, and each of those still renders.
 
 ## After #324
 
-CI run [37147332122](https://github.com/shchilkin/artifact/actions/runs/37147332122)
-(calibration 142.7 ms, speed 0.831, drag floor 664.8 ms, blank-page drag
-main-thread time 22 ms), reference-machine milliseconds:
+CI run [37151771646](https://github.com/shchilkin/artifact/actions/runs/37151771646),
+with the stable editor frame (#307) merged in (calibration 152.3 ms,
+speed 0.779), reference-machine milliseconds:
 
 | Metric | `default` | `effect-stack` | Budget |
 | --- | ---: | ---: | ---: |
-| `slider-keypress/inputToPreviewMs` | 35.6 | 37.9 | 50 |
-| `slider-drag/mainThreadMs` | 129.4 | 122.4 | 160 |
-| `slider-drag/settleMs` | 413.6 | 582.0 | 700 |
-| `node-preview/entrySettleMs` | 426.0 | 523.6 | 1200 |
-| `node-preview/sliderSettleMs` | 24.2 | 20.3 | 100 |
+| `slider-keypress/inputToPreviewMs` | 32.8 | 37.9 | 50 |
+| `slider-drag/mainThreadMs` | 128.1 | 121.0 | 160 |
+| `slider-drag/settleMs` | 402.0 | 564.2 | 700 |
+| `node-preview/entrySettleMs` | 442.7 | 557.5 | 1200 |
+| `node-preview/sliderSettleMs` | 53.4 | 72.9 | 100 |
+
+Node-preview values follow #307's thumbnail sizing (see above); #324 does not
+change node thumbnails.
 
 What the numbers measure on CI:
 
@@ -308,13 +311,13 @@ Milliseconds after the key, as `start+duration`, median sample of each run:
 
 | Phase | Before, `default` | After, `default` | Before, `effect-stack` | After, `effect-stack` |
 | --- | --- | --- | --- | --- |
-| Document render (input to finished frame) | 7+90 | 7+33 | 10+176 | 8+36 |
-| Edited layer and those below it | scanlines 11+1 | scanlines 8+0 | scanlines 12+1 | scanlines 9+1 |
-| Grain (Canvas 2D) | - | - | 13+14 | 10+0 (cached texture) |
-| RGB Split worker round trip (Canvas 2D kernel) | not traced | 10+11 | not traced | 11+13 |
-| GPU upload and blit (submitted on the main thread) | not traced | 21+1 | not traced | 26+1 |
-| GPU fence wait (upload, blit, filters, `readPixels` on the GPU) | 29+68, together with readback | 22+16 | 47+71 and 111+67, together with readback | 27+17, one merged pass |
-| Readback copy and unpremultiply, then canvas write | inside the above | 39+1, 40+0 | inside the above | 44+0, 44+0 |
+| Document render (input to finished frame) | 7+90 | 7+34 | 10+176 | 9+39 |
+| Edited layer and those below it | scanlines 11+1 | scanlines 8+0 | scanlines 12+1 | scanlines 10+0 |
+| Grain (Canvas 2D) | - | - | 13+14 | 10+1 (cached texture) |
+| RGB Split worker round trip (Canvas 2D kernel) | not traced | 9+13 | not traced | 12+12 |
+| GPU upload and blit (submitted on the main thread) | not traced | 23+1 | not traced | 25+1 |
+| GPU fence wait (upload, blit, filters, `readPixels` on the GPU) | 29+68, together with readback | 24+15 | 47+71 and 111+67, together with readback | 26+21, one merged pass |
+| Readback copy and unpremultiply, then canvas write | inside the above | 39+2, 41+0 | inside the above | 47+0, 47+0 |
 | GPU passes above the edit | 1 at 540 px | 1 at 270 px | 2 at 540 px | 1 at 270 px |
 
 Before: development, run [37128565147](https://github.com/shchilkin/artifact/actions/runs/37128565147),
@@ -327,9 +330,9 @@ only reports when all of them are done. JavaScript therefore cannot time them
 apart, and software WebGL has no GPU timer queries
 (see [`../performance.md`](../performance.md)).
 
-The GPU pass shrank fourfold in pixels (fence wait about 68 → 17 ms).
+The GPU pass shrank fourfold in pixels (fence wait about 68 → 15-21 ms).
 `effect-stack` lost one of its two GPU passes, and its grain layer reuses its
-cached texture (14 → 0-1 ms). The RGB Split worker round trip (4-15 ms) is now
+cached texture (14 → 1 ms). The RGB Split worker round trip (6-18 ms) is now
 the largest Canvas 2D phase. The main thread is free while the GPU fence is
 pending.
 
