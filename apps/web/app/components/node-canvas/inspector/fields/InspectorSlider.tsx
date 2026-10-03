@@ -99,7 +99,7 @@ function SliderInputs({
   step: number;
   value: number;
 }) {
-  const { draftValue, onPointerDown, change } = useSliderGestureDraft(sliderValue, onChange);
+  const { draftValue, onPointerDown, change, onBlur } = useSliderGestureDraft(sliderValue, onChange);
   return (
     <div className="node-slider-row">
       <input
@@ -114,6 +114,7 @@ function SliderInputs({
         value={draftValue ?? sliderValue}
         disabled={disabled}
         onPointerDown={onPointerDown}
+        onBlur={onBlur}
         onMouseDown={stopNodeEvent}
         onClick={stopNodeEvent}
         onDoubleClick={stopNodeEvent}
@@ -148,13 +149,14 @@ function SliderInputs({
 
 /**
  * Gesture draft for a pointer drag on the range input: the thumb follows a local draft value, and each document
- * update is a transition, so React can drop intermediate states when the editor is busy. Pointer-up commits the
- * last value as a normal update unless the document already has it. Keyboard and other discrete changes go
- * straight to `onChange`.
+ * update is a transition, so React can drop intermediate states when the editor is busy while the preview still
+ * follows the drag. The gesture ends with a commit on pointer-up, blur, or unmount (the last value as a normal
+ * update unless the document already has it) or a revert to the starting value on Escape or pointer-cancel.
+ * Keyboard and other discrete changes go straight to `onChange`.
  */
 function useSliderGestureDraft(committedValue: number, onChange: (value: number) => void) {
   const [draftValue, setDraftValue] = useState<number | null>(null);
-  const gestureRef = useRef<{ last: number | null; end: () => void } | null>(null);
+  const gestureRef = useRef<{ start: number; last: number | null; end: (commit: boolean) => void } | null>(null);
   const onChangeRef = useRef(onChange);
   const committedValueRef = useRef(committedValue);
 
@@ -163,22 +165,34 @@ function useSliderGestureDraft(committedValue: number, onChange: (value: number)
     committedValueRef.current = committedValue;
   }, [onChange, committedValue]);
 
-  useEffect(() => () => gestureRef.current?.end(), []);
+  useEffect(() => () => gestureRef.current?.end(true), []);
 
   function onPointerDown(event: PointerEvent<HTMLInputElement>) {
     stopNodeEvent(event);
-    gestureRef.current?.end();
-    const end = () => {
-      window.removeEventListener('pointerup', end);
-      window.removeEventListener('pointercancel', end);
+    gestureRef.current?.end(true);
+    const commit = () => end(true);
+    const revert = () => end(false);
+    // On the window: WebKit does not focus a range input on pointer-down, so the key may not reach the input.
+    const onEscape = (keyEvent: globalThis.KeyboardEvent) => {
+      if (keyEvent.key !== 'Escape') return;
+      keyEvent.stopPropagation();
+      revert();
+    };
+    const end = (keep: boolean) => {
+      window.removeEventListener('pointerup', commit);
+      window.removeEventListener('pointercancel', revert);
+      window.removeEventListener('keydown', onEscape, true);
       const gesture = gestureRef.current;
       gestureRef.current = null;
-      if (gesture?.last != null && gesture.last !== committedValueRef.current) onChangeRef.current(gesture.last);
       setDraftValue(null);
+      if (!gesture || gesture.last === null) return;
+      const value = keep ? gesture.last : gesture.start;
+      if (value !== committedValueRef.current) onChangeRef.current(value);
     };
-    gestureRef.current = { last: null, end };
-    window.addEventListener('pointerup', end);
-    window.addEventListener('pointercancel', end);
+    gestureRef.current = { start: committedValueRef.current, last: null, end };
+    window.addEventListener('pointerup', commit);
+    window.addEventListener('pointercancel', revert);
+    window.addEventListener('keydown', onEscape, true);
   }
 
   function change(value: number) {
@@ -192,5 +206,7 @@ function useSliderGestureDraft(committedValue: number, onChange: (value: number)
     startTransition(() => onChange(value));
   }
 
-  return { draftValue, onPointerDown, change };
+  const onBlur = () => gestureRef.current?.end(true);
+
+  return { draftValue, onPointerDown, change, onBlur };
 }

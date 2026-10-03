@@ -198,7 +198,7 @@ interface DocumentRendererRefs {
   canvasRef: MutableRefObject<HTMLCanvasElement | null>;
   renderingRef: MutableRefObject<boolean>;
   /** A newer request superseded the running render: drop its result instead of painting it. */
-  pendingRef: MutableRefObject<boolean>;
+  supersededRef: MutableRefObject<boolean>;
   /** The running render is an interactive preview-size pass rather than a full-quality one. */
   interactiveRenderRef: MutableRefObject<boolean>;
   activeAbortRef: MutableRefObject<AbortController | null>;
@@ -434,7 +434,7 @@ function cleanupMountedRenderCanvas({
 }
 
 function shouldUseBlankFallback(result: HTMLCanvasElement, refs: DocumentRendererRefs, renderOptions: RenderOptions) {
-  return !refs.pendingRef.current && !renderOptions.skipEffects && isLikelyBlankRender(result, refs.docRef.current);
+  return !refs.supersededRef.current && !renderOptions.skipEffects && isLikelyBlankRender(result, refs.docRef.current);
 }
 
 function handleBlankPrimaryRender({
@@ -478,7 +478,7 @@ function handlePrimaryRenderSuccess(
     return;
   }
   if (!renderOptions.skipEffects) refs.gpuFallbackUntilRef.current = 0;
-  if (!refs.pendingRef.current) drawRenderResult(result, refs, setRenderState);
+  if (!refs.supersededRef.current) drawRenderResult(result, refs, setRenderState);
   finishRender();
 }
 
@@ -505,7 +505,7 @@ function handleFallbackRenderFailure(
     finishRender();
     return;
   }
-  if (!refs.pendingRef.current && refs.lastGoodCanvasRef.current) {
+  if (!refs.supersededRef.current && refs.lastGoodCanvasRef.current) {
     drawRenderResult(refs.lastGoodCanvasRef.current, refs, setRenderState);
   }
   if (import.meta.env.DEV) console.warn('Canvas render failed.', fallbackError);
@@ -524,7 +524,7 @@ function handlePrimaryRenderFailure(
     finishRender();
     return;
   }
-  if (refs.pendingRef.current) {
+  if (refs.supersededRef.current) {
     if (!renderOptions.skipEffects) refs.gpuFallbackUntilRef.current = performance.now() + 5000;
     finishRender();
     return;
@@ -537,7 +537,7 @@ function handlePrimaryRenderFailure(
   refs.gpuFallbackUntilRef.current = performance.now() + 5000;
   renderDraftFallback(refs, renderOptions)
     .then((fallback) => {
-      if (!refs.pendingRef.current) drawRenderResult(fallback, refs, setRenderState);
+      if (!refs.supersededRef.current) drawRenderResult(fallback, refs, setRenderState);
       if (import.meta.env.DEV) console.warn('Canvas render fell back to draft mode.', error);
     })
     .catch((fallbackError) =>
@@ -556,7 +556,7 @@ export function useDocumentRenderer(
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const renderingRef = useRef(false);
-  const pendingRef = useRef(false);
+  const supersededRef = useRef(false);
   const interactiveRenderRef = useRef(false);
   const activeAbortRef = useRef<AbortController | null>(null);
   const layerGraphCacheEntriesRef = useRef(new Map<string, Promise<HTMLCanvasElement>>());
@@ -599,7 +599,7 @@ export function useDocumentRenderer(
   const rendererRefsRef = useRef<DocumentRendererRefs>({
     canvasRef,
     renderingRef,
-    pendingRef,
+    supersededRef,
     interactiveRenderRef,
     activeAbortRef,
     layerGraphCacheEntriesRef,
@@ -702,7 +702,7 @@ export function useDocumentRenderer(
       return;
     }
 
-    rendererRefs.pendingRef.current = false;
+    rendererRefs.supersededRef.current = false;
     rendererRefs.activeAbortRef.current?.abort();
     const abortController = new AbortController();
     rendererRefs.activeAbortRef.current = abortController;
@@ -726,18 +726,16 @@ export function useDocumentRenderer(
       );
   }, []);
 
-  // Coalesce multiple state changes within a frame into one render call.
+  // Latest-wins: one render in flight, at most one waiting, and free main-thread time between renders.
   const schedulerRef = useRef<PreviewRenderScheduler | null>(null);
   const scheduleRender = useCallback(() => {
     let scheduler = schedulerRef.current;
     if (!scheduler) {
       scheduler = createPreviewRenderScheduler({
         run: (done) => doRender(done),
-        // An interactive pass finishes and paints, so a continuous gesture keeps showing frames; a slower
-        // full-quality pass is aborted and its result dropped.
+        // A newer request makes the running render stale: abort it and drop its result instead of painting it.
         onSupersede: () => {
-          if (interactiveRenderRef.current) return;
-          pendingRef.current = true;
+          supersededRef.current = true;
           activeAbortRef.current?.abort();
         },
       });

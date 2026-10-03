@@ -154,7 +154,9 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     (newDoc: CanvasDocument, mode: DocumentUpdateMode) => {
       if (mode === 'snapshot') {
         clearPendingHistory();
-        setPast((items) => pushSnapshotHistory({ past: items, future: [] }, docRef.current).past);
+        // Capture the document now: React may run the updater after docRef has moved on.
+        const previous = docRef.current;
+        setPast((items) => pushSnapshotHistory({ past: items, future: [] }, previous).past);
         setFuture([]);
         _setDoc(newDoc);
         return;
