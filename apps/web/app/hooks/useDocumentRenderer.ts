@@ -26,6 +26,8 @@ const INTERACTIVE_SCALE_STEPS = [1, 0.75, 0.5] as const;
 /** A larger interactive size is chosen again only once a pass there is expected to fit well within the budget. */
 const INTERACTIVE_SCALE_UP_HEADROOM = 0.7;
 const INTERACTIVE_WARMUP_IDLE_TIMEOUT_MS = 300;
+/** At most about 15 interactive frames per second during a gesture, so input handling keeps the main thread. */
+const INTERACTIVE_MIN_FRAME_INTERVAL_MS = 66;
 
 export type InteractiveScale = (typeof INTERACTIVE_SCALE_STEPS)[number];
 
@@ -857,6 +859,7 @@ export function useDocumentRenderer(
     if (!scheduler) {
       scheduler = createPreviewRenderScheduler({
         run: (done) => doRender(done),
+        minIntervalMs: INTERACTIVE_MIN_FRAME_INTERVAL_MS,
         // A newer request aborts a running full-quality pass and drops its result. A running interactive pass is
         // allowed to finish and paint (one input behind): dropping it too left continuous drags on slow machines with
         // no preview frames at all (see docs/performance.md).

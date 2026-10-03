@@ -4,7 +4,7 @@ import { createPreviewRenderScheduler } from './previewRenderScheduler';
 
 type Done = (options?: { cooldown?: boolean }) => void;
 
-function setup(cooldownRatio = 2) {
+function setup(cooldownRatio = 2, minIntervalMs = 0) {
   let clock = 0;
   const microtasks: Array<() => void> = [];
   const timers: Array<{ at: number; callback: () => void; cleared: boolean }> = [];
@@ -17,6 +17,7 @@ function setup(cooldownRatio = 2) {
     run,
     onSupersede,
     cooldownRatio,
+    minIntervalMs,
     now: () => clock,
     setTimer: (callback, ms) => {
       const timer = { at: clock + ms, callback, cleared: false };
@@ -109,6 +110,19 @@ describe('createPreviewRenderScheduler', () => {
     expect(run).toHaveBeenCalledTimes(1);
 
     requestEvery(128, 128, 16);
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it('spaces cheap renders by the minimum interval while input keeps arriving', () => {
+    const { run, requestEvery, finishRenderAt } = setup(2, 66);
+
+    requestEvery(0, 8, 4);
+    // A 10 ms render would allow the next start at 30 ms; the minimum interval holds it until 66 ms.
+    finishRenderAt(10);
+    requestEvery(16, 64, 16);
+    expect(run).toHaveBeenCalledTimes(1);
+
+    requestEvery(80, 80, 16);
     expect(run).toHaveBeenCalledTimes(2);
   });
 

@@ -8,7 +8,8 @@
  *   one render in flight and one waiting, however many inputs it delivers.
  * - After a render that asks for a cooldown, the next one waits until the main thread has been free for
  *   `cooldownRatio` times that render's duration (at most 250 ms), so input keeps flowing while renders are
- *   expensive. The wait ends early once requests stop for twice their recent interval (at least two frames): when a
+ *   expensive, and until at least `minIntervalMs` after that render started, so cheap renders do not take over the
+ *   main thread either. The wait ends early once requests stop for twice their recent interval (at least two frames): when a
  *   gesture ends, its last state renders at once. A request more than 120 ms after the previous one starts a
  *   new burst without a cooldown, such as an edit after a pause or the full-quality pass that follows a gesture.
  */
@@ -22,6 +23,8 @@ export interface PreviewRenderSchedulerOptions {
   onSupersede?: () => void;
   /** Free time left between consecutive renders, as a multiple of the previous render's duration. */
   cooldownRatio?: number;
+  /** Shortest time between the starts of two renders in one burst of input, which caps the preview frame rate. */
+  minIntervalMs?: number;
   now?: () => number;
   setTimer?: (callback: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
@@ -48,6 +51,7 @@ export function createPreviewRenderScheduler({
   run,
   onSupersede,
   cooldownRatio = DEFAULT_PREVIEW_COOLDOWN_RATIO,
+  minIntervalMs = 0,
   now = () => performance.now(),
   setTimer = (callback, ms) => setTimeout(callback, ms),
   clearTimer = (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
@@ -84,7 +88,10 @@ export function createPreviewRenderScheduler({
     const endedAt = now();
     cooldownUntil =
       cooldown && !freshBurst
-        ? endedAt + Math.min(MAX_COOLDOWN_MS, Math.max(0, endedAt - startedAt) * cooldownRatio)
+        ? Math.max(
+            endedAt + Math.min(MAX_COOLDOWN_MS, Math.max(0, endedAt - startedAt) * cooldownRatio),
+            startedAt + minIntervalMs,
+          )
         : Number.NEGATIVE_INFINITY;
     if (!pending) return;
     pending = false;
