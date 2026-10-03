@@ -7,6 +7,7 @@ import {
   type TextFontRef,
 } from '../types/config';
 import { ensureImportedFontLoaded, getCachedImportedFont, isFontUri } from './fontStore';
+import { markRenderAssetFallback } from './renderAssetEpoch';
 
 const loadedCanvasFonts = new Set<string>();
 
@@ -48,5 +49,6 @@ export async function ensureCanvasFontLoaded(font: TextFontRef, sizePx = 64): Pr
   } catch {
     // Canvas can still render with the fallback stack. Missing webfonts should
     // not block export, but successful loads improve preview/export parity.
+    markRenderAssetFallback();
   }
 }

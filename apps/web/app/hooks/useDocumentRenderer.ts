@@ -12,6 +12,7 @@ import {
 import type { CanvasDocument } from '../types/config';
 import { createLayerPreviewRenderCache } from '../utils/layerPreviewRenderCache';
 import { type RenderOptions, renderDocument } from '../utils/renderer';
+import { createPreviewRenderScheduler, type PreviewRenderScheduler } from './previewRenderScheduler';
 
 const DRAFT_SETTLE_MS = 120;
 const DEFAULT_DEFERRED_FULL_RENDER_MS = 1800;
@@ -196,7 +197,10 @@ type RenderStateSetter = Dispatch<SetStateAction<DocumentRenderState>>;
 interface DocumentRendererRefs {
   canvasRef: MutableRefObject<HTMLCanvasElement | null>;
   renderingRef: MutableRefObject<boolean>;
-  pendingRef: MutableRefObject<boolean>;
+  /** A newer request superseded the running render: drop its result instead of painting it. */
+  supersededRef: MutableRefObject<boolean>;
+  /** The running render is an interactive preview-size pass rather than a full-quality one. */
+  interactiveRenderRef: MutableRefObject<boolean>;
   activeAbortRef: MutableRefObject<AbortController | null>;
   layerGraphCacheEntriesRef: MutableRefObject<Map<string, Promise<HTMLCanvasElement>>>;
   lastGoodCanvasRef: MutableRefObject<HTMLCanvasElement | null>;
@@ -260,15 +264,15 @@ function drawRenderResult(result: HTMLCanvasElement, refs: DocumentRendererRefs,
   });
 }
 
-function finishRenderCycle(refs: DocumentRendererRefs, abortController: AbortController, renderNow: () => void) {
+function finishRenderCycle(
+  refs: DocumentRendererRefs,
+  abortController: AbortController,
+  done: (options: { cooldown: boolean }) => void,
+) {
   refs.renderingRef.current = false;
   if (refs.activeAbortRef.current === abortController) refs.activeAbortRef.current = null;
-  if (refs.pendingRef.current && refs.canvasRef.current) {
-    refs.pendingRef.current = false;
-    renderNow();
-    return;
-  }
-  refs.pendingRef.current = false;
+  // Only interactive passes are part of a gesture; a full-quality pass must not delay the next edit.
+  done({ cooldown: refs.interactiveRenderRef.current });
 }
 
 function renderCacheForMode(refs: DocumentRendererRefs, renderOptions: RenderOptions, width: number, height: number) {
@@ -333,6 +337,7 @@ function currentRenderPolicy(refs: DocumentRendererRefs, abortController: AbortC
   return {
     targetWidth,
     targetHeight,
+    interactive: usePreviewSize,
     renderOptions: {
       skipEffects: useDraftQuality,
       draft: useDraftQuality,
@@ -411,20 +416,17 @@ function cleanupMountedRenderCanvas({
   container,
   canvas,
   refs,
-  rafRef,
+  cancelScheduledRender,
   cancelDeferredFullRender,
 }: {
   container: HTMLDivElement;
   canvas: HTMLCanvasElement;
   refs: DocumentRendererRefs;
-  rafRef: MutableRefObject<number | null>;
+  cancelScheduledRender: () => void;
   cancelDeferredFullRender: () => void;
 }) {
   cancelDeferredFullRender();
-  if (rafRef.current !== null) {
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-  }
+  cancelScheduledRender();
   refs.activeAbortRef.current?.abort();
   refs.activeAbortRef.current = null;
   refs.canvasRef.current = null;
@@ -432,7 +434,7 @@ function cleanupMountedRenderCanvas({
 }
 
 function shouldUseBlankFallback(result: HTMLCanvasElement, refs: DocumentRendererRefs, renderOptions: RenderOptions) {
-  return !refs.pendingRef.current && !renderOptions.skipEffects && isLikelyBlankRender(result, refs.docRef.current);
+  return !refs.supersededRef.current && !renderOptions.skipEffects && isLikelyBlankRender(result, refs.docRef.current);
 }
 
 function handleBlankPrimaryRender({
@@ -476,7 +478,7 @@ function handlePrimaryRenderSuccess(
     return;
   }
   if (!renderOptions.skipEffects) refs.gpuFallbackUntilRef.current = 0;
-  if (!refs.pendingRef.current) drawRenderResult(result, refs, setRenderState);
+  if (!refs.supersededRef.current) drawRenderResult(result, refs, setRenderState);
   finishRender();
 }
 
@@ -503,7 +505,7 @@ function handleFallbackRenderFailure(
     finishRender();
     return;
   }
-  if (!refs.pendingRef.current && refs.lastGoodCanvasRef.current) {
+  if (!refs.supersededRef.current && refs.lastGoodCanvasRef.current) {
     drawRenderResult(refs.lastGoodCanvasRef.current, refs, setRenderState);
   }
   if (import.meta.env.DEV) console.warn('Canvas render failed.', fallbackError);
@@ -522,7 +524,7 @@ function handlePrimaryRenderFailure(
     finishRender();
     return;
   }
-  if (refs.pendingRef.current) {
+  if (refs.supersededRef.current) {
     if (!renderOptions.skipEffects) refs.gpuFallbackUntilRef.current = performance.now() + 5000;
     finishRender();
     return;
@@ -535,7 +537,7 @@ function handlePrimaryRenderFailure(
   refs.gpuFallbackUntilRef.current = performance.now() + 5000;
   renderDraftFallback(refs, renderOptions)
     .then((fallback) => {
-      if (!refs.pendingRef.current) drawRenderResult(fallback, refs, setRenderState);
+      if (!refs.supersededRef.current) drawRenderResult(fallback, refs, setRenderState);
       if (import.meta.env.DEV) console.warn('Canvas render fell back to draft mode.', error);
     })
     .catch((fallbackError) =>
@@ -554,10 +556,10 @@ export function useDocumentRenderer(
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const renderingRef = useRef(false);
-  const pendingRef = useRef(false);
+  const supersededRef = useRef(false);
+  const interactiveRenderRef = useRef(false);
   const activeAbortRef = useRef<AbortController | null>(null);
   const layerGraphCacheEntriesRef = useRef(new Map<string, Promise<HTMLCanvasElement>>());
-  const rafRef = useRef<number | null>(null);
   const lastGoodCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const docRef = useRef(doc);
   const imageCacheRef = useRef(imageCache);
@@ -593,33 +595,31 @@ export function useDocumentRenderer(
     showingStaleFrame: false,
     error: null,
   });
-  const rendererRefsRef = useRef<DocumentRendererRefs | null>(null);
-  if (!rendererRefsRef.current) {
-    rendererRefsRef.current = {
-      canvasRef,
-      renderingRef,
-      pendingRef,
-      activeAbortRef,
-      layerGraphCacheEntriesRef,
-      lastGoodCanvasRef,
-      docRef,
-      imageCacheRef,
-      pwRef,
-      phRef,
-      renderWidthRef,
-      renderHeightRef,
-      fastRef,
-      graphModeRef,
-      primitiveViewStatesRef,
-      cacheKeyRef,
-      draftRenderScaleRef,
-      draftMaxRenderDimensionRef,
-      deferredPreviewQualityRef,
-      draftUntilRef,
-      gpuFallbackUntilRef,
-    };
-  }
-  const rendererRefs = rendererRefsRef.current;
+  // Stable bundle of the refs above; the literal is only used on the first render.
+  const rendererRefsRef = useRef<DocumentRendererRefs>({
+    canvasRef,
+    renderingRef,
+    supersededRef,
+    interactiveRenderRef,
+    activeAbortRef,
+    layerGraphCacheEntriesRef,
+    lastGoodCanvasRef,
+    docRef,
+    imageCacheRef,
+    pwRef,
+    phRef,
+    renderWidthRef,
+    renderHeightRef,
+    fastRef,
+    graphModeRef,
+    primitiveViewStatesRef,
+    cacheKeyRef,
+    draftRenderScaleRef,
+    draftMaxRenderDimensionRef,
+    deferredPreviewQualityRef,
+    draftUntilRef,
+    gpuFallbackUntilRef,
+  });
   const mountOptions: RenderCanvasMountOptions = useMemo(
     () => ({
       cacheKey: options.cacheKey,
@@ -695,51 +695,60 @@ export function useDocumentRenderer(
     }
   }, []);
 
-  const doRender = useCallback(
-    function renderNow() {
-      if (!rendererRefs.canvasRef.current) return;
-      if (rendererRefs.renderingRef.current) {
-        rendererRefs.pendingRef.current = true;
-        rendererRefs.activeAbortRef.current?.abort();
-        return;
-      }
+  const doRender = useCallback((done: (options: { cooldown: boolean }) => void) => {
+    const rendererRefs = rendererRefsRef.current;
+    if (!rendererRefs.canvasRef.current) {
+      done({ cooldown: false });
+      return;
+    }
 
-      rendererRefs.activeAbortRef.current?.abort();
-      const abortController = new AbortController();
-      rendererRefs.activeAbortRef.current = abortController;
-      const { targetWidth, targetHeight, renderOptions } = currentRenderPolicy(rendererRefs, abortController);
-      const finishRender = () => {
-        finishRenderCycle(rendererRefs, abortController, renderNow);
-      };
+    rendererRefs.supersededRef.current = false;
+    rendererRefs.activeAbortRef.current?.abort();
+    const abortController = new AbortController();
+    rendererRefs.activeAbortRef.current = abortController;
+    const { targetWidth, targetHeight, interactive, renderOptions } = currentRenderPolicy(
+      rendererRefs,
+      abortController,
+    );
+    rendererRefs.interactiveRenderRef.current = interactive;
+    const finishRender = () => {
+      finishRenderCycle(rendererRefs, abortController, done);
+    };
 
-      rendererRefs.renderingRef.current = true;
-      markRenderStarted(setRenderState);
-      timedPrimaryRender(rendererRefs, renderOptions, targetWidth, targetHeight)
-        .then((result) =>
-          handlePrimaryRenderSuccess(
-            result,
-            rendererRefs,
-            renderOptions,
-            abortController,
-            setRenderState,
-            finishRender,
-          ),
-        )
-        .catch((error) =>
-          handlePrimaryRenderFailure(error, rendererRefs, renderOptions, abortController, setRenderState, finishRender),
-        );
-    },
-    [rendererRefs],
-  );
+    rendererRefs.renderingRef.current = true;
+    markRenderStarted(setRenderState);
+    timedPrimaryRender(rendererRefs, renderOptions, targetWidth, targetHeight)
+      .then((result) =>
+        handlePrimaryRenderSuccess(result, rendererRefs, renderOptions, abortController, setRenderState, finishRender),
+      )
+      .catch((error) =>
+        handlePrimaryRenderFailure(error, rendererRefs, renderOptions, abortController, setRenderState, finishRender),
+      );
+  }, []);
 
-  // Coalesce multiple state changes within a frame into one render call.
+  // Latest-wins: one render in flight, at most one waiting, and free main-thread time between renders.
+  const schedulerRef = useRef<PreviewRenderScheduler | null>(null);
   const scheduleRender = useCallback(() => {
-    if (rafRef.current !== null) return;
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      doRender();
-    });
+    let scheduler = schedulerRef.current;
+    if (!scheduler) {
+      scheduler = createPreviewRenderScheduler({
+        run: (done) => doRender(done),
+        // A newer request aborts a running full-quality pass and drops its result. A running interactive pass is
+        // allowed to finish and paint (one input behind): dropping it too left continuous drags on slow machines with
+        // no preview frames at all (see docs/performance.md).
+        onSupersede: () => {
+          if (interactiveRenderRef.current) return;
+          supersededRef.current = true;
+          activeAbortRef.current?.abort();
+        },
+      });
+      schedulerRef.current = scheduler;
+    }
+    scheduler.request();
   }, [doRender]);
+  const cancelScheduledRender = useCallback(() => {
+    schedulerRef.current?.cancelScheduled();
+  }, []);
 
   const scheduleDeferredFullRender = useCallback(() => {
     cancelDeferredFullRender();
@@ -764,11 +773,18 @@ export function useDocumentRenderer(
 
   useLayoutEffect(() => {
     const container = containerRef.current;
+    const rendererRefs = rendererRefsRef.current;
     if (!container) return;
     const canvas = mountRenderCanvas(container, rendererRefs, pw, ph, mountOptions, setRenderState);
     scheduleRender();
     return () =>
-      cleanupMountedRenderCanvas({ container, canvas, refs: rendererRefs, rafRef, cancelDeferredFullRender });
+      cleanupMountedRenderCanvas({
+        container,
+        canvas,
+        refs: rendererRefs,
+        cancelScheduledRender,
+        cancelDeferredFullRender,
+      });
   }, [
     pw,
     ph,
@@ -778,8 +794,8 @@ export function useDocumentRenderer(
     options.deferFullRender,
     options.deferredFullRenderTimeoutMs,
     mountOptions,
-    rendererRefs,
     scheduleRender,
+    cancelScheduledRender,
     cancelDeferredFullRender,
   ]);
 
@@ -821,13 +837,13 @@ export function useDocumentRenderer(
 
   useEffect(
     () => () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      cancelScheduledRender();
       clearRenderTimer(settleTimerRef);
       activeAbortRef.current?.abort();
       activeAbortRef.current = null;
       cancelDeferredFullRender();
     },
-    [cancelDeferredFullRender],
+    [cancelDeferredFullRender, cancelScheduledRender],
   );
 
   return { containerRef, renderState, retryRender: scheduleRender };

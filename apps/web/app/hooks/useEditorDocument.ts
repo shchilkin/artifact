@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InsertConnectionConfig } from '../components/node-canvas';
 import {
   type AspectRatio,
@@ -60,11 +60,11 @@ import {
   updateTransformNodeInDocument,
 } from '../utils/documentCommands';
 import {
-  createPendingHistoryEntry,
+  clearPendingDocumentHistory,
+  commitDocumentWithHistory,
+  type DocumentHistoryCommit,
   type DocumentUpdateMode,
-  flushPendingHistory,
   type HistoryEntry,
-  pushSnapshotHistory,
   redoHistory,
   undoHistory,
 } from '../utils/documentHistory';
@@ -93,7 +93,7 @@ function isUndoShortcut(event: KeyboardEvent) {
 }
 
 export function useEditorDocument(nodeModeEnabled: boolean) {
-  const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
+  const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument);
   const [documentSaveStatus, setDocumentSaveStatus] = useState<{ ok: boolean; savedAt: string | null }>({
     ok: true,
     savedAt: null,
@@ -143,39 +143,24 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     });
   }, [fromBlankParam]);
 
-  const clearPendingHistory = useCallback(() => {
-    clearTimeout(histDebounceRef.current);
-    preChangeRef.current = null;
-  }, []);
+  const historyCommit = useMemo<DocumentHistoryCommit>(
+    () => ({
+      docRef,
+      pendingRef: preChangeRef,
+      timerRef: histDebounceRef,
+      setDoc: _setDoc,
+      setPast,
+      setFuture,
+    }),
+    [],
+  );
+  const clearPendingHistory = useCallback(() => clearPendingDocumentHistory(historyCommit), [historyCommit]);
 
   useEffect(() => () => clearTimeout(histDebounceRef.current), []);
 
   const commitDocument = useCallback(
-    (newDoc: CanvasDocument, mode: DocumentUpdateMode) => {
-      if (mode === 'snapshot') {
-        clearPendingHistory();
-        setPast((items) => pushSnapshotHistory({ past: items, future: [] }, docRef.current).past);
-        setFuture([]);
-        _setDoc(newDoc);
-        return;
-      }
-
-      if (mode === 'debounce') {
-        _setDoc(newDoc);
-        preChangeRef.current = createPendingHistoryEntry(docRef.current, preChangeRef.current);
-        clearTimeout(histDebounceRef.current);
-        histDebounceRef.current = setTimeout(() => {
-          if (!preChangeRef.current) return;
-          setPast((items) => flushPendingHistory({ past: items, future: [] }, preChangeRef.current).past);
-          setFuture([]);
-          preChangeRef.current = null;
-        }, 400);
-        return;
-      }
-
-      _setDoc(newDoc);
-    },
-    [clearPendingHistory],
+    (newDoc: CanvasDocument, mode: DocumentUpdateMode) => commitDocumentWithHistory(newDoc, mode, historyCommit),
+    [historyCommit],
   );
 
   const setDoc = useCallback(

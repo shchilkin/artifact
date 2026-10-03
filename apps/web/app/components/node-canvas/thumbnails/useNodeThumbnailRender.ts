@@ -8,25 +8,13 @@ import type {
   PrimitiveViewportStateConfig,
 } from '../../../types/config';
 import { logThumbnailInvalidation } from '../../../utils/devLogging';
+import { createGraphNodeRenderCache, GRAPH_NODE_RENDER_CACHE_LIMIT } from '../../../utils/graphNodeRenderCache';
 import { imageCacheSignature } from '../../../utils/imageCacheSignature';
 import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { measurePerformancePhase, measurePerformancePhaseSync } from '../../../utils/performanceMeasure';
 import { preloadImageSources } from '../../../utils/preloadImageSources';
-import { type GraphRenderCache, renderGraphTarget } from '../../../utils/renderer';
-import {
-  colorNodeRenderSig,
-  edgeRenderSig,
-  environmentNodeRenderSig,
-  grimeShadowNodeRenderSig,
-  layerRenderSig,
-  maskNodeRenderSig,
-  materialNodeRenderSig,
-  mergeNodeRenderSig,
-  repeatNodeRenderSig,
-  scene3DNodeRenderSig,
-  shaderNodeRenderSig,
-  transformNodeRenderSig,
-} from '../../../utils/renderSignature';
+import { renderGraphTarget } from '../../../utils/renderer';
+import { edgeRenderSig, graphNodeRenderSigs, layerRenderSig, viewStateRenderSig } from '../../../utils/renderSignature';
 import { useNodeCanvasPreview } from '../context';
 import { getNodePreviewSize, NODE_PREVIEW_PASSIVE_RENDER_SCALE, NODE_PREVIEW_RENDER_SCALE } from './previewSizing';
 import {
@@ -38,7 +26,8 @@ import {
 } from './thumbnailQueue';
 
 const THUMBNAIL_CACHE_LIMIT = 48;
-const GRAPH_RENDER_CHAIN_CACHE_LIMIT = 192;
+// Passive previews on screen wait for a short pause in editing; previews just outside it wait longer.
+const VISIBLE_THUMB_DEBOUNCE_MS = 32;
 const thumbnailResultCache = new Map<string, HTMLCanvasElement>();
 const thumbnailInflightCache = new Map<string, Promise<HTMLCanvasElement>>();
 const thumbnailGraphRenderChainCache = new Map<string, Promise<HTMLCanvasElement>>();
@@ -80,14 +69,7 @@ function primitiveViewSignature(
     ...layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id),
     ...(graph.scene3dNodes ?? []).map((node) => node.id),
   ];
-  return ids
-    .map((id) => {
-      const view = primitiveViewStates[id];
-      return view
-        ? `${id}:${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}`
-        : `${id}:default`;
-    })
-    .join('|');
+  return ids.map((id) => `${id}:${viewStateRenderSig(primitiveViewStates[id])}`).join('|');
 }
 
 function layerSignatures(layers: Layer[]) {
@@ -99,23 +81,20 @@ function layerSignatures(layers: Layer[]) {
 }
 
 function graphSignatureParts(graph: CanvasGraph) {
+  const nodes = graphNodeRenderSigs(graph);
   return {
-    mergeSignatures: renderSignatures(graph.mergeNodes, mergeNodeRenderSig),
-    colorSignatures: renderSignatures(graph.colorNodes, colorNodeRenderSig),
-    repeatSignatures: renderSignatures(graph.repeatNodes, repeatNodeRenderSig),
-    materialSignatures: renderSignatures(graph.materialNodes, materialNodeRenderSig),
-    maskSignatures: renderSignatures(graph.maskNodes, maskNodeRenderSig),
-    transformSignatures: renderSignatures(graph.transformNodes, transformNodeRenderSig),
-    grimeShadowSignatures: renderSignatures(graph.grimeShadowNodes, grimeShadowNodeRenderSig),
-    scene3DSignatures: renderSignatures(graph.scene3dNodes, scene3DNodeRenderSig),
-    environmentSignatures: renderSignatures(graph.environmentNodes, environmentNodeRenderSig),
-    shaderSignatures: renderSignatures(graph.shaderNodes, shaderNodeRenderSig),
-    edgeSignatures: renderSignatures(graph.edges, edgeRenderSig),
+    mergeSignatures: nodes.merge,
+    colorSignatures: nodes.color,
+    repeatSignatures: nodes.repeat,
+    materialSignatures: nodes.material,
+    maskSignatures: nodes.mask,
+    transformSignatures: nodes.transform,
+    grimeShadowSignatures: nodes.grimeShadow,
+    scene3DSignatures: nodes.scene3d,
+    environmentSignatures: nodes.environment,
+    shaderSignatures: nodes.shader,
+    edgeSignatures: graph.edges.map((edge) => ({ id: edge.id, sig: edgeRenderSig(edge) })),
   };
-}
-
-function renderSignatures<T extends { id: string }>(items: T[] | undefined, signature: (item: T) => string) {
-  return (items ?? []).map((item) => ({ id: item.id, sig: signature(item) }));
 }
 
 function collectThumbnailSignatureParts(previewTargetId: string, renderDoc: CanvasDocument, renderGraph: CanvasGraph) {
@@ -126,13 +105,9 @@ function collectThumbnailSignatureParts(previewTargetId: string, renderDoc: Canv
 
   return {
     layers,
-    allLayers: renderDoc.layers,
     upstreamImageLayers: layers.filter((layer): layer is ImageLayer => layer.kind === 'image'),
-    allImageLayers: renderDoc.layers.filter((layer): layer is ImageLayer => layer.kind === 'image'),
     layerSignatures: layerSignatures(layers),
-    allLayerSignatures: layerSignatures(renderDoc.layers),
     ...graphSignatureParts(graph),
-    allGraphSignatures: graphSignatureParts(renderGraph),
   };
 }
 
@@ -165,7 +140,6 @@ interface ThumbnailRenderSnapshot {
   imageCache: Map<string, HTMLImageElement>;
   previewKey: string;
   renderStabilityKey: string;
-  graphRenderSessionKey: string;
   previewSize: PreviewSize;
   isExportPreview: boolean;
   previewTargetId: string;
@@ -246,11 +220,20 @@ function createThumbnailRenderPromise(
   effectiveImageCache: Map<string, HTMLImageElement>,
 ) {
   const previewDoc: CanvasDocument = { ...snapshot.doc, graph: snapshot.graph };
-  const graphRenderCache: GraphRenderCache = {
-    namespace: snapshot.graphRenderSessionKey,
-    entries: thumbnailGraphRenderChainCache,
-    limit: GRAPH_RENDER_CHAIN_CACHE_LIMIT,
-  };
+  // Content-addressed, so upstream branches an edit did not touch are reused instead of rendered again.
+  const graphRenderCache = createGraphNodeRenderCache(
+    previewDoc,
+    snapshot.graph,
+    effectiveImageCache,
+    thumbnailGraphRenderChainCache,
+    {
+      width: snapshot.previewSize.render.width,
+      height: snapshot.previewSize.render.height,
+      effectResolution: snapshot.previewSize.aspect,
+      primitiveViewStates: snapshot.primitiveViewStates,
+      limit: GRAPH_NODE_RENDER_CACHE_LIMIT,
+    },
+  );
 
   return (async () => {
     const result = await measurePerformancePhase(THUMBNAIL_GRAPH_RENDER_MEASURE, () =>
@@ -367,24 +350,44 @@ function shouldShowThumbnailPreparing(ready: boolean, hasRendered: boolean) {
   return !ready && hasRendered;
 }
 
+function observeIntersection(node: HTMLElement, rootMargin: string, onChange: (intersecting: boolean) => void) {
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      onChange(entry.isIntersecting || entry.intersectionRatio > 0);
+    },
+    { root: null, rootMargin },
+  );
+  observer.observe(node);
+  return observer;
+}
+
+/**
+ * `isFrameVisible`: the frame is in or near the viewport, so it may render at all. `isInViewport`: it is on screen
+ * now, so its render goes ahead of previews that are only near the viewport.
+ */
 function useThumbnailVisibility(priority: boolean, frameRef: { current: HTMLDivElement | null }) {
-  const [isFrameVisible, setIsFrameVisible] = useState(() => priority || typeof IntersectionObserver === 'undefined');
+  const observable = typeof IntersectionObserver !== 'undefined';
+  const [isFrameVisible, setIsFrameVisible] = useState(() => priority || !observable);
+  const [isInViewport, setIsInViewport] = useState(() => priority || !observable);
 
   useEffect(() => {
     if (priority) return undefined;
     const node = frameRef.current;
     if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsFrameVisible(entry.isIntersecting || entry.intersectionRatio > 0);
-      },
-      { root: null, rootMargin: '360px' },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
+    const near = observeIntersection(node, '360px', setIsFrameVisible);
+    const onScreen = observeIntersection(node, '0px', setIsInViewport);
+    return () => {
+      near.disconnect();
+      onScreen.disconnect();
+    };
   }, [frameRef, priority]);
 
-  return isFrameVisible;
+  return { isFrameVisible, isInViewport };
+}
+
+function thumbnailDebounceMs(priority: boolean, isInViewport: boolean) {
+  if (priority) return 0;
+  return isInViewport ? VISIBLE_THUMB_DEBOUNCE_MS : THUMB_DEBOUNCE_MS;
 }
 
 export function useNodeThumbnailRender(previewTargetId: string, options: { priority?: boolean } = {}) {
@@ -393,7 +396,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const isFrameVisible = useThumbnailVisibility(priority, frameRef);
+  const { isFrameVisible, isInViewport } = useThumbnailVisibility(priority, frameRef);
 
   // Dev-only: previous render signatures keyed by item id, used for change logging.
   const prevLayerSigsRef = useRef<Map<string, string>>(new Map());
@@ -423,11 +426,8 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   const signatureData = useMemo(() => {
     const {
       layers,
-      allLayers,
       upstreamImageLayers,
-      allImageLayers,
       layerSignatures,
-      allLayerSignatures,
       mergeSignatures,
       colorSignatures,
       repeatSignatures,
@@ -439,7 +439,6 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       environmentSignatures,
       shaderSignatures,
       edgeSignatures,
-      allGraphSignatures,
     } = collectThumbnailSignatureParts(previewTargetId, renderDoc, renderGraph);
 
     const basePreviewKeyParts = [
@@ -467,32 +466,9 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     const previewKey = [...basePreviewKeyParts].join('::');
     const renderStabilityKey = [...basePreviewKeyParts].join('::');
 
-    const graphRenderSessionKey = [
-      `${previewSize.render.width}x${previewSize.render.height}`,
-      `effect:${previewSize.aspect.width}x${previewSize.aspect.height}`,
-      renderDoc.global.bg,
-      renderDoc.global.seed,
-      renderDoc.global.aspect,
-      signatureList(allLayerSignatures),
-      signatureList(allGraphSignatures.mergeSignatures),
-      signatureList(allGraphSignatures.colorSignatures),
-      signatureList(allGraphSignatures.repeatSignatures),
-      signatureList(allGraphSignatures.materialSignatures),
-      signatureList(allGraphSignatures.maskSignatures),
-      signatureList(allGraphSignatures.transformSignatures),
-      signatureList(allGraphSignatures.grimeShadowSignatures),
-      signatureList(allGraphSignatures.scene3DSignatures),
-      signatureList(allGraphSignatures.environmentSignatures),
-      signatureList(allGraphSignatures.shaderSignatures),
-      signatureList(allGraphSignatures.edgeSignatures),
-      primitiveViewSignature(allLayers, renderGraph, renderPrimitiveViewStates),
-      imageCacheSignature(allImageLayers, imageCache),
-    ].join('::');
-
     return {
       previewKey,
       renderStabilityKey,
-      graphRenderSessionKey,
       layerSignatures,
       mergeSignatures,
       colorSignatures,
@@ -505,7 +481,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       edgeSignatures,
     };
   }, [renderDoc, renderGraph, previewSize, previewTargetId, renderPrimitiveViewStates, imageCache]);
-  const { graphRenderSessionKey, previewKey, renderStabilityKey } = signatureData;
+  const { previewKey, renderStabilityKey } = signatureData;
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -597,7 +573,6 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     imageCache,
     previewKey,
     renderStabilityKey,
-    graphRenderSessionKey,
     previewSize,
     isExportPreview,
     previewTargetId,
@@ -612,7 +587,6 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       imageCache,
       previewKey,
       renderStabilityKey,
-      graphRenderSessionKey,
       previewSize,
       isExportPreview,
       previewTargetId,
@@ -623,7 +597,6 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
     imageCache,
     isExportPreview,
     isGraphDraggingRef,
-    graphRenderSessionKey,
     previewKey,
     renderStabilityKey,
     previewSize,
@@ -670,14 +643,23 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
               setFailedPreviewKey(previewKey);
             }
           },
-          { priority },
+          { priority, visible: isInViewport },
         );
       },
-      priority ? 20 : THUMB_DEBOUNCE_MS,
+      thumbnailDebounceMs(priority, isInViewport),
     );
 
     return () => clearTimeout(debounceRef.current);
-  }, [isFrameVisible, isExportPreview, isGraphDraggingRef, priority, previewKey, previewSize, previewTargetId]);
+  }, [
+    isFrameVisible,
+    isInViewport,
+    isExportPreview,
+    isGraphDraggingRef,
+    priority,
+    previewKey,
+    previewSize,
+    previewTargetId,
+  ]);
 
   return {
     frameRef,

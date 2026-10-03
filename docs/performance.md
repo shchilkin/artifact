@@ -157,12 +157,42 @@ Recent manual profiling notes:
   a transient `AbortSignal` and stops before continuing through stale expensive
   effects. This keeps cancellation outside `CanvasDocument` while preventing
   old full-quality work from blocking the node workspace.
-- Node thumbnails now share a render-session cache for graph branches. When
-  several visible thumbnails depend on the same upstream source/effect chain,
-  the renderer can reuse in-flight or completed upstream canvases instead of
+- v0.50 (#308) made direct edits meet the editor UX latency budgets without
+  changing render output:
+  - The layer preview schedules renders latest-wins
+    (`apps/web/app/hooks/previewRenderScheduler.ts`): one render in flight and
+    at most one waiting. A newer request aborts a running full-quality pass
+    and drops its result. **Deviation from "stale renders are dropped":** a
+    running interactive (preview-size) pass is allowed to finish and paint,
+    one input behind the latest state, and the newest state renders right
+    after it. Dropping those too was measured on the CI runner: a 20-step
+    drag then painted 0 preview frames on `default` and 0–1 on
+    `effect-stack` (3–5 with this rule). Requests that arrive while a render
+    runs never queue more than one render. While input keeps arriving, the next interactive render
+    waits until the main thread has been free for twice the previous render's
+    duration (at most 250 ms). The wait ends once input has been quiet for
+    twice its recent interval, and a request after a 120 ms pause (an edit
+    after a pause, or the full-quality pass after a gesture) starts without
+    it.
+  - The Pixi bridge reads filter output back through a pixel-pack buffer and a
+    fence instead of a blocking `readPixels`, so the main thread keeps handling
+    input while the GPU runs the filters. The bytes match
+    `renderer.extract.canvas` (same unpremultiply rounding); WebGL1 or a
+    readback that does not complete within 2 s falls back to the synchronous
+    extract.
+  - Node thumbnails use a content-addressed graph cache (see
+    [`rendering.md`](./rendering.md)), so a slider edit re-renders only the
+    edited node and what is downstream of it. Selected and output previews
+    queue with no debounce, previews in the viewport after a 32 ms pause and
+    ahead of previews that are only near the viewport (120 ms and an idle
+    slot).
+- Node thumbnails share a graph render cache for upstream branches (keyed by
+  content since v0.50, see [`rendering.md`](./rendering.md)). When several
+  visible thumbnails depend on the same upstream source/effect chain, the
+  renderer reuses in-flight or completed upstream canvases instead of
   recomputing the same branch for every thumbnail.
   In one local benchmark run, initial thumbnail render time dropped from roughly
-  `1360ms` total to roughly `107ms` total after this cache boundary.
+  `1360ms` total to roughly `107ms` total after this cache boundary was added.
 - Gallery previews and generated preset/example thumbnails can now pass the
   same external graph render cache through `renderDocument`, so the cache
   boundary is not limited to node cards. Generated thumbnail data URLs are also

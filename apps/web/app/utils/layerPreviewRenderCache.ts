@@ -3,7 +3,7 @@ import { hashString } from './hashString';
 import { EXPORT_NODE_ID } from './nodeGraph';
 import type { RenderOptions } from './render/layers';
 import type { GraphRenderCache } from './renderer';
-import { layerRenderSig } from './renderSignature';
+import { layerRenderSig, viewStateRenderSig } from './renderSignature';
 
 const LAYER_PREVIEW_GRAPH_CACHE_LIMIT = 128;
 
@@ -22,7 +22,7 @@ function imageLayerSignature(layer: ImageLayer, imageCache: Map<string, HTMLImag
 function primitiveViewSignature(layer: Layer, renderOptions: LayerPreviewRenderCacheConfig['renderOptions']): string {
   if (layer.kind !== 'primitive' && layer.kind !== 'model') return '';
   const view = renderOptions.primitiveViewStates?.[layer.id];
-  return view ? `${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}` : 'default';
+  return viewStateRenderSig(view);
 }
 
 export function createLayerPreviewRenderCache(

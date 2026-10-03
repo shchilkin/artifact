@@ -1,6 +1,7 @@
 import type { CanvasDocument } from '../types/config';
 import { mapDocumentImageSources } from './documentSourceMapping';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
+import { markRenderAssetFallback } from './renderAssetEpoch';
 import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
 const DB_NAME = 'artifact-local-assets';
@@ -87,7 +88,10 @@ async function loadImageAssetDataUrl(src: string): Promise<string | null> {
 }
 
 export async function resolveImageSource(src: string): Promise<string | null> {
-  return isAssetUri(src) ? loadImageAssetDataUrl(src) : src;
+  if (!isAssetUri(src)) return src;
+  const resolved = await loadImageAssetDataUrl(src);
+  if (!resolved) markRenderAssetFallback();
+  return resolved;
 }
 
 export interface StoreDocumentImageAssetOptions {

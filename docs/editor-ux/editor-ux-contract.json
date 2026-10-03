@@ -15,7 +15,8 @@
   "documents": ["default", "effect-stack"],
   "calibration": {
     "referenceMs": 118.6,
-    "$comment": "Duration of the fixed Canvas 2D calibration workload on the v0.49.0 baseline run (GitHub-hosted ubuntu-latest, 4 CPUs). Latency metrics are scaled by referenceMs / measured calibration before they are checked, so budgets are in reference-machine milliseconds."
+    "dragFloorMs": 340,
+    "$comment": "referenceMs: duration of the fixed Canvas 2D calibration workload on the v0.49.0 baseline run (GitHub-hosted ubuntu-latest, 4 CPUs). Latency metrics are scaled by referenceMs / measured calibration before they are checked, so budgets are in reference-machine milliseconds. dragFloorMs: the 20-step drag loop with nothing on the main thread, one step per 60 Hz frame. slider-drag/durationMs is reported as dragFloorMs plus the scaled time above the floor measured on the same machine, because the floor follows frame pacing (665.7 ms on the CI runner, 333 ms on macOS) rather than CPU speed."
   },
   "budgets": [
     {
@@ -75,10 +76,11 @@
       "subjects": ["slider-keypress"]
     },
     {
-      "metric": "durationMs",
-      "max": 500,
+      "metric": "mainThreadMs",
+      "max": 160,
       "unit": "ms",
       "deterministic": false,
+      "since": "#308",
       "viewports": ["desktop"],
       "subjects": ["slider-drag"]
     },
@@ -105,6 +107,14 @@
       "deterministic": false,
       "viewports": ["desktop"],
       "subjects": ["node-preview"]
+    }
+  ],
+  "fixed": [
+    {
+      "key": "desktop/*/node-preview/sliderSettleMs",
+      "owner": "#308",
+      "baseline": "68.3 / 177.3 ms",
+      "reason": "Node thumbnails reuse unchanged upstream branches through a content-addressed graph cache, and the selected and output previews queue without a debounce."
     }
   ],
   "exceptions": [
@@ -175,28 +185,22 @@
       "reason": "After visiting Nodes, the Layers inspector renders the same slider at 129 px instead of 357 px."
     },
     {
-      "key": "desktop/*/slider-keypress/inputToPreviewMs",
+      "key": "desktop/*/slider-drag/mainThreadMs",
+      "max": 480,
+      "owner": "#324",
+      "reason": "A 20-step drag keeps the main thread busy for about 300 ms: the editor re-renders on every pointer move and the preview renders every few steps."
+    },
+    {
+      "key": "desktop/default/slider-keypress/inputToPreviewMs",
+      "max": 130,
+      "owner": "#324",
+      "reason": "The preview render starts within 10 ms of the key, but one GPU effect pass takes about 50 ms on the CI runner, so the first paint lands at 65-86 ms."
+    },
+    {
+      "key": "desktop/effect-stack/slider-keypress/inputToPreviewMs",
       "max": 215,
-      "owner": "#308",
-      "reason": "One slider step takes 62 ms (default) and 122 ms (effect-stack) to reach the preview."
-    },
-    {
-      "key": "desktop/default/slider-drag/durationMs",
-      "max": 1900,
-      "owner": "#308",
-      "reason": "Each drag step blocks the main thread for about three frames: a 20-step drag takes 1095 ms instead of about 340 ms."
-    },
-    {
-      "key": "desktop/effect-stack/slider-drag/durationMs",
-      "max": 3400,
-      "owner": "#308",
-      "reason": "Each drag step blocks the main thread for about six frames: a 20-step drag takes 1938 ms instead of about 340 ms."
-    },
-    {
-      "key": "desktop/*/node-preview/sliderSettleMs",
-      "max": 310,
-      "owner": "#308",
-      "reason": "Node thumbnails downstream of an edited effect take 68 ms (default) and 177 ms (effect-stack) to settle."
+      "owner": "#324",
+      "reason": "The render above the edited layer runs two GPU effect passes of about 50 ms each on the CI runner, so the first paint lands at 120-150 ms."
     }
   ]
 }

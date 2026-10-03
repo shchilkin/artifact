@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   type CanvasDocument,
   type CanvasGraph,
@@ -11,10 +11,14 @@ import {
 } from '../types/config';
 import {
   appendHistoryEntry,
+  commitDocumentWithHistory,
   createHistoryEntry,
   createPendingHistoryEntry,
+  type DocumentHistoryCommit,
   flushPendingHistory,
+  HISTORY_DEBOUNCE_MS,
   HISTORY_MAX,
+  type HistoryEntry,
   pushSnapshotHistory,
   redoHistory,
   undoHistory,
@@ -213,5 +217,60 @@ describe('documentHistory', () => {
     expect(capped).toHaveLength(HISTORY_MAX);
     expect(capped[0]?.doc.global.seed).toBe(4);
     expect(capped.at(-1)?.doc.global.seed).toBe(999);
+  });
+});
+
+describe('commitDocumentWithHistory', () => {
+  // React may run a state updater after the call that queued it, once refs have moved on. This harness keeps the
+  // updaters queued until `flush`, the way React does while another update is pending.
+  function harness(initial: CanvasDocument) {
+    let past: HistoryEntry[] = [];
+    const queued: Array<(items: HistoryEntry[]) => HistoryEntry[]> = [];
+    const commit: DocumentHistoryCommit = {
+      docRef: { current: initial },
+      pendingRef: { current: null },
+      timerRef: { current: undefined },
+      setDoc: (doc) => {
+        commit.docRef.current = doc;
+      },
+      setPast: (update) => queued.push(update),
+      setFuture: () => undefined,
+    };
+    return {
+      commit,
+      flush() {
+        for (const update of queued.splice(0)) past = update(past);
+        return past;
+      },
+    };
+  }
+
+  const docWithSeed = (seed: number): CanvasDocument => ({
+    global: { bg: '#000000', seed, aspect: '1:1' },
+    layers: [],
+    export: { format: 'png', scale: 1, target: 'cover' },
+  });
+
+  it('records the document before a snapshot even when the updater runs after later commits', () => {
+    const { commit, flush } = harness(docWithSeed(1));
+
+    commitDocumentWithHistory(docWithSeed(2), 'snapshot', commit);
+    commitDocumentWithHistory(docWithSeed(3), 'silent', commit);
+
+    expect(flush().map((entry) => entry.doc.global.seed)).toEqual([1]);
+  });
+
+  it('records one entry for a debounced gesture even when the updater runs after the pending entry resets', () => {
+    vi.useFakeTimers();
+    try {
+      const { commit, flush } = harness(docWithSeed(1));
+      for (let seed = 2; seed <= 20; seed += 1) commitDocumentWithHistory(docWithSeed(seed), 'debounce', commit);
+
+      vi.advanceTimersByTime(HISTORY_DEBOUNCE_MS);
+      expect(commit.pendingRef.current).toBeNull();
+      expect(flush().map((entry) => entry.doc.global.seed)).toEqual([1]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

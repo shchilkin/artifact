@@ -1,6 +1,7 @@
 import type { CanvasDocument, GraphEnvironmentNode, GraphScene3DNode, PortableEnvironmentAsset } from '../types/config';
 import { mapDocumentEnvironmentSources } from './documentSourceMapping';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
+import { markRenderAssetFallback } from './renderAssetEpoch';
 import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
 const DB_NAME = 'artifact-local-environment-assets';
@@ -104,7 +105,9 @@ async function loadEnvironmentAsset(src: string): Promise<StoredEnvironmentAsset
 
 export async function resolveEnvironmentSource(src: string): Promise<string | null> {
   if (!isEnvironmentUri(src)) return src;
-  return (await loadEnvironmentAsset(src))?.dataUrl ?? null;
+  const resolved = (await loadEnvironmentAsset(src))?.dataUrl ?? null;
+  if (!resolved) markRenderAssetFallback();
+  return resolved;
 }
 
 export interface StoreDocumentEnvironmentAssetOptions {
