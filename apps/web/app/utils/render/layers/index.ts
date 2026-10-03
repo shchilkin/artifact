@@ -60,6 +60,12 @@ export interface RenderOptions {
   sourceLayout?: 'document' | 'full-frame';
   /** Optional stable effect pass resolution so export scale changes density, not the effect recipe. */
   effectResolution?: { width: number; height: number };
+  /**
+   * Interactive previews only: an effect layer's GPU filters run in the same GPU pass as the GPU-only effect layers
+   * right after it, saving one canvas upload and readback. Translucent pixels can differ from separate passes by
+   * readback rounding, so full-quality, thumbnail, and export renders leave this off.
+   */
+  mergeGpuPasses?: boolean;
   /** Transient render cancellation signal. Never store this in document state. */
   signal?: AbortSignal;
 }
@@ -1097,6 +1103,14 @@ export function isGpuOnlyEffectLayer(layer: EffectLayer): boolean {
   );
 }
 
+/**
+ * An effect layer whose GPU filters (if any) can run after its Canvas 2D effects in a later, shared GPU pass: its
+ * output is not masked or blended over its input, so nothing needs the pixels between the two parts.
+ */
+export function canMergeTrailingGpuPass(layer: EffectLayer): boolean {
+  return layer.visible && !layer.maskAlpha && !hasEffectBlendMode(layer);
+}
+
 function hasEffectBlendMode(layer: EffectLayer): boolean {
   return (layer.blendMode ?? 'normal') !== 'normal';
 }
@@ -1137,6 +1151,26 @@ export async function applyGpuOnlyEffectLayerChain(
   }
   if (filters.length === 0) return base;
   return runGpuPass(cloneCanvas(base, W, H), W, H, filters);
+}
+
+/** The Canvas 2D part of an effect layer whose GPU filters run later, in a merged GPU pass. */
+export async function applyEffectLayerCanvas2DPass(
+  base: HTMLCanvasElement,
+  layer: EffectLayer,
+  doc: CanvasDocument,
+  W: number,
+  H: number,
+  imageCache: Map<string, HTMLImageElement>,
+  options: RenderOptions,
+): Promise<HTMLCanvasElement> {
+  return measureLayerRender(layer, async () => {
+    throwIfRenderAborted(options);
+    const { ctx, current, seed, scale } = createLayerRenderContext(base, layer, doc, W, H, imageCache, options);
+    const effectSeed = seed + (layer.seedOffset ?? 0);
+    await applyCanvas2DEffects(ctx, W, H, layer, effectSeed, scale, lcg(effectSeed ^ 0x1a2b3c));
+    throwIfRenderAborted(options);
+    return current;
+  });
 }
 
 export async function applyLayerToCanvas(

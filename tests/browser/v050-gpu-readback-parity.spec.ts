@@ -120,3 +120,47 @@ test('a reference document exports the same PNG bytes with either readback', asy
   expect(exported.viaAsync.size).toBeGreaterThan(1000);
   expect(exported.viaAsync).toEqual(exported.viaSync);
 });
+
+test('merging a layer’s GPU filters into the next GPU pass keeps opaque pixels and saves a pass', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { renderDocument } = await import('/app/utils/renderer.ts');
+    const { makeEffectPresetLayer, makeFillLayer } = await import('/app/types/config.ts');
+
+    // The effect-stack shape: RGB split has Canvas 2D and GPU parts, and GPU-only layers follow it.
+    const doc = {
+      schemaVersion: 1,
+      global: { bg: '#101018', seed: 4242, aspect: '1:1' as const },
+      layers: [
+        makeFillLayer({ id: 'merge-fill', color: '#2a1140' }),
+        makeFillLayer({ id: 'merge-glaze', color: '#f46f5e', opacity: 35, blendMode: 'screen' }),
+        makeEffectPresetLayer('scanlines', { id: 'merge-scanlines', scanlines: 24 }),
+        makeEffectPresetLayer('rgbSplit', { id: 'merge-rgb', rgbSplit: 8 }),
+        makeEffectPresetLayer('halftone', { id: 'merge-halftone', halftone: 16 }),
+        makeEffectPresetLayer('vignette', { id: 'merge-vignette', vignette: 46 }),
+      ],
+      export: { format: 'png' as const, scale: 1 as const, target: 'cover' as const },
+    };
+    const size = 270;
+    const render = async (mergeGpuPasses: boolean) => {
+      performance.clearMeasures('artifact:gpu-filter-extract');
+      const canvas = await renderDocument(doc, size, size, new Map(), { graphMode: 'stack', mergeGpuPasses });
+      return {
+        pixels: canvas.getContext('2d')!.getImageData(0, 0, size, size).data,
+        gpuPasses: performance.getEntriesByName('artifact:gpu-filter-extract').length,
+      };
+    };
+
+    await render(false);
+    const separate = await render(false);
+    const merged = await render(true);
+    let differing = 0;
+    for (let index = 0; index < separate.pixels.length; index += 1) {
+      if (separate.pixels[index] !== merged.pixels[index]) differing += 1;
+    }
+    return { differing, separatePasses: separate.gpuPasses, mergedPasses: merged.gpuPasses };
+  });
+
+  expect(result.separatePasses).toBe(2);
+  expect(result.mergedPasses).toBe(1);
+  expect(result.differing).toBe(0);
+});
