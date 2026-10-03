@@ -164,3 +164,51 @@ test('merging a layer’s GPU filters into the next GPU pass keeps opaque pixels
   expect(result.mergedPasses).toBe(1);
   expect(result.differing).toBe(0);
 });
+
+test('merged GPU passes keep opaque pixels with filters that pad or sample past the edge', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { renderDocument } = await import('/app/utils/renderer.ts');
+    const { makeEffectPresetLayer, makeFillLayer } = await import('/app/types/config.ts');
+
+    // RGB Split's GPU filter joins a chain whose filters displace (barrel), spread (bloom), and pad (blur).
+    const doc = {
+      schemaVersion: 1,
+      global: { bg: '#101018', seed: 4242, aspect: '1:1' as const },
+      layers: [
+        makeFillLayer({ id: 'edge-fill', color: '#2a1140' }),
+        makeFillLayer({ id: 'edge-glaze', color: '#f46f5e', opacity: 35, blendMode: 'screen' }),
+        makeEffectPresetLayer('scanlines', { id: 'edge-scanlines', scanlines: 24 }),
+        makeEffectPresetLayer('rgbSplit', { id: 'edge-rgb', rgbSplit: 14 }),
+        makeEffectPresetLayer('barrel', { id: 'edge-barrel', barrel: 40 }),
+        makeEffectPresetLayer('bloom', { id: 'edge-bloom', bloom: 60 }),
+        makeEffectPresetLayer('blur', { id: 'edge-blur', blurAmt: 6 }),
+      ],
+      export: { format: 'png' as const, scale: 1 as const, target: 'cover' as const },
+    };
+    const size = 270;
+    const render = async (mergeGpuPasses: boolean) => {
+      performance.clearMeasures('artifact:gpu-filter-extract');
+      const canvas = await renderDocument(doc, size, size, new Map(), { graphMode: 'stack', mergeGpuPasses });
+      return {
+        pixels: canvas.getContext('2d')!.getImageData(0, 0, size, size).data,
+        gpuPasses: performance.getEntriesByName('artifact:gpu-filter-extract').length,
+      };
+    };
+
+    await render(false);
+    const separate = await render(false);
+    const merged = await render(true);
+    let differing = 0;
+    let maxDelta = 0;
+    for (let index = 0; index < separate.pixels.length; index += 1) {
+      const delta = Math.abs(separate.pixels[index] - merged.pixels[index]);
+      if (delta > 0) differing += 1;
+      maxDelta = Math.max(maxDelta, delta);
+    }
+    return { differing, maxDelta, separatePasses: separate.gpuPasses, mergedPasses: merged.gpuPasses };
+  });
+
+  expect(result.separatePasses).toBe(2);
+  expect(result.mergedPasses).toBe(1);
+  expect(result).toMatchObject({ differing: 0, maxDelta: 0 });
+});

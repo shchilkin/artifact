@@ -30,6 +30,12 @@ const GPU_QUEUE_WAIT_MEASURE = 'artifact:gpu-queue-wait';
 const GPU_UPLOAD_MEASURE = 'artifact:gpu-upload';
 const GPU_BLIT_MEASURE = 'artifact:gpu-blit';
 const GPU_FILTER_EXTRACT_MEASURE = 'artifact:gpu-filter-extract';
+/** Inside filter-extract: the GPU running the queued upload, blit, filters and pixel readback, timed by its fence. */
+const GPU_FENCE_WAIT_MEASURE = 'artifact:gpu-fence-wait';
+/** Inside filter-extract: copying the read-back pixels out of the GPU buffer and unpremultiplying them. */
+const GPU_READBACK_MEASURE = 'artifact:gpu-readback';
+/** Inside filter-extract: writing the read-back pixels into the output canvas. */
+const GPU_TO_CANVAS_MEASURE = 'artifact:gpu-to-canvas';
 
 /**
  * One renderer per browser tab. Creating a Renderer = creating a WebGL context;
@@ -261,13 +267,17 @@ async function readStagePixelsAsync(renderer: Renderer, stage: Container): Promi
   }
 
   try {
-    if (!sync || !(await waitForFence(gl, sync)) || gl.isContextLost()) return null;
-    const pixels = new Uint8Array(byteLength);
-    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
-    gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, pixels);
-    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
-    if (premultipliedAlpha) unpremultiplyAlpha(pixels);
-    return { pixels, width, height };
+    if (!sync || !(await measureGpuPhase(GPU_FENCE_WAIT_MEASURE, () => waitForFence(gl, sync))) || gl.isContextLost()) {
+      return null;
+    }
+    return measureGpuPhaseSync(GPU_READBACK_MEASURE, () => {
+      const pixels = new Uint8Array(byteLength);
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
+      gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, pixels);
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+      if (premultipliedAlpha) unpremultiplyAlpha(pixels);
+      return { pixels, width, height };
+    });
   } finally {
     if (sync) gl.deleteSync(sync);
     gl.deleteBuffer(buffer);
@@ -333,7 +343,7 @@ async function renderWithRenderer(
 
     return await measureGpuPhase(GPU_FILTER_EXTRACT_MEASURE, async () => {
       const asyncPixels = readback === 'async' ? await readStagePixelsAsync(renderer, stage) : null;
-      if (asyncPixels) return pixelsToCanvas(asyncPixels, W, H);
+      if (asyncPixels) return measureGpuPhaseSync(GPU_TO_CANVAS_MEASURE, () => pixelsToCanvas(asyncPixels, W, H));
 
       // Yield to the event loop so the GPU commands are flushed
       await new Promise<void>((r) => setTimeout(r, 0));
