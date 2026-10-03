@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { THUMB_SIZE } from '../constants';
 import {
   getNodePreviewSize,
-  NODE_PREVIEW_PASSIVE_RENDER_SCALE,
   NODE_PREVIEW_RENDER_BUCKETS,
   NODE_PREVIEW_RENDER_MAX,
   NODE_PREVIEW_RENDER_SCALE,
@@ -27,16 +26,6 @@ describe('getNodePreviewSize', () => {
     expect(size.render.width).toBeGreaterThan(size.display.width);
     expect(size.render.height).toBeGreaterThan(size.display.height);
     expect(size.renderScale).toBeGreaterThanOrEqual(NODE_PREVIEW_RENDER_SCALE);
-  });
-
-  it('supports lighter passive preview renders without changing display geometry', () => {
-    const active = getNodePreviewSize('16:9');
-    const passive = getNodePreviewSize('16:9', undefined, NODE_PREVIEW_PASSIVE_RENDER_SCALE);
-
-    expect(passive.display).toEqual(active.display);
-    expect(passive.aspect).toEqual(active.aspect);
-    expect(passive.render).toEqual(active.render);
-    expect(passive.renderScale).toBeGreaterThan(NODE_PREVIEW_PASSIVE_RENDER_SCALE);
   });
 
   it('preserves aspect ratio for high-DPI render dimensions', () => {
@@ -87,7 +76,7 @@ describe('zoom-aware node preview render size', () => {
 
   it('renders a fitted, zoomed-out graph far below the document baseline without changing display geometry', () => {
     const baseline = getNodePreviewSize('1:1');
-    const zoomedOut = getNodePreviewSize('1:1', undefined, undefined, nodePreviewRenderBucket(THUMB_SIZE * 0.2));
+    const zoomedOut = getNodePreviewSize('1:1', { renderBucket: nodePreviewRenderBucket(THUMB_SIZE * 0.2) });
 
     expect(zoomedOut.display).toEqual(baseline.display);
     expect(zoomedOut.aspect).toEqual(baseline.aspect);
@@ -96,7 +85,7 @@ describe('zoom-aware node preview render size', () => {
 
   it('preserves aspect ratio at every bucket', () => {
     for (const bucket of NODE_PREVIEW_RENDER_BUCKETS) {
-      const wide = getNodePreviewSize('16:9', undefined, undefined, bucket);
+      const wide = getNodePreviewSize('16:9', { renderBucket: bucket });
       expect(wide.render.width).toBe(bucket);
       expect(wide.render.height).toBe(Math.round(bucket * (9 / 16)));
     }

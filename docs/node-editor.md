@@ -277,7 +277,7 @@ nodes in between are not visually claimed by the area.
 | Drop a handle connection on empty canvas | Open add menu; selected node is connected to the dragged handle |
 | Toolbar Add Node | Open add menu; created node appears at the menu/button anchor in graph space |
 | Drag Add Library item onto edge | Highlight the edge and split it with the dropped node |
-| Enter Nodes | Fit the viewport to the whole graph once React Flow has measured the nodes |
+| Enter Nodes | First entry for a document: fit the whole graph once React Flow has measured the nodes. Later entries restore the viewport the user left (editor UI state, not saved with the document). A graph with only the Output node is not fitted |
 | Toolbar Path | Fit the viewport to the graph nodes that feed the output |
 | Toolbar Output | Center the viewport on the output node |
 | Right-click graph | Open pane add menu |

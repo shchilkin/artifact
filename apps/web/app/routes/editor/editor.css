@@ -14,7 +14,10 @@
 /* ─── APP SHELL ──────────────────────────────────── */
 
 .app {
-  --editor-inspector-w: min(340px, 28vw);
+  /* Where the stage content sits inside `.main`: Layers keeps it clear of the layer list and inspector. */
+  --editor-stage-left: 0px;
+  --editor-stage-right: 0px;
+  --editor-stage-bottom: 0px;
   position: relative;
   display: flex;
   flex-direction: column; /* Mobile: canvas top, sidebar bottom */
@@ -66,21 +69,38 @@
     padding-top: var(--editor-compact-nav-offset);
   }
 
-  /* Fixed editor frame: layer list, canvas, and a reserved inspector column above one command-bar row.
-     Nodes gives the canvas all three columns; the command bar keeps its row in both modes. */
+  /* Fixed editor frame: layer list, stage, and a reserved inspector column above one command-bar row. `.main`
+     covers the whole stage row in both modes, so switching modes never moves it; in Layers its content is inset
+     clear of the layer list and inspector, which sit above it. */
   .app {
+    --editor-stage-left: var(--sidebar-w);
+    --editor-stage-right: var(--editor-inspector-w);
     display: grid;
     grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--editor-inspector-w);
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-areas:
-      "layers canvas inspector"
+      "layers stage inspector"
       "commands commands commands";
   }
 
   .app-nodes {
+    --editor-stage-left: 0px;
+    --editor-stage-right: 0px;
+    --editor-stage-bottom: 0px;
+  }
+}
+
+/* Narrow desktop: the inspector is a reserved row under the canvas, so the canvas column stays usable. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app {
+    --editor-stage-right: 0px;
+    --editor-stage-bottom: var(--editor-inspector-h);
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) var(--editor-inspector-h) auto;
     grid-template-areas:
-      "canvas canvas canvas"
-      "commands commands commands";
+      "layers stage"
+      "layers inspector"
+      "commands commands";
   }
 }
 
@@ -247,7 +267,9 @@
 }
 
 @media (min-width: 768px) {
+  /* Positioned so they paint above `.main`, which covers their cells. */
   .sidebar {
+    position: relative;
     grid-area: layers;
     min-width: 0;
     border-top: none;
@@ -255,6 +277,7 @@
   }
 
   .layer-inspector-drawer {
+    position: relative;
     grid-area: inspector;
     min-width: 0;
     border-top: none;
@@ -263,6 +286,13 @@
 
   .layer-inspector-drawer--empty {
     display: flex;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .layer-inspector-drawer {
+    border-top: 1px solid var(--line-strong);
+    border-left: none;
   }
 }
 
@@ -413,18 +443,38 @@
 
 @media (min-width: 768px) {
   .main {
-    grid-area: canvas;
-    gap: 16px;
-    padding: 20px;
+    grid-column: 1 / -1;
+    grid-row: 1 / span 1;
+    gap: var(--space-4);
+    padding: var(--space-6) calc(var(--editor-stage-right) + var(--space-6))
+      calc(var(--editor-stage-bottom) + var(--space-6)) calc(var(--editor-stage-left) + var(--space-6));
   }
 
   .main-nodes {
     padding: 0;
   }
 
+  /* Overlays positioned inside `.main` follow the stage inset. */
+  .main > .storage-warning-strip {
+    right: calc(var(--editor-stage-right) + var(--space-3));
+    left: calc(var(--editor-stage-left) + var(--space-3));
+  }
+
+  .main .empty-canvas-start {
+    bottom: calc(var(--editor-stage-bottom) + var(--touch) + var(--space-6));
+    left: calc(var(--editor-stage-left) + (100% - var(--editor-stage-left) - var(--editor-stage-right)) / 2);
+    width: min(560px, calc(100% - var(--editor-stage-left) - var(--editor-stage-right) - var(--space-8)));
+  }
+
   .app > .bottom-bar {
     display: grid;
     grid-area: commands;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .main {
+    grid-row: 1 / span 2;
   }
 }
 
@@ -919,29 +969,30 @@
 @media (max-width: 767px) {
   .app-nodes > .bottom-bar {
     position: absolute;
-    right: 16px;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
-    left: 74px;
+    right: var(--space-4);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-3));
+    /* Clear of the React Flow zoom controls on the left. */
+    left: calc(var(--touch) + var(--space-8));
     z-index: var(--z-floating);
     display: grid;
     width: auto;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto;
-    row-gap: 6px;
+    row-gap: var(--space-1);
     border: 1px solid color-mix(in oklch, var(--line-strong) 62%, transparent);
     border-radius: var(--radius-lg);
     background: color-mix(in oklch, var(--surface-panel) 92%, var(--surface-control));
     box-shadow:
       0 0 0 1px color-mix(in oklch, var(--surface-app) 88%, transparent),
       0 8px 0 color-mix(in oklch, var(--surface-app) 22%, transparent);
-    padding: 3px;
+    padding: var(--space-1);
   }
 
   .app-nodes > .bottom-bar .bottom-history-group,
   .app-nodes > .bottom-bar .bottom-secondary-group,
   .app-nodes > .bottom-bar .bottom-primary-group {
     border-right: 1px solid color-mix(in oklch, var(--line-default) 58%, transparent);
-    padding-right: 2px;
+    padding-right: var(--space-1);
   }
 
   .app-nodes > .bottom-bar .bottom-primary-group {
@@ -953,7 +1004,7 @@
     height: var(--touch);
     min-height: var(--touch);
     min-width: var(--touch);
-    padding: 0 12px;
+    padding: 0 var(--space-3);
     border-radius: var(--control-radius);
     font-size: var(--type-ui-sm);
     letter-spacing: var(--tracking-command);
@@ -1113,7 +1164,7 @@
 
 @media (min-width: 768px) {
   .app > .bottom-bar {
-    padding: 8px 20px;
+    padding: var(--space-2) var(--space-6);
   }
 }
 

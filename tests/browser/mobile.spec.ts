@@ -173,6 +173,7 @@ test('mobile command bar shows every command without overlap in Layers and Nodes
   await switchToNodeView(page);
   const nodes = await readMobileCommandBar(page);
   expect(nodes.names).toEqual(expect.arrayContaining(['Randomize document', 'More editor actions']));
+  expect(nodes.obscured).toEqual([]);
   expect(nodes.overlapping).toEqual([]);
   expect(nodes.outsideViewport).toEqual([]);
 

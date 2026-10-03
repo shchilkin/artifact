@@ -2510,8 +2510,10 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
     .poll(async () => flowViewport.evaluate((element) => getComputedStyle(element).transform))
     .not.toBe(beforeLockedWheelTransform);
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera locked');
-  // The locked wheel zoomed the graph around the node, which can push the camera strip below the visible canvas.
-  await clickEditorControl(page.getByRole('button', { name: 'Unlock camera', exact: true }));
+  // The locked wheel zoomed the graph around the node, which can push the camera strip below the visible canvas;
+  // fit the graph so the strip is back on canvas before clicking it.
+  await page.locator('.react-flow__controls-fitview').click();
+  await page.getByRole('button', { name: 'Unlock camera', exact: true }).click();
   await expect(viewport).toHaveAttribute('data-viewport-3d-lock', 'unlocked');
   await expect(page.locator('.primitive-node-camera-hint')).toContainText('camera 138%');
   await expect

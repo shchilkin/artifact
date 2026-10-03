@@ -3,7 +3,6 @@ import { ASPECT_SIZES } from '../../../types/config';
 import { THUMB_SIZE } from '../constants';
 
 export const NODE_PREVIEW_RENDER_SCALE = 3;
-export const NODE_PREVIEW_PASSIVE_RENDER_SCALE = 1;
 export const NODE_PREVIEW_RENDER_MAX = 1280;
 /**
  * Longest-side render sizes for graph node thumbnails, in device pixels. A thumbnail renders at the smallest bucket
@@ -41,15 +40,25 @@ function fitToMax(width: number, height: number, maxDimension: number) {
   };
 }
 
-/**
- * `renderBucket` (from `nodePreviewRenderBucket`) sets the render size directly for zoom-aware graph thumbnails.
- * Without it, the render size covers the document baseline so print effects match the full-size frame.
- */
+export interface NodePreviewSizeOptions {
+  /** Longest side of the CSS display frame. */
+  maxDisplayDimension?: number;
+  /** Baseline render size as a multiple of the display size, never below the document baseline. */
+  renderScale?: number;
+  /**
+   * Longest-side render size from `nodePreviewRenderBucket`, for zoom-aware graph thumbnails. Without it, the render
+   * covers the document baseline so print effects match the full-size frame.
+   */
+  renderBucket?: number;
+}
+
 export function getNodePreviewSize(
   aspect: AspectRatio = '1:1',
-  maxDisplayDimension = THUMB_SIZE,
-  renderScale = NODE_PREVIEW_RENDER_SCALE,
-  renderBucket?: number,
+  {
+    maxDisplayDimension = THUMB_SIZE,
+    renderScale = NODE_PREVIEW_RENDER_SCALE,
+    renderBucket,
+  }: NodePreviewSizeOptions = {},
 ): NodePreviewSize {
   const [aspectWidth, aspectHeight] = ASPECT_SIZES[aspect] ?? ASPECT_SIZES['1:1'];
   const display = fitToMax(aspectWidth, aspectHeight, maxDisplayDimension);

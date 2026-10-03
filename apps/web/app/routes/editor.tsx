@@ -8,6 +8,7 @@ import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { EditorOverlayFrame } from '../components/editor-workflow/EditorOverlayFrame';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
+import type { NodeCanvasViewport } from '../components/node-canvas';
 import { ProjectsPanel } from '../components/ProjectsPanel';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
@@ -171,6 +172,7 @@ export default function Editor() {
     handleExportConfigChange,
     handleCopyLink,
     loadDocument,
+    documentSessionId,
     setDoc,
     setAspect,
     undo,
@@ -183,6 +185,12 @@ export default function Editor() {
     isBlank,
     documentSaveStatus,
   } = useEditorDocument(viewMode === 'nodes');
+  // The Nodes viewport the user left, per document (UI state, not saved): the first entry fits the graph instead.
+  const [nodeViewport, setNodeViewport] = useState<{ sessionId: number; viewport: NodeCanvasViewport } | null>(null);
+  const handleNodeViewportChange = useCallback(
+    (viewport: NodeCanvasViewport) => setNodeViewport({ sessionId: documentSessionId, viewport }),
+    [documentSessionId],
+  );
   const { imageCache, dropError, handleDroppedFile } = useEditorAssets(
     doc,
     (src, position) => addImageFromSource(src, undefined, position),
@@ -473,8 +481,6 @@ export default function Editor() {
       )}
       <div className={`app app-${viewMode}`}>
         <main
-          // A fresh main per mode: its box changes between the two layouts and must not count as a shift.
-          key={viewMode}
           className={`main main-${viewMode}`}
           onDragEnter={(event) => {
             if (Array.from(event.dataTransfer.types).includes('Files')) {
@@ -527,7 +533,10 @@ export default function Editor() {
             <div className="node-mode-stage">
               <Suspense fallback={<div style={{ flex: 1, background: 'var(--surface-app)' }} />}>
                 <NodeCanvas
+                  key={documentSessionId}
                   doc={doc}
+                  initialViewport={nodeViewport?.sessionId === documentSessionId ? nodeViewport.viewport : null}
+                  onViewportChange={handleNodeViewportChange}
                   imageCache={imageCache}
                   initialPrimitiveViewStates={effectivePrimitiveViewStates}
                   onPrimitiveViewStatesChange={handlePrimitiveViewStatesChange}

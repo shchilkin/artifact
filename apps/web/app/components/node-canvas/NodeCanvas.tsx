@@ -117,10 +117,14 @@ const nodeTypes = {
 };
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
-// Every Nodes entry opens with the whole graph in view, once React Flow has measured the nodes. Long linear
-// graphs need to zoom out further than 0.3 to fit beside the properties panel; small graphs open at 100%.
+// The first Nodes entry for a document fits the whole graph once React Flow has measured the nodes; later entries
+// restore the viewport the user left. Long linear graphs zoom out below 0.3 to fit beside the properties panel, and
+// the minimum stays there so the toolbar and Controls fit actions, and manual zoom, can reach that overview again.
 const RF_MIN_ZOOM = 0.1;
-const RF_FIT_VIEW_OPTIONS = { padding: 0.2, minZoom: RF_MIN_ZOOM, maxZoom: 1 };
+const RF_FIT_PADDING = 0.2;
+// Small graphs open at 100% instead of zooming in.
+const RF_FIT_MAX_ZOOM = 1;
+const RF_FIT_VIEW_OPTIONS = { padding: RF_FIT_PADDING, minZoom: RF_MIN_ZOOM, maxZoom: RF_FIT_MAX_ZOOM };
 
 function hasFileTransfer(dataTransfer: DataTransfer) {
   return Array.from(dataTransfer.types).includes('Files');
@@ -138,6 +142,8 @@ function nodeDropPosition(event: ReactDragEvent<HTMLDivElement>, instance: React
 export function NodeCanvas({
   doc,
   imageCache,
+  initialViewport,
+  onViewportChange,
   initialPrimitiveViewStates,
   onPrimitiveViewStatesChange,
   selectedLayerId,
@@ -301,6 +307,10 @@ export function NodeCanvas({
     [graph, outputPath.edgeIds, selectedEdgeId],
   );
   const graphEmpty = baseNodes.every((node) => node.id === EXPORT_NODE_ID);
+  // Decided once per entry. A graph with only the Output node is not fitted, so the fit does not stay queued and
+  // jump the viewport when the first node is added.
+  const [entryViewport] = useState(() => initialViewport ?? undefined);
+  const [fitOnEntry] = useState(() => !initialViewport && !graphEmpty);
 
   const {
     dragNodes,
@@ -426,6 +436,26 @@ export function NodeCanvas({
   const onRFInit = useCallback((instance: ReactFlowInstance) => {
     rfInstanceRef.current = instance;
   }, []);
+  const onViewportChangeRef = useRef(onViewportChange);
+  useLayoutEffect(() => {
+    onViewportChangeRef.current = onViewportChange;
+  }, [onViewportChange]);
+  // Latest viewport, including the entry fit; React Flow's store is already reset when this component unmounts.
+  const lastViewportRef = useRef<{ x: number; y: number; zoom: number } | null>(null);
+  const onMove = useCallback((_event: unknown, viewport: { x: number; y: number; zoom: number }) => {
+    lastViewportRef.current = viewport;
+  }, []);
+  const onMoveEnd = useCallback((_event: unknown, viewport: { x: number; y: number; zoom: number }) => {
+    lastViewportRef.current = viewport;
+    onViewportChangeRef.current?.(viewport);
+  }, []);
+  // Leaving Nodes keeps the viewport, including the entry fit when the user never moved.
+  useEffect(
+    () => () => {
+      if (lastViewportRef.current) onViewportChangeRef.current?.(lastViewportRef.current);
+    },
+    [],
+  );
   const updateNodeFileDropPreview = useCallback(
     (event: ReactDragEvent<HTMLDivElement> | null) => {
       onFileDragPreviewChange?.(event?.dataTransfer ?? null);
@@ -608,8 +638,11 @@ export function NodeCanvas({
               onEdgeClick={onEdgeClick}
               isValidConnection={isValidConnection}
               onInit={onRFInit}
-              fitView
+              fitView={fitOnEntry}
               fitViewOptions={RF_FIT_VIEW_OPTIONS}
+              defaultViewport={entryViewport}
+              onMove={onMove}
+              onMoveEnd={onMoveEnd}
               nodeTypes={nodeTypes}
               colorMode="dark"
               elementsSelectable

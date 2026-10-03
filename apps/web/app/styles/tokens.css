@@ -129,6 +129,8 @@
   --ease-emphasized: cubic-bezier(0.25, 1, 0.5, 1);
 
   /* Editor surfaces. */
+  --editor-inspector-w: min(340px, 28vw);
+  --editor-inspector-h: clamp(220px, 34vh, 320px);
   --editor-canvas-bg: oklch(8.8% 0.013 42);
   --editor-grid-dot: oklch(34% 0.022 218 / 0.58);
   --editor-selection-outline: color-mix(in oklch, var(--accent-primary) 70%, var(--line-strong));
@@ -147,4 +149,11 @@
   --node-handle-active: var(--accent-primary);
   --node-edge-idle: color-mix(in oklch, var(--accent-primary) 62%, var(--line-strong));
   --node-edge-output: var(--editor-output-path);
+}
+
+/* Editor frame: a narrower inspector column on small desktops. */
+@media (max-width: 1180px) {
+  :root {
+    --editor-inspector-w: 280px;
+  }
 }

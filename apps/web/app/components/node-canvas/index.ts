@@ -1,2 +1,2 @@
 export { NodeCanvas } from './NodeCanvas';
-export type { InsertConnectionConfig } from './types';
+export type { InsertConnectionConfig, NodeCanvasViewport } from './types';

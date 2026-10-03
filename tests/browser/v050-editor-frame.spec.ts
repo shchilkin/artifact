@@ -76,6 +76,24 @@ test('the first Nodes entry fits every node inside the graph viewport', async ({
   await expect.poll(() => countNodesOutsideViewport(page), { timeout: 10_000 }).toBe(0);
 });
 
+test('later Nodes entries restore the viewport the user left instead of fitting again', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoDocument(page, frameDocument);
+  await switchToNodeView(page);
+  await expect.poll(() => countNodesOutsideViewport(page), { timeout: 10_000 }).toBe(0);
+
+  const flowViewport = page.locator('.react-flow__viewport');
+  const fitted = await flowViewport.getAttribute('style');
+  for (let step = 0; step < 3; step += 1) await page.locator('.react-flow__controls-zoomin').click();
+  await expect.poll(() => flowViewport.getAttribute('style')).not.toBe(fitted);
+  const zoomed = await flowViewport.getAttribute('style');
+
+  await switchToLayerView(page);
+  await switchToNodeView(page);
+  await expect(page.locator('.react-flow__node').first()).toBeVisible({ timeout: 15_000 });
+  await expect.poll(() => flowViewport.getAttribute('style')).toBe(zoomed);
+});
+
 test('node thumbnails render near their on-screen size and re-render sharper after zooming in', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoDocument(page, frameDocument);
@@ -103,7 +121,43 @@ test('node thumbnails render near their on-screen size and re-render sharper aft
     )
     .toBeGreaterThan(Math.max(...fitted));
   await expect(page.locator('.node-thumbnail[data-canvas-chrome-state="updating"]')).toHaveCount(0);
+
+  // The selected node's preview keeps the document-baseline resolution.
+  await page.locator('.react-flow__node[data-id="frame-title"] .node-thumbnail').click();
+  const selected = page.locator('.react-flow__node[data-id="frame-title"] .node-thumbnail-canvas');
+  await expect
+    .poll(() => selected.evaluate((element) => (element as HTMLCanvasElement).width), { timeout: 10_000 })
+    .toBeGreaterThanOrEqual(1000);
 });
+
+for (const width of [768, 1024]) {
+  for (const aspect of ['9:16', '16:9'] as const) {
+    test(`narrow desktop ${width} px keeps the ${aspect} canvas whole, the inspector reserved, and one command row`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await gotoDocument(page, { ...frameDocument, global: { ...frameDocument.global, aspect } });
+      await expectLayerCanvasToHavePixels(page);
+
+      const inspector = page.getByRole('complementary', { name: 'Layer settings' });
+      await expect(inspector).toBeVisible();
+      await expect(inspector).toContainText('No layer selected');
+      const empty = await readNarrowFrame(page);
+      expectCanvasInsideFrame(empty);
+
+      await page.locator('.layer-row[data-layer-id="frame-title"] .layer-row-name-button').click();
+      await expect(inspector).not.toContainText('No layer selected');
+      const selected = await readNarrowFrame(page);
+      expectCanvasInsideFrame(selected);
+      expectSameBox(selected.preview, empty.preview);
+      expectSameBox(selected.inspector, empty.inspector);
+
+      const commands = await readCommandBarButtons(page);
+      expect(new Set(commands.map((command) => Math.round(command.y))).size).toBe(1);
+      expectNoOverlap(commands);
+    });
+  }
+}
 
 test('medium desktop command bar keeps one row without overlapping commands', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 760 });
@@ -185,15 +239,50 @@ function expectNoOverlap(commands: Awaited<ReturnType<typeof readCommandBarButto
   }
 }
 
-// Backing-store widths of node thumbnails that are at least partly on screen inside the graph viewport.
+// Backing-store widths of passive node thumbnails that are at least partly on screen inside the graph viewport.
 function readOnScreenThumbnailWidths(page: Page) {
   return page.evaluate(() => {
     const pane = document.querySelector('.react-flow')!.getBoundingClientRect();
-    return [...document.querySelectorAll<HTMLCanvasElement>('.react-flow__node .node-thumbnail-canvas')]
+    // Passive thumbnails only: the selected preview keeps the document-baseline resolution.
+    const passive = '.react-flow__node:not(.selected) .node-thumbnail-canvas';
+    return [...document.querySelectorAll<HTMLCanvasElement>(passive)]
       .filter((canvas) => {
         const rect = canvas.getBoundingClientRect();
         return rect.right > pane.left && rect.left < pane.right && rect.bottom > pane.top && rect.top < pane.bottom;
       })
       .map((canvas) => canvas.width);
   });
+}
+
+async function readNarrowFrame(page: Page) {
+  return page.evaluate(() => {
+    const box = (element: Element | null | undefined) => {
+      const rect = element?.getBoundingClientRect();
+      return rect?.width ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
+    };
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      preview: box(document.querySelector('.artifact-canvas-preview__surface')),
+      sidebar: box(document.querySelector('.sidebar')),
+      inspector: box(document.querySelector('.layer-inspector-drawer')),
+      commandBar: box(document.querySelector('.app > .bottom-bar')),
+    };
+  });
+}
+
+// The preview is fully visible: inside the viewport, right of the layer list, and clear of the inspector and
+// command bar.
+function expectCanvasInsideFrame(frame: Awaited<ReturnType<typeof readNarrowFrame>>) {
+  const { preview, sidebar, inspector, commandBar, viewport } = frame;
+  expect(preview && sidebar && inspector && commandBar).toBeTruthy();
+  const right = preview!.x + preview!.width;
+  const bottom = preview!.y + preview!.height;
+  expect(preview!.width).toBeGreaterThan(200);
+  expect(preview!.height).toBeGreaterThan(200);
+  expect(preview!.x).toBeGreaterThanOrEqual(sidebar!.x + sidebar!.width - 1);
+  expect(right).toBeLessThanOrEqual(viewport.width + 1);
+  expect(bottom).toBeLessThanOrEqual(commandBar!.y + 1);
+  const inspectorBeside = inspector!.x >= preview!.x + 1;
+  if (inspectorBeside) expect(right).toBeLessThanOrEqual(inspector!.x + 1);
+  else expect(bottom).toBeLessThanOrEqual(inspector!.y + 1);
 }

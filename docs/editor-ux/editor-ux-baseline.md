@@ -263,9 +263,12 @@ Fitting the graph puts every node on screen, and thumbnails render only when
 visible, so after a Nodes slider edit every downstream thumbnail re-renders:
 one in `default` and five in `effect-stack`. Rendered at the document baseline
 (1000 px for `1:1`), that took 231.6 / 588.5 ms on the reference runner. Node
-thumbnails now render at the smallest of 160, 320, 640, or 1280 px that covers
-their on-screen size at the current zoom (device pixel ratio capped at 2), and
-move to a sharper size once a zoom gesture rests for 250 ms. The canvas preview,
+thumbnails other than the selected one now render at the smallest of 160, 320,
+640, or 1280 px that covers their on-screen size at the current zoom (device
+pixel ratio capped at 2), and move to a sharper size once a zoom gesture rests
+for 250 ms. The selected preview keeps the document baseline. Keeping Output at
+the baseline as well measured 86.8 / 179.6 ms locally, because Output then
+re-renders the whole downstream chain at full size after each edit. The canvas preview,
 document render, and export are unchanged.
 
 CI run [37131797552](https://github.com/shchilkin/artifact/actions/runs/37131797552)
