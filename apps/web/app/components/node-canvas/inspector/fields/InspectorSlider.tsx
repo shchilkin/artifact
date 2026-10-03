@@ -1,13 +1,39 @@
-import { type ComponentPropsWithoutRef, useRef } from 'react';
+import { type ComponentPropsWithoutRef, useEffect, useRef, useState } from 'react';
 
+import { useStableCallback } from '../../../../hooks/useStableCallback';
 import { PropertyRow } from '../../../inspector-system';
 import { stopNodeEvent } from '../../helpers';
 import { NoPan } from '../../nodes/NoPan';
+import { createCoalescedCommit } from './coalescedCommit';
+
+/**
+ * Shortest time between two document updates from one slider. The layer preview renders at most this often during a
+ * drag, so updating the document (and re-rendering the editor) on every pointer move in between does nothing visible.
+ */
+const SLIDER_COMMIT_INTERVAL_MS = 66;
+
+/**
+ * The slider shows every value at once and passes it on through a coalesced commit, so a drag updates the document
+ * at the preview's frame rate rather than on every pointer move.
+ */
+function useCoalescedSliderValue(value: number, onChange: (value: number) => void) {
+  const [draft, setDraft] = useState<number | null>(null);
+  const commitChange = useStableCallback(onChange);
+  const [coalesced] = useState(() =>
+    createCoalescedCommit({ intervalMs: SLIDER_COMMIT_INTERVAL_MS, commit: commitChange, onPendingChange: setDraft }),
+  );
+
+  // A value still waiting when the slider goes away (selection change, panel close) is not lost.
+  useEffect(() => coalesced.flush, [coalesced]);
+
+  return { displayValue: draft ?? value, change: coalesced.change, flush: coalesced.flush };
+}
 
 export function InspectorSlider({
   label,
   value,
   valueLabel,
+  formatValue,
   min,
   max,
   step = 1,
@@ -21,6 +47,8 @@ export function InspectorSlider({
   label: string;
   value: number;
   valueLabel?: string;
+  /** Formats the shown value; preferred over `valueLabel`, because it also formats a value still being dragged. */
+  formatValue?: (value: number) => string;
   min: number;
   max: number;
   step?: number;
@@ -32,7 +60,13 @@ export function InspectorSlider({
   onChange: (value: number) => void;
 }) {
   const infoRef = useRef<HTMLButtonElement>(null);
-  const sliderValue = Math.min(max, Math.max(min, value));
+  const { displayValue, change, flush } = useCoalescedSliderValue(value, onChange);
+  const sliderValue = Math.min(max, Math.max(min, displayValue));
+  const shownLabel = formatValue
+    ? formatValue(displayValue)
+    : displayValue === value && valueLabel !== undefined
+      ? valueLabel
+      : displayValue;
   const manualMax = overrideMax ?? max;
   const clampManualValue = (nextValue: number) => Math.min(manualMax, Math.max(min, nextValue));
   return (
@@ -56,19 +90,20 @@ export function InspectorSlider({
           </NoPan>
         ) : undefined
       }
-      value={<span className="artifact-inspector-value">{valueLabel ?? value}</span>}
+      value={<span className="artifact-inspector-value">{shownLabel}</span>}
       disabled={disabled}
     >
       <SliderInputs
         label={label}
-        value={value}
+        value={displayValue}
         sliderValue={sliderValue}
         min={min}
         max={max}
         step={step}
         overrideMax={overrideMax}
         clampManualValue={clampManualValue}
-        onChange={onChange}
+        onChange={change}
+        onCommit={flush}
       />
     </PropertyRow>
   );
@@ -88,12 +123,15 @@ function SliderInputs({
   overrideMax,
   clampManualValue,
   onChange,
+  onCommit,
 }: Pick<ComponentPropsWithoutRef<'input'>, 'aria-describedby' | 'aria-invalid' | 'disabled' | 'id'> & {
   clampManualValue: (value: number) => number;
   label: string;
   max: number;
   min: number;
   onChange: (value: number) => void;
+  /** The gesture ended: pass on a value that is still waiting. */
+  onCommit: () => void;
   overrideMax?: number;
   sliderValue: number;
   step: number;
@@ -118,6 +156,9 @@ function SliderInputs({
         onDoubleClick={stopNodeEvent}
         onWheel={stopNodeEvent}
         onChange={(event) => onChange(Number(event.target.value))}
+        onPointerUp={onCommit}
+        onKeyUp={onCommit}
+        onBlur={onCommit}
       />
       {overrideMax ? (
         <input
