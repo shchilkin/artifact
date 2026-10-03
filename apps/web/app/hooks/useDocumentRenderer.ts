@@ -300,12 +300,12 @@ function drawRenderResult(result: HTMLCanvasElement, refs: DocumentRendererRefs,
   if (result.width === refs.renderWidthRef.current && result.height === refs.renderHeightRef.current) {
     rememberRenderFrame(refs.cacheKeyRef.current, result);
   }
-  setRenderState({
-    isRendering: false,
-    hasFrame: true,
-    showingStaleFrame: false,
-    error: null,
-  });
+  // Interactive frames usually leave the state as it was; keeping the same object skips a React commit per frame.
+  setRenderState((state) =>
+    !state.isRendering && state.hasFrame && !state.showingStaleFrame && !state.error
+      ? state
+      : { isRendering: false, hasFrame: true, showingStaleFrame: false, error: null },
+  );
 }
 
 function finishRenderCycle(
@@ -843,7 +843,9 @@ export function useDocumentRenderer(
     };
 
     rendererRefs.renderingRef.current = true;
-    markRenderStarted(setRenderState);
+    // While a frame is showing, interactive passes during an edit do not mark the preview busy: only a missing frame
+    // or a full-quality pass does, so each interactive frame does not cost two extra React commits.
+    if (!interactive || !rendererRefs.lastGoodCanvasRef.current) markRenderStarted(setRenderState);
     timedPrimaryRender(rendererRefs, renderOptions, targetWidth, targetHeight)
       .then((result) => {
         if (interactive) rendererRefs.warmInteractiveSizeRef.current = `${targetWidth}x${targetHeight}`;
