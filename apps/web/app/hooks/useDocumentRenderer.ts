@@ -733,8 +733,11 @@ export function useDocumentRenderer(
     if (!scheduler) {
       scheduler = createPreviewRenderScheduler({
         run: (done) => doRender(done),
-        // A newer request makes the running render stale: abort it and drop its result instead of painting it.
+        // A newer request aborts a running full-quality pass and drops its result. A running interactive pass is
+        // allowed to finish and paint (one input behind): dropping it too left continuous drags on slow machines with
+        // no preview frames at all (see docs/performance.md).
         onSupersede: () => {
+          if (interactiveRenderRef.current) return;
           supersededRef.current = true;
           activeAbortRef.current?.abort();
         },

@@ -161,8 +161,14 @@ Recent manual profiling notes:
   changing render output:
   - The layer preview schedules renders latest-wins
     (`apps/web/app/hooks/previewRenderScheduler.ts`): one render in flight and
-    at most one waiting. A newer request aborts the running render and its
-    result is dropped, never painted. While input keeps arriving, the next interactive render
+    at most one waiting. A newer request aborts a running full-quality pass
+    and drops its result. **Deviation from "stale renders are dropped":** a
+    running interactive (preview-size) pass is allowed to finish and paint,
+    one input behind the latest state, and the newest state renders right
+    after it. Dropping those too was measured on the CI runner: a 20-step
+    drag then painted 0 preview frames on `default` and 0–1 on
+    `effect-stack` (3–5 with this rule). Requests that arrive while a render
+    runs never queue more than one render. While input keeps arriving, the next interactive render
     waits until the main thread has been free for twice the previous render's
     duration (at most 250 ms). The wait ends once input has been quiet for
     twice its recent interval, and a request after a 120 ms pause (an edit
