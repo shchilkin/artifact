@@ -165,10 +165,12 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
         preChangeRef.current = createPendingHistoryEntry(docRef.current, preChangeRef.current);
         clearTimeout(histDebounceRef.current);
         histDebounceRef.current = setTimeout(() => {
-          if (!preChangeRef.current) return;
-          setPast((items) => flushPendingHistory({ past: items, future: [] }, preChangeRef.current).past);
-          setFuture([]);
+          // Capture the entry: React may run the updater later (while a transition is pending), after the ref resets.
+          const pending = preChangeRef.current;
+          if (!pending) return;
           preChangeRef.current = null;
+          setPast((items) => flushPendingHistory({ past: items, future: [] }, pending).past);
+          setFuture([]);
         }, 400);
         return;
       }
