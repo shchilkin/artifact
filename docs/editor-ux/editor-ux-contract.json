@@ -76,10 +76,11 @@
       "subjects": ["slider-keypress"]
     },
     {
-      "metric": "durationMs",
-      "max": 500,
+      "metric": "mainThreadMs",
+      "max": 160,
       "unit": "ms",
       "deterministic": false,
+      "since": "#308",
       "viewports": ["desktop"],
       "subjects": ["slider-drag"]
     },
@@ -109,12 +110,6 @@
     }
   ],
   "fixed": [
-    {
-      "key": "desktop/*/slider-drag/durationMs",
-      "owner": "#308",
-      "baseline": "1095.3 / 1937.8 ms (769.6 / 1612.1 ms floor-corrected)",
-      "reason": "Preview renders are latest-wins with a cooldown during continuous input, GPU readback no longer blocks the main thread, and slider drags use a gesture draft."
-    },
     {
       "key": "desktop/*/node-preview/sliderSettleMs",
       "owner": "#308",
@@ -190,15 +185,21 @@
       "reason": "After visiting Nodes, the Layers inspector renders the same slider at 129 px instead of 357 px."
     },
     {
+      "key": "desktop/*/slider-drag/mainThreadMs",
+      "max": 480,
+      "owner": "#324",
+      "reason": "A 20-step drag keeps the main thread busy for about 300 ms: the editor re-renders on every pointer move and the preview renders every few steps."
+    },
+    {
       "key": "desktop/default/slider-keypress/inputToPreviewMs",
       "max": 130,
-      "owner": "#308",
+      "owner": "#324",
       "reason": "The preview render starts within 10 ms of the key, but one GPU effect pass takes about 50 ms on the CI runner, so the first paint lands at 65-86 ms."
     },
     {
       "key": "desktop/effect-stack/slider-keypress/inputToPreviewMs",
       "max": 215,
-      "owner": "#308",
+      "owner": "#324",
       "reason": "The render above the edited layer runs two GPU effect passes of about 50 ms each on the CI runner, so the first paint lands at 120-150 ms."
     }
   ]

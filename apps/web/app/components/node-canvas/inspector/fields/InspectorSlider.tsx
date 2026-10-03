@@ -1,4 +1,4 @@
-import { type ComponentPropsWithoutRef, type PointerEvent, startTransition, useEffect, useRef, useState } from 'react';
+import { type ComponentPropsWithoutRef, useRef } from 'react';
 
 import { PropertyRow } from '../../../inspector-system';
 import { stopNodeEvent } from '../../helpers';
@@ -99,7 +99,6 @@ function SliderInputs({
   step: number;
   value: number;
 }) {
-  const { draftValue, onPointerDown, change, onBlur } = useSliderGestureDraft(sliderValue, onChange);
   return (
     <div className="node-slider-row">
       <input
@@ -111,15 +110,14 @@ function SliderInputs({
         min={min}
         max={max}
         step={step}
-        value={draftValue ?? sliderValue}
+        value={sliderValue}
         disabled={disabled}
-        onPointerDown={onPointerDown}
-        onBlur={onBlur}
+        onPointerDown={stopNodeEvent}
         onMouseDown={stopNodeEvent}
         onClick={stopNodeEvent}
         onDoubleClick={stopNodeEvent}
         onWheel={stopNodeEvent}
-        onChange={(event) => change(Number(event.target.value))}
+        onChange={(event) => onChange(Number(event.target.value))}
       />
       {overrideMax ? (
         <input
@@ -145,68 +143,4 @@ function SliderInputs({
       ) : null}
     </div>
   );
-}
-
-/**
- * Gesture draft for a pointer drag on the range input: the thumb follows a local draft value, and each document
- * update is a transition, so React can drop intermediate states when the editor is busy while the preview still
- * follows the drag. The gesture ends with a commit on pointer-up, blur, or unmount (the last value as a normal
- * update unless the document already has it) or a revert to the starting value on Escape or pointer-cancel.
- * Keyboard and other discrete changes go straight to `onChange`.
- */
-function useSliderGestureDraft(committedValue: number, onChange: (value: number) => void) {
-  const [draftValue, setDraftValue] = useState<number | null>(null);
-  const gestureRef = useRef<{ start: number; last: number | null; end: (commit: boolean) => void } | null>(null);
-  const onChangeRef = useRef(onChange);
-  const committedValueRef = useRef(committedValue);
-
-  useEffect(() => {
-    onChangeRef.current = onChange;
-    committedValueRef.current = committedValue;
-  }, [onChange, committedValue]);
-
-  useEffect(() => () => gestureRef.current?.end(true), []);
-
-  function onPointerDown(event: PointerEvent<HTMLInputElement>) {
-    stopNodeEvent(event);
-    gestureRef.current?.end(true);
-    const commit = () => end(true);
-    const revert = () => end(false);
-    // On the window: WebKit does not focus a range input on pointer-down, so the key may not reach the input.
-    const onEscape = (keyEvent: globalThis.KeyboardEvent) => {
-      if (keyEvent.key !== 'Escape') return;
-      keyEvent.stopPropagation();
-      revert();
-    };
-    const end = (keep: boolean) => {
-      window.removeEventListener('pointerup', commit);
-      window.removeEventListener('pointercancel', revert);
-      window.removeEventListener('keydown', onEscape, true);
-      const gesture = gestureRef.current;
-      gestureRef.current = null;
-      setDraftValue(null);
-      if (!gesture || gesture.last === null) return;
-      const value = keep ? gesture.last : gesture.start;
-      if (value !== committedValueRef.current) onChangeRef.current(value);
-    };
-    gestureRef.current = { start: committedValueRef.current, last: null, end };
-    window.addEventListener('pointerup', commit);
-    window.addEventListener('pointercancel', revert);
-    window.addEventListener('keydown', onEscape, true);
-  }
-
-  function change(value: number) {
-    const gesture = gestureRef.current;
-    if (!gesture) {
-      onChange(value);
-      return;
-    }
-    gesture.last = value;
-    setDraftValue(value);
-    startTransition(() => onChange(value));
-  }
-
-  const onBlur = () => gestureRef.current?.end(true);
-
-  return { draftValue, onPointerDown, change, onBlur };
 }

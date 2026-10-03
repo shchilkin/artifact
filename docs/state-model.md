@@ -134,24 +134,13 @@ Current examples:
 
 - text/image node local transform draft
 - active primitive drag ref
-- inspector slider pointer drag (`InspectorSlider`): the thumb follows a local
-  draft value, and each document update during the drag is a React transition,
-  so React can drop intermediate states when the editor is busy. Pointer-up,
-  blur, or unmount commits the last value as a normal update unless the
-  document already has it; Escape and pointer-cancel revert to the starting
-  value. Keyboard steps update the document directly.
 
 Rules:
 
 - Pointer move and wheel ticks should update draft state first.
 - Commit once on pointer-up, pointer-cancel, blur, or wheel idle.
 - One continuous gesture should produce one undo snapshot.
-- Draft changes should not trigger thumbnail renders. Exception: an inspector
-  slider drag writes the document during the gesture (as transitions), because
-  the slider's purpose is to show its effect live in the preview and node
-  thumbnails. Its updates go through the debounced history path, so the
-  gesture is still one undo entry, and the latest-wins preview scheduler and
-  thumbnail queue keep the render work to one pending render.
+- Draft changes should not trigger thumbnail renders.
 - Draft UI should render live overlays or direct canvas/WebGL updates.
 
 ## Primitive camera state

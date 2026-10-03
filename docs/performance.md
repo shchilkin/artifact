@@ -180,8 +180,6 @@ Recent manual profiling notes:
     queue with no debounce, previews in the viewport after a 32 ms pause and
     ahead of previews that are only near the viewport (120 ms and an idle
     slot).
-  - Inspector slider drags use a gesture draft (see
-    [`state-model.md`](./state-model.md)).
 - Node thumbnails share a graph render cache for upstream branches (keyed by
   content since v0.50, see [`rendering.md`](./rendering.md)). When several
   visible thumbnails depend on the same upstream source/effect chain, the

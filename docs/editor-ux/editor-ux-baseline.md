@@ -141,8 +141,8 @@ needed, so a fixed behavior cannot keep a stale allowance.
 | `mobile/*/command-bar/overlappingCommands` | 2 | 2 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/inspector/sliderWidthDeltaPx` | 39.5 px | 39.5 | [#309](https://github.com/shchilkin/artifact/issues/309) |
 | `mobile/*/inspector/sliderWidthDeltaPx` | 228 px | 228 | [#309](https://github.com/shchilkin/artifact/issues/309) |
-| `desktop/default/slider-keypress/inputToPreviewMs` | 62.4 ms | 130 | [#308](https://github.com/shchilkin/artifact/issues/308) |
-| `desktop/effect-stack/slider-keypress/inputToPreviewMs` | 121.8 ms | 215 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/default/slider-keypress/inputToPreviewMs` | 62.4 ms | 130 | [#324](https://github.com/shchilkin/artifact/issues/324) |
+| `desktop/effect-stack/slider-keypress/inputToPreviewMs` | 121.8 ms | 215 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 
 Layout ceilings equal the measured value. The command bar is a few pixels
 narrower with the CI fonts (279.8 px) than on macOS (288.4 px), so the two
@@ -155,7 +155,8 @@ Keypress latency is bounded by the render itself: after #308 the preview render
 starts within 10 ms of the key, but each GPU effect pass takes about 50 ms on
 the CI runner (software WebGL), and the render above the edited layer runs one
 pass in `default` and two in `effect-stack`. Meeting the 50 ms budget there
-needs a cheaper render, which is outside #308.
+needs a cheaper render, which
+[#324](https://github.com/shchilkin/artifact/issues/324) owns.
 
 Metrics a delivery issue fixed are listed under `fixed` in the contract with the
 baseline value they replaced. The v0.49.0 baseline still exceeds their budgets;

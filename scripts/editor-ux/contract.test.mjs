@@ -29,7 +29,7 @@ test('layout shift is budgeted at 0.05 or less for every interaction on both vie
 });
 
 test('slider input-to-preview latency and node-preview settle time are budgeted', () => {
-  for (const metric of ['inputToPreviewMs', 'durationMs', 'settleMs', 'entrySettleMs', 'sliderSettleMs']) {
+  for (const metric of ['inputToPreviewMs', 'mainThreadMs', 'settleMs', 'entrySettleMs', 'sliderSettleMs']) {
     assert.ok(budgetOf(metric)?.max > 0, `${metric} has no budget`);
   }
 });
@@ -69,7 +69,8 @@ test('every exception has an owning issue, a reason, a ceiling above the budget,
 test('the checked-in baseline measures every budgeted metric', () => {
   assert.deepEqual(baseline.viewports, contract.viewports);
   assert.deepEqual(baseline.documents, contract.documents);
-  const missing = evaluate(contract, baseline).filter((row) => row.status === 'missing');
+  // A budget added after v0.49.0 names the issue that added it in `since`; the baseline cannot have measured it.
+  const missing = evaluate(contract, baseline).filter((row) => row.status === 'missing' && !row.budget.since);
   assert.deepEqual(
     missing.map((row) => row.key),
     [],
@@ -81,7 +82,7 @@ test('the baseline exceeds the contract only where a delivery issue fixed the me
   // was removed, and every such metric is recorded in `fixed` with the issue that fixed it.
   const fixed = contract.fixed ?? [];
   for (const row of evaluate(contract, baseline)) {
-    if (row.status === 'ok' || row.status === 'exception') continue;
+    if (row.status === 'ok' || row.status === 'exception' || row.budget.since) continue;
     const entry = fixed.find((item) => matchesKey(item.key, row.key));
     assert.ok(entry, `${row.key}: baseline ${row.value} violates the contract but no fixed entry explains it`);
     assert.match(entry.owner, /^#\d+$/);
