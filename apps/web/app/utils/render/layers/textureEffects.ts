@@ -12,8 +12,18 @@ export function applyScanlines(ctx: CanvasRenderingContext2D, W: number, H: numb
   for (let y = 0; y < H; y += step) ctx.fillRect(0, y, W, lineH);
 }
 
-export function applyGrain(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, seed: number) {
-  if (layer.grain <= 0) return;
+/** Grain textures by seed, size and amount. Rebuilding one is a per-pixel loop, and edits to other layers reuse it. */
+const GRAIN_TEXTURE_CACHE_LIMIT = 4;
+const grainTextures = new Map<string, HTMLCanvasElement>();
+
+function grainTexture(W: number, H: number, grain: number, seed: number): HTMLCanvasElement {
+  const key = `${seed}:${W}x${H}:${grain}`;
+  const cached = grainTextures.get(key);
+  if (cached) {
+    grainTextures.delete(key);
+    grainTextures.set(key, cached);
+    return cached;
+  }
 
   const grainRng = lcg(seed * 3331);
   const offscreen = createCanvas(W, H);
@@ -21,12 +31,26 @@ export function applyGrain(ctx: CanvasRenderingContext2D, W: number, H: number, 
   const imageData = octx.createImageData(W, H);
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
-    const noise = (grainRng() - 0.5) * layer.grain * 3;
+    const noise = (grainRng() - 0.5) * grain * 3;
     const v = 128 + noise;
     data[i] = data[i + 1] = data[i + 2] = v;
     data[i + 3] = Math.min(255, Math.abs(noise) * 2);
   }
   octx.putImageData(imageData, 0, 0);
+
+  grainTextures.set(key, offscreen);
+  while (grainTextures.size > GRAIN_TEXTURE_CACHE_LIMIT) {
+    const oldestKey = grainTextures.keys().next().value;
+    if (oldestKey === undefined) break;
+    grainTextures.delete(oldestKey);
+  }
+  return offscreen;
+}
+
+export function applyGrain(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, seed: number) {
+  if (layer.grain <= 0) return;
+
+  const offscreen = grainTexture(W, H, layer.grain, seed);
   ctx.save();
   ctx.globalCompositeOperation = 'overlay';
   ctx.globalAlpha = 0.45;
