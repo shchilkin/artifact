@@ -136,7 +136,7 @@ needed, so a fixed behavior cannot keep a stale allowance.
 | `desktop/default/slider-keypress/inputToPreviewMs` | 62.4 ms | 130 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 | `desktop/effect-stack/slider-keypress/inputToPreviewMs` | 121.8 ms | 215 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 | `desktop/*/slider-drag/mainThreadMs` | not measured | 480 | [#324](https://github.com/shchilkin/artifact/issues/324) |
-| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | 600 | [#324](https://github.com/shchilkin/artifact/issues/324) |
+| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | 1050 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 
 Layout ceilings equal the measured value. Latency ceilings are about 1.75 times
 the baseline value to absorb what the speed scale does not: a slower runner of
@@ -268,12 +268,17 @@ at full size: one in `default` (Scanlines feeds Output) and five in
 exception owned by [#324](https://github.com/shchilkin/artifact/issues/324).
 `entrySettleMs` stays within budget.
 
+CI run [37128839586](https://github.com/shchilkin/artifact/actions/runs/37128839586)
+(speed 0.779), reference-machine milliseconds:
+
 | Metric | `default` | `effect-stack` | Budget |
 | --- | ---: | ---: | ---: |
-| `node-preview/entrySettleMs` | 590.2 | 598.2 | 1200 |
-| `node-preview/sliderSettleMs` | 95.8 | 177.6 | 100 |
+| `node-preview/entrySettleMs` | 620.2 | 1097.1 | 1200 |
+| `node-preview/sliderSettleMs` | 231.6 | 588.5 | 100 |
 
-Values are from a local run (Apple Silicon, scaled).
+The `sliderSettleMs` ceiling (1050) is about 1.75 times the `effect-stack`
+value. `entrySettleMs` has no exception, though effect-stack is within 9% of
+its budget.
 
 ## Changing A Budget Or Exception
 

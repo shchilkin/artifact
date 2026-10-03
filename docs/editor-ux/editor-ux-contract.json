@@ -192,9 +192,9 @@
     },
     {
       "key": "desktop/*/node-preview/sliderSettleMs",
-      "max": 600,
+      "max": 1050,
       "owner": "#324",
-      "reason": "#308 made a Nodes slider edit re-render only downstream thumbnails (20 / 22 ms with the old fixed zoom). Since #307 fits the graph on entry, every downstream thumbnail is visible and renders at full size: five in effect-stack."
+      "reason": "#308 made a Nodes slider edit re-render only downstream thumbnails (25 / 28 ms with the old fixed zoom). Since #307 fits the graph on entry, every downstream thumbnail is visible and renders at full size, five in effect-stack: 232 / 589 ms on the reference runner."
     }
   ]
 }
