@@ -126,7 +126,8 @@ needed, so a fixed behavior cannot keep a stale allowance.
 | `desktop/*/slider-keypress/inputToPreviewMs` | 62.4 / 121.8 ms | 215 | [#308](https://github.com/shchilkin/artifact/issues/308) |
 | `desktop/default/slider-drag/durationMs` | 1095.3 ms | 1900 | [#308](https://github.com/shchilkin/artifact/issues/308) |
 | `desktop/effect-stack/slider-drag/durationMs` | 1937.8 ms | 3400 | [#308](https://github.com/shchilkin/artifact/issues/308) |
-| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | 700 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/*/node-preview/sliderSettleMs` | 68.3 / 177.3 ms | 1300 | [#308](https://github.com/shchilkin/artifact/issues/308) |
+| `desktop/effect-stack/node-preview/entrySettleMs` | 552.6 ms | 2200 | [#308](https://github.com/shchilkin/artifact/issues/308) |
 
 Layout ceilings equal the measured value. Latency ceilings are about 1.75 times
 the baseline value to absorb what the speed scale does not: a slower runner of
@@ -193,12 +194,20 @@ and the mobile command bar lays out in two rows.
 On mobile the Layers and Nodes command bars still sit in different places by
 design (`frameMovePx` 330 px, not budgeted).
 
-Fitting the graph on entry puts every node on screen, so a slider edit in Nodes
-now re-renders every downstream thumbnail instead of the one or two that were
-visible before. `node-preview/sliderSettleMs` rose from 68.3 / 177.3 ms to about
-290 / 380 ms (local run, scaled), so its #308 ceiling went from 310 to 700 in the
-same change. Its budget and owner are unchanged: #308's node-preview queue
-brings it back down.
+Fitting the graph on entry puts every node on screen, and node thumbnails
+render only when visible. Entering Nodes and editing a Nodes slider now render
+every thumbnail instead of the one or two that were visible before, each at full
+size even when zoomed out. On the reference runner:
+
+| Metric | `default` | `effect-stack` | v0.49.0 |
+| --- | ---: | ---: | ---: |
+| `node-preview/entrySettleMs` | 777.5 | 1245.2 | 604.3 / 552.6 |
+| `node-preview/sliderSettleMs` | 307.2 | 723.8 | 68.3 / 177.3 |
+
+The same change raised the #308 `sliderSettleMs` ceiling from 310 to 1300 and
+added a #308 exception for `effect-stack` `entrySettleMs` (2200), both about
+1.75 times the measured value. Budgets are unchanged; #308's node-preview queue
+brings them back down.
 
 ## Changing A Budget Or Exception
 

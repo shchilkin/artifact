@@ -140,9 +140,15 @@
     },
     {
       "key": "desktop/*/node-preview/sliderSettleMs",
-      "max": 700,
+      "max": 1300,
       "owner": "#308",
-      "reason": "Node thumbnails downstream of an edited effect take 68 ms (default) and 177 ms (effect-stack) to settle at v0.49.0. Since #307 fits the graph on Nodes entry, every downstream thumbnail is on screen and re-renders, which raises this to about 290 ms and 380 ms (local scaled)."
+      "reason": "Node thumbnails downstream of an edited effect took 68 ms (default) and 177 ms (effect-stack) to settle at v0.49.0. Since #307 fits the graph on Nodes entry, every downstream thumbnail is on screen and re-renders: 307 ms and 724 ms on the reference runner."
+    },
+    {
+      "key": "desktop/effect-stack/node-preview/entrySettleMs",
+      "max": 2200,
+      "owner": "#308",
+      "reason": "Since #307 fits the graph on Nodes entry, all nine node thumbnails render on entry instead of the two that were on screen: 1245 ms on the reference runner (553 ms at v0.49.0)."
     }
   ]
 }
