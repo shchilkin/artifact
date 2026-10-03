@@ -118,9 +118,9 @@ const nodeTypes = {
 
 const RF_PRO_OPTIONS = { hideAttribution: false };
 // Every Nodes entry opens with the whole graph in view, once React Flow has measured the nodes. Long linear
-// graphs need to zoom out further than 0.3 to fit beside the properties panel.
+// graphs need to zoom out further than 0.3 to fit beside the properties panel; small graphs open at 100%.
 const RF_MIN_ZOOM = 0.1;
-const RF_FIT_VIEW_OPTIONS = { padding: 0.2, minZoom: RF_MIN_ZOOM };
+const RF_FIT_VIEW_OPTIONS = { padding: 0.2, minZoom: RF_MIN_ZOOM, maxZoom: 1 };
 
 function hasFileTransfer(dataTransfer: DataTransfer) {
   return Array.from(dataTransfer.types).includes('Files');
