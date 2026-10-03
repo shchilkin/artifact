@@ -44,3 +44,6 @@ apps/api/recovered-images/
 # The committed production favicon is public/favicon.svg.
 apps/web/public/favicon.png
 .vercel
+
+# Cover motion renders
+/out/

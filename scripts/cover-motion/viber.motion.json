@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "durationSeconds": 6,
+  "fps": 24,
+  "tracks": [
+    { "layerId": "layer-1780509791460-474", "property": "seedOffset", "kind": "wave", "amplitude": 600 },
+    { "layerId": "layer-1780509850760-482", "property": "vortex", "kind": "wave", "amplitude": 6, "phase": 0.25 },
+    { "layerId": "layer-1780509546581-404", "property": "seedOffset", "kind": "step", "fps": 24 },
+    { "layerId": "layer-1780509662261-414", "property": "seedOffset", "kind": "step", "fps": 12 },
+    {
+      "layerId": "layer-1780509662261-414",
+      "property": "glitch",
+      "kind": "pulse",
+      "at": [0.2, 0.62],
+      "length": 0.04,
+      "amplitude": 30
+    },
+    { "layerId": "layer-1780509870977-483", "property": "seedOffset", "kind": "step", "fps": 8 },
+    { "layerId": "layer-1780509923809-501", "property": "ca", "kind": "wave", "amplitude": 10, "cycles": 2, "min": 0 }
+  ]
+}
