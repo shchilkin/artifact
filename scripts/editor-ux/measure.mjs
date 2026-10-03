@@ -51,7 +51,7 @@ function instrument() {
     for (const entry of list.getEntries()) {
       if (entry.name === 'artifact:thumbnail-render') ux.thumbnails.push(entry.startTime + entry.duration);
       // Render phases, kept for the keypress trace in the measurement details.
-      if (/^artifact:(document-render|gpu-render|gpu-filter-extract|layer-render:)/.test(entry.name)) {
+      if (/^artifact:(document-render|gpu-|worker-transform|layer-render:)/.test(entry.name)) {
         ux.renders.push([entry.name.replace('artifact:', ''), entry.startTime, entry.duration]);
       }
     }

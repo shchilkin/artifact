@@ -968,7 +968,7 @@ function renderControl(control: EffectControl, props: Props) {
       value={Number(layer[control.field])}
       min={control.min}
       max={control.max}
-      valueLabel={formatEffectSliderValue(Number(layer[control.field]), control.valueFormat)}
+      formatValue={(value) => formatEffectSliderValue(value, control.valueFormat)}
       overrideMax={control.overrideMax}
       effectKey={effectKey}
       onInfoEnter={onInfoEnter}
