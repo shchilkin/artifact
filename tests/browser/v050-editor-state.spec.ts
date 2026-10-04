@@ -62,6 +62,12 @@ async function expectNoNativeConfirm(page: Page) {
   expect(calls).toEqual([]);
 }
 
+/** WebKit moves focus between buttons with Alt+Tab, like Safari's Option+Tab. */
+async function pressBackwardTab(page: Page) {
+  const shortcut = page.context().browser()?.browserType().name() === 'webkit' ? 'Alt+Shift+Tab' : 'Shift+Tab';
+  await page.keyboard.press(shortcut);
+}
+
 async function renameLayer(page: Page, layerId: string, name: string) {
   const row = page.locator(`.layer-row[data-layer-id="${layerId}"]`);
   await row.locator('.layer-row-name-button').dblclick();
@@ -97,7 +103,7 @@ test('New confirms in an accessible dialog that traps focus and cancels with Esc
   await expect(confirm).toBeFocused();
   await pressForwardTab(page);
   await expect(cancel).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
+  await pressBackwardTab(page);
   await expect(confirm).toBeFocused();
 
   await page.keyboard.press('Escape');
@@ -140,10 +146,12 @@ test('Randomize asks first only when it would replace edited work', async ({ pag
   await expect(page.locator('.layer-row[data-layer-id="state-title"]')).toHaveCount(0);
 
   // A random document nobody edited is not work to lose.
-  const rowsBefore = await page.locator('.layer-row').allTextContents();
+  const layerIds = () =>
+    page.locator('.layer-row').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-layer-id')));
+  const idsBefore = await layerIds();
   await randomize.click();
   await expect(dialog).toHaveCount(0);
-  await expect.poll(() => page.locator('.layer-row').allTextContents()).not.toEqual(rowsBefore);
+  await expect.poll(layerIds).not.toEqual(idsBefore);
 
   await expectNoNativeConfirm(page);
 });
