@@ -76,6 +76,7 @@ async function openArtwork(page: Page, reducedMotion: 'reduce' | 'no-preference'
         maxRenderSize: size,
         contextAttributes: { preserveDrawingBuffer: true },
       });
+      await artwork.ready;
 
       const read = (image: CanvasImageSource) => {
         const copy = document.createElement('canvas');

@@ -44,8 +44,8 @@ not its render loop.
 
 - `createArtwork({ canvas, source, chain, frameUniforms?, maxRenderSize?, maxDevicePixelRatio?, reducedMotion?,
   observeVisibility?, scheduler? })` → `start`, `pause`, `seek(t)`, `resize(w?, h?)`, `setInput(name, value)`,
-  `destroy`, and a `state` snapshot (`status`, `time`, `frames`, `width`, `height`). It draws one resting frame on
-  creation; reduced motion keeps that still frame and never requests animation frames. Defaults: DPR cap 2,
+  `destroy`, a `state` snapshot (`status`, `time`, `frames`, `width`, `height`) and `ready`. It draws one resting
+  frame once its shaders are ready; reduced motion keeps that still frame and never requests animation frames. Defaults: DPR cap 2,
   `maxRenderSize` 1080. It also takes `{ canvas, livePackage }` instead of `source` and `chain` (see Live package
   below); `createLiveArtwork` does the same, with the package's own bindings.
 - `effectRegistry.pass(id, layer, { seed, width, height })` → a `ChainPass` (`id`, `fragment`, `uniforms`) from an
@@ -67,6 +67,18 @@ Pixi conventions the chain matches:
   pass to the canvas flips. `UNPACK_FLIP_Y` would mirror every effect vertically against the editor.
 - `inputClamp` is the input's extent inset by half a texel, as Pixi sets it. With `(0, 0, 1, 1)`, about 1% of a 540px
   Noise Warp (hard edges) differs from the editor by more than 8 levels; with the inset the outputs match.
+
+Shader compilation (issue #419): `createCompositeRenderer` compiles every shader, then links every program, and queries
+nothing until the driver is done, since any status, uniform or error query before then waits for the compile. With
+`KHR_parallel_shader_compile` the artwork polls `COMPLETION_STATUS_KHR` once per animation frame (`pollReady`) and only
+then reads link status and uniform locations. Until then `state.status` is `'loading'`, nothing is drawn (the host
+keeps showing its still), and `start`, `seek` and `setInput` apply to the first frame; `ready` settles when that frame
+is drawn, and rejects with the compile log if a shader fails (`status` `'failed'`). Without the extension creation
+waits for the driver and draws the resting frame at once, as before, and a failed shader throws from `createArtwork`.
+Hosts and tests that read pixels after creation `await artwork.ready` first.
+`tests/browser/runtime-compile.spec.ts` records long tasks over a cold start of every registered effect at 1080px:
+on Chromium with Metal, about 90–270 ms in one task without the extension and none over 50 ms with it. Headless
+Chromium without a GPU (CI) runs SwiftShader, which lacks the extension, so that check skips there.
 
 `tests/browser/runtime-chain.spec.ts` imports the runtime source from the dev server (`/@fs/`), so no test route
 ships in the app.

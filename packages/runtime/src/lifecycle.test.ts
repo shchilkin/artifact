@@ -45,6 +45,52 @@ describe('lifecycle state', () => {
     expect(transition(state, { type: 'start' })).toBe(state);
     expect(transition(state, { type: 'visibility', visible: true })).toBe(state);
   });
+
+  describe('while shaders load (issue #419)', () => {
+    const loading = (events: LifecycleEvent[], reducedMotion = false) =>
+      events.reduce(transition, initialLifecycle({ reducedMotion, loading: true }));
+
+    it('reports loading and never animates, whatever the host asked', () => {
+      for (const events of [
+        [],
+        [{ type: 'start' }],
+        [{ type: 'start' }, { type: 'visibility', visible: true }],
+      ] as const) {
+        const state = loading([...events]);
+        expect(lifecycleStatus(state)).toBe('loading');
+        expect(shouldAnimate(state)).toBe(false);
+      }
+      expect(lifecycleStatus(loading([], true))).toBe('loading');
+    });
+
+    it('plays a start queued while loading once ready, and stays idle otherwise', () => {
+      const queued = loading([{ type: 'start' }, { type: 'ready' }]);
+      expect(lifecycleStatus(queued)).toBe('running');
+      expect(shouldAnimate(queued)).toBe(true);
+      expect(lifecycleStatus(loading([{ type: 'ready' }]))).toBe('idle');
+      expect(lifecycleStatus(loading([{ type: 'start' }, { type: 'pause' }, { type: 'ready' }]))).toBe('idle');
+      expect(
+        lifecycleStatus(loading([{ type: 'start' }, { type: 'visibility', visible: false }, { type: 'ready' }])),
+      ).toBe('offscreen');
+      expect(lifecycleStatus(loading([{ type: 'start' }, { type: 'ready' }], true))).toBe('still');
+    });
+
+    it('fails for good when a shader fails, and destroy still wins', () => {
+      const failed = loading([{ type: 'start' }, { type: 'fail' }]);
+      expect(lifecycleStatus(failed)).toBe('failed');
+      expect(shouldAnimate(failed)).toBe(false);
+      expect(transition(failed, { type: 'ready' })).toBe(failed);
+      expect(lifecycleStatus(transition(failed, { type: 'destroy' }))).toBe('destroyed');
+      expect(lifecycleStatus(loading([{ type: 'destroy' }]))).toBe('destroyed');
+      expect(transition(loading([{ type: 'destroy' }]), { type: 'ready' }).loading).toBe(true);
+    });
+
+    it('ignores ready and fail once loaded', () => {
+      const state = run([{ type: 'start' }]);
+      expect(transition(state, { type: 'ready' })).toBe(state);
+      expect(transition(state, { type: 'fail' })).toBe(state);
+    });
+  });
 });
 
 describe('render size', () => {

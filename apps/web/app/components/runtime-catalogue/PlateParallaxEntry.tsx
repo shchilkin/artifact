@@ -79,6 +79,9 @@ export function PlateParallaxEntry({ animate }: { animate: boolean }) {
         artworkRef.current = artwork;
         if (animateRef.current) artwork.start();
         setError(null);
+        artwork.ready.catch((cause: unknown) => {
+          if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause));
+        });
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
       }

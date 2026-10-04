@@ -138,14 +138,22 @@ function EffectEntry({
         if (animateRef.current) artwork.start();
         setError(null);
         const created = artwork;
-        // Measure once the new artwork has settled, on the same context it draws to.
-        measureTimer = setTimeout(() => {
-          const gl = canvas.getContext('webgl2');
-          if (!gl) return;
-          void measureGpuTime(gl, () => created.seek(created.state.time), { samples: 10 }).then((timing) => {
-            if (!cancelled) setGpuMs(timing?.medianMs ?? null);
-          });
-        }, 250);
+        // Measure once the new artwork's shaders are ready and it has settled, on the same context it draws to.
+        created.ready.then(
+          () => {
+            if (cancelled) return;
+            measureTimer = setTimeout(() => {
+              const gl = canvas.getContext('webgl2');
+              if (!gl) return;
+              void measureGpuTime(gl, () => created.seek(created.state.time), { samples: 10 }).then((timing) => {
+                if (!cancelled) setGpuMs(timing?.medianMs ?? null);
+              });
+            }, 250);
+          },
+          (cause: unknown) => {
+            if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause));
+          },
+        );
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
       }
