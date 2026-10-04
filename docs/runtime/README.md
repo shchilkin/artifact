@@ -525,6 +525,43 @@ in all engines). CI runs it in `.github/workflows/runtime-experiment.yml` for pu
   when it scrolls away it releases its context (`WEBGL_lose_context`) and later redraws on a fresh canvas. A catalogue
   test scrolls its entry into view before it waits for the GPU time.
 
+### Porting checklist
+
+One effect issue, one PR into `experiment/runtime`. The steps below collect what the first twenty effect PRs
+(#405–#430) ran into.
+
+1. **Branch from the current base** in your own worktree:
+   `git worktree add ~/dev/artifact.worktrees/runtime-<issue> -b claude/runtime-<issue> origin/experiment/runtime`.
+   Use a dev-server port of your own with `PLAYWRIGHT_REUSE_SERVER=0`; other ports may belong to another run.
+2. **Read the editor's implementation exactly.** GPU effects are fragments in `apps/web/app/utils/pixiFilters.ts`;
+   CPU effects live in `render/layers/index.ts`, `render/layers/textureEffects.ts` or the worker
+   `render/workers/effectPixelTransform.ts`. Note `W/540` scaling, rounding, clamping, nearest vs linear sampling,
+   premultiplied canvas maths, blend modes, and where the effect sits in the editor's order (Canvas 2D effects before
+   GPU filters within a layer; colour pass order sepia, infrared, CA, dither).
+3. **GPU effects: move, don't copy.** Move the fragment into `packages/shared/src/effectShaders.ts` and import it in
+   both `pixiFilters.ts` and the runtime. A new uniform (such as `uCenter`) keeps the editor's value as its default
+   and the editor passes it explicitly. Prove the editor is unchanged with a throwaway spec that hashes editor output
+   before and after on the fixtures in all three engines; do not commit it.
+4. **CPU effects: port faithfully.** Reproduce the maths, including byte rounding and canvas blend maths (Grain #408,
+   Scanlines #413). Read the render size from `inputClamp` so `W/540` holds at any size (Radial CA #410). Effects that
+   draw from an LCG get their random parameters computed on the CPU per seed and passed as uniform arrays, which keeps
+   pixel parity (Glitch #415). Only effects whose per-pixel noise cannot be reproduced are `stochastic`.
+5. **One effect, several editor stages** becomes one registry effect with `stages` (Chromatic split #418).
+6. **Register and declare a case** (above). Give tracks a `phase` so the motion goldens at `t = 0` and `t = 0.5`
+   differ. Add a click or hover frame when the effect binds them; `INPUT_FRAMES` sets neither.
+7. **Parity tolerance is not a dial.** Widen `pixelTolerance` or `parityInset` only for a measured, explained cause
+   (Tear #409: the last column; Data Mosh: `fract()` at the edge), and write the cause in the case file.
+8. **Goldens come from the Linux container** (`mcr.microsoft.com/playwright:v1.60.0-noble`, linux/amd64). Existing
+   goldens must stay byte-identical.
+9. **Catalogue tests scroll their entry into view first** and await `artwork.ready` before reading pixels.
+10. **GPU budget:** measure with `RUNTIME_GPU_BUDGET=1` in headed Chromium and record the number in the PR.
+11. **Before opening the PR, and again before asking for review,** `git fetch origin && git merge origin/experiment/runtime`
+    (no rebase, no force-push). Shared lists (`effects/index.ts`, `src/index.ts`, `test/cases/index.ts`,
+    `effectShaders.ts`, the `pixiFilters.ts` import list) conflict on almost every merge; keep both sides. CI must be
+    green on the merged head.
+12. **Live package.** A newly registered effect joins the sample cover's live chain automatically; check
+    `runtime-live-package.spec.ts` and `runtime-catalogue.spec.ts` still match.
+
 ### Fixtures
 
 `packages/runtime/test/fixtures`: `photo.webp` (continuous tones and grain), `graphic.png` (flat colour, hard
