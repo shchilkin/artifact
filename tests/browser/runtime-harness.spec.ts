@@ -25,6 +25,8 @@ const GOLDEN_OPTIONS = { threshold: 0.05, maxDiffPixelRatio: 0.002 };
 const BROKEN_NOISE_WARP = { search: 'vec2(ox, oy)', replace: 'vec2(oy, ox)' };
 /** Grain at half the editor's strength: the same noise shape, too faint. */
 const FAINT_GRAIN = { search: 'uGrain * 3.0', replace: 'uGrain * 1.5' };
+/** Scanlines one row lower than the editor's, which start at the top row. */
+const SHIFTED_SCANLINES = { search: '* size.y - 0.5 -', replace: '* size.y - 1.5 -' };
 
 async function openHarness(page: Page) {
   await setupBrowserTestPage(page);
@@ -184,5 +186,11 @@ test.describe('the harness itself', () => {
       expect(result.patched).toBe(true);
       expect(result.comparison.pass, `${fixture}: ${describeComparison(result.comparison)}`).toBe(false);
     }
+  });
+
+  test('pixels reject Scanlines one row off', async ({ page }) => {
+    const result = await runParity(page, 'scanlines', 'graphic', { fragmentPatch: SHIFTED_SCANLINES });
+    expect(result.patched).toBe(true);
+    expect(result.comparison.pass, describeComparison(result.comparison)).toBe(false);
   });
 });

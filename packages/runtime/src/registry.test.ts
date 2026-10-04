@@ -1,6 +1,6 @@
 import { HEADER, NOISE_FRAG } from '@artifact/shared/effect-shaders';
 import { describe, expect, it } from 'vitest';
-import { EFFECTS, effectRegistry, GRAIN_FRAG, grain, noiseWarp } from './effects/index.js';
+import { EFFECTS, effectRegistry, GRAIN_FRAG, grain, noiseWarp, SCANLINES_FRAG, scanlines } from './effects/index.js';
 import { createEffectRegistry, DEFAULT_CENTER, defineEffect } from './registry.js';
 import type { UniformValues } from './types.js';
 
@@ -43,6 +43,26 @@ describe('effect registry', () => {
     const pass = effectRegistry.pass('grain', { grain: 26, seedOffset: 3 }, context);
     expect(pass).toEqual({ id: 'grain', fragment: GRAIN_FRAG, uniforms: { uGrain: 26, uSeed: 45 } });
     expect(effectRegistry.pass('grain', { grain: 0 }, context)).toBeNull();
+  });
+
+  it('registers Scanlines as a deterministic port with a bindable offset', () => {
+    expect(effectRegistry.get('scanlines')).toBe(scanlines);
+    expect(scanlines.fragment).toBe(SCANLINES_FRAG);
+    expect(scanlines.fragment.startsWith(HEADER)).toBe(true);
+    expect(scanlines.stochastic).toBe(false);
+    expect(scanlines.centered).toBe(false);
+    expect(scanlines.fields).toEqual(['scanlines', 'scanlineWidth']);
+  });
+
+  it('maps authored Scanlines fields to the line alpha and width, resting at offset 0', () => {
+    const pass = effectRegistry.pass('scanlines', { scanlines: 18, scanlineWidth: 2 }, context);
+    expect(pass).toEqual({
+      id: 'scanlines',
+      fragment: SCANLINES_FRAG,
+      uniforms: { uAlpha: 0.18, uLineWidth: 2, uOffset: 0 },
+    });
+    expect(effectRegistry.uniforms('scanlines', { scanlines: 40 }, context)).toMatchObject({ uLineWidth: 1 });
+    expect(effectRegistry.pass('scanlines', { scanlines: 0, scanlineWidth: 2 }, context)).toBeNull();
   });
 
   it('rejects unknown ids and duplicate registrations', () => {

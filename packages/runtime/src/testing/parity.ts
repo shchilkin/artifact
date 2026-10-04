@@ -22,6 +22,12 @@ export const PIXEL_TOLERANCE = {
 } as const;
 
 /**
+ * Pixel tolerance values. A case may widen one through `EffectCase.pixelTolerance`, with the reason next to it, when
+ * the editor and the runtime round a knife-edge coordinate differently.
+ */
+export type PixelTolerance = { readonly [K in keyof typeof PIXEL_TOLERANCE]: number };
+
+/**
  * Stochastic effects: the GPU noise differs from the editor's CPU noise by design, so only statistics must agree.
  *
  * Calibrated on Grain (#338), the first stochastic port, at 540px on all fixtures (measurements in
@@ -54,7 +60,7 @@ export interface PixelComparison {
   readonly maxChannelDiff: number;
   readonly differentPixels: number;
   readonly differentRatio: number;
-  readonly tolerance: typeof PIXEL_TOLERANCE;
+  readonly tolerance: PixelTolerance;
 }
 
 export interface ChannelStatistics {
@@ -95,7 +101,7 @@ function maxRgbDiff(a: RgbaImage['data'], b: RgbaImage['data'], index: number): 
 export function comparePixels(
   expected: RgbaImage,
   actual: RgbaImage,
-  tolerance: typeof PIXEL_TOLERANCE = PIXEL_TOLERANCE,
+  tolerance: PixelTolerance = PIXEL_TOLERANCE,
 ): PixelComparison {
   assertSameSize(expected, actual);
   const a = expected.data;
@@ -186,8 +192,13 @@ export function compareStatistics(
 }
 
 /** Pixels for deterministic effects, statistics for stochastic ones. */
-export function compareParity(expected: RgbaImage, actual: RgbaImage, stochastic: boolean): ParityComparison {
-  return stochastic ? compareStatistics(expected, actual) : comparePixels(expected, actual);
+export function compareParity(
+  expected: RgbaImage,
+  actual: RgbaImage,
+  stochastic: boolean,
+  pixelTolerance: PixelTolerance = PIXEL_TOLERANCE,
+): ParityComparison {
+  return stochastic ? compareStatistics(expected, actual) : comparePixels(expected, actual, pixelTolerance);
 }
 
 /**

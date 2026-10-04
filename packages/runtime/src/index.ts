@@ -60,6 +60,11 @@ export {
   morph,
   type NoiseWarpLayer,
   noiseWarp,
+  SCANLINES_FRAG,
+  type ScanlinesLayer,
+  scanlines,
+  type TearLayer,
+  tear,
   type VortexLayer,
   vortex,
 } from './effects/index.js';

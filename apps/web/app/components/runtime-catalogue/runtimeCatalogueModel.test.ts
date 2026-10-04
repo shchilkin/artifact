@@ -47,6 +47,20 @@ describe('runtime catalogue model', () => {
     expect(catalogueBindings(EFFECT_CASES.grain)).toEqual(['step track']);
   });
 
+  it('shows Scanlines with its inspector sliders, the step track that crawls it and scroll', () => {
+    expect(catalogueTitle('scanlines')).toBe('Scanlines');
+    expect(catalogueControls('scanlines')).toEqual([
+      expect.objectContaining({ type: 'slider', field: 'scanlines', min: 0, max: 100 }),
+      expect.objectContaining({ type: 'slider', field: 'scanlineWidth', min: 1, max: 12 }),
+    ]);
+    expect(catalogueLayer('scanlines', EFFECT_CASES.scanlines)).toMatchObject({
+      preset: 'scanlines',
+      scanlines: 35,
+      scanlineWidth: 3,
+    });
+    expect(catalogueBindings(EFFECT_CASES.scanlines)).toEqual(['step track', 'scroll']);
+  });
+
   it('formats GPU time', () => {
     expect(formatGpuTime(undefined)).toBe('measuring');
     expect(formatGpuTime(null)).toBe('n/a');
@@ -81,6 +95,16 @@ describe('runtime catalogue model', () => {
     expect(catalogueControls('dataMosh')).toEqual([expect.objectContaining({ type: 'slider', field: 'dataMosh' })]);
     expect(catalogueLayer('dataMosh', EFFECT_CASES.dataMosh)).toMatchObject({ preset: 'dataMosh', dataMosh: 30 });
     expect(catalogueBindings(EFFECT_CASES.dataMosh)).toEqual(['step track', 'pulse track', 'click']);
+  });
+
+  it('lists Tear with its amount and size sliders, the step track and click', () => {
+    expect(catalogueTitle('tear')).toBe('Tear');
+    expect(catalogueControls('tear')).toEqual([
+      expect.objectContaining({ type: 'slider', field: 'tearAmt' }),
+      expect.objectContaining({ type: 'slider', field: 'tearSize' }),
+    ]);
+    expect(catalogueLayer('tear', EFFECT_CASES.tear)).toMatchObject({ preset: 'tear', tearAmt: 10, tearSize: 6 });
+    expect(catalogueBindings(EFFECT_CASES.tear)).toEqual(['step track', 'pulse track', 'click']);
   });
 
   it('lists Glitch with its VHS Streaks slider, the step and pulse tracks and click', () => {
