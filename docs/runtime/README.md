@@ -163,17 +163,13 @@ graph with merges, other node kinds, or extra inputs (materials, environments) i
 - `approximate: true` moves unsupported effect layers beneath the live run they sit on (never across a source layer)
   and says so in `baked`. The resting frame then differs where the moved effects do not commute with the chain.
 
-The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text) is
-one still plate in the exact split: Scanlines and Chrom. Ab. sit above the live Grain, Noise Warp, Vortex and Tear.
-The approximate split gives a base plate, a Grain + Noise Warp + Vortex + Tear chain and an image/text plate. Grain
-makes the chain stochastic, so its resting frame is compared by statistics: mean 0.33 and std dev 0.43 levels off,
-histogram distance 0.051 at 540px (Chromium), since the scanlines and colour fringes are warped instead of lying on
-top.
-
-With Radial CA registered (#337) and Tear and Scanlines not yet, the exact split is a base plate (fill through
-Scanlines), a one-pass `ca` chain and the image/text plate; its resting frame matches the editor with 0.000% of pixels
-over 8 levels (mean 0.004). The approximate split runs Grain, Noise Warp, Vortex and CA live over a base plate with
-Glitch, Tear and Scanlines moved beneath them.
+The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text), with
+Grain, Noise Warp, Vortex, Tear (#340) and Radial CA (#337) registered: the exact split is a base plate (fill through
+Scanlines; Grain, Noise Warp, Vortex and Tear are baked beneath Scanlines), a one-pass `ca` chain and the image/text
+plate; its resting frame matches the editor with 0.000% of pixels over 8 levels (mean 0.004). The approximate split
+runs Grain, Noise Warp, Vortex, Tear and CA live over a base plate with Glitch and Scanlines moved beneath them;
+Grain makes it a statistics comparison (mean 0.14 and std dev 0.43 levels, histogram distance 0.054 at 540px in
+Chromium).
 
 Radial CA is the editor colour pass's third step (sepia, infrared, CA, dither: `applyColorPass` in
 `render/workers/effectPixelTransform.ts`), which `EDITOR_EFFECT_ORDER` follows. Its port (`CA_FRAG` in
