@@ -78,7 +78,7 @@
     "build:runtime": "npm --workspace @artifact/runtime run build",
     "typecheck:runtime": "npm --workspace @artifact/runtime run typecheck",
     "test:runtime": "npm --workspace @artifact/runtime run test",
-    "test:runtime:harness": "npm --workspace @artifact/shared run build && playwright test -c playwright.config.ts runtime-chain.spec.ts runtime-harness.spec.ts runtime-catalogue.spec.ts runtime-live-package.spec.ts runtime-plates.spec.ts"
+    "test:runtime:harness": "npm --workspace @artifact/shared run build && playwright test -c playwright.config.ts runtime-chain.spec.ts runtime-harness.spec.ts runtime-catalogue.spec.ts runtime-live-package.spec.ts runtime-plates.spec.ts runtime-compile.spec.ts"
   },
   "dependencies": {
     "@react-router/node": "^7.18.4",

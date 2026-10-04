@@ -9,20 +9,63 @@ export interface FakeGl {
   readonly counts: { created: number; deleted: number; draws: number; readPixels: number };
   /** Draw calls per framebuffer binding: `null` is the canvas. */
   readonly drawTargets: (object | null)[];
+  /** With `parallelCompile`: lets `COMPLETION_STATUS_KHR` report every program as linked from now on. */
+  completeShaders(): void;
+  /**
+   * Status, uniform and error queries made while shaders were still compiling: each one waits for the driver on a real
+   * context (issue #419).
+   */
+  readonly blockingQueries: string[];
 }
+
+export interface FakeGlOptions {
+  /** Exposes `KHR_parallel_shader_compile`; programs report complete only after `completeShaders()`. */
+  readonly parallelCompile?: boolean;
+  /** Every program fails to link, with a compile error on its fragment shader. */
+  readonly failCompile?: boolean;
+}
+
+/** `COMPLETION_STATUS_KHR` from `KHR_parallel_shader_compile`. */
+const COMPLETION_STATUS_KHR = 0x91b1;
+const BLOCKING_QUERIES = [
+  'getShaderParameter',
+  'getProgramParameter',
+  'getShaderInfoLog',
+  'getProgramInfoLog',
+  'getActiveUniform',
+  'getUniformLocation',
+  'getError',
+] as const;
 
 const CREATE_KINDS = ['Texture', 'Framebuffer', 'Buffer', 'Program', 'Shader', 'VertexArray'] as const;
 
-export function createFakeGl(): FakeGl {
+export function createFakeGl(options: FakeGlOptions = {}): FakeGl {
   const liveObjects = new Map<object, string>();
   const counts = { created: 0, deleted: 0, draws: 0, readPixels: 0 };
   const drawTargets: (object | null)[] = [];
   let framebuffer: object | null = null;
   const constants = new Map<string, number>();
+  let complete = !options.parallelCompile;
+  const blockingQueries: string[] = [];
+  const shaderTypes = new Map<object, number>();
 
   const impl: Record<string, unknown> = {
-    getShaderParameter: () => true,
-    getProgramParameter: (_program: object, pname: number) => (pname === constant('ACTIVE_UNIFORMS') ? 0 : true),
+    getExtension: (name: string) =>
+      options.parallelCompile && name === 'KHR_parallel_shader_compile' ? { COMPLETION_STATUS_KHR } : null,
+    getShaderParameter: (shader: object) =>
+      !(options.failCompile && shaderTypes.get(shader) === constant('FRAGMENT_SHADER')),
+    getProgramParameter: (_program: object, pname: number) => {
+      if (pname === COMPLETION_STATUS_KHR) return complete;
+      if (pname === constant('ACTIVE_UNIFORMS')) return 0;
+      return !options.failCompile;
+    },
+    createShader: (type: number) => {
+      const shader = { kind: 'Shader' };
+      liveObjects.set(shader, 'Shader');
+      shaderTypes.set(shader, type);
+      counts.created += 1;
+      return shader;
+    },
     getShaderInfoLog: () => '',
     getProgramInfoLog: () => '',
     getActiveUniform: () => null,
@@ -40,7 +83,7 @@ export function createFakeGl(): FakeGl {
     },
   };
   for (const kind of CREATE_KINDS) {
-    impl[`create${kind}`] = () => {
+    impl[`create${kind}`] ??= () => {
       const object = { kind };
       liveObjects.set(object, kind);
       counts.created += 1;
@@ -60,6 +103,15 @@ export function createFakeGl(): FakeGl {
     return value;
   }
 
+  for (const name of BLOCKING_QUERIES) {
+    const query = impl[name] as (...args: unknown[]) => unknown;
+    impl[name] = (...args: unknown[]) => {
+      const nonBlocking = name === 'getProgramParameter' && args[1] === COMPLETION_STATUS_KHR;
+      if (!complete && !nonBlocking) blockingQueries.push(name);
+      return query(...args);
+    };
+  }
+
   const gl = new Proxy(impl, {
     get(target, property) {
       if (typeof property !== 'string') return undefined;
@@ -73,6 +125,10 @@ export function createFakeGl(): FakeGl {
     gl,
     counts,
     drawTargets,
+    blockingQueries,
+    completeShaders() {
+      complete = true;
+    },
     live() {
       const byKind: Record<string, number> = {};
       for (const kind of liveObjects.values()) byKind[kind] = (byKind[kind] ?? 0) + 1;

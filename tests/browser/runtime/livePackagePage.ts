@@ -78,19 +78,22 @@ async function exportAndCompare(
   const files = await filesFromZip(await zipLivePackage(exported.files));
   const livePackage = await livePackageFromFiles(files);
   const parity = await measurePackageParity(doc, imageCache, livePackage, { live: Boolean(request.bindings) });
+  const frames: { name: string; png: string }[] = [];
+  for (const frame of request.frames ?? [])
+    frames.push({ name: frame.name, png: await recordFrame(livePackage, frame) });
   return {
     manifest: livePackage.manifest,
     files: [...files.keys()],
     comparison: parity.comparison,
     reviewPng: toPng(sideBySide([parity.editor, parity.runtime, diffImage(parity.editor, parity.runtime)])),
-    frames: (request.frames ?? []).map((frame) => ({ name: frame.name, png: recordFrame(livePackage, frame) })),
+    frames,
   };
 }
 
-function recordFrame(
+async function recordFrame(
   livePackage: LivePackage,
   frame: { readonly seconds: number; readonly input?: Record<string, number> },
-): string {
+): Promise<string> {
   const { width, height } = livePackage.manifest.size;
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -104,6 +107,7 @@ function recordFrame(
     reducedMotion: false,
     contextAttributes: { preserveDrawingBuffer: true },
   });
+  await artwork.ready;
   for (const [name, value] of Object.entries(frame.input ?? {})) artwork.setInput(name, value);
   artwork.seek(frame.seconds);
   const png = canvas.toDataURL('image/png');

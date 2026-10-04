@@ -78,8 +78,14 @@ function liveArtwork(livePackage: LivePackage, size: number): { canvas: HTMLCanv
   return { canvas, artwork };
 }
 
-function frameOf(livePackage: LivePackage, size: number, input: Record<string, number>, seconds: number): RgbaImage {
+async function frameOf(
+  livePackage: LivePackage,
+  size: number,
+  input: Record<string, number>,
+  seconds: number,
+): Promise<RgbaImage> {
   const { canvas, artwork } = liveArtwork(livePackage, size);
+  await artwork.ready;
   for (const [name, value] of Object.entries(input)) artwork.setInput(name, value);
   artwork.seek(seconds);
   const pixels = readPixels(canvas, size);
@@ -99,7 +105,7 @@ export interface RestResult {
  */
 export async function restingParity(): Promise<RestResult> {
   const bound = await fixturePackage({ bindings: plateCaseBindings({ tilt: 3 }) });
-  const live = frameOf(bound, PLATE_CASE_SIZE, {}, 0);
+  const live = await frameOf(bound, PLATE_CASE_SIZE, {}, 0);
   const canvas = document.createElement('canvas');
   canvas.width = PLATE_CASE_SIZE;
   canvas.height = PLATE_CASE_SIZE;
@@ -110,6 +116,7 @@ export async function restingParity(): Promise<RestResult> {
     reducedMotion: true,
     maxRenderSize: PLATE_CASE_SIZE,
   });
+  await still.ready;
   const expected = readPixels(canvas, PLATE_CASE_SIZE);
   still.destroy();
   return {
@@ -126,10 +133,12 @@ export interface GoldenFrame {
 /** The pointer at the centre and the corners, then one breath, at the golden size. */
 export async function goldens(): Promise<GoldenFrame[]> {
   const livePackage = await fixturePackage({ bindings: plateCaseBindings() });
-  return [...PLATE_INPUT_FRAMES, ...PLATE_MOTION_FRAMES].map((frame) => ({
-    name: frame.name,
-    png: toPng(frameOf(livePackage, GOLDEN_SIZE, { ...frame.input }, frame.t * PLATE_CASE_LOOP_SECONDS)),
-  }));
+  const frames: GoldenFrame[] = [];
+  for (const frame of [...PLATE_INPUT_FRAMES, ...PLATE_MOTION_FRAMES]) {
+    const pixels = await frameOf(livePackage, GOLDEN_SIZE, { ...frame.input }, frame.t * PLATE_CASE_LOOP_SECONDS);
+    frames.push({ name: frame.name, png: toPng(pixels) });
+  }
+  return frames;
 }
 
 export interface EdgeResult {
@@ -154,7 +163,7 @@ export async function edges(
   const results: EdgeResult[] = [];
   for (const frame of PLATE_INPUT_FRAMES) {
     for (const t of [0, 0.5]) {
-      const pixels = frameOf(livePackage, PLATE_CASE_SIZE, { ...frame.input }, t * PLATE_CASE_LOOP_SECONDS);
+      const pixels = await frameOf(livePackage, PLATE_CASE_SIZE, { ...frame.input }, t * PLATE_CASE_LOOP_SECONDS);
       results.push({ name: `${frame.name}-t${t}`, uncovered: uncoveredEdgePixels(pixels), png: toPng(pixels) });
     }
   }
