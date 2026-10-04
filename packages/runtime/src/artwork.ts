@@ -1,4 +1,5 @@
-import { type ChainRenderer, createChainRenderer } from './chain.js';
+import { type CompositeRenderer, type CompositeStep, createCompositeRenderer } from './chain.js';
+import { effectRegistry as defaultRegistry } from './effects/index.js';
 import {
   initialLifecycle,
   type LifecycleEvent,
@@ -8,6 +9,8 @@ import {
   shouldAnimate,
   transition,
 } from './lifecycle.js';
+import { effectContext, type LivePackage, livePackageComposite, livePackagePasses } from './livePackage.js';
+import type { EffectRegistry } from './registry.js';
 import { computeRenderSize, DEFAULT_MAX_DEVICE_PIXEL_RATIO, DEFAULT_MAX_RENDER_SIZE } from './sizing.js';
 import type { ArtworkSource, ChainPass, UniformValues } from './types.js';
 
@@ -39,13 +42,10 @@ export interface FrameState {
 /** Per-frame uniform overrides: entry `i` is merged over pass `i`'s resting uniforms. */
 export type FrameUniforms = (frame: FrameState) => readonly (UniformValues | undefined)[] | undefined;
 
-export interface ArtworkOptions {
+/** Options every artwork takes, whatever it draws. */
+export interface ArtworkCommonOptions {
   readonly canvas: HTMLCanvasElement | OffscreenCanvas;
-  readonly source: ArtworkSource;
-  readonly chain: readonly ChainPass[];
-  /** Hook for time- and input-driven uniforms. Without it every frame shows the resting chain. */
-  readonly frameUniforms?: FrameUniforms;
-  /** Longest drawing-buffer side in device pixels. Default 1080. */
+  /** Longest drawing-buffer side in device pixels. Default: the package's `maxRenderSize`, else 1080. */
   readonly maxRenderSize?: number;
   /** Device pixel ratio cap. Default 2. */
   readonly maxDevicePixelRatio?: number;
@@ -59,6 +59,30 @@ export interface ArtworkOptions {
   readonly scheduler?: FrameScheduler;
   readonly contextAttributes?: WebGLContextAttributes;
 }
+
+/** An artwork from one source image and a resolved chain. */
+export interface ChainArtworkOptions extends ArtworkCommonOptions {
+  readonly source: ArtworkSource;
+  readonly chain: readonly ChainPass[];
+  /** Hook for time- and input-driven uniforms. Without it every frame shows the resting chain. */
+  readonly frameUniforms?: FrameUniforms;
+}
+
+/**
+ * An artwork from a live package: its plates composited in order, each chain run on the composite beneath it. Without
+ * `frameUniforms` every frame shows the authored values; `createLiveArtwork` adds the package's bindings.
+ */
+export interface PackageArtworkOptions extends ArtworkCommonOptions {
+  readonly livePackage: LivePackage;
+  /** Registry for the package's effects. Default: every effect this runtime runs. */
+  readonly registry?: EffectRegistry;
+  /** Resting passes, one per package pass in order. Defaults to the registry's passes for the authored values. */
+  readonly chain?: readonly ChainPass[];
+  /** Overrides indexed by package pass (see `livePackagePasses`). */
+  readonly frameUniforms?: FrameUniforms;
+}
+
+export type ArtworkOptions = ChainArtworkOptions | PackageArtworkOptions;
 
 export interface ArtworkState {
   readonly status: LifecycleStatus;
@@ -101,7 +125,8 @@ const DEFAULT_CONTEXT_ATTRIBUTES: WebGLContextAttributes = {
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 export function createArtwork(options: ArtworkOptions): Artwork {
-  const { canvas, chain, frameUniforms } = options;
+  const { canvas } = options;
+  const drawing = artworkDrawing(options);
   const gl = canvas.getContext('webgl2', {
     ...DEFAULT_CONTEXT_ATTRIBUTES,
     ...options.contextAttributes,
@@ -114,8 +139,10 @@ export function createArtwork(options: ArtworkOptions): Artwork {
     reducedMotion: options.reducedMotion ?? motionQuery?.matches ?? false,
   });
 
-  const renderer: ChainRenderer = createChainRenderer(gl, chain);
-  renderer.setSource(options.source);
+  const renderer: CompositeRenderer = createCompositeRenderer(gl, drawing.steps, drawing.plates.length);
+  drawing.plates.forEach((plate, index) => renderer.setPlate(index, plate));
+  const maxRenderSize =
+    options.maxRenderSize ?? ('livePackage' in options ? options.livePackage.manifest.maxRenderSize : undefined);
 
   const inputs: Record<string, number> = {};
   let frames = 0;
@@ -129,14 +156,14 @@ export function createArtwork(options: ArtworkOptions): Artwork {
   const currentTime = () => (frameHandle === null ? elapsed : elapsed + (scheduler.now() - resumedAt) / 1000);
 
   const draw = (time: number) => {
-    const overrides = frameUniforms?.({
+    const overrides = drawing.frameUniforms?.({
       time,
       clock: scheduler.now(),
       frame: frames,
       inputs,
       reducedMotion: lifecycle.reducedMotion,
     });
-    renderer.render(overrides);
+    renderer.render(overrides && drawing.toSteps(overrides));
     frames += 1;
   };
 
@@ -175,7 +202,7 @@ export function createArtwork(options: ArtworkOptions): Artwork {
       // A canvas off the page has no CSS size: its own size is already in device pixels.
       devicePixelRatio: displayed.css ? (options.devicePixelRatio ?? globalThis.devicePixelRatio ?? 1) : 1,
       maxDevicePixelRatio: options.maxDevicePixelRatio ?? DEFAULT_MAX_DEVICE_PIXEL_RATIO,
-      maxRenderSize: options.maxRenderSize ?? DEFAULT_MAX_RENDER_SIZE,
+      maxRenderSize: maxRenderSize ?? DEFAULT_MAX_RENDER_SIZE,
     });
     if (next.width === width && next.height === height) return false;
     width = next.width;
@@ -227,6 +254,51 @@ export function createArtwork(options: ArtworkOptions): Artwork {
     },
     get state() {
       return { status: lifecycleStatus(lifecycle), time: currentTime(), frames, width, height };
+    },
+  };
+}
+
+interface ArtworkDrawing {
+  readonly plates: readonly ArtworkSource[];
+  readonly steps: readonly CompositeStep[];
+  readonly frameUniforms?: FrameUniforms;
+  /** Maps per-pass overrides onto composite steps. */
+  toSteps(overrides: readonly (UniformValues | undefined)[]): readonly (UniformValues | undefined)[];
+}
+
+function artworkDrawing(options: ArtworkOptions): ArtworkDrawing {
+  if (!('livePackage' in options)) {
+    return {
+      plates: [options.source],
+      steps: options.chain.map((pass) => ({ kind: 'pass', pass })),
+      frameUniforms: options.frameUniforms,
+      toSteps: (overrides) => overrides,
+    };
+  }
+  const { livePackage } = options;
+  const passes = livePackagePasses(livePackage.manifest);
+  const context = effectContext(livePackage.manifest);
+  const chain =
+    options.chain ??
+    passes.map((pass) => {
+      const resting = (options.registry ?? defaultRegistry).pass(pass.effect, pass.layer, context);
+      if (!resting) throw new Error(`Package pass "${pass.effect}" from "${pass.source.name}" is off at rest.`);
+      return resting;
+    });
+  if (chain.length !== passes.length) {
+    throw new Error(`The package has ${passes.length} passes but the chain has ${chain.length}.`);
+  }
+  const composite = livePackageComposite(livePackage, chain);
+  return {
+    plates: composite.plates,
+    steps: composite.steps,
+    frameUniforms: options.frameUniforms,
+    toSteps(overrides) {
+      const byStep: (UniformValues | undefined)[] = new Array(composite.steps.length);
+      composite.passSteps.forEach((step, pass) => {
+        byStep[step] = overrides[pass];
+      });
+      return byStep;
     },
   };
 }

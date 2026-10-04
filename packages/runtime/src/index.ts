@@ -1,11 +1,14 @@
 export {
   type Artwork,
+  type ArtworkCommonOptions,
   type ArtworkOptions,
   type ArtworkState,
+  type ChainArtworkOptions,
   createArtwork,
   type FrameScheduler,
   type FrameState,
   type FrameUniforms,
+  type PackageArtworkOptions,
   type VisibilityObserver,
 } from './artwork.js';
 export {
@@ -27,7 +30,13 @@ export {
   parseBindings,
   type UniformTarget,
 } from './bindings.js';
-export { type ChainRenderer, createChainRenderer } from './chain.js';
+export {
+  type ChainRenderer,
+  type CompositeRenderer,
+  type CompositeStep,
+  createChainRenderer,
+  createCompositeRenderer,
+} from './chain.js';
 export {
   EFFECTS,
   effectRegistry,
@@ -64,7 +73,35 @@ export {
   shouldAnimate,
   transition,
 } from './lifecycle.js';
-export { createLiveArtwork, type LiveArtworkOptions } from './liveArtwork.js';
+export {
+  type ChainLiveArtworkOptions,
+  createLiveArtwork,
+  type LiveArtworkOptions,
+  type PackageLiveArtworkOptions,
+} from './liveArtwork.js';
+export {
+  type BakedLayer,
+  type ChainItem,
+  effectContext,
+  type LayerRef,
+  LIVE_PACKAGE_FORMAT,
+  LIVE_PACKAGE_MANIFEST,
+  LIVE_PACKAGE_VERSION,
+  type LivePackage,
+  type LivePackageComposite,
+  LivePackageError,
+  type LivePackageManifest,
+  type LoadLivePackageOptions,
+  livePackageComposite,
+  livePackageFiles,
+  livePackagePasses,
+  loadLivePackage,
+  type PackagePass,
+  type ParseLivePackageOptions,
+  type PlateItem,
+  parseLivePackage,
+  type StackItem,
+} from './livePackage.js';
 export {
   type AuthoredEffectLayer,
   createEffectRegistry,
@@ -75,7 +112,7 @@ export {
   type EffectRegistry,
   effectLayerSeed,
 } from './registry.js';
-export { COPY_FRAGMENT, inputClamp, PASS_VERTEX } from './shaders.js';
+export { COPY_FRAGMENT, inputClamp, OVER_FRAGMENT, PASS_VERTEX, UNDER_FRAGMENT } from './shaders.js';
 export {
   computeRenderSize,
   DEFAULT_MAX_DEVICE_PIXEL_RATIO,
