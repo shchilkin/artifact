@@ -44,3 +44,24 @@ test('the runtime catalogue shows Noise Warp with working controls and a GPU tim
   await expect.poll(async () => (await canvas.screenshot()).equals(moving)).toBe(false);
   await page.getByRole('button', { name: 'Still' }).click();
 });
+
+test('the runtime catalogue shows Vortex, with the swirl centre following the pointer', async ({ page }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const entry = page.locator('article[data-effect="vortex"]');
+  await expect(entry.getByRole('heading', { name: 'Vortex' })).toBeVisible();
+  await expect(entry.getByText('wave track, pointer.x, pointer.y, hover')).toBeVisible();
+  await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+
+  const canvas = entry.locator('canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('catalogue canvas has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const centred = await canvas.screenshot();
+  await page.mouse.move(box.x + 4, box.y + 4, { steps: 4 });
+  await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(false);
+  await page.mouse.move(0, 0);
+});

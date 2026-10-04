@@ -8,7 +8,7 @@ const context = { seed: 42, width: 540, height: 540 };
 
 describe('effect registry', () => {
   it('registers Noise Warp with the editor fragment, by reference', () => {
-    expect(effectRegistry.ids()).toEqual(['noiseWarp']);
+    expect(effectRegistry.ids()).toContain('noiseWarp');
     expect(effectRegistry.get('noiseWarp')).toBe(noiseWarp);
     // Imported from the editor's shared shader source, not a copy.
     expect(noiseWarp.fragment).toBe(NOISE_FRAG);

@@ -1,4 +1,4 @@
-import { HEADER, NOISE_FRAG, NORM_UV, SAMPLE } from '@artifact/shared/effect-shaders';
+import { HEADER, NOISE_FRAG, NORM_UV, SAMPLE, VORTEX_FRAG } from '@artifact/shared/effect-shaders';
 import { BlurFilter, Filter } from 'pixi.js';
 import type { EffectLayer } from '../types/config';
 
@@ -41,19 +41,6 @@ void main() {
   float offsetNorm = (hash(chunkId + 57.3) - 0.5) * 2.0 * uIntensity * active;
   vec2 warped      = vec2(fract(norm.x + offsetNorm), norm.y);
   gl_FragColor     = ${SAMPLE('warped')};
-}`;
-
-const VORTEX_FRAG = `${HEADER}
-uniform float uIntensity;
-
-void main() {
-  ${NORM_UV}
-  vec2  c    = norm - 0.5;
-  float dist = length(c);
-  float angle = atan(c.y, c.x);
-  angle += uIntensity * max(0.0, 1.0 - dist * 2.2);
-  vec2 warped = clamp(0.5 + dist * vec2(cos(angle), sin(angle)), 0.0, 1.0);
-  gl_FragColor = ${SAMPLE('warped')};
 }`;
 
 const BARREL_FRAG = `${HEADER}
@@ -356,7 +343,7 @@ function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 
       uSeed: seed,
     }),
   );
-  addFilter(filters, cfg.vortex, () => f(VORTEX_FRAG, { uIntensity: cfg.vortex * 0.03 }));
+  addFilter(filters, cfg.vortex, () => f(VORTEX_FRAG, { uIntensity: cfg.vortex * 0.03, uCenter: [0.5, 0.5] }));
   addFilter(filters, cfg.barrel, () => f(BARREL_FRAG, { uK: cfg.barrel * 0.04 }));
   addFilter(filters, cfg.tearAmt, () =>
     f(TEAR_FRAG, {
