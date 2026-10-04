@@ -43,6 +43,8 @@ export {
   GRAIN_FRAG,
   type GrainLayer,
   grain,
+  type MorphLayer,
+  morph,
   type NoiseWarpLayer,
   noiseWarp,
   type VortexLayer,

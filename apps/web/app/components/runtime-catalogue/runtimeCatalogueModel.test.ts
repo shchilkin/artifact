@@ -59,4 +59,14 @@ describe('runtime catalogue model', () => {
     expect(catalogueLayer('vortex', EFFECT_CASES.vortex)).toMatchObject({ preset: 'vortex', vortex: 50 });
     expect(catalogueBindings(EFFECT_CASES.vortex)).toEqual(['wave track', 'pointer.x', 'pointer.y', 'hover']);
   });
+
+  it('lists Liquid Morph with its amount and frequency sliders and its bindings', () => {
+    expect(catalogueTitle('morph')).toBe('Morph');
+    expect(catalogueControls('morph')).toEqual([
+      expect.objectContaining({ type: 'slider', field: 'morphAmt' }),
+      expect.objectContaining({ type: 'slider', field: 'morphFreq' }),
+    ]);
+    expect(catalogueLayer('morph', EFFECT_CASES.morph)).toMatchObject({ preset: 'morph', morphAmt: 20, morphFreq: 5 });
+    expect(catalogueBindings(EFFECT_CASES.morph)).toEqual(['wave track', 'pointer.speed']);
+  });
 });
