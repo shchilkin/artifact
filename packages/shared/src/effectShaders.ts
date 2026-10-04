@@ -182,3 +182,21 @@ void main() {
   ${NORM_UV}
   ${PIXELATE_SAMPLE('uBlocks')}
 }`;
+
+/**
+ * Vignette: darkens RGB by `uIntensity × (1.6 × distance from uCenter)²`, clamped to [0, 1], so the light spot sits
+ * at `uCenter`. Alpha is unchanged. Uniforms: `uIntensity`, `uCenter` (the editor passes `0.5, 0.5`).
+ */
+export const VIGNETTE_FRAG = `${HEADER}
+uniform float uIntensity;
+uniform vec2 uCenter;
+
+void main() {
+  vec4  col  = texture2D(uSampler, vTextureCoord);
+  ${NORM_UV}
+  vec2  c    = norm - uCenter;
+  float dist = length(c) * 1.6;
+  float vig  = 1.0 - uIntensity * (dist * dist);
+  col.rgb   *= clamp(vig, 0.0, 1.0);
+  gl_FragColor = col;
+}`;

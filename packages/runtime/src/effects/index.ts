@@ -10,6 +10,7 @@ import { rgbSplit } from './rgbSplit.js';
 import { ripple } from './ripple.js';
 import { scanlines } from './scanlines.js';
 import { tear } from './tear.js';
+import { vignette } from './vignette.js';
 import { vortex } from './vortex.js';
 
 export { CA_FRAG, type CaLayer, ca } from './ca.js';
@@ -44,6 +45,7 @@ export {
 } from './ripple.js';
 export { SCANLINES_FRAG, type ScanlinesLayer, scanlines } from './scanlines.js';
 export { type TearLayer, tear } from './tear.js';
+export { type VignetteLayer, vignette } from './vignette.js';
 export { type VortexLayer, vortex } from './vortex.js';
 
 /** Every effect the runtime can run. */
@@ -60,6 +62,7 @@ export const EFFECTS = [
   rgbSplit,
   ripple,
   pixelate,
+  vignette,
 ] as const;
 
 export const effectRegistry = createEffectRegistry(EFFECTS);
