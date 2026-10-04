@@ -38,6 +38,10 @@ const RGB_SPLIT_NO_GPU_RED = { search: 'clamp(uv + uDir,', replace: 'clamp(uv,' 
 const MIRRORED_RIPPLE = { search: 'float shift = sin(', replace: 'float shift = -sin(' };
 /** Ripple truncating the source position instead of rounding it as the editor's `Math.round` does. */
 const TRUNCATED_RIPPLE = { search: 'floor(source + 0.5)', replace: 'floor(source)' };
+/** Pixelate sampling each block at its top-left corner instead of its centre. */
+const CORNER_PIXELATE = { search: '+ 0.5 / blocks;', replace: ';' };
+/** Pixelate with the reveal on at a radius of 0, so the default band leaves the frame's centre half sharp. */
+const LEAKING_PIXELATE_REVEAL = { search: 'if (uRadius > 0.0)', replace: 'if (uRadius >= 0.0)' };
 
 async function openHarness(page: Page) {
   await setupBrowserTestPage(page);
@@ -218,6 +222,14 @@ test.describe('the harness itself', () => {
   test('pixels reject Ripple with mirrored rings or truncated sampling', async ({ page }) => {
     for (const patch of [MIRRORED_RIPPLE, TRUNCATED_RIPPLE]) {
       const result = await runParity(page, 'ripple', 'photo', { fragmentPatch: patch });
+      expect(result.patched).toBe(true);
+      expect(result.comparison.pass, `${patch.search}: ${describeComparison(result.comparison)}`).toBe(false);
+    }
+  });
+
+  test('pixels reject Pixelate sampling block corners or revealing at rest', async ({ page }) => {
+    for (const patch of [CORNER_PIXELATE, LEAKING_PIXELATE_REVEAL]) {
+      const result = await runParity(page, 'pixelate', 'photo', { fragmentPatch: patch });
       expect(result.patched).toBe(true);
       expect(result.comparison.pass, `${patch.search}: ${describeComparison(result.comparison)}`).toBe(false);
     }
