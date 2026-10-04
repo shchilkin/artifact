@@ -74,9 +74,12 @@ test('the catalogue exports the sample cover as a live package and plays it', as
 
   const panel = page.getByRole('region', { name: 'Live package export' });
   await panel.getByRole('button', { name: 'Export' }).click();
-  await expect(panel.getByTestId('live-export-summary')).toContainText('chain: noiseWarp (Noise Warp)', {
-    timeout: 30_000,
-  });
+  await expect(panel.getByTestId('live-export-summary')).toContainText(
+    /chain: .*grain \(Grain\).*noiseWarp \(Noise Warp\)/,
+    {
+      timeout: 30_000,
+    },
+  );
   await expect(panel.getByTestId('live-export-parity')).toHaveText(/^pass/);
   const download = page.waitForEvent('download');
   await panel.getByRole('button', { name: 'Download .zip' }).click();

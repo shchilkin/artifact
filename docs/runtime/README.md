@@ -167,6 +167,8 @@ The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Sc
 one still plate in the exact split: Tear, Scanlines and Chrom. Ab. sit above the live Noise Warp and Vortex. The
 approximate split gives a base plate, a Noise Warp + Vortex chain and an image/text plate, with about 24% of pixels
 more than 8 levels off at rest, since the scanlines and colour fringes are warped instead of lying on top.
+These numbers predate Grain's registration (#338); Grain now runs live wherever it sits in a live run, as it does
+in the sample cover's chain.
 
 ### Export
 
