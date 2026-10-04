@@ -26,6 +26,11 @@ export interface EffectDefinition<Layer extends AuthoredEffectLayer = AuthoredEf
   /** A Pixi-compatible GLSL ES 1.00 fragment, imported from the editor's shader source. */
   readonly fragment: string;
   // Method syntax keeps definitions for narrower layer types assignable to the registry's list.
+  /**
+   * Authored layer fields the effect reads. Bindings may drive these; the per-frame values go through `uniforms`, so
+   * a field binding produces the same uniforms the editor would for that field value.
+   */
+  readonly fields: readonly string[];
   /** The effect runs when this authored field is above zero, as in the editor's filter builder. */
   amount(layer: Layer): number;
   /** Maps authored values to the uniforms the editor passes for the same layer. */
@@ -43,6 +48,15 @@ export interface EffectRegistry {
   has(id: string): boolean;
   get(id: string): EffectDefinition | undefined;
   ids(): readonly string[];
+  /**
+   * The uniforms one effect reads for an authored layer, including the default `uCenter` of centred effects.
+   * Throws for an unknown id.
+   */
+  uniforms(
+    id: string,
+    layer: AuthoredEffectLayer & Readonly<Record<string, unknown>>,
+    context: EffectContext,
+  ): UniformValues;
   /**
    * The pass for one effect of an authored layer (for example an editor `EffectLayer`), or `null` when the effect
    * is off for that layer.
@@ -72,20 +86,29 @@ export function createEffectRegistry(definitions: readonly EffectDefinition[]): 
     byId.set(definition.id, definition);
   }
 
+  const definitionFor = (id: string) => {
+    const definition = byId.get(id);
+    if (!definition) throw new Error(`Unknown effect "${id}".`);
+    return definition;
+  };
+  const uniformsFor = (
+    definition: EffectDefinition,
+    layer: AuthoredEffectLayer & Readonly<Record<string, unknown>>,
+    context: EffectContext,
+  ): UniformValues => {
+    const uniforms = definition.uniforms(layer, context);
+    return definition.centered ? { uCenter: DEFAULT_CENTER, ...uniforms } : uniforms;
+  };
+
   return {
     has: (id) => byId.has(id),
     get: (id) => byId.get(id),
     ids: () => [...byId.keys()],
+    uniforms: (id, layer, context) => uniformsFor(definitionFor(id), layer, context),
     pass(id, layer, context) {
-      const definition = byId.get(id);
-      if (!definition) throw new Error(`Unknown effect "${id}".`);
+      const definition = definitionFor(id);
       if (!(definition.amount(layer) > 0)) return null;
-      const uniforms = definition.uniforms(layer, context);
-      return {
-        id,
-        fragment: definition.fragment,
-        uniforms: definition.centered ? { uCenter: DEFAULT_CENTER, ...uniforms } : uniforms,
-      };
+      return { id, fragment: definition.fragment, uniforms: uniformsFor(definition, layer, context) };
     },
   };
 }

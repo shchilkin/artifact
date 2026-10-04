@@ -10,6 +10,7 @@ export interface NoiseWarpLayer {
 export const noiseWarp = defineEffect<NoiseWarpLayer>({
   id: 'noiseWarp',
   fragment: NOISE_FRAG,
+  fields: ['noiseWarp', 'seedOffset'],
   amount: (layer) => layer.noiseWarp,
   uniforms: (layer, context) => ({
     uIntensity: layer.noiseWarp * 0.0008,
