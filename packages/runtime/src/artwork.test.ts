@@ -111,7 +111,64 @@ describe('createArtwork', () => {
     artwork.setInput('pointer.x', 0.25);
     artwork.start();
     scheduler.step(1, 500);
-    expect(frameUniforms).toHaveBeenLastCalledWith({ time: 0.5, frame: 1, inputs: { 'pointer.x': 0.25 } });
+    expect(frameUniforms).toHaveBeenLastCalledWith({
+      time: 0.5,
+      clock: 500,
+      frame: 2,
+      inputs: { 'pointer.x': 0.25 },
+      reducedMotion: false,
+    });
+  });
+
+  it('redraws once when an input changes while stopped, and not under reduced motion', () => {
+    const { fake, scheduler, artwork } = setup({ chain: [noisePass(10)] });
+    artwork.setInput('hover', 1);
+    expect(artwork.state.frames).toBe(2);
+    artwork.setInput('hover', 1);
+    expect(artwork.state.frames).toBe(2);
+    expect(scheduler.requested).toBe(0);
+    // While running, the next frame picks the input up; no extra draw.
+    artwork.start();
+    artwork.setInput('hover', 0);
+    expect(fake.counts.draws).toBe(2);
+
+    const still = setup({ reducedMotion: true, chain: [noisePass(10)] });
+    still.artwork.setInput('hover', 1);
+    still.artwork.redraw();
+    expect(still.artwork.state.frames).toBe(1);
+  });
+
+  it('tells the hook about reduced motion and redraws the still when it switches on', () => {
+    const fake = createFakeGl();
+    const scheduler = createManualScheduler();
+    const frameUniforms = vi.fn(() => undefined);
+    const listeners: ((event: { matches: boolean }) => void)[] = [];
+    vi.stubGlobal('matchMedia', () => ({
+      matches: false,
+      addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => listeners.push(listener),
+      removeEventListener: () => {},
+    }));
+    try {
+      const artwork = createArtwork({
+        canvas: createFakeCanvas(fake),
+        source: {} as ImageBitmap,
+        chain: [noisePass(10)],
+        observeVisibility: null,
+        scheduler,
+        frameUniforms,
+      });
+      artwork.start();
+      scheduler.step(3);
+      expect(frameUniforms).toHaveBeenLastCalledWith(expect.objectContaining({ reducedMotion: false }));
+      for (const listener of listeners) listener({ matches: true });
+      expect(artwork.state).toMatchObject({ status: 'still', frames: 5 });
+      expect(frameUniforms).toHaveBeenLastCalledWith(expect.objectContaining({ reducedMotion: true }));
+      expect(scheduler.pending).toBe(0);
+      artwork.destroy();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.stubGlobal('Element', FakeElement);
+    }
   });
 
   it('resizes the drawing buffer within maxRenderSize and redraws when stopped', () => {
