@@ -4,6 +4,7 @@ import dataMosh from './dataMosh.js';
 import grain from './grain.js';
 import morph from './morph.js';
 import noiseWarp from './noiseWarp.js';
+import scanlines from './scanlines.js';
 import tear from './tear.js';
 import vortex from './vortex.js';
 
@@ -15,5 +16,6 @@ export const EFFECT_CASES: Readonly<Record<string, EffectCase>> = {
   morph,
   ca,
   dataMosh,
+  scanlines,
   tear,
 };

@@ -163,13 +163,12 @@ graph with merges, other node kinds, or extra inputs (materials, environments) i
 - `approximate: true` moves unsupported effect layers beneath the live run they sit on (never across a source layer)
   and says so in `baked`. The resting frame then differs where the moved effects do not commute with the chain.
 
-The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text), with
-Grain, Noise Warp, Vortex, Tear (#340) and Radial CA (#337) registered: the exact split is a base plate (fill through
-Scanlines; Grain, Noise Warp, Vortex and Tear are baked beneath Scanlines), a one-pass `ca` chain and the image/text
-plate; its resting frame matches the editor with 0.000% of pixels over 8 levels (mean 0.004). The approximate split
-runs Grain, Noise Warp, Vortex, Tear and CA live over a base plate with Glitch and Scanlines moved beneath them;
-Grain makes it a statistics comparison (mean 0.14 and std dev 0.43 levels, histogram distance 0.054 at 540px in
-Chromium).
+The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text): with
+Grain, Noise Warp, Vortex, Tear (#340), Scanlines (#342) and Radial CA (#337) registered, only Glitch is baked, and it
+sits below the run. The exact split is a base plate (Fill, Emojis, Glitch), one live chain (Grain → Noise Warp →
+Vortex → Tear → Scanlines → CA) and the image/text plate; the approximate split is the same. Grain makes the resting
+frame a statistics comparison: mean 0.15 and std dev 0.09 levels, histogram distance 0.009 at 540px in Chromium on
+macOS.
 
 Radial CA is the editor colour pass's third step (sepia, infrared, CA, dither: `applyColorPass` in
 `render/workers/effectPixelTransform.ts`), which `EDITOR_EFFECT_ORDER` follows. Its port (`CA_FRAG` in
@@ -291,6 +290,12 @@ Why these numbers:
   faithful port in every engine and reject each broken variant on at least one fixture in every engine; the harness
   self-test checks the half-strength case. A later stochastic port that moves larger structures (glitch bands, tears)
   should record its own measurements here before widening them.
+- Browsers round Canvas 2D fills differently, so a port of one can only match one engine byte for byte. Scanlines
+  (#342) shows the size of it: a translucent black fill is truncated by Skia (Chromium, Firefox) and rounded by WebKit
+  (Core Graphics on macOS, Cairo on Linux), and the two editors differ by 0.37 levels of mean difference on the graphic
+  fixture, over the limit. The port computes both roundings and alternates them in a pixel checkerboard: at most one
+  level from either editor, 0.13 / 0.18 / 0.006 levels of mean difference on photo / graphic / text in every engine.
+  Matching Skia alone is exact in Chromium and Firefox and fails WebKit at 0.27 / 0.37.
 - Chunk Tear allows 0.2% of pixels (one column) instead of 0.1%. Its fragment wraps with `fract(norm.x + offset)`,
   and at the last column's pixel centre `norm.x` is exactly 1 in exact arithmetic: Pixi's power-of-two filter texture
   gives exactly 1.0 in Chromium, so the editor's untorn rows wrap the left edge into the last column, while the
