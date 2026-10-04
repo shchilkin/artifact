@@ -521,7 +521,11 @@ const environment = {
 const contract = JSON.parse(readFileSync(path.join(ROOT, 'docs/editor-ux/editor-ux-contract.json'), 'utf8'));
 const results = await withPreviewServer(measure);
 // Reference-machine milliseconds = measured milliseconds x (reference calibration / this machine's calibration).
-environment.speed = round(contract.calibration.referenceMs / environment.calibrationMs, 3);
+// The editor's latency grows more slowly than the calibration workload as machines get faster, so scaling a
+// faster-than-reference runner up overstates its values (1.31 turned 127 ms of drag main-thread time into 167).
+// Values from faster machines are therefore reported as measured; only slower machines are scaled down.
+environment.measuredSpeed = round(contract.calibration.referenceMs / environment.calibrationMs, 3);
+environment.speed = Math.min(1, environment.measuredSpeed);
 const result = {
   version: JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version,
   generatedBy: 'scripts/editor-ux/measure.mjs',
