@@ -322,8 +322,8 @@ Every effect issue lands with visual tests in the shared harness (issue: parity 
    Playwright container used by CI.
 3. **Input goldens**: frames for the pointer at centre and at a corner, and for a pointer speed sample, where the
    effect has an input binding.
-4. **Budget**: the effect alone at 540px stays under 2 ms GPU time on the reference machine; the catalogue records
-   the measurement.
+4. **Budget**: the effect alone at 540px stays under 2 ms GPU time on the reference machine, checked by hand (see
+   "GPU budget" below); the catalogue records the measurement.
 5. **Catalogue**: the effect appears in the runtime catalogue (`/dev/runtime`) with live controls, so it can be
    judged by eye.
 
@@ -352,7 +352,9 @@ export default defineEffectCase({
 ```
 
 Optional fields: `seed` (default 11), `fixtures` (default all three), `goldenFixture` (default `graphic`),
-`bindings`, `pixelTolerance` (widens the pixel tolerance for a measured, explained rounding difference). Static parity uses the authored layer alone; goldens, GPU timing and the catalogue run the case through
+`bindings`, `pixelTolerance` (widens the pixel tolerance for a measured, explained rounding difference),
+`parityInset` (drops that many edge pixels before static parity, for a fragment that wraps with `fract()` exactly at
+the edge, as Data Mosh does). Static parity uses the authored layer alone; goldens, GPU timing and the catalogue run the case through
 `createLiveArtwork` with its bindings.
 
 From that one declaration:
@@ -364,7 +366,21 @@ From that one declaration:
 
 Run it with `npm run test:runtime:harness -- --project=chromium` (add `--project=firefox --project=webkit` for parity
 in all engines). CI runs it in `.github/workflows/runtime-experiment.yml` for pushes to and PRs into
-`experiment/runtime`, with the runtime unit tests and typechecks.
+`experiment/runtime`, with the runtime unit tests and typechecks: one job per engine in the Linux Playwright container.
+
+- **Firefox runs headed on Xvfb.** Headless Firefox in the container has no WebGL at all: by default WebGL2 is
+  blocklisted for the system, and with `webgl.force-enabled` it fails with "Exhausted GL driver options", because the
+  headless widget finds no native GL. Headed under `xvfb-run` it gets WebGL2 from Mesa without any prefs, so the job
+  runs `xvfb-run -a npm run test:runtime:harness -- --project=firefox --headed`.
+- **A job that skipped everything fails.** The runtime specs skip when the browser has no WebGL2. With
+  `PLAYWRIGHT_FAIL_ON_ALL_SKIPPED=1` (set in the workflow), `tests/browser/runtime/requireRunReporter.ts` turns a run in
+  which every selected test skipped into a failure, so a browser that loses WebGL2 cannot pass green.
+- **WebKit on Linux shows a lone still frame late (#404).** With the default `preserveDrawingBuffer: false`, the
+  container's WebKit composites a WebGL canvas's new buffer only when the canvas presents again in a later rendering
+  update. A still artwork that draws once (a control change, a pointer move) kept showing the previous frame until the
+  next change; a second draw in the same frame or the next one did not help, a draw two frames later did. The catalogue
+  creates its artworks with `contextAttributes: { preserveDrawingBuffer: true }`, which shows every still draw in all
+  three engines. Hosts that draw stills on demand and must look right in WebKitGTK/WPE can pass the same attribute.
 
 ### Fixtures
 
@@ -457,8 +473,32 @@ To record or update goldens, use either:
 
 `measureGpuTime` (`packages/runtime/src/gpuTiming.ts`) wraps renders in `EXT_disjoint_timer_query_webgl2` queries
 and reports the median in milliseconds, or `null` when the context has no timer queries. Headless Chromium, Firefox
-and WebKit report `n/a`, so the spec records the value as a `gpu-time` annotation without a budget check. The
-catalogue shows the last measurement on the machine it runs on, which is where the 2 ms budget is judged.
+and WebKit report `n/a`, so in CI the spec records the value as a `gpu-time` annotation without a budget check.
+
+### GPU budget
+
+Each effect alone at 540px must stay at or under `GPU_BUDGET_MS` (2 ms, `packages/runtime/src/gpuTiming.ts`) of
+median GPU time on the reference machine. CI cannot check it: its browsers are headless, render in software and have
+no timer queries, and there is no GPU runner. The budget is enforced by hand, on real hardware, in two places:
+
+- **Harness, before merging an effect PR.** On the reference machine (an Apple silicon Mac; the numbers below are
+  from an M5 Max), run
+
+  ```sh
+  RUNTIME_GPU_BUDGET=1 npm run test:runtime:harness -- --project=chromium --headed -g "GPU time"
+  ```
+
+  Headed Chromium on macOS exposes `EXT_disjoint_timer_query_webgl2`. With `RUNTIME_GPU_BUDGET=1` every
+  `GPU time at 540px` test fails when an effect is over budget, and also when there is no measurement (no timer
+  queries, or a disjoint event such as a GPU switch voided every sample; rerun then), so a headless run cannot pass
+  by measuring nothing. Medians move by up to 0.3 ms between runs on a busy machine, well inside the budget. Paste the logged `[runtime] <effect> GPU time` lines into the PR.
+  Firefox and Safari do not expose timer queries to pages, so only Chromium is measured.
+- **Catalogue, by eye.** `/dev/runtime` in desktop Chrome shows each entry's measured time and a Budget line:
+  "within 2 ms" (green), "over 2 ms" (red), or "not measured" where the browser has no timer queries.
+
+Last measured (Playwright 1.60 Chromium, headed, M5 Max, `RUNTIME_GPU_BUDGET=1`): Noise Warp 0.28 ms, Vortex 0.10 ms,
+Grain 0.11 ms, Morph 0.20 ms, Chrom. Ab. 0.07 ms, Data Mosh 0.15 ms, Scanlines 0.17 ms, Tear 0.10 ms, Glitch
+0.67 ms, RGB Split 0.07 ms, Ripple 0.06 ms.
 
 ## Order of work
 

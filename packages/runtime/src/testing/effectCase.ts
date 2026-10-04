@@ -61,6 +61,11 @@ export interface EffectCase {
    * difference: say in the case why the default does not fit.
    */
   readonly pixelTolerance?: Partial<PixelTolerance>;
+  /**
+   * Pixels dropped from every edge before static parity compares the frames. Only for a fragment whose result at the
+   * edge pixel centres is decided by rounding (a `fract()` wrap at exactly 0 or 1): say in the case why.
+   */
+  readonly parityInset?: number;
 }
 
 export const DEFAULT_CASE_SEED = 11;

@@ -1,3 +1,9 @@
+/**
+ * Per-effect budget: one effect alone at 540px, median GPU time on the reference machine (docs/runtime/README.md,
+ * "GPU budget"). CI has no timer queries, so it is checked by hand with `RUNTIME_GPU_BUDGET=1`.
+ */
+export const GPU_BUDGET_MS = 2;
+
 /** GPU time of a draw call sequence, from `EXT_disjoint_timer_query_webgl2`. */
 export interface GpuTiming {
   /** Median over the valid samples, in milliseconds. */

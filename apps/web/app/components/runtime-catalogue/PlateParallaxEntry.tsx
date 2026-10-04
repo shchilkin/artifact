@@ -12,6 +12,7 @@ import {
 import graphicUrl from '../../../../../packages/runtime/test/fixtures/graphic.png?url';
 import photoUrl from '../../../../../packages/runtime/test/fixtures/photo.webp?url';
 import { InspectorSlider } from '../node-canvas/inspector/fields';
+import { CATALOGUE_CONTEXT_ATTRIBUTES } from './runtimeCatalogueModel';
 
 const CSS_SIZE = PLATE_CASE_SIZE / 2;
 
@@ -75,6 +76,7 @@ export function PlateParallaxEntry({ animate }: { animate: boolean }) {
           reducedMotion: false,
           observeVisibility: null,
           devicePixelRatio: PLATE_CASE_SIZE / CSS_SIZE,
+          contextAttributes: CATALOGUE_CONTEXT_ATTRIBUTES,
         });
         artworkRef.current = artwork;
         if (animateRef.current) artwork.start();
