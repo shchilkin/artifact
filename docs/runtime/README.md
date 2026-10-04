@@ -164,9 +164,11 @@ graph with merges, other node kinds, or extra inputs (materials, environments) i
   and says so in `baked`. The resting frame then differs where the moved effects do not commute with the chain.
 
 The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text) is
-one still plate in the exact split: Scanlines and Chrom. Ab. sit above the live Noise Warp, Vortex and Tear. The
-approximate split gives a base plate, a Noise Warp + Vortex + Tear chain and an image/text plate, with about 24% of
-pixels more than 8 levels off at rest, since the scanlines and colour fringes are warped instead of lying on top.
+one still plate in the exact split: Scanlines and Chrom. Ab. sit above the live Grain, Noise Warp, Vortex and Tear.
+The approximate split gives a base plate, a Grain + Noise Warp + Vortex + Tear chain and an image/text plate. Grain
+makes the chain stochastic, so its resting frame is compared by statistics: mean 0.33 and std dev 0.43 levels off,
+histogram distance 0.051 at 540px (Chromium), since the scanlines and colour fringes are warped instead of lying on
+top.
 
 ### Export
 
@@ -251,9 +253,9 @@ and tolerances live in `packages/runtime/src/testing/parity.ts`.
 | --- | --- | --- |
 | Deterministic | pixels with any RGB channel off by more than 8 levels | at most 0.1% of pixels |
 | Deterministic | mean absolute RGB difference | at most 0.25 levels |
-| Stochastic | per-channel mean | within 2 levels |
-| Stochastic | per-channel standard deviation (square root of the variance) | within 3 levels |
-| Stochastic | per-channel histogram, 32 bins, total-variation distance | at most 0.05 |
+| Stochastic | per-channel mean | within 1 level |
+| Stochastic | per-channel standard deviation (square root of the variance) | within 0.75 levels |
+| Stochastic | per-channel histogram, 32 bins, total-variation distance | at most 0.08 |
 
 Why these numbers:
 
@@ -263,8 +265,26 @@ Why these numbers:
   warp axes (the spec's self-test) puts 28% of pixels over the threshold with a mean difference of 41 levels.
 - Stochastic effects use GPU noise that differs from the editor's CPU noise by design, so only the distribution has
   to match. The spec's second self-test shows the split: Noise Warp with a far-off seed fails pixel parity and passes
-  the statistics on the text fixture. The statistical limits are a first estimate; the first stochastic port should
-  confirm them against its own measurements and record any change here.
+  the statistics on the text fixture.
+- The statistical limits are calibrated on Grain (#338), the first stochastic port (Grain 40, seed 11, worst channel
+  per fixture; mean / std dev / histogram distance):
+
+  | Engine | Faithful port, worst fixture | Same port, another seed |
+  | --- | --- | --- |
+  | Chromium, Firefox, WebKit on macOS | 0.14 / 0.06 / 0.012 | 0.14 / 0.06 / 0.012 |
+  | WebKit on Linux (CI container) | 0.07 / 0.04 / 0.016 | 0.07 / 0.04 / 0.016 |
+  | Chromium on Linux (CI container) | 0.34 / 0.31 / 0.067 | 0.35 / 0.31 / 0.069 |
+
+  Chromium on Linux renders the editor's 2D canvas in software, which rounds the grain overlay with a bias: its
+  editor output alone sits 0.15–0.35 levels off the other engines', and on flat colours that moves pixels across
+  histogram bins. Grain changes flat colour by under a level on average, so mean and standard deviation cannot see a
+  wrong strength there; only the histogram can. Broken ports, worst case across engines, on the fixture that catches
+  them: half strength 0.095 (text), 0.75× 0.085 (text), no grain 0.23 (graphic), 1.5× 0.15 (graphic), opaque grain
+  0.28 (graphic), normal blend instead of overlay: mean 3.3 levels. The first estimate (2, 3 and 0.05 levels) failed the
+  faithful port on Linux Chromium and passed half-strength grain on the photo fixture. The limits above pass the
+  faithful port in every engine and reject each broken variant on at least one fixture in every engine; the harness
+  self-test checks the half-strength case. A later stochastic port that moves larger structures (glitch bands, tears)
+  should record its own measurements here before widening them.
 - Chunk Tear allows 0.2% of pixels (one column) instead of 0.1%. Its fragment wraps with `fract(norm.x + offset)`,
   and at the last column's pixel centre `norm.x` is exactly 1 in exact arithmetic: Pixi's power-of-two filter texture
   gives exactly 1.0 in Chromium, so the editor's untorn rows wrap the left edge into the last column, while the

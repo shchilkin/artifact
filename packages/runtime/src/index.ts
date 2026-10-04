@@ -40,6 +40,9 @@ export {
 export {
   EFFECTS,
   effectRegistry,
+  GRAIN_FRAG,
+  type GrainLayer,
+  grain,
   type NoiseWarpLayer,
   noiseWarp,
   type TearLayer,

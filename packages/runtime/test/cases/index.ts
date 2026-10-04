@@ -1,4 +1,5 @@
 import type { EffectCase } from '../../src/testing/effectCase.js';
+import grain from './grain.js';
 import noiseWarp from './noiseWarp.js';
 import tear from './tear.js';
 import vortex from './vortex.js';
@@ -7,5 +8,6 @@ import vortex from './vortex.js';
 export const EFFECT_CASES: Readonly<Record<string, EffectCase>> = {
   noiseWarp,
   vortex,
+  grain,
   tear,
 };
