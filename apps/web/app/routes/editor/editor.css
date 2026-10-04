@@ -563,9 +563,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-}
-
-.editor-drop-preview__header {
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: 14px;

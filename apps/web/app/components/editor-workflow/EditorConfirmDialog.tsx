@@ -1,5 +1,5 @@
 import { Button } from '@artifact/ui';
-import { type KeyboardEvent, type ReactNode, type RefObject, useRef } from 'react';
+import { type ReactNode, type RefObject, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -15,28 +15,10 @@ export interface EditorConfirmRequest {
   tone?: 'default' | 'danger';
 }
 
-/**
- * Radix wraps focus only for a plain Tab. Safari moves between buttons with Option+Tab, which Radix lets
- * through, so wrap that case here to keep the loop the same in every browser.
- */
-function wrapAltTabFocus(event: KeyboardEvent<HTMLDivElement>) {
-  if (event.key !== 'Tab' || !event.altKey) return;
-  const focusable = [
-    ...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), [href], input, select, textarea'),
-  ];
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  if (!first || !last) return;
-  const edge = event.shiftKey ? first : last;
-  if (document.activeElement !== edge) return;
-  event.preventDefault();
-  (event.shiftKey ? last : first).focus();
-}
-
 interface EditorConfirmDialogProps extends EditorConfirmRequest {
   open: boolean;
+  /** The confirm action shows progress and exposes aria-busy; both actions are disabled. */
   busy?: boolean;
-  busyLabel?: string;
   children?: ReactNode;
   className?: string;
   /** Element to focus after closing when the opener is no longer focusable, such as a closed menu item. */
@@ -52,7 +34,6 @@ interface EditorConfirmDialogProps extends EditorConfirmRequest {
  */
 export function EditorConfirmDialog({
   busy = false,
-  busyLabel,
   cancelLabel = 'Cancel',
   children,
   className,
@@ -98,7 +79,6 @@ export function EditorConfirmDialog({
         onEscapeKeyDown={(event) => {
           if (busy) event.preventDefault();
         }}
-        onKeyDown={wrapAltTabFocus}
         onPointerDownOutside={(event) => {
           if (busy) event.preventDefault();
         }}
@@ -110,12 +90,7 @@ export function EditorConfirmDialog({
           <Button ref={cancelRef} variant="quiet" disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button
-            variant={tone === 'danger' ? 'danger' : 'primary'}
-            loading={busy}
-            aria-label={busy && busyLabel ? busyLabel : undefined}
-            onClick={onConfirm}
-          >
+          <Button variant={tone === 'danger' ? 'danger' : 'primary'} loading={busy} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </div>

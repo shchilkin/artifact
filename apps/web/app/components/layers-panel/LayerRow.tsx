@@ -26,7 +26,10 @@ export interface LayerRowProps {
   nested?: boolean;
   /** Stack order is owned by a custom node graph, so rows cannot be dragged. */
   reorderDisabled?: boolean;
-  /** Whether the renderer reaches this layer from Output; see `collectDocumentOutputNodeIds`. */
+  /**
+   * Whether the renderer reaches this layer from Output; see `collectDocumentOutputNodeIds`. A hidden layer on the
+   * path still counts as reached.
+   */
   reachesOutput?: boolean;
   onSelect: (id: string, event: LayerSelectionModifiers) => void;
   onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLElement>) => void;

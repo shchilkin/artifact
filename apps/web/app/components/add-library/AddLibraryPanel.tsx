@@ -21,7 +21,9 @@ import {
 const RECENT_LIMIT = 6;
 const FAVORITE_LIMIT = 12;
 
-type AddLibraryIntentId = 'sources' | 'effects' | 'structure' | 'color' | 'threeD' | 'recipes';
+type AddLibraryIntentId = 'sources' | 'effects' | 'structure' | 'color' | 'threeD';
+/** Browse lists the library, filtered by at most one intent; Recipes lists the surface's recipes instead. */
+type AddLibraryView = 'browse' | 'recipes';
 type AddLibraryRecipe = ReturnType<typeof addLibraryRecipesForSurface>[number];
 
 interface AddLibrarySection {
@@ -42,12 +44,9 @@ const ADD_LIBRARY_INTENTS: Array<{
   { id: 'structure', label: 'Structure', hint: 'Merge, repeat, mask, transform', colorKind: 'merge' },
   { id: 'color', label: 'Color', hint: 'Tone, palette, grading', colorKind: 'color' },
   { id: 'threeD', label: '3D', hint: 'Models, materials, scenes', colorKind: 'primitive' },
-  { id: 'recipes', label: 'Recipes', hint: 'Node groups for common looks', colorKind: 'merge' },
 ];
 
-function addLibraryIntentsForSurface(recipes: readonly AddLibraryRecipe[]) {
-  return recipes.length > 0 ? ADD_LIBRARY_INTENTS : ADD_LIBRARY_INTENTS.filter((intent) => intent.id !== 'recipes');
-}
+const RECIPES_VIEW = { id: 'recipes', label: 'Recipes', hint: 'Node groups for common looks', colorKind: 'merge' };
 
 function itemsForIds(ids: readonly string[], itemById: Map<string, AddLibraryItem>) {
   return ids.map((id) => itemById.get(id)).filter((item): item is AddLibraryItem => Boolean(item));
@@ -115,8 +114,8 @@ function nextLibraryIndexForKey(key: string, currentIndex: number, itemCount: nu
   return LIBRARY_INDEX_UPDATERS[key]?.(currentIndex, Math.max(0, itemCount - 1)) ?? null;
 }
 
-function hasActiveLibraryScope(query: string, activeIntentId: AddLibraryIntentId | null) {
-  return Boolean(query || activeIntentId);
+function hasActiveLibraryScope(query: string, activeIntentId: AddLibraryIntentId | null, view: AddLibraryView) {
+  return Boolean(query || activeIntentId || view !== 'browse');
 }
 
 type AddLibraryScope = { id: string; label: string; hint: string };
@@ -125,20 +124,12 @@ function activeAddLibraryIntent(id: AddLibraryIntentId | null) {
   return ADD_LIBRARY_INTENTS.find((intent) => intent.id === id) ?? null;
 }
 
-function scopedAddLibraryItems(
-  items: AddLibraryItem[],
-  activeIntentId: AddLibraryIntentId | null,
-  recipes: readonly AddLibraryRecipe[],
-) {
-  if (activeIntentId === 'recipes') {
-    const recipeItemIds = new Set(recipes.flatMap((recipe) => recipe.itemIds));
-    return items.filter((item) => recipeItemIds.has(item.id));
-  }
+function scopedAddLibraryItems(items: AddLibraryItem[], activeIntentId: AddLibraryIntentId | null) {
   if (activeIntentId) return items.filter((item) => itemMatchesIntent(item, activeIntentId));
   return items;
 }
 
-function itemMatchesIntent(item: AddLibraryItem, intentId: Exclude<AddLibraryIntentId, 'recipes'>) {
+function itemMatchesIntent(item: AddLibraryItem, intentId: AddLibraryIntentId) {
   switch (intentId) {
     case 'sources':
       return (
@@ -260,6 +251,7 @@ function recipeSections(recipes: readonly AddLibraryRecipe[], itemById: Map<stri
 }
 
 function resolveAddLibrarySections({
+  view,
   activeIntent,
   browsableItems,
   browsableScopedItems,
@@ -270,6 +262,7 @@ function resolveAddLibrarySections({
   recipes,
   searchResults,
 }: {
+  view: AddLibraryView;
   activeIntent: ReturnType<typeof activeAddLibraryIntent>;
   browsableItems: AddLibraryItem[];
   browsableScopedItems: AddLibraryItem[];
@@ -281,7 +274,7 @@ function resolveAddLibrarySections({
   searchResults: AddLibraryItem[];
 }): AddLibrarySection[] {
   if (isSearching) return searchSection(activeIntent, searchResults);
-  if (activeIntent?.id === 'recipes') return recipeSections(recipes, itemById);
+  if (view === 'recipes') return recipeSections(recipes, itemById);
   if (activeIntent) return singleSection(activeIntent.id, activeIntent.label, activeIntent.hint, browsableScopedItems);
   return buildDefaultSections({ browsableItems, favoriteIds, itemById, recentIds });
 }
@@ -310,6 +303,7 @@ export function AddLibraryPanel({
   persistActivity?: boolean;
 }) {
   const [query, setQuery] = useState('');
+  const [view, setView] = useState<AddLibraryView>('browse');
   const [activeIntentId, setActiveIntentId] = useState<AddLibraryIntentId | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentIds, setRecentIds] = useState<string[]>(() => initialRecentIds ?? readRecent(surface));
@@ -320,13 +314,12 @@ export function AddLibraryPanel({
   const items = useMemo(() => addLibraryItemsForSurface(surface), [surface]);
   const browsableItems = useMemo(() => addLibraryBrowseItemsForSurface(surface), [surface]);
   const recipes = useMemo(() => addLibraryRecipesForSurface(surface), [surface]);
-  const intents = useMemo(() => addLibraryIntentsForSurface(recipes), [recipes]);
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   const activeIntent = activeAddLibraryIntent(activeIntentId);
-  const scopedItems = scopedAddLibraryItems(items, activeIntentId, recipes);
+  const scopedItems = scopedAddLibraryItems(items, activeIntentId);
   const browsableScopedItems = useMemo(
-    () => scopedAddLibraryItems(browsableItems, activeIntentId, recipes),
-    [activeIntentId, browsableItems, recipes],
+    () => scopedAddLibraryItems(browsableItems, activeIntentId),
+    [activeIntentId, browsableItems],
   );
   const isSearching = !!query.trim();
 
@@ -343,6 +336,7 @@ export function AddLibraryPanel({
   const sections = useMemo(
     () =>
       resolveAddLibrarySections({
+        view,
         activeIntent,
         browsableItems,
         browsableScopedItems,
@@ -354,6 +348,7 @@ export function AddLibraryPanel({
         searchResults,
       }),
     [
+      view,
       activeIntent,
       browsableItems,
       browsableScopedItems,
@@ -386,12 +381,13 @@ export function AddLibraryPanel({
 
   const resetLibraryScope = () => {
     setQuery('');
+    setView('browse');
     setActiveIntentId(null);
     setActiveIndex(0);
   };
 
   const handleEscapeKey = () => {
-    const resetsScope = hasActiveLibraryScope(query, activeIntentId);
+    const resetsScope = hasActiveLibraryScope(query, activeIntentId, view);
     if (resetsScope) resetLibraryScope();
     else onClose();
     return resetsScope;
@@ -424,7 +420,7 @@ export function AddLibraryPanel({
       <AddLibrarySearchControl
         ref={inputRef}
         activeDescendantId={activeItem ? `${resultListId}-option-${activeIndex}` : undefined}
-        scopeActive={hasActiveLibraryScope(query, activeIntentId)}
+        scopeActive={hasActiveLibraryScope(query, activeIntentId, view)}
         resultListId={resultListId}
         searchLabel={searchLabel}
         placeholder={placeholder}
@@ -432,17 +428,24 @@ export function AddLibraryPanel({
         onChange={(value) => {
           setQuery(value);
           // Recipes is a browse view; searching from it looks through the whole library.
-          if (activeIntentId === 'recipes') setActiveIntentId(null);
+          setView('browse');
           setActiveIndex(0);
         }}
         onKeyDown={handleKeyDown}
       />
 
       <AddLibraryFilterTabs
-        intents={intents}
+        hasRecipes={recipes.length > 0}
+        view={view}
         activeIntentId={activeIntentId}
         onSelectIntent={(intentId) => {
+          setView('browse');
           setActiveIntentId(intentId);
+          setActiveIndex(0);
+        }}
+        onShowRecipes={() => {
+          setView('recipes');
+          setActiveIntentId(null);
           setActiveIndex(0);
         }}
       />
@@ -500,39 +503,66 @@ const AddLibrarySearchControl = forwardRef<
   );
 });
 
-/** The one filter axis: All, or one intent. Search narrows within the active filter. */
+function filterTabClassName(active: boolean) {
+  return `add-library-intent nadd-intent${active ? ' add-library-intent-active nadd-intent-active' : ''}`;
+}
+
+/**
+ * The one filter axis: All, one intent, or (on surfaces with recipes) the Recipes view. Exactly one is pressed;
+ * search narrows within the active intent.
+ */
 function AddLibraryFilterTabs({
-  intents,
+  hasRecipes,
+  view,
   activeIntentId,
   onSelectIntent,
+  onShowRecipes,
 }: {
-  intents: typeof ADD_LIBRARY_INTENTS;
+  hasRecipes: boolean;
+  view: AddLibraryView;
   activeIntentId: AddLibraryIntentId | null;
   onSelectIntent: (intentId: AddLibraryIntentId | null) => void;
+  onShowRecipes: () => void;
 }) {
+  const browsing = view === 'browse';
   return (
     <div className="add-library-intents nadd-intents" role="group" aria-label="Filter library">
       <ToolbarButton
         type="button"
-        className={`add-library-intent nadd-intent${activeIntentId === null ? ' add-library-intent-active nadd-intent-active' : ''}`}
-        aria-pressed={activeIntentId === null}
+        className={filterTabClassName(browsing && activeIntentId === null)}
+        aria-pressed={browsing && activeIntentId === null}
         onClick={() => onSelectIntent(null)}
       >
         All
       </ToolbarButton>
-      {intents.map((intent) => (
+      {ADD_LIBRARY_INTENTS.map((intent) => {
+        const active = browsing && activeIntentId === intent.id;
+        return (
+          <ToolbarButton
+            key={intent.id}
+            type="button"
+            className={filterTabClassName(active)}
+            data-add-color-kind={intent.colorKind}
+            title={intent.hint}
+            aria-pressed={active}
+            onClick={() => onSelectIntent(active ? null : intent.id)}
+          >
+            {intent.label}
+          </ToolbarButton>
+        );
+      })}
+      {hasRecipes ? (
         <ToolbarButton
-          key={intent.id}
           type="button"
-          className={`add-library-intent nadd-intent${activeIntentId === intent.id ? ' add-library-intent-active nadd-intent-active' : ''}`}
-          data-add-color-kind={intent.colorKind}
-          title={intent.hint}
-          aria-pressed={activeIntentId === intent.id}
-          onClick={() => onSelectIntent(activeIntentId === intent.id ? null : intent.id)}
+          className={filterTabClassName(view === 'recipes')}
+          data-add-color-kind={RECIPES_VIEW.colorKind}
+          title={RECIPES_VIEW.hint}
+          aria-pressed={view === 'recipes'}
+          onClick={() => (view === 'recipes' ? onSelectIntent(null) : onShowRecipes())}
         >
-          {intent.label}
+          {RECIPES_VIEW.label}
         </ToolbarButton>
-      ))}
+      ) : null}
     </div>
   );
 }

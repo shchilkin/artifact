@@ -172,10 +172,15 @@ it straight to the DOM (`syncPreviewPending`) whenever its scheduling state
 changes: a render requested, started or settled, and the settle or deferred
 full-quality timers set or fired. It is `"true"` from an edit until the frame
 for the latest document, including the deferred full-quality pass, has
-painted. The layer preview's progress bar (`.canvas-preview-progress`) is
-shown by CSS from that attribute, so it costs no React commit and, being an
-absolutely positioned overlay, no layout shift. Unpainted warm-up renders do
-not count as pending.
+painted. The layer preview's progress bar (`PreviewProgress`,
+`components/ui/preview-progress.css`) is shown by CSS from that attribute, so it
+costs no React commit and, being an absolutely positioned overlay, no layout
+shift. Unpainted warm-up renders do not count as pending.
+
+Nodes has no layer preview. `NodePreviewProgress` subscribes to the node
+thumbnail queue (`subscribeThumbnailQueue`) and writes the same attribute on its
+own bar while previews, including the Output preview, are queued or rendering.
+A preview's short debounce before it joins the queue is not counted.
 
 ## Primitive camera state
 

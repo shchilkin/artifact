@@ -72,6 +72,10 @@ renderer starts or stops reading an input port, update that function in the same
 `test-fixtures/render/graphRenderReach.test.ts` renders each fixture and fails when the reach and the
 nodes the renderer visits disagree.
 
+Reach is about topology, not visibility: a hidden layer on the path to Output counts as reached (the renderer
+visits it and draws nothing). Layers rows show only "not in output" for unreached layers; a hidden layer's row
+already says "hidden".
+
 `apps/web/app/utils/renderer.ts` is the stable caller-facing facade. Renderer internals
 live under `apps/web/app/utils/render/`; app code should keep importing the public entry
 points from the facade unless it is working inside the renderer itself.

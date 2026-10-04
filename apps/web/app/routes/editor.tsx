@@ -180,13 +180,12 @@ export default function Editor() {
     documentSaveStatus,
   } = useEditorDocument(viewMode === 'nodes');
   const { confirm, confirmDialog } = useEditorConfirm();
-  const { hasReplaceableWork, markReplacing } = useReplaceableWork(doc, docRef, fromDocParam);
+  const { hasReplaceableWork, setBaseline } = useReplaceableWork(doc, docRef);
   const replaceDocument = useCallback(
     (nextDoc: CanvasDocument) => {
-      markReplacing();
-      loadDocument(nextDoc);
+      setBaseline(loadDocument(nextDoc));
     },
-    [loadDocument, markReplacing],
+    [loadDocument, setBaseline],
   );
   // The Nodes viewport the user left, per document (UI state, not saved): the first entry fits the graph instead.
   const [nodeViewport, setNodeViewport] = useState<{ sessionId: number; viewport: NodeCanvasViewport } | null>(null);
@@ -371,15 +370,21 @@ export default function Editor() {
     closePanels();
     clearActiveProject();
     setAiPanelRequested(false);
-    markReplacing();
+    setBaseline(null);
     handleNewBlank();
     resetPrimitiveViewStates();
     setViewMode('layers');
-  }, [clearActiveProject, closePanels, confirm, handleNewBlank, isBlank, markReplacing, resetPrimitiveViewStates]);
+  }, [clearActiveProject, closePanels, confirm, handleNewBlank, isBlank, resetPrimitiveViewStates, setBaseline]);
+
+  /** Work is at risk when it changed since it was put in place and the active project does not hold it. */
+  const hasUnsavedWork = useCallback(
+    () => projectSaveState !== 'saved' && hasReplaceableWork(),
+    [hasReplaceableWork, projectSaveState],
+  );
 
   const handleRandomizeRequest = useCallback(async () => {
     if (
-      hasReplaceableWork() &&
+      hasUnsavedWork() &&
       !(await confirm({
         title: 'Replace with a random cover?',
         description: 'Your changes on the canvas are replaced by a new random document. Undo brings them back.',
@@ -388,15 +393,13 @@ export default function Editor() {
     ) {
       return;
     }
-    markReplacing();
-    handleRandomize();
-  }, [confirm, handleRandomize, hasReplaceableWork, markReplacing]);
+    setBaseline(handleRandomize());
+  }, [confirm, handleRandomize, hasUnsavedWork, setBaseline]);
 
   const handleLoadProjectRequest = useCallback(
     async (project: SavedProject) => {
       if (
-        projectSaveState !== 'saved' &&
-        hasReplaceableWork() &&
+        hasUnsavedWork() &&
         !(await confirm({
           title: `Open ${project.name}?`,
           description: 'Unsaved changes on the canvas will be replaced. Save them as a project first to keep them.',
@@ -407,7 +410,7 @@ export default function Editor() {
       }
       handleLoadProject(project);
     },
-    [confirm, handleLoadProject, hasReplaceableWork, projectSaveState],
+    [confirm, handleLoadProject, hasUnsavedWork],
   );
 
   const handleLoadStarter = useCallback(
@@ -756,10 +759,9 @@ function DocumentImportConfirm({
     <EditorConfirmDialog
       open
       busy={busy}
-      busyLabel="Saving recovery copy before opening file"
       returnFocusRef={returnFocusRef}
       className="document-import-confirm"
-      title="Open artifact file"
+      title="Open artifact file?"
       description={
         recoveryCopyFailed
           ? 'Could not save a recovery copy of the current work. Open the file anyway and replace the canvas?'

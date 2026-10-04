@@ -179,9 +179,11 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
 
   const replaceDocument = useCallback(
     (nextDoc: CanvasDocument) => {
-      commitDocument(normalizeDocument(nextDoc), 'snapshot');
+      const loadedDoc = normalizeDocument(nextDoc);
+      commitDocument(loadedDoc, 'snapshot');
       setSelectedLayerId(null);
       setDocumentSessionId((id) => id + 1);
+      return loadedDoc;
     },
     [commitDocument],
   );
@@ -503,8 +505,10 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   );
 
   const handleRandomize = useCallback(() => {
-    commitDocument(randomDocument(), 'snapshot');
+    const nextDoc = randomDocument();
+    commitDocument(nextDoc, 'snapshot');
     setSelectedLayerId(null);
+    return nextDoc;
   }, [commitDocument]);
 
   const handleNewBlank = useCallback(() => {
