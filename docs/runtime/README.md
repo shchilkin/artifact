@@ -55,7 +55,7 @@ not its render loop.
   `setInput` fills `inputs`.
 
 Shader reuse: shared fragments live in `@artifact/shared/effect-shaders` (`HEADER`, `NORM_UV`, `SAMPLE`,
-`NOISE_FRAG`, `VORTEX_FRAG`, `TEAR_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
+`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`, `TEAR_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
 byte-identical. Port further editor fragments the same way: move the string, import it in both places.
 
 Pixi conventions the chain matches:
@@ -169,6 +169,16 @@ The approximate split gives a base plate, a Grain + Noise Warp + Vortex + Tear c
 makes the chain stochastic, so its resting frame is compared by statistics: mean 0.33 and std dev 0.43 levels off,
 histogram distance 0.051 at 540px (Chromium), since the scanlines and colour fringes are warped instead of lying on
 top.
+
+With Radial CA registered (#337) and Tear and Scanlines not yet, the exact split is a base plate (fill through
+Scanlines), a one-pass `ca` chain and the image/text plate; its resting frame matches the editor with 0.000% of pixels
+over 8 levels (mean 0.004). The approximate split runs Grain, Noise Warp, Vortex and CA live over a base plate with
+Glitch, Tear and Scanlines moved beneath them.
+
+Radial CA is the editor colour pass's third step (sepia, infrared, CA, dither: `applyColorPass` in
+`render/workers/effectPixelTransform.ts`), which `EDITOR_EFFECT_ORDER` follows. Its port (`CA_FRAG` in
+`packages/runtime/src/effects/ca.ts`) reads whole pixels with the editor's rounding and edge clamping, scales the
+amount by the render width over 540 as the editor does, and gets the render size from `inputClamp`.
 
 ### Export
 
