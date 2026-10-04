@@ -55,7 +55,7 @@ not its render loop.
   `setInput` fills `inputs`.
 
 Shader reuse: shared fragments live in `@artifact/shared/effect-shaders` (`HEADER`, `NORM_UV`, `SAMPLE`,
-`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
+`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
 byte-identical. Port further editor fragments the same way: move the string, import it in both places.
 
 Pixi conventions the chain matches:
@@ -163,28 +163,23 @@ graph with merges, other node kinds, or extra inputs (materials, environments) i
 - `approximate: true` moves unsupported effect layers beneath the live run they sit on (never across a source layer)
   and says so in `baked`. The resting frame then differs where the moved effects do not commute with the chain.
 
-The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text) is
-one still plate in the exact split: Tear, Scanlines and Chrom. Ab. sit above the live Noise Warp and Vortex. The
-approximate split gives a base plate, a Noise Warp + Vortex chain and an image/text plate, with about 24% of pixels
-more than 8 levels off at rest, since the scanlines and colour fringes are warped instead of lying on top.
-These numbers predate Grain's registration (#338); Grain now runs live wherever it sits in a live run, as it does
-in the sample cover's chain.
-
-With Radial CA registered (#337) and Tear and Scanlines not yet, the exact split is a base plate (fill through
-Scanlines), a one-pass `ca` chain and the image/text plate; its resting frame matches the editor with 0.000% of pixels
-over 8 levels (mean 0.004). The approximate split runs Grain, Noise Warp, Vortex and CA live over a base plate with
-Glitch, Tear and Scanlines moved beneath them.
-
-With Scanlines registered as well (#342), the exact split is a base plate (fill through Tear), a Scanlines + CA chain
-and the image/text plate; its resting frame measures 0.000% of pixels over 8 levels (mean 0.03, worst channel 3) in
-Chromium on macOS. Tear is now the only barrier above the live Grain, Noise Warp and Vortex. The approximate split
-moves Tear beneath the run and plays Grain, Noise Warp, Vortex, Scanlines and CA live (statistics:
-mean 0.38, std dev 0.23, histogram distance 0.010).
+The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text): with
+Glitch (#339), Grain, Noise Warp, Vortex, Tear (#340), Scanlines (#342) and Radial CA (#337) registered, nothing is
+baked. The exact split is a base plate (Fill, Emojis), one live chain (Glitch → Grain → Noise Warp → Vortex → Tear →
+Scanlines → CA) and the image/text plate; the approximate split is the same. Grain makes the resting frame a
+statistics comparison: mean 0.15 and std dev 0.09 levels, histogram distance 0.009 at 540px in Chromium on macOS.
 
 Radial CA is the editor colour pass's third step (sepia, infrared, CA, dither: `applyColorPass` in
 `render/workers/effectPixelTransform.ts`), which `EDITOR_EFFECT_ORDER` follows. Its port (`CA_FRAG` in
 `packages/runtime/src/effects/ca.ts`) reads whole pixels with the editor's rounding and edge clamping, scales the
 amount by the render width over 540 as the editor does, and gets the render size from `inputClamp`.
+
+Glitch (VHS streaks, `GLITCH_FRAG` in `packages/runtime/src/effects/glitch.ts`) is seeded but not stochastic in the
+harness sense: the editor draws one `fillRect` band per unit of `glitch` (its slider runs to 24; the runtime caps at
+100) from five LCG draws each, so the runtime runs the same LCG on the CPU per seed (`glitchBands`) and passes the bands as `vec4` uniform arrays. The shader takes each
+band's analytic pixel coverage and composites it with the premultiplied screen blend, rounding to bytes after each
+band; that blend is order-independent, so the bands are sorted by top edge and walked in groups of ten around each
+row. Parity is by pixels (worst channel 1 level on every fixture and engine).
 
 ### Export
 
@@ -197,13 +192,82 @@ round-trips it through the zip, and checks the resting frame against `renderDocu
 tolerance (statistics when a live pass is stochastic). `LIVE_PACKAGE_PROJECT=/path/to/cover.artifact` adds a
 manual run on a real project in both split modes.
 
+## Plate transforms and parallax (issue #394)
+
+Plates move as whole layers. A transform has `x` and `y` (fractions of the frame's width and height, positive right
+and down), `scale` (a factor about the frame's centre), `rotation` (degrees, clockwise on screen) and `opacity` (0–1,
+times the plate's alpha); neutral is `0, 0, 1, 0, 1`. Bindings drive them with two more targets:
+
+```json
+{
+  "version": 1,
+  "loop": { "durationSeconds": 4 },
+  "bindings": [
+    { "from": { "input": "pointer.x" }, "to": { "parallax": "x" }, "range": [-0.04, 0.04] },
+    { "from": { "input": "pointer.y" }, "to": { "parallax": "y" }, "range": [-0.04, 0.04] },
+    { "from": { "track": "wave", "phase": 0.75 }, "to": { "parallax": "scale" }, "range": [0, 0.02] },
+    { "from": { "input": "hover" }, "to": { "plate": 1, "transform": "opacity" }, "range": [1, 0.6] }
+  ]
+}
+```
+
+- `{ "plate": n, "transform": … }` drives one plate; `n` counts the package's plates bottom up (the background is not
+  one). Bindings on one plate apply in order with `set`/`add`, as for passes.
+- `{ "parallax": "x" | "y" | "scale" | "rotation" }` drives every plate at once: each plate gets the binding's value
+  times its `depth`, added after its own bindings (`scale` adds to the factor). One binding gives near plates more
+  movement than far ones.
+- `pointer.x/y` → offset, `scroll` → offset, and a wave → a subtle breathing scale. A wave with `phase: 0.75` starts
+  at its trough, so mapped onto `[0, b]` it is neutral at `t = 0` and the resting frame stays the still.
+- Plate and parallax targets are checked against the package's plates, with paths
+  (`bindings[0].to.plate: there is no plate 2; the package has 2 (0 is the bottom)`); a chain artwork without a
+  package has no plates and rejects them.
+
+Each plate in the manifest may say:
+
+- `depth` (≥ 0): 0 stays put, 1 takes a parallax binding's full value. The exporter writes `(index + 1) / plates` by
+  stack order, so the top plate is nearest (the Вайбер cover: base plate 0.5, images and text 1); the runtime uses
+  the same default when a package has none.
+- `edges`: the sides of the frame the plate has pixels on, measured by the exporter on the rendered plate (`[]` for a
+  plate with a transparent border). Default: all four.
+
+**Edges: dynamic scale-to-cover, not padding.** Padding would need the editor to render each plate beyond the frame,
+and layer positions, emoji scatter and effects are laid out for the frame, so a padded render would not match the
+still. Instead, each frame the runtime scales a moving plate about the frame's centre by the smallest factor that keeps
+its `edges` sides at or beyond the frame for the current offset and rotation (`coverScale` in `plates.ts`): `1 + 2|x|`
+for a plate with pixels on every side, less when the move takes those sides outward, nothing for a plate with a
+transparent border. A neutral transform needs no scaling, so the resting frame is untouched, and a breathing scale
+below 1 is clamped at the cover scale. Outside a plate the shaders return transparent rather than clamping, so a
+plate never smears its edge pixels.
+
+**GPU path.** Plates no binding moves are composited exactly as before. A moving plate draws with
+`TRANSFORM_OVER_FRAGMENT`, which samples the plate through the inverse transform (`uPlateMatrix`, `uPlateOffset`,
+`uPlateOpacity`, computed per frame by `plateUniforms`); a moving bottom plate is placed by a first
+`TRANSFORM_PLACE_FRAGMENT` step, so the chain above it runs on the moved plate. One extra draw at most, no readback.
+At rest the transform is the identity and the frame is byte-identical to the still in Chromium (`runtime-plates.spec.ts`).
+
+**Tests.** `packages/runtime/src/testing/plateCase.ts` builds a two-plate fixture package from the harness images:
+the photo (every edge) under a Noise Warp chain, the graphic as a card on a transparent plate, and a magenta
+background so an uncovered edge shows. `tests/browser/runtime-plates.spec.ts` checks:
+
+- the resting frame with parallax, breathing and tilt bindings against the still package (identical);
+- goldens for the pointer at the centre and each corner, and a breath at `t = 0, 0.25, 0.5, 0.75`, in
+  `runtime-plates.spec.ts-snapshots/plates/` (recorded as the effect goldens are);
+- no border pixel that is the background or not opaque, at every pointer corner at 8% strength, the top of a 3%
+  breath and a 4° tilt, with both plates at depth 1; and, as its self-test, that the same check fails when the
+  photo lists no edges.
+
+`runtime-live-package.spec.ts` exports the sample cover with parallax bindings and checks the depths and edges it
+writes and the resting frame against the editor; the `LIVE_PACKAGE_PROJECT` run also exports the project with
+parallax and attaches frames at rest, in two pointer corners and at the top of a breath. The catalogue's "Plate
+parallax" entry plays the fixture with strength, depth, breathing and tilt controls.
+
 ## Verification: one effect at a time
 
 Every effect issue lands with visual tests in the shared harness (issue: parity harness):
 
 1. **Static parity**: runtime output at rest equals the editor's `renderDocument` for the effect's fixture
    documents at 540px, within the harness tolerance. Deterministic effects compare pixels. Stochastic effects
-   (seeded grain, glitch, dither, tear) compare statistics (per-channel mean and variance, histogram distance),
+   (seeded grain, dither, tear) compare statistics (per-channel mean and variance, histogram distance),
    because the GPU noise differs from the CPU LCG by design.
 2. **Motion goldens**: frames at `t = 0, 0.25, 0.5, 0.75` for the effect's time binding, recorded in the Linux
    Playwright container used by CI.
@@ -239,7 +303,7 @@ export default defineEffectCase({
 ```
 
 Optional fields: `seed` (default 11), `fixtures` (default all three), `goldenFixture` (default `graphic`),
-`bindings`. Static parity uses the authored layer alone; goldens, GPU timing and the catalogue run the case through
+`bindings`, `pixelTolerance` (widens the pixel tolerance for a measured, explained rounding difference). Static parity uses the authored layer alone; goldens, GPU timing and the catalogue run the case through
 `createLiveArtwork` with its bindings.
 
 From that one declaration:
@@ -321,6 +385,10 @@ Why these numbers:
   fixture, over the limit. The port computes both roundings and alternates them in a pixel checkerboard: at most one
   level from either editor, 0.13 / 0.18 / 0.006 levels of mean difference on photo / graphic / text in every engine.
   Matching Skia alone is exact in Chromium and Firefox and fails WebKit at 0.27 / 0.37.
+- Chunk Tear allows 0.2% of pixels (one column) instead of 0.1%. Its fragment wraps with `fract(norm.x + offset)`,
+  and at the last column's pixel centre `norm.x` is exactly 1 in exact arithmetic: Pixi's power-of-two filter texture
+  gives exactly 1.0 in Chromium, so the editor's untorn rows wrap the left edge into the last column, while the
+  runtime's texture lands just under 1.0. Every other pixel matches; on the photo fixture that column is 0.105%.
 
 Every parity test attaches `<effect>-<fixture>-editor-runtime-diff.png` (editor | runtime | diff) to the report. In
 the diff panel, red marks pixels over the threshold (brighter is larger), amber marks smaller non-zero differences,

@@ -27,6 +27,9 @@ export {
   type LiveChain,
   type LiveChainOptions,
   type LivePass,
+  type ParallaxTarget,
+  type PlateMotion,
+  type PlateTarget,
   parseBindings,
   type UniformTarget,
 } from './bindings.js';
@@ -45,8 +48,16 @@ export {
   dataMosh,
   EFFECTS,
   effectRegistry,
+  GLITCH_FRAG,
+  GLITCH_MAX_BANDS,
+  type GlitchBand,
+  type GlitchLayer,
   GRAIN_FRAG,
   type GrainLayer,
+  glitch,
+  glitchBands,
+  glitchLcg,
+  glitchUniforms,
   grain,
   type MorphLayer,
   morph,
@@ -55,6 +66,8 @@ export {
   SCANLINES_FRAG,
   type ScanlinesLayer,
   scanlines,
+  type TearLayer,
+  tear,
   type VortexLayer,
   vortex,
 } from './effects/index.js';
@@ -108,6 +121,7 @@ export {
   livePackageComposite,
   livePackageFiles,
   livePackagePasses,
+  livePackagePlates,
   loadLivePackage,
   type PackagePass,
   type ParseLivePackageOptions,
@@ -115,6 +129,23 @@ export {
   parseLivePackage,
   type StackItem,
 } from './livePackage.js';
+export {
+  coverScale,
+  defaultPlateDepth,
+  effectiveTransform,
+  NEUTRAL_PLATE_TRANSFORM,
+  NEUTRAL_PLATE_UNIFORMS,
+  PARALLAX_TRANSFORMS,
+  type ParallaxTransform,
+  PLATE_EDGES,
+  PLATE_TRANSFORMS,
+  type PlateEdge,
+  type PlateInfo,
+  type PlateTransform,
+  type PlateTransformField,
+  plateInfos,
+  plateUniforms,
+} from './plates.js';
 export {
   type AuthoredEffectLayer,
   createEffectRegistry,
@@ -125,7 +156,15 @@ export {
   type EffectRegistry,
   effectLayerSeed,
 } from './registry.js';
-export { COPY_FRAGMENT, inputClamp, OVER_FRAGMENT, PASS_VERTEX, UNDER_FRAGMENT } from './shaders.js';
+export {
+  COPY_FRAGMENT,
+  inputClamp,
+  OVER_FRAGMENT,
+  PASS_VERTEX,
+  TRANSFORM_OVER_FRAGMENT,
+  TRANSFORM_PLACE_FRAGMENT,
+  UNDER_FRAGMENT,
+} from './shaders.js';
 export {
   computeRenderSize,
   DEFAULT_MAX_DEVICE_PIXEL_RATIO,

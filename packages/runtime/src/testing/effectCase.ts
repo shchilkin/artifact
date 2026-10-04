@@ -1,4 +1,5 @@
 import type { BindingsDocument } from '../bindings.js';
+import type { PixelTolerance } from './parity.js';
 
 /**
  * One declaration per effect drives the whole harness (issue #331): static parity against the editor, motion and
@@ -55,6 +56,11 @@ export interface EffectCase {
    * authored layer alone.
    */
   readonly bindings?: BindingsDocument;
+  /**
+   * Widens the pixel parity tolerance (`PIXEL_TOLERANCE`) for this case. Only for a measured, explained rounding
+   * difference: say in the case why the default does not fit.
+   */
+  readonly pixelTolerance?: Partial<PixelTolerance>;
 }
 
 export const DEFAULT_CASE_SEED = 11;

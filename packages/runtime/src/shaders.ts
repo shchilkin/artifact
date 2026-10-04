@@ -60,3 +60,35 @@ void main() {
 export function inputClamp(width: number, height: number): [number, number, number, number] {
   return [0.5 / width, 0.5 / height, 1 - 0.5 / width, 1 - 0.5 / height];
 }
+
+/**
+ * A moving plate's sample at a frame coordinate (issue #394): the inverse transform (`uPlateMatrix`, column-major, and
+ * `uPlateOffset`, see `plateUniforms`) maps the frame coordinate into the plate. Outside the plate is transparent, so
+ * a plate never smears its edge pixels across the frame; `uPlateOpacity` scales the premultiplied colour. Coordinates
+ * are `highp`, so a 1080px plate at rest samples texel centres exactly where mediump is half precision.
+ */
+const PLATE_SAMPLE = `
+uniform sampler2D uPlate;
+uniform highp vec4 uPlateMatrix;
+uniform highp vec2 uPlateOffset;
+uniform float uPlateOpacity;
+vec4 plateSample(highp vec2 uv) {
+  highp vec2 p = uv - 0.5 - uPlateOffset;
+  highp vec2 q = vec2(uPlateMatrix.x * p.x + uPlateMatrix.z * p.y, uPlateMatrix.y * p.x + uPlateMatrix.w * p.y) + 0.5;
+  if (q.x < 0.0 || q.y < 0.0 || q.x > 1.0 || q.y > 1.0) return vec4(0.0);
+  return texture2D(uPlate, q) * uPlateOpacity;
+}`;
+
+/** A moving plate over the image so far (`source-over`, as `OVER_FRAGMENT`). */
+export const TRANSFORM_OVER_FRAGMENT = `${HEADER}${PLATE_SAMPLE}
+void main() {
+  vec4 below = texture2D(uSampler, vTextureCoord);
+  vec4 plate = plateSample(vTextureCoord);
+  gl_FragColor = plate + below * (1.0 - plate.a);
+}`;
+
+/** A moving bottom plate: the first image of the composite, on a transparent frame. */
+export const TRANSFORM_PLACE_FRAGMENT = `${HEADER}${PLATE_SAMPLE}
+void main() {
+  gl_FragColor = plateSample(vTextureCoord);
+}`;

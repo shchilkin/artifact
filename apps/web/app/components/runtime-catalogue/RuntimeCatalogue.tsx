@@ -19,6 +19,7 @@ import { formatEffectSliderValue } from '../node-canvas/inspector/EffectControlS
 import { InspectorColorInput, InspectorSlider } from '../node-canvas/inspector/fields';
 import { SegmentedControl, SegmentedControlTrigger } from '../ui/SegmentedControl';
 import { LiveExportPanel } from './liveExport/LiveExportPanel';
+import { PlateParallaxEntry } from './PlateParallaxEntry';
 import {
   catalogueBindings,
   catalogueControls,
@@ -81,6 +82,9 @@ export function RuntimeCatalogue() {
             <EffectEntry effect={effect} effectCase={EFFECT_CASES[effect]} fixture={fixture} animate={animate} />
           </li>
         ))}
+        <li>
+          <PlateParallaxEntry animate={animate} />
+        </li>
       </ul>
       <LiveExportPanel />
     </div>

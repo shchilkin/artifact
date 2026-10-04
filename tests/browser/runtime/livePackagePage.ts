@@ -1,6 +1,8 @@
 // Browser side of the live-package spec (issue #333). Imported into the page from the dev server (`/@fs/`); the
 // editor modules come from the app's own module graph (`/app/...`) so fonts, assets and renderer state are shared.
-import type { LivePackageManifest } from '../../../packages/runtime/src/livePackage';
+import type { BindingsDocument } from '../../../packages/runtime/src/bindings';
+import { createLiveArtwork } from '../../../packages/runtime/src/liveArtwork';
+import type { LivePackage, LivePackageManifest } from '../../../packages/runtime/src/livePackage';
 import { diffImage, type ParityComparison, sideBySide } from '../../../packages/runtime/src/testing/parity';
 
 type ExportModule = typeof import('../../../apps/web/app/components/runtime-catalogue/liveExport/exportLivePackage');
@@ -19,11 +21,21 @@ export interface LivePackageResult {
   readonly comparison: ParityComparison;
   /** Editor | runtime | diff, as a PNG data URL. */
   readonly reviewPng: string;
+  /** The requested frames, as PNG data URLs. */
+  readonly frames: readonly { readonly name: string; readonly png: string }[];
 }
 
 export interface ExportRequest {
   readonly size: number;
   readonly approximate?: boolean;
+  /** Bindings JSON to export with; the resting frame is then drawn through them (t = 0, inputs at rest). */
+  readonly bindings?: BindingsDocument;
+  /** Frames to record through the bindings: inputs set with `setInput`, then a seek to `seconds`. */
+  readonly frames?: readonly {
+    readonly name: string;
+    readonly seconds: number;
+    readonly input?: Record<string, number>;
+  }[];
 }
 
 /** Exports the sample cover, zips it, reads the zip back, and compares the resting frame with the editor. */
@@ -60,17 +72,43 @@ async function exportAndCompare(
     width: request.size,
     height: request.size,
     approximate: request.approximate,
+    bindings: request.bindings,
   });
   // Through the zip and back, as a host would receive it.
   const files = await filesFromZip(await zipLivePackage(exported.files));
   const livePackage = await livePackageFromFiles(files);
-  const parity = await measurePackageParity(doc, imageCache, livePackage);
+  const parity = await measurePackageParity(doc, imageCache, livePackage, { live: Boolean(request.bindings) });
   return {
     manifest: livePackage.manifest,
     files: [...files.keys()],
     comparison: parity.comparison,
     reviewPng: toPng(sideBySide([parity.editor, parity.runtime, diffImage(parity.editor, parity.runtime)])),
+    frames: (request.frames ?? []).map((frame) => ({ name: frame.name, png: recordFrame(livePackage, frame) })),
   };
+}
+
+function recordFrame(
+  livePackage: LivePackage,
+  frame: { readonly seconds: number; readonly input?: Record<string, number> },
+): string {
+  const { width, height } = livePackage.manifest.size;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const artwork = createLiveArtwork({
+    canvas,
+    livePackage,
+    observeVisibility: null,
+    devicePixelRatio: 1,
+    pointer: false,
+    reducedMotion: false,
+    contextAttributes: { preserveDrawingBuffer: true },
+  });
+  for (const [name, value] of Object.entries(frame.input ?? {})) artwork.setInput(name, value);
+  artwork.seek(frame.seconds);
+  const png = canvas.toDataURL('image/png');
+  artwork.destroy();
+  return png;
 }
 
 function toPng(image: { width: number; height: number; data: Uint8ClampedArray | Uint8Array }): string {
