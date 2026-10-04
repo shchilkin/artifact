@@ -136,6 +136,7 @@ test.describe('the harness itself', () => {
   test('a broken Noise Warp port fails parity with a diff image', async ({ page }, testInfo) => {
     const result = await runParity(page, 'noiseWarp', 'graphic', { fragmentPatch: BROKEN_NOISE_WARP });
     await attachReview(testInfo, 'noiseWarp-broken', result.reviewPng);
+    testInfo.annotations.push({ type: 'parity', description: describeComparison(result.comparison) });
     expect(result.patched).toBe(true);
     expect(result.comparison.pass, describeComparison(result.comparison)).toBe(false);
     if (result.comparison.mode !== 'pixels') throw new Error('expected a pixel comparison');

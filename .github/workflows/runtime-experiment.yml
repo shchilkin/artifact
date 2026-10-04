@@ -1,0 +1,85 @@
+name: Runtime experiment
+
+# The experimental runtime (docs/runtime/README.md) lives on experiment/runtime, which the product CI in ci.yml
+# does not cover. This workflow runs the runtime package's checks and the browser parity harness for it.
+on:
+  push:
+    branches: [experiment/runtime]
+  pull_request:
+    branches: [experiment/runtime]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-experiment-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime-checks:
+    runs-on: ubuntu-latest
+    name: runtime checks
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format and lint
+        run: npm run format:check && npm run lint
+
+      - name: Runtime typecheck and unit tests
+        run: npm run typecheck:runtime && npm run test:runtime
+
+      - name: Web typecheck and unit tests
+        run: npm run typecheck && npm test
+
+  runtime-harness:
+    runs-on: ubuntu-latest
+    name: runtime harness (${{ matrix.project }})
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit]
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Goldens are compared in Chromium only; Firefox and WebKit run parity, GPU timing and the catalogue.
+      - name: Parity harness, goldens and catalogue
+        env:
+          HOME: /root
+        run: npm run test:runtime:harness -- --project=${{ matrix.project }}
+
+      # On failure the report holds editor | runtime | diff images for parity, and for goldens the expected,
+      # actual and diff PNGs. To adopt new goldens, copy the *-actual.png files over the goldens (see
+      # docs/runtime/README.md).
+      - name: Upload harness report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-harness-${{ matrix.project }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
