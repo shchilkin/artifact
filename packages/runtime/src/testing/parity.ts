@@ -21,14 +21,28 @@ export const PIXEL_TOLERANCE = {
   maxMeanAbsDiff: 0.25,
 } as const;
 
-/** Stochastic effects: the GPU noise differs from the editor's CPU noise by design, so only statistics must agree. */
+/**
+ * Stochastic effects: the GPU noise differs from the editor's CPU noise by design, so only statistics must agree.
+ *
+ * Calibrated on Grain (#338), the first stochastic port, at 540px on all fixtures (measurements in
+ * `docs/runtime/README.md`). Against the editor in Chromium, Firefox and WebKit on macOS and WebKit on Linux, the
+ * faithful port measures at most 0.14 levels of mean, 0.06 of std dev and 0.016 of histogram distance. Chromium on
+ * Linux (CI's container) is the floor: its software 2D canvas rounds the editor's overlay differently, so its own
+ * editor output sits 0.15–0.35 levels off the other engines' and moves flat colours across histogram bins (0.069 on
+ * the text fixture, with any seed). Grain changes flat colours by under a level on average, so only the histogram
+ * separates a wrong grain strength there.
+ *
+ * The first estimate (2, 3 and 0.05) let half-strength grain pass and failed the faithful port on Linux. These limits
+ * pass the faithful port everywhere and fail every broken variant measured (no grain, 0.75×, half, 1.5× and double
+ * strength, opaque grain, normal instead of overlay blend) on at least one fixture in every engine.
+ */
 export const STATISTICS_TOLERANCE = {
   /** Per-channel mean, in levels. */
-  maxMeanDiff: 2,
+  maxMeanDiff: 1,
   /** Per-channel standard deviation (the square root of the variance), in levels. */
-  maxStdDevDiff: 3,
+  maxStdDevDiff: 0.75,
   /** Per-channel histogram total-variation distance (0 identical, 1 disjoint). */
-  maxHistogramDistance: 0.05,
+  maxHistogramDistance: 0.08,
   /** Histogram bins per channel. */
   histogramBins: 32,
 } as const;

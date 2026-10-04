@@ -328,7 +328,7 @@ describe('binding validation', () => {
       'bindings[6].to.pass: there is no pass 2; the chain has 2',
     ]);
     expect(issuesOf(() => compileLiveChain({ passes: [{ effect: 'vortex', layer: {} }], context }))).toEqual([
-      'passes[0].effect: unknown effect "vortex"; known: noiseWarp',
+      `passes[0].effect: unknown effect "vortex"; known: ${EFFECTS.map((effect) => effect.id).join(', ')}`,
     ]);
   });
 

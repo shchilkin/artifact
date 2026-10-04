@@ -31,6 +31,9 @@ export { type ChainRenderer, createChainRenderer } from './chain.js';
 export {
   EFFECTS,
   effectRegistry,
+  GRAIN_FRAG,
+  type GrainLayer,
+  grain,
   type NoiseWarpLayer,
   noiseWarp,
 } from './effects/index.js';
