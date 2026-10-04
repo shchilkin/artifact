@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { type RefObject, useEffect, useRef, useState } from 'react';
 import type { Artwork } from '../../../../../packages/runtime/src/artwork';
 import { measureGpuTime } from '../../../../../packages/runtime/src/gpuTiming';
 import { effectRegistry } from '../../../../../packages/runtime/src/index';
@@ -34,6 +34,32 @@ import {
 const FIXTURE_URLS: Record<FixtureName, string> = { photo: photoUrl, graphic: graphicUrl, text: textUrl };
 /** Displayed size; the drawing buffer is twice that, so every effect renders and is timed at 540px. */
 const CSS_SIZE = PARITY_SIZE / 2;
+
+/**
+ * How far beyond the viewport an effect entry keeps its WebGL context. Browsers cap live contexts per page (WebKit at
+ * 16, losing the oldest beyond that), and the catalogue gains an entry per effect, so only entries near the viewport
+ * hold one; an entry that scrolls away releases its context and rebuilds on a fresh canvas when it comes back.
+ */
+const LIVE_ENTRY_MARGIN = '50% 0px';
+
+/** Whether the element is within `LIVE_ENTRY_MARGIN` of the viewport; always true without IntersectionObserver. */
+function useNearViewport(ref: RefObject<HTMLElement | null>): boolean {
+  const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const last = entries[entries.length - 1];
+        if (last) setNear(last.isIntersecting);
+      },
+      { rootMargin: LIVE_ENTRY_MARGIN },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+  return near;
+}
 
 const images = new Map<string, Promise<HTMLImageElement>>();
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -103,8 +129,13 @@ function EffectEntry({
   fixture: FixtureName;
   animate: boolean;
 }) {
+  const entryRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const artworkRef = useRef<Artwork | null>(null);
+  const near = useNearViewport(entryRef);
+  // A released canvas keeps its lost context, so the entry draws on a new canvas when it comes back.
+  const [canvasKey, setCanvasKey] = useState(0);
+  const holdsContextRef = useRef(false);
   const animateRef = useRef(animate);
   const [layer, setLayer] = useState<EffectLayer | null>(() => catalogueLayer(effect, effectCase));
   const [gpuMs, setGpuMs] = useState<number | null | undefined>(undefined);
@@ -117,7 +148,7 @@ function EffectEntry({
   // Rebuild the artwork when the source or an authored value changes; playback follows `animate` below.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !layer) return;
+    if (!canvas || !layer || !near) return;
     let cancelled = false;
     let artwork: Artwork | null = null;
     let measureTimer: ReturnType<typeof setTimeout> | undefined;
@@ -140,6 +171,7 @@ function EffectEntry({
           contextAttributes: CATALOGUE_CONTEXT_ATTRIBUTES,
         });
         artworkRef.current = artwork;
+        holdsContextRef.current = true;
         if (animateRef.current) artwork.start();
         setError(null);
         const created = artwork;
@@ -169,7 +201,15 @@ function EffectEntry({
       artwork?.destroy();
       if (artworkRef.current === artwork) artworkRef.current = null;
     };
-  }, [effect, effectCase, fixture, layer, seed]);
+  }, [effect, effectCase, fixture, layer, seed, near]);
+
+  // Away from the viewport, release the context the artwork drew on (destroying the artwork keeps it alive).
+  useEffect(() => {
+    if (near || !holdsContextRef.current) return;
+    holdsContextRef.current = false;
+    canvasRef.current?.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext();
+    setCanvasKey((key) => key + 1);
+  }, [near]);
 
   useEffect(() => {
     animateRef.current = animate;
@@ -183,8 +223,9 @@ function EffectEntry({
     setLayer((current) => (current ? ({ ...current, [field]: value } as EffectLayer) : current));
 
   return (
-    <article className="runtime-catalogue-entry" data-effect={effect}>
+    <article ref={entryRef} className="runtime-catalogue-entry" data-effect={effect}>
       <canvas
+        key={canvasKey}
         ref={canvasRef}
         className="runtime-catalogue-canvas"
         style={{ width: CSS_SIZE, height: CSS_SIZE }}
