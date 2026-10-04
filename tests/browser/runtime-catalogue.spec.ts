@@ -98,8 +98,16 @@ test('the runtime catalogue shows Tear, with a click spiking the tear', async ({
   await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
 
   const canvas = entry.locator('canvas');
+  // The entry sits below the fold, and the mouse works in viewport coordinates.
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('catalogue canvas has no box');
+  // Hover first so the resting frame is taken with the pointer on the canvas; only the press changes the tear.
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 });
+  await page.waitForTimeout(400);
   const resting = await canvas.screenshot();
-  await canvas.click();
+  await page.mouse.down();
   await expect.poll(async () => (await canvas.screenshot()).equals(resting)).toBe(false);
+  await page.mouse.up();
   await page.mouse.move(0, 0);
 });
