@@ -125,4 +125,18 @@ describe('runtime catalogue model', () => {
       'pointer.dirY',
     ]);
   });
+
+  it('lists Ripple with its amount and frequency sliders, the step track and the click', () => {
+    expect(catalogueTitle('ripple')).toBe('Ripple');
+    expect(catalogueControls('ripple')).toEqual([
+      expect.objectContaining({ type: 'slider', field: 'rippleAmt' }),
+      expect.objectContaining({ type: 'slider', field: 'rippleFreq' }),
+    ]);
+    expect(catalogueLayer('ripple', EFFECT_CASES.ripple)).toMatchObject({
+      preset: 'ripple',
+      rippleAmt: 20,
+      rippleFreq: 3,
+    });
+    expect(catalogueBindings(EFFECT_CASES.ripple)).toEqual(['step track', 'click', 'click.x', 'click.y']);
+  });
 });

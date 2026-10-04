@@ -31,6 +31,10 @@ const SHIFTED_SCANLINES = { search: '* size.y - 0.5 -', replace: '* size.y - 1.5
 const RGB_SPLIT_GPU_ONLY = { search: 'floor(uRgbSplit * size.x / 540.0 + 0.5)', replace: '0.0' };
 /** Chromatic split without the GPU filter's red shift (a patch on the second stage, the editor's `RGB_FRAG`). */
 const RGB_SPLIT_NO_GPU_RED = { search: 'clamp(uv + uDir,', replace: 'clamp(uv,' };
+/** Ripple with its rings mirrored (the shift's sign flipped), as a phase of half a turn would draw them. */
+const MIRRORED_RIPPLE = { search: 'float shift = sin(', replace: 'float shift = -sin(' };
+/** Ripple truncating the source position instead of rounding it as the editor's `Math.round` does. */
+const TRUNCATED_RIPPLE = { search: 'floor(source + 0.5)', replace: 'floor(source)' };
 
 async function openHarness(page: Page) {
   await setupBrowserTestPage(page);
@@ -195,6 +199,14 @@ test.describe('the harness itself', () => {
   test('pixels reject Chromatic split with either editor stage missing', async ({ page }) => {
     for (const patch of [RGB_SPLIT_GPU_ONLY, RGB_SPLIT_NO_GPU_RED]) {
       const result = await runParity(page, 'rgbSplit', 'graphic', { fragmentPatch: patch });
+      expect(result.patched).toBe(true);
+      expect(result.comparison.pass, `${patch.search}: ${describeComparison(result.comparison)}`).toBe(false);
+    }
+  });
+
+  test('pixels reject Ripple with mirrored rings or truncated sampling', async ({ page }) => {
+    for (const patch of [MIRRORED_RIPPLE, TRUNCATED_RIPPLE]) {
+      const result = await runParity(page, 'ripple', 'photo', { fragmentPatch: patch });
       expect(result.patched).toBe(true);
       expect(result.comparison.pass, `${patch.search}: ${describeComparison(result.comparison)}`).toBe(false);
     }
