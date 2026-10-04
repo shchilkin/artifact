@@ -121,6 +121,22 @@ void main() {
 }`;
 
 /**
+ * Barrel: scales the sample offset from `uCenter` by `1 + uK × r²`, where `r` is the distance from the centre, so the
+ * image bulges (or, for negative `uK`, pinches) around it. Uniforms: `uK`, `uCenter` (the editor passes `0.5, 0.5`).
+ */
+export const BARREL_FRAG = `${HEADER}
+uniform float uK;
+uniform vec2 uCenter;
+
+void main() {
+  ${NORM_UV}
+  vec2  c  = norm - uCenter;
+  float r2 = dot(c, c);
+  vec2 warped = clamp((c * (1.0 + uK * r2)) + uCenter, 0.0, 1.0);
+  gl_FragColor = ${SAMPLE('warped')};
+}`;
+
+/**
  * Chunk Tear: splits the frame into horizontal bands `uChunkH` tall (normalised) and shifts about 30% of them
  * sideways, wrapping around, by up to `uIntensity` of the width. Which bands move, and how far, is a hash of the band
  * index and `uSeed`, so a new seed tears different bands. Uniforms: `uIntensity`, `uChunkH`, `uSeed`.

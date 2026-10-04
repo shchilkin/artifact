@@ -139,4 +139,11 @@ describe('runtime catalogue model', () => {
     });
     expect(catalogueBindings(EFFECT_CASES.ripple)).toEqual(['step track', 'click', 'click.x', 'click.y']);
   });
+
+  it('lists Barrel with its amount slider, the wave track and the pointer bindings', () => {
+    expect(catalogueTitle('barrel')).toBe('Barrel');
+    expect(catalogueControls('barrel')).toEqual([expect.objectContaining({ type: 'slider', field: 'barrel' })]);
+    expect(catalogueLayer('barrel', EFFECT_CASES.barrel)).toMatchObject({ preset: 'barrel', barrel: 40 });
+    expect(catalogueBindings(EFFECT_CASES.barrel)).toEqual(['wave track', 'pointer.x', 'pointer.y', 'hover']);
+  });
 });
