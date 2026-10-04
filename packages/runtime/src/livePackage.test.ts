@@ -78,7 +78,10 @@ describe('parseLivePackage', () => {
         extra: true,
         stack: [
           { type: 'chain', passes: [warp(40)] },
-          { type: 'chain', passes: [{ effect: 'glitch', layer: { glitch: 20 }, source: { id: 'g', name: 'Glitch' } }] },
+          {
+            type: 'chain',
+            passes: [{ effect: 'bokehBlur', layer: { bokehBlur: 20 }, source: { id: 'b', name: 'Bokeh' } }],
+          },
           { type: 'plate', file: 'https://example.com/plate.png', layers: [] },
           { type: 'chain', passes: [warp(0)] },
           { type: 'mask' },
@@ -94,7 +97,7 @@ describe('parseLivePackage', () => {
       'still: must be a relative path inside the package like "plates/0.png", got "../still.png"',
       'stack[0]: the bottom of the stack must be a plate: a chain needs an image to run on',
       'stack[1]: two chains in a row; merge them into one chain',
-      `stack[1].passes[0].effect: unknown effect "glitch"; this runtime runs ${effectRegistry.ids().join(', ')}`,
+      `stack[1].passes[0].effect: unknown effect "bokehBlur"; this runtime runs ${effectRegistry.ids().join(', ')}`,
       'stack[2].file: must be a relative path inside the package like "plates/0.png", got "https://example.com/plate.png"',
       'stack[3].passes[0].layer: noiseWarp is off for these values; the exporter only writes effects that are on',
       'stack[4].type: must be "plate" or "chain", got "mask"',

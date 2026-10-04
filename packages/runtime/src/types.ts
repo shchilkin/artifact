@@ -1,4 +1,4 @@
-/** A uniform value: a float or int scalar, or a float/int vector of length 2 to 4. */
+/** A uniform value: a float or int scalar, a float/int vector of length 2 to 4, or a float or `vec4` array. */
 export type UniformValue = number | readonly number[];
 
 export type UniformValues = Readonly<Record<string, UniformValue>>;

@@ -192,3 +192,29 @@ test('the runtime catalogue shows Tear, with a click spiking the tear', async ({
   await page.mouse.up();
   await page.mouse.move(0, 0);
 });
+
+test('the runtime catalogue shows Glitch with a working VHS Streaks control', async ({ page, browserName }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const entry = page.locator('article[data-effect="glitch"]');
+  await expect(entry.getByRole('heading', { name: 'Glitch' })).toBeVisible();
+  await expect(entry.getByText('step track, pulse track, click')).toBeVisible();
+  await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+
+  // The entry sits below the fold; bring it into view before capturing, so WebKit composites the canvas.
+  await entry.scrollIntoViewIfNeeded();
+  const canvas = entry.locator('canvas');
+  const amount = entry.getByRole('slider', { name: 'VHS Streaks' });
+  await expect(amount).toHaveValue('14');
+  const before = await canvas.screenshot();
+  await amount.focus();
+  await amount.press('End');
+  // The editor's slider runs to 24 streaks.
+  await expect(amount).toHaveValue('24');
+  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
+  if (browserName === 'webkit' && process.platform === 'linux') return;
+  await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
+});

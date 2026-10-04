@@ -106,4 +106,11 @@ describe('runtime catalogue model', () => {
     expect(catalogueLayer('tear', EFFECT_CASES.tear)).toMatchObject({ preset: 'tear', tearAmt: 10, tearSize: 6 });
     expect(catalogueBindings(EFFECT_CASES.tear)).toEqual(['step track', 'pulse track', 'click']);
   });
+
+  it('lists Glitch with its VHS Streaks slider, the step and pulse tracks and click', () => {
+    expect(catalogueTitle('glitch')).toBe('Glitch');
+    expect(catalogueControls('glitch')).toEqual([expect.objectContaining({ type: 'slider', field: 'glitch' })]);
+    expect(catalogueLayer('glitch', EFFECT_CASES.glitch)).toMatchObject({ preset: 'glitch', glitch: 14 });
+    expect(catalogueBindings(EFFECT_CASES.glitch)).toEqual(['step track', 'pulse track', 'click']);
+  });
 });

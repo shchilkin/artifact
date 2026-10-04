@@ -164,16 +164,22 @@ graph with merges, other node kinds, or extra inputs (materials, environments) i
   and says so in `baked`. The resting frame then differs where the moved effects do not commute with the chain.
 
 The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text): with
-Grain, Noise Warp, Vortex, Tear (#340), Scanlines (#342) and Radial CA (#337) registered, only Glitch is baked, and it
-sits below the run. The exact split is a base plate (Fill, Emojis, Glitch), one live chain (Grain → Noise Warp →
-Vortex → Tear → Scanlines → CA) and the image/text plate; the approximate split is the same. Grain makes the resting
-frame a statistics comparison: mean 0.15 and std dev 0.09 levels, histogram distance 0.009 at 540px in Chromium on
-macOS.
+Glitch (#339), Grain, Noise Warp, Vortex, Tear (#340), Scanlines (#342) and Radial CA (#337) registered, nothing is
+baked. The exact split is a base plate (Fill, Emojis), one live chain (Glitch → Grain → Noise Warp → Vortex → Tear →
+Scanlines → CA) and the image/text plate; the approximate split is the same. Grain makes the resting frame a
+statistics comparison: mean 0.15 and std dev 0.09 levels, histogram distance 0.009 at 540px in Chromium on macOS.
 
 Radial CA is the editor colour pass's third step (sepia, infrared, CA, dither: `applyColorPass` in
 `render/workers/effectPixelTransform.ts`), which `EDITOR_EFFECT_ORDER` follows. Its port (`CA_FRAG` in
 `packages/runtime/src/effects/ca.ts`) reads whole pixels with the editor's rounding and edge clamping, scales the
 amount by the render width over 540 as the editor does, and gets the render size from `inputClamp`.
+
+Glitch (VHS streaks, `GLITCH_FRAG` in `packages/runtime/src/effects/glitch.ts`) is seeded but not stochastic in the
+harness sense: the editor draws one `fillRect` band per unit of `glitch` (its slider runs to 24; the runtime caps at
+100) from five LCG draws each, so the runtime runs the same LCG on the CPU per seed (`glitchBands`) and passes the bands as `vec4` uniform arrays. The shader takes each
+band's analytic pixel coverage and composites it with the premultiplied screen blend, rounding to bytes after each
+band; that blend is order-independent, so the bands are sorted by top edge and walked in groups of ten around each
+row. Parity is by pixels (worst channel 1 level on every fixture and engine).
 
 ### Export
 
@@ -192,7 +198,7 @@ Every effect issue lands with visual tests in the shared harness (issue: parity 
 
 1. **Static parity**: runtime output at rest equals the editor's `renderDocument` for the effect's fixture
    documents at 540px, within the harness tolerance. Deterministic effects compare pixels. Stochastic effects
-   (seeded grain, glitch, dither, tear) compare statistics (per-channel mean and variance, histogram distance),
+   (seeded grain, dither, tear) compare statistics (per-channel mean and variance, histogram distance),
    because the GPU noise differs from the CPU LCG by design.
 2. **Motion goldens**: frames at `t = 0, 0.25, 0.5, 0.75` for the effect's time binding, recorded in the Linux
    Playwright container used by CI.
