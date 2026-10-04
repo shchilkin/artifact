@@ -12,6 +12,12 @@ export default defineEffectCase({
   effect: 'dataMosh',
   layer: { dataMosh: 30 },
   frames: [...MOTION_FRAMES, ...INPUT_FRAMES, { name: 'click', t: 0, input: { click: 1 } }],
+  // The editor's fragment wraps the sample with `fract(norm + offset)`, and at the edge pixel centres `norm` is exactly
+  // 0 or 1 in exact arithmetic, so whether an edge pixel wraps to the opposite side is decided by rounding. Headed
+  // Firefox on Mesa (the Linux CI container) rounds the editor and the runtime to opposite sides on the top row, the
+  // bottom row and the right column of the photo fixture: 0.377% of pixels, all on the edge in the review image, nothing
+  // inside over 8 levels. Chromium, WebKit and Firefox on macOS agree there. Parity compares the frame without that ring.
+  parityInset: 1,
   bindings: {
     version: 1,
     loop: { durationSeconds: 4 },

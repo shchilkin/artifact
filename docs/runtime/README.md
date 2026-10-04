@@ -303,7 +303,9 @@ export default defineEffectCase({
 ```
 
 Optional fields: `seed` (default 11), `fixtures` (default all three), `goldenFixture` (default `graphic`),
-`bindings`, `pixelTolerance` (widens the pixel tolerance for a measured, explained rounding difference). Static parity uses the authored layer alone; goldens, GPU timing and the catalogue run the case through
+`bindings`, `pixelTolerance` (widens the pixel tolerance for a measured, explained rounding difference),
+`parityInset` (drops that many edge pixels before static parity, for a fragment that wraps with `fract()` exactly at
+the edge, as Data Mosh does). Static parity uses the authored layer alone; goldens, GPU timing and the catalogue run the case through
 `createLiveArtwork` with its bindings.
 
 From that one declaration:

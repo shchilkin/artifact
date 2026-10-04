@@ -235,6 +235,24 @@ export function diffImage(
   return { width: expected.width, height: expected.height, data: out };
 }
 
+/**
+ * The image without its outer `inset` pixels on every side. Static parity drops the frame's edge for a case whose
+ * fragment wraps at the edge (see `EffectCase.parityInset`).
+ */
+export function insetImage(image: RgbaImage, inset: number): RgbaImage {
+  if (inset <= 0) return image;
+  const width = image.width - inset * 2;
+  const height = image.height - inset * 2;
+  if (width <= 0 || height <= 0)
+    throw new Error(`An inset of ${inset} leaves nothing of a ${image.width}×${image.height} image.`);
+  const out = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    const start = ((y + inset) * image.width + inset) * 4;
+    out.set(image.data.subarray(start, start + width * 4), y * width * 4);
+  }
+  return { width, height, data: out };
+}
+
 /** Places images side by side (all the same height), for a single expected | actual | diff review image. */
 export function sideBySide(images: readonly RgbaImage[], gap = 8): RgbaImage {
   const height = images[0]?.height ?? 0;

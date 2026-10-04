@@ -6,6 +6,7 @@ import {
   compareStatistics,
   diffImage,
   histogramDistance,
+  insetImage,
   PIXEL_TOLERANCE,
   type RgbaImage,
   sideBySide,
@@ -126,5 +127,23 @@ describe('review images', () => {
     expect([...combined.data.subarray(8, 12)]).toEqual([0, 0, 0, 0]);
     expect([...combined.data.subarray(12, 16)]).toEqual([0, 0, 255, 255]);
     expect(() => sideBySide([red, image(2, 3, () => [0, 0, 0])])).toThrow('share a height');
+  });
+});
+
+describe('parity inset', () => {
+  it('drops the outer pixels on every side and keeps the rest in place', () => {
+    // 4×3, each pixel's red channel is its index.
+    const data = new Uint8ClampedArray(4 * 3 * 4);
+    for (let index = 0; index < 12; index += 1) data[index * 4] = index;
+    const inner = insetImage({ width: 4, height: 3, data }, 1);
+    expect(inner.width).toBe(2);
+    expect(inner.height).toBe(1);
+    expect([inner.data[0], inner.data[4]]).toEqual([5, 6]);
+  });
+
+  it('returns the image itself without an inset, and rejects one that leaves nothing', () => {
+    const image = { width: 2, height: 2, data: new Uint8ClampedArray(16) };
+    expect(insetImage(image, 0)).toBe(image);
+    expect(() => insetImage(image, 1)).toThrow(/leaves nothing/);
   });
 });
