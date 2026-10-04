@@ -29,7 +29,7 @@ export {
   type EffectRegistry,
   effectLayerSeed,
 } from './registry.js';
-export { COPY_FRAGMENT, INPUT_CLAMP, PASS_VERTEX } from './shaders.js';
+export { COPY_FRAGMENT, inputClamp, PASS_VERTEX } from './shaders.js';
 export {
   computeRenderSize,
   DEFAULT_MAX_DEVICE_PIXEL_RATIO,

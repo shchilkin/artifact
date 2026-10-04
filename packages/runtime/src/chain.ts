@@ -1,4 +1,4 @@
-import { COPY_FRAGMENT, INPUT_CLAMP, PASS_VERTEX } from './shaders.js';
+import { COPY_FRAGMENT, inputClamp, PASS_VERTEX } from './shaders.js';
 import type { ArtworkSource, ChainPass, UniformValue, UniformValues } from './types.js';
 
 const POSITION_ATTRIBUTE = 0;
@@ -75,6 +75,7 @@ export function createChainRenderer(gl: WebGL2RenderingContext, passes: readonly
   const targets: Target[] = [];
   let width = 0;
   let height = 0;
+  let clamp = inputClamp(1, 1);
 
   const assertLive = () => {
     if (destroyed) throw new Error('The chain renderer was destroyed.');
@@ -88,6 +89,7 @@ export function createChainRenderer(gl: WebGL2RenderingContext, passes: readonly
       if (w === width && h === height) return;
       width = w;
       height = h;
+      clamp = inputClamp(w, h);
       if (targets.length === 0) {
         for (let index = 0; index < targetCount; index += 1) targets.push(createTarget(gl, w, h));
         return;
@@ -126,7 +128,7 @@ export function createChainRenderer(gl: WebGL2RenderingContext, passes: readonly
         gl.useProgram(program);
         gl.bindTexture(gl.TEXTURE_2D, input);
         setUniform(gl, uniforms, 'uSampler', 0, true);
-        setUniform(gl, uniforms, 'inputClamp', INPUT_CLAMP);
+        setUniform(gl, uniforms, 'inputClamp', clamp);
         setUniform(gl, uniforms, 'uFlipY', output === null ? -1 : 1);
         setUniforms(gl, uniforms, drawPasses[index].uniforms);
         const override = overrides?.[index];
