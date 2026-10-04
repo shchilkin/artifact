@@ -1,7 +1,7 @@
 import type { CanvasDocument, CanvasGraph } from '../types/config';
 import { EXPORT_NODE_ID, findGraphUtilityNode, graphUtilityNodeCollections, inferLinearGraph } from './nodeGraph';
 import {
-  collectGraphRenderReach,
+  collectGraphRenderReachModes,
   type GraphInputPort,
   type GraphInputRole,
   type GraphReachMode,
@@ -219,7 +219,7 @@ function documentGraph(doc: CanvasDocument): CanvasGraph {
  */
 export function buildGraphLayerTree(doc: CanvasDocument): GraphLayerTree {
   const graph = documentGraph(doc);
-  const reach = collectGraphRenderReach(doc, graph, EXPORT_NODE_ID);
+  const reach = collectGraphRenderReachModes(doc, graph, EXPORT_NODE_ID);
   const context: TreeContext = { doc, graph, reach, placed: new Set(), inputsCache: new Map() };
   const output = buildStack(context, exportSource(context), EXPORT_NODE_ID);
   const reachedNodeIds = new Set(context.placed);

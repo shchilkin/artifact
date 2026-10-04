@@ -3,10 +3,12 @@ export type { RenderOptions } from './render/layers';
 
 import type { CanvasDocument } from '../types/config';
 import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
-import { collectGraphRenderReach, type GraphRenderCache, renderGraphTarget } from './render/graph';
+import { type GraphRenderCache, renderGraphTarget } from './render/graph';
+import { collectGraphRenderReach } from './render/graphInputs';
 import type { RenderOptions } from './render/layers';
 
-export { collectGraphRenderReach, renderGraphTarget } from './render/graph';
+export { renderGraphTarget } from './render/graph';
+export { collectGraphRenderReach } from './render/graphInputs';
 
 const DOCUMENT_RENDER_MEASURE = 'artifact:document-render';
 

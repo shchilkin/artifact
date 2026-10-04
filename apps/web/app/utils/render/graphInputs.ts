@@ -4,7 +4,7 @@ import { EXPORT_NODE_ID, type GraphUtilityNodeKind, graphUtilityNodeKind } from 
 
 // Pure description of which inputs the graph renderer follows. The renderer (`graph.ts`) shares the
 // port lookup below; the per-kind input tables restate what each `GRAPH_NODE_RENDERERS` entry reads,
-// and `graphLayerTree.test.ts` renders fixtures for every branch so the two cannot drift apart
+// and `test-fixtures/render/graphReachFixtures.ts` renders fixtures for every branch so the two cannot drift apart
 // unnoticed. When a renderer starts or stops reading a port, update the table in the same change.
 
 export type GraphInputPort = GraphEdge['toPort'];
@@ -187,10 +187,11 @@ export function graphNodeRenderInputs(
 }
 
 /**
- * Every node id the renderer touches when rendering `targetId` (Output by default), with the
- * ways it is used. Ids of edges that point at deleted nodes are included; callers filter them.
+ * The one reachability walk. Every node id the renderer touches when rendering `targetId` (Output by
+ * default), with the ways it is used. Includes the target, and ids of edges that point at deleted
+ * nodes; callers filter those.
  */
-export function collectGraphRenderReach(
+export function collectGraphRenderReachModes(
   doc: CanvasDocument,
   graph: CanvasGraph,
   targetId: string = EXPORT_NODE_ID,
@@ -208,4 +209,17 @@ export function collectGraphRenderReach(
     }
   }
   return reach;
+}
+
+/**
+ * Every node that contributes to `targetId` when `renderGraphTarget` renders it, including the target:
+ * the nodes it renders plus the nodes whose settings it reads. Edges on ports a renderer ignores, and
+ * duplicate edges after the first on one port, do not count.
+ */
+export function collectGraphRenderReach(
+  doc: CanvasDocument,
+  graph: CanvasGraph,
+  targetId: string = EXPORT_NODE_ID,
+): Set<string> {
+  return new Set(collectGraphRenderReachModes(doc, graph, targetId).keys());
 }

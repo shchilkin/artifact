@@ -41,11 +41,11 @@ a stack.
 
 ## Tree derivation
 
-Reachability is shared with the renderer: `collectGraphRenderReach` in
-`apps/web/app/utils/render/graph.ts` lists the nodes `renderGraphTarget`
-reaches, and Layers rows already use it (through
-`collectDocumentOutputNodeIds`) for their "not in output" status. The tree
-builder should take its in-output set from the same helper.
+Reachability has one home: the walk in
+`apps/web/app/utils/render/graphInputs.ts`. Layers rows use it (through
+`collectGraphRenderReach` and `collectDocumentOutputNodeIds`) for their "not in
+output" status, and the tree builder takes its in-output set and the inputs it
+nests from the same walk (`collectGraphRenderReachModes`).
 
 A pure `buildGraphLayerTree(doc)` starts at `__export__.in` and follows each
 node's primary input upstream. Rows are listed top-first: the node nearest
@@ -115,8 +115,9 @@ several branches, so both cannot be folders at once.
 
 - `apps/web/app/utils/render/graphInputs.ts` describes the inputs the renderer
   follows per node kind and use (`render`, `material`, `read`); the renderer
-  imports only its port lookup from there, and renderer-backed fixtures in
-  `graphLayerTree.test.ts` guard the rest against drift. `buildGraphLayerTree`
+  imports only its port lookup from there, and the shared renderer-backed
+  fixtures in `test-fixtures/render/graphReachFixtures.ts` guard the rest
+  against drift. `buildGraphLayerTree`
   (`apps/web/app/utils/graphLayerTree.ts`) walks those inputs, so ignored
   inputs land in "Not in output" exactly as the renderer ignores them: a
   losing duplicate edge, a fill-role shader's `bg`, a standalone material's

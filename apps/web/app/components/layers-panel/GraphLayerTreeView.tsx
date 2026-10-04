@@ -473,6 +473,7 @@ export function GraphLayerTreeView({
               areas={areas}
               selected={selectedActionLayerIds.includes(layer.id)}
               editing={editingId === layer.id}
+              reachesOutput={tree.reachedNodeIds.has(layer.id)}
               reorderDisabled
               tree={rowPlacement}
               onSelect={onSelectLayer}

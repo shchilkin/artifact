@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { GRAPH_REACH_FIXTURES, renderedNodeIds } from '../test-fixtures/render/graphReachFixtures';
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../types/config';
 import {
   makeFillLayer,
@@ -17,7 +17,7 @@ import {
 } from '../types/config';
 import { buildGraphLayerTree, flattenGraphLayerTree, type GraphLayerTree, type GraphTreeRow } from './graphLayerTree';
 import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
-import { renderGraphTarget } from './renderer';
+import { collectGraphRenderReach } from './renderer';
 
 let edgeCounter = 0;
 function edge(fromId: string, toId: string, toPort: GraphEdge['toPort']): GraphEdge {
@@ -66,28 +66,13 @@ function allNodeIds(doc: CanvasDocument): Set<string> {
 }
 
 /**
- * Oracle: the nodes the real renderer touches when it renders Output. Rendered nodes are read from
- * the render cache; `readOnly` lists nodes the renderer reads without rendering (Scene 3D models,
- * material settings), which the fixture states by hand so the oracle stays independent of the tree.
+ * Oracle: the nodes the real renderer touches when it renders Output, from the shared renderer-backed
+ * fixture helpers. `readOnly` lists nodes the renderer reads without rendering (Scene 3D models, material
+ * settings), which each fixture states by hand so the oracle stays independent of the tree.
  */
 async function rendererReach(doc: CanvasDocument, readOnly: string[] = []): Promise<Set<string>> {
-  const entries = new Map<string, Promise<HTMLCanvasElement>>();
-  await renderGraphTarget(
-    doc,
-    doc.graph!,
-    EXPORT_NODE_ID,
-    32,
-    32,
-    new Map(),
-    { skipEffects: true },
-    {
-      namespace: 'reach',
-      entries,
-      limit: 10_000,
-    },
-  );
   const existing = allNodeIds(doc);
-  const rendered = [...entries.keys()].map((key) => key.slice('reach:'.length).replace(/@\d+x\d+$/, ''));
+  const rendered = await renderedNodeIds(doc, doc.graph ?? inferLinearGraph(doc.layers));
   return new Set([...rendered, ...readOnly].filter((id) => existing.has(id)));
 }
 
@@ -120,6 +105,23 @@ function summarize(rows: GraphTreeRow[]): unknown[] {
         : { [row.nodeId]: Object.fromEntries(row.groups.map((group) => [group.label, summarize(group.rows)])) },
   );
 }
+
+describe('buildGraphLayerTree on the shared reach fixtures', () => {
+  for (const fixture of GRAPH_REACH_FIXTURES) {
+    it(`lists exactly the nodes the renderer reaches: ${fixture.name}`, async () => {
+      const doc = documentOf(fixture.layers, fixture.graph);
+      const tree = buildGraphLayerTree(doc);
+      const reached = await rendererReach(doc, fixture.readOnly);
+
+      expectTreeMatchesRenderer(doc, tree, reached);
+      // The tree and Layers row status read the same reachability.
+      const existing = allNodeIds(doc);
+      expect(tree.reachedNodeIds).toEqual(
+        new Set([...collectGraphRenderReach(doc, fixture.graph)].filter((id) => existing.has(id))),
+      );
+    });
+  }
+});
 
 describe('buildGraphLayerTree', () => {
   it('lists a linear stack top-first', async () => {

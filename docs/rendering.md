@@ -58,7 +58,7 @@ into document pixels.
 | --- | --- | --- |
 | `renderDocument` | `apps/web/app/utils/renderer.ts` | Main document render entry. Chooses stack or graph mode. |
 | `renderGraphTarget` | `apps/web/app/utils/renderer.ts` | Renders a specific node target through graph traversal. |
-| `collectGraphRenderReach` | `apps/web/app/utils/renderer.ts` | Node ids that contribute to a graph target, from the graph renderers' own input lookups. |
+| `collectGraphRenderReach` | `apps/web/app/utils/renderer.ts` (from `render/graphInputs.ts`) | Node ids that contribute to a graph target: the nodes the graph renderers render plus those whose settings they read. |
 | `collectDocumentOutputNodeIds` | `apps/web/app/utils/renderer.ts` | Node ids that contribute to the document output, with `renderDocument`'s default graph choice. Layers rows use it for "not in output". |
 | `renderPrimitiveToCanvas` | `apps/web/app/utils/primitiveRenderer.ts` | One-shot Three.js primitive render for document/export pipeline. |
 | `generateThumbnail` | `apps/web/app/utils/generateThumbnail.ts` | Preset/example thumbnail generation. |
@@ -67,10 +67,12 @@ Rule:
 
 > UI surfaces may wrap these functions, but they should not reimplement artwork rendering.
 
-Reachability lives beside the renderers in `render/graph.ts` (`graphNodeRenderInputs`). When a graph
-renderer starts or stops reading an input port, update that function in the same change;
-`test-fixtures/render/graphRenderReach.test.ts` renders each fixture and fails when the reach and the
-nodes the renderer visits disagree.
+Reachability has one home, `render/graphInputs.ts`: one walk
+(`collectGraphRenderReachModes`) over per-kind input tables (`graphNodeRenderInputs`). `collectGraphRenderReach`,
+`collectDocumentOutputNodeIds` (Layers row status), and the Layers tree (`buildGraphLayerTree`) all derive from
+it. When a graph renderer starts or stops reading an input port, update the table in the same change; the
+shared fixtures in `test-fixtures/render/graphReachFixtures.ts` cover every branch of the table and are checked
+against the nodes the renderer actually renders, by `graphRenderReach.test.ts` and `graphLayerTree.test.ts`.
 
 Reach is about topology, not visibility: a hidden layer on the path to Output counts as reached (the renderer
 visits it and draws nothing). Layers rows show only "not in output" for unreached layers; a hidden layer's row
@@ -130,11 +132,8 @@ The port lookup (the first edge in `graph.edges` wins when several feed one
 port) lives in `apps/web/app/utils/render/graphInputs.ts` and the renderer
 imports it from there. The same module restates, per node kind, which inputs
 each `GRAPH_NODE_RENDERERS` entry reads; the renderer still dispatches through
-its own functions, so that table is a second description, not shared code.
-`graphLayerTree.test.ts` renders a fixture for every branch of the table and
-fails when the Layers tree and the nodes the renderer actually reaches
-disagree. When a renderer starts or stops reading a port, update the table in
-the same change.
+its own functions, so that table is a second description, not shared code, and
+the renderer-backed reach fixtures (see the rule above) guard it against drift.
 Within one graph render call it caches node results by node id. Thumbnail
 rendering can also pass an external cache so sibling thumbnails reuse shared
 upstream branch results. That cache stores canvases/promises outside
