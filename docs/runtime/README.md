@@ -402,6 +402,11 @@ in all engines). CI runs it in `.github/workflows/runtime-experiment.yml` for pu
   next change; a second draw in the same frame or the next one did not help, a draw two frames later did. The catalogue
   creates its artworks with `contextAttributes: { preserveDrawingBuffer: true }`, which shows every still draw in all
   three engines. Hosts that draw stills on demand and must look right in WebKitGTK/WPE can pass the same attribute.
+- **Catalogue entries hold a WebGL context only near the viewport.** WebKit allows 16 live contexts per page and
+  loses the oldest beyond that. With 13 effect entries, the plate entry and the live export (Pixi, the parity artwork,
+  the player) the page asked for 18. An effect entry builds its artwork only within half a viewport of the screen, and
+  when it scrolls away it releases its context (`WEBGL_lose_context`) and later redraws on a fresh canvas. A catalogue
+  test scrolls its entry into view before it waits for the GPU time.
 
 ### Fixtures
 
