@@ -4,6 +4,7 @@ import {
   MORPH_FRAG,
   NOISE_FRAG,
   NORM_UV,
+  RGB_FRAG,
   SAMPLE,
   TEAR_FRAG,
   VORTEX_FRAG,
@@ -56,18 +57,6 @@ void main() {
   );
   col.rgb = clamp(m * col.rgb, 0.0, 1.0);
   gl_FragColor = col;
-}`;
-
-const RGB_FRAG = `${HEADER}
-uniform vec2 uDir;
-
-void main() {
-  vec2 uv  = vTextureCoord;
-  float r  = texture2D(uSampler, clamp(uv + uDir, inputClamp.xy, inputClamp.zw)).r;
-  float g  = texture2D(uSampler, uv).g;
-  float b  = texture2D(uSampler, clamp(uv - uDir, inputClamp.xy, inputClamp.zw)).b;
-  float a  = texture2D(uSampler, uv).a;
-  gl_FragColor = vec4(r, g, b, a);
 }`;
 
 const VIGNETTE_FRAG = `${HEADER}

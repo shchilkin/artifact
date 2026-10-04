@@ -101,6 +101,25 @@ describe('planLivePackage', () => {
     ]);
   });
 
+  it('bakes a layer with an effect between the two editor stages of Chromatic split', () => {
+    const split = makeEffectPresetLayer('rgbSplit', { id: 'split', name: 'Split', rgbSplit: 8 });
+    const live = planLivePackage(doc([fill, split, text]), registryOf('rgbSplit', 'noiseWarp'));
+    expect(shape(live)).toEqual([{ plate: ['fill'] }, { chain: ['rgbSplit@split'] }, { plate: ['text'] }]);
+
+    const mixed = { ...split, noiseWarp: 40 };
+    const baked = planLivePackage(doc([fill, mixed, text]), registryOf('rgbSplit', 'noiseWarp'));
+    expect(baked.fallback).toBeDefined();
+    expect(baked.baked).toEqual([
+      {
+        id: 'split',
+        name: 'Split',
+        effects: ['rgbSplit', 'noiseWarp'],
+        reason:
+          'rgbSplit runs in two editor stages around noiseWarp on the same layer; the runtime draws them together',
+      },
+    ]);
+  });
+
   it('follows the registry: a newly registered effect joins the chain', () => {
     const plan = planLivePackage(doc([fill, warp, tear, text]), registryOf('noiseWarp', 'tear'));
     expect(shape(plan)).toEqual([{ plate: ['fill'] }, { chain: ['noiseWarp@warp', 'tear@tear'] }, { plate: ['text'] }]);

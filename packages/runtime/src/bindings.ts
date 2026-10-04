@@ -9,7 +9,7 @@ import {
   type PlateTransform,
   type PlateTransformField,
 } from './plates.js';
-import type { AuthoredEffectLayer, EffectContext, EffectRegistry } from './registry.js';
+import { type AuthoredEffectLayer, chainPass, type EffectContext, type EffectRegistry } from './registry.js';
 import { evaluateTrack, loopPosition, TIME_TRACK_KINDS, type TimeTrack, trackDomain } from './tracks.js';
 import type { ChainPass, UniformValue, UniformValues } from './types.js';
 
@@ -402,8 +402,7 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
     const authored = registry.pass(pass.effect, pass.layer, context);
     if (!authored && bindings.length === 0) return;
     const chainIndex = chain.length;
-    const fragment = registry.get(pass.effect)!.fragment;
-    chain.push(authored ?? { id: pass.effect, fragment, uniforms: resting[passIndex] });
+    chain.push(authored ?? chainPass(registry.get(pass.effect)!, resting[passIndex]));
     if (bindings.length === 0) return;
     const fields: BoundPass['fields'][number][] = [];
     const uniforms: BoundPass['uniforms'][number][] = [];

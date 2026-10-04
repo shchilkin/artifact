@@ -57,6 +57,18 @@ describe('createArtwork', () => {
     expect(lastFrame[2]).toBeNull();
   });
 
+  it('draws a pass with stages once per stage, ping-ponging, with the last stage to the canvas', () => {
+    const split = effectRegistry.pass('rgbSplit', { rgbSplit: 8 }, context)!;
+    expect(split.stages).toHaveLength(1);
+    const { fake } = setup({ chain: [noisePass(20), split] });
+    expect(fake.counts.draws).toBe(3);
+    const [first, second, last] = fake.drawTargets;
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(first).not.toBe(second);
+    expect(last).toBeNull();
+  });
+
   it('under reduced motion draws exactly one frame and schedules no animation frames', () => {
     const { fake, scheduler, artwork, setVisible } = setup({ reducedMotion: true });
     artwork.start();

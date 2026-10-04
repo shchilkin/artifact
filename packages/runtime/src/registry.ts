@@ -25,6 +25,11 @@ export interface EffectDefinition<Layer extends AuthoredEffectLayer = AuthoredEf
   readonly id: string;
   /** A Pixi-compatible GLSL ES 1.00 fragment, imported from the editor's shader source. */
   readonly fragment: string;
+  /**
+   * Further fragments drawn after `fragment` with the same uniforms (see `ChainPass.stages`), for an editor effect
+   * that runs in more than one place. Uniform names must not clash between stages.
+   */
+  readonly stages?: readonly string[];
   // Method syntax keeps definitions for narrower layer types assignable to the registry's list.
   /**
    * Authored layer fields the effect reads. Bindings may drive these; the per-frame values go through `uniforms`, so
@@ -108,9 +113,15 @@ export function createEffectRegistry(definitions: readonly EffectDefinition[]): 
     pass(id, layer, context) {
       const definition = definitionFor(id);
       if (!(definition.amount(layer) > 0)) return null;
-      return { id, fragment: definition.fragment, uniforms: uniformsFor(definition, layer, context) };
+      return chainPass(definition, uniformsFor(definition, layer, context));
     },
   };
+}
+
+/** The chain pass that draws an effect with these uniforms: its fragment, then its stages, if any. */
+export function chainPass(definition: EffectDefinition, uniforms: UniformValues): ChainPass {
+  const pass = { id: definition.id, fragment: definition.fragment, uniforms };
+  return definition.stages ? { ...pass, stages: definition.stages } : pass;
 }
 
 /** The seed the editor gives an effect layer's GPU filters: `doc.global.seed + layer.seedOffset`. */
