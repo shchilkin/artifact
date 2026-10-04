@@ -2731,11 +2731,8 @@
   pointer-events: auto;
 }
 
-/* The inspector keeps its open width (inside the panel's left border) while the panel opens, so its rows slide in
-   instead of reflowing at every intermediate width. */
 .node-props-inner {
   width: 100%;
-  min-width: calc(var(--editor-inspector-w) - 1px);
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -3041,10 +3038,6 @@
   .node-props-panel-open {
     flex-basis: auto;
     transform: translateY(0);
-  }
-
-  .node-props-inner {
-    min-width: 0;
   }
 
   .node-canvas-toolbar {
