@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createArtwork, type VisibilityObserver } from './artwork.js';
 import { effectRegistry } from './effects/index.js';
-import { createFakeCanvas, createFakeGl, createManualScheduler } from './testing/fakeGl.js';
+import { createFakeCanvas, createFakeGl, createManualScheduler, type FakeGlOptions } from './testing/fakeGl.js';
 import type { ChainPass } from './types.js';
 
 const context = { seed: 1, width: 540, height: 540 };
 const noisePass = (amount: number) => effectRegistry.pass('noiseWarp', { noiseWarp: amount }, context)!;
 const threePasses: ChainPass[] = [noisePass(20), noisePass(40), noisePass(60)];
 
-function setup(overrides: { reducedMotion?: boolean; chain?: ChainPass[] } = {}) {
-  const fake = createFakeGl();
+function setup(overrides: { reducedMotion?: boolean; chain?: ChainPass[]; gl?: FakeGlOptions } = {}) {
+  const fake = createFakeGl(overrides.gl);
   const scheduler = createManualScheduler();
   let setVisible: (visible: boolean) => void = () => {};
   const stopObserving = vi.fn();
@@ -229,5 +229,113 @@ describe('createArtwork', () => {
     expect(fake.drawTargets).toEqual([null]);
     artwork.destroy();
     expect(fake.live()).toEqual({});
+  });
+
+  it('without KHR_parallel_shader_compile is ready on creation, as before', async () => {
+    const { artwork } = setup();
+    expect(artwork.state.status).toBe('idle');
+    await expect(artwork.ready).resolves.toBeUndefined();
+  });
+
+  it('throws on creation when a shader fails without the extension, leaving nothing behind', () => {
+    const fake = createFakeGl({ failCompile: true });
+    expect(() =>
+      createArtwork({
+        canvas: createFakeCanvas(fake),
+        source: {} as ImageBitmap,
+        chain: threePasses,
+        observeVisibility: null,
+        scheduler: createManualScheduler(),
+      }),
+    ).toThrow(/Shader compile failed/);
+    expect(fake.live()).toEqual({});
+  });
+
+  describe('with KHR_parallel_shader_compile (issue #419)', () => {
+    it('draws nothing and queries nothing that blocks until the shaders are linked, then draws the resting frame', async () => {
+      const { fake, scheduler, artwork } = setup({ gl: { parallelCompile: true } });
+      let settled = false;
+      void artwork.ready.then(() => {
+        settled = true;
+      });
+      expect(artwork.state).toMatchObject({ status: 'loading', frames: 0, width: 540, height: 540 });
+      scheduler.step(5);
+      expect(artwork.state).toMatchObject({ status: 'loading', frames: 0 });
+      expect(fake.counts.draws).toBe(0);
+      expect(scheduler.pending).toBe(1);
+      fake.completeShaders();
+      scheduler.step();
+      await Promise.resolve();
+      expect(settled).toBe(true);
+      expect(fake.blockingQueries).toEqual([]);
+      expect(artwork.state).toMatchObject({ status: 'idle', frames: 1 });
+      expect(fake.counts.draws).toBe(3);
+      expect(scheduler.pending).toBe(0);
+    });
+
+    it('queues start, seek and inputs made while loading for the first frame', async () => {
+      const frameUniforms = vi.fn(() => undefined);
+      const fake = createFakeGl({ parallelCompile: true });
+      const scheduler = createManualScheduler();
+      const artwork = createArtwork({
+        canvas: createFakeCanvas(fake),
+        source: {} as ImageBitmap,
+        chain: threePasses,
+        reducedMotion: false,
+        observeVisibility: null,
+        scheduler,
+        frameUniforms,
+      });
+      artwork.start();
+      artwork.seek(2);
+      artwork.setInput('hover', 1);
+      artwork.resize(270, 270);
+      artwork.redraw();
+      scheduler.step(3);
+      expect(artwork.state).toMatchObject({ status: 'loading', frames: 0, width: 270, height: 270, time: 2 });
+      expect(frameUniforms).not.toHaveBeenCalled();
+      fake.completeShaders();
+      scheduler.step();
+      await artwork.ready;
+      expect(artwork.state).toMatchObject({ status: 'running', frames: 1 });
+      expect(frameUniforms).toHaveBeenLastCalledWith(expect.objectContaining({ time: 2, inputs: { hover: 1 } }));
+      scheduler.step(2, 500);
+      expect(artwork.state.frames).toBe(3);
+      expect(artwork.state.time).toBeCloseTo(3, 5);
+    });
+
+    it('keeps the still under reduced motion once ready', async () => {
+      const { fake, scheduler, artwork } = setup({ gl: { parallelCompile: true }, reducedMotion: true });
+      artwork.start();
+      fake.completeShaders();
+      scheduler.step();
+      await artwork.ready;
+      scheduler.step(5);
+      expect(artwork.state).toMatchObject({ status: 'still', frames: 1 });
+      expect(scheduler.pending).toBe(0);
+    });
+
+    it('rejects ready and reports failed when a shader fails to compile', async () => {
+      const { fake, scheduler, artwork } = setup({ gl: { parallelCompile: true, failCompile: true } });
+      artwork.start();
+      fake.completeShaders();
+      scheduler.step();
+      await expect(artwork.ready).rejects.toThrow(/Shader compile failed/);
+      expect(artwork.state).toMatchObject({ status: 'failed', frames: 0 });
+      artwork.seek(1);
+      scheduler.step(3);
+      expect(fake.counts.draws).toBe(0);
+      artwork.destroy();
+      expect(fake.live()).toEqual({});
+    });
+
+    it('stops polling and rejects ready when destroyed while loading', async () => {
+      const { fake, scheduler, artwork } = setup({ gl: { parallelCompile: true } });
+      artwork.destroy();
+      expect(scheduler.pending).toBe(0);
+      expect(fake.live()).toEqual({});
+      await expect(artwork.ready).rejects.toThrow(/destroyed/);
+      expect(artwork.state.status).toBe('destroyed');
+    });
   });
 });

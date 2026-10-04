@@ -38,15 +38,18 @@ export async function measurePackageParity(
 ): Promise<PackageParity> {
   const { width, height } = livePackage.manifest.size;
   const editor = readPixels(await renderDocument(doc, width, height, imageCache), width, height);
-  const runtime = readPixels(renderResting(livePackage, options), width, height);
+  const runtime = readPixels(await renderResting(livePackage, options), width, height);
   const stochastic = livePackagePasses(livePackage.manifest).some(
     (pass) => effectRegistry.get(pass.effect)?.stochastic,
   );
   return { comparison: compareParity(editor, runtime, stochastic), editor, runtime };
 }
 
-/** The package at rest, drawn once at its own size on a canvas that keeps its pixels. */
-export function renderResting(livePackage: LivePackage, options: RestingOptions = {}): HTMLCanvasElement {
+/** The package at rest, drawn once at its own size on a canvas that keeps its pixels, once its shaders are ready. */
+export async function renderResting(
+  livePackage: LivePackage,
+  options: RestingOptions = {},
+): Promise<HTMLCanvasElement> {
   const { width, height } = livePackage.manifest.size;
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -62,6 +65,12 @@ export function renderResting(livePackage: LivePackage, options: RestingOptions 
   const artwork = options.live
     ? createLiveArtwork({ ...common, reducedMotion: false, pointer: false })
     : createArtwork({ ...common, reducedMotion: true });
+  try {
+    await artwork.ready;
+  } catch (error) {
+    artwork.destroy();
+    throw error;
+  }
   const copy = document.createElement('canvas');
   copy.width = width;
   copy.height = height;

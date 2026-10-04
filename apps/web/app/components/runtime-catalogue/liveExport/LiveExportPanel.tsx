@@ -68,6 +68,13 @@ export function LiveExportPanel() {
     const canvas = canvasRef.current;
     if (!canvas || !result) return;
     let artwork: Artwork | null = null;
+    let cancelled = false;
+    const fail = (cause: unknown) => {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      queueMicrotask(() => {
+        if (!cancelled) setError(message);
+      });
+    };
     try {
       artwork = createLiveArtwork({
         canvas,
@@ -77,11 +84,14 @@ export function LiveExportPanel() {
         devicePixelRatio: result.livePackage.manifest.size.width / CSS_SIZE,
       });
       artwork.start();
+      artwork.ready.catch(fail);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : String(cause);
-      queueMicrotask(() => setError(message));
+      fail(cause);
     }
-    return () => artwork?.destroy();
+    return () => {
+      cancelled = true;
+      artwork?.destroy();
+    };
   }, [result]);
 
   const openFile = async (event: ChangeEvent<HTMLInputElement>) => {

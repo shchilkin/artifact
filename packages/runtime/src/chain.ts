@@ -40,6 +40,10 @@ export interface ChainRenderer {
    * Draws every pass. `overrides[i]` is merged over pass `i`'s resting uniforms for this frame only.
    */
   render(overrides?: readonly (UniformValues | undefined)[]): void;
+  /**
+   * Whether every program has linked, so `render` will not wait for the driver. See `CompositeRenderer.pollReady`.
+   */
+  pollReady(): boolean;
   /** Deletes every GL object the renderer created. The context itself stays usable. */
   destroy(): void;
 }
@@ -64,6 +68,13 @@ export interface CompositeRenderer {
   setPlate(index: number, source: ArtworkSource): void;
   /** Draws every step. `overrides[i]` is merged over step `i`'s resting uniforms (passes and moving plates). */
   render(overrides?: readonly (UniformValues | undefined)[]): void;
+  /**
+   * Whether every program has finished compiling and linking (issue #419). With `KHR_parallel_shader_compile` the
+   * driver links in the background and this asks without blocking, so a host can poll it once per animation frame;
+   * without the extension it waits for the driver, as creation used to. The first call that returns `true` checks
+   * link status and looks up uniforms, and throws if a shader failed. `render` before then waits for the driver.
+   */
+  pollReady(): boolean;
   destroy(): void;
 }
 
@@ -77,6 +88,7 @@ export function createChainRenderer(gl: WebGL2RenderingContext, passes: readonly
     setSize: renderer.setSize,
     setSource: (source) => renderer.setPlate(0, source),
     render: renderer.render,
+    pollReady: renderer.pollReady,
     destroy: renderer.destroy,
   };
 }
@@ -111,24 +123,43 @@ export function createCompositeRenderer(
   };
   let destroyed = false;
 
-  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, PASS_VERTEX, created.shaders);
-  const programsBySource = new Map<string, CompiledProgram>();
-  const programFor = (fragment: string): CompiledProgram => {
-    let compiled = programsBySource.get(fragment);
-    if (!compiled) {
-      compiled = linkProgram(gl, vertexShader, fragment, created);
-      programsBySource.set(fragment, compiled);
-    }
-    return compiled;
-  };
+  // Compile every shader, then link every program, and query nothing until the driver is done: any status query
+  // before then waits for the compile (issue #419). With KHR_parallel_shader_compile, `pollReady` asks whether linking
+  // has finished without waiting.
+  const parallel = gl.getExtension('KHR_parallel_shader_compile') as { COMPLETION_STATUS_KHR: number } | null;
+  const vertexShader = createShader(gl, gl.VERTEX_SHADER, PASS_VERTEX, created.shaders);
   const drawSteps: readonly CompositeStep[] =
     steps.length > 0 ? steps : [{ kind: 'pass', pass: { id: 'copy', fragment: COPY_FRAGMENT, uniforms: {} } }];
   const moving = drawSteps.map((step) => step.kind === 'place' || (step.kind === 'over' && step.transform === true));
   // One draw per fragment: a pass with stages draws each of them in turn, with the pass's uniforms and override.
-  const draws = drawSteps.flatMap((step, stepIndex) => {
+  const drawFragments = drawSteps.flatMap((step, stepIndex) => {
     const fragments = step.kind === 'pass' ? [step.pass.fragment, ...(step.pass.stages ?? [])] : [stepFragment(step)];
-    return fragments.map((fragment) => ({ step, stepIndex, compiled: programFor(fragment) }));
+    return fragments.map((fragment) => ({ step, stepIndex, fragment }));
   });
+  const fragmentShaders = new Map<string, WebGLShader>();
+  for (const { fragment } of drawFragments) {
+    if (!fragmentShaders.has(fragment)) {
+      fragmentShaders.set(fragment, createShader(gl, gl.FRAGMENT_SHADER, fragment, created.shaders));
+    }
+  }
+  const pendingPrograms = new Map<string, PendingProgram>();
+  for (const [fragment, fragmentShader] of fragmentShaders) {
+    pendingPrograms.set(fragment, startLink(gl, vertexShader, fragmentShader, created.programs));
+  }
+  const unchecked = [...pendingPrograms.values()];
+  let draws: readonly { step: CompositeStep; stepIndex: number; compiled: CompiledProgram }[] | null = null;
+
+  const finish = () => {
+    if (draws) return draws;
+    const programsBySource = new Map<string, CompiledProgram>();
+    for (const [fragment, pending] of pendingPrograms) programsBySource.set(fragment, finishLink(gl, pending));
+    draws = drawFragments.map(({ step, stepIndex, fragment }) => ({
+      step,
+      stepIndex,
+      compiled: programsBySource.get(fragment)!,
+    }));
+    return draws;
+  };
 
   const vertexArray = gl.createVertexArray();
   const quad = gl.createBuffer();
@@ -143,7 +174,7 @@ export function createCompositeRenderer(
 
   const plateTextures = Array.from({ length: plateCount }, () => createTexture(gl));
   // Two targets are enough for any number of draws; a single draw goes straight from plate 0 to the canvas.
-  const targetCount = Math.min(draws.length - 1, 2);
+  const targetCount = Math.min(drawFragments.length - 1, 2);
   const targets: Target[] = [];
   let width = 0;
   let height = 0;
@@ -185,9 +216,23 @@ export function createCompositeRenderer(
       gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    pollReady() {
+      assertLive();
+      if (draws) return true;
+      if (parallel) {
+        while (unchecked.length > 0) {
+          if (!gl.getProgramParameter(unchecked[0].program, parallel.COMPLETION_STATUS_KHR)) return false;
+          unchecked.shift();
+        }
+      }
+      finish();
+      return true;
+    },
+
     render(overrides) {
       assertLive();
       if (width === 0 || height === 0) return;
+      const draws = finish();
       gl.disable(gl.BLEND);
       gl.disable(gl.DEPTH_TEST);
       gl.bindVertexArray(vertexArray);
@@ -238,7 +283,6 @@ export function createCompositeRenderer(
       for (const shader of created.shaders) gl.deleteShader(shader);
       for (const buffer of created.buffers) gl.deleteBuffer(buffer);
       for (const vao of created.vertexArrays) gl.deleteVertexArray(vao);
-      programsBySource.clear();
     },
   };
 }
@@ -279,32 +323,47 @@ function createTarget(gl: WebGL2RenderingContext, width: number, height: number)
   return { texture, framebuffer };
 }
 
-function compileShader(gl: WebGL2RenderingContext, type: number, source: string, created: WebGLShader[]): WebGLShader {
+interface PendingProgram {
+  readonly program: WebGLProgram;
+  readonly vertexShader: WebGLShader;
+  readonly fragmentShader: WebGLShader;
+}
+
+/** Starts compiling a shader; its status is read once the program using it has linked (see `finishLink`). */
+function createShader(gl: WebGL2RenderingContext, type: number, source: string, created: WebGLShader[]): WebGLShader {
   const shader = gl.createShader(type);
   if (!shader) throw new Error('Could not create a WebGL shader.');
   created.push(shader);
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    throw new Error(`Shader compile failed: ${gl.getShaderInfoLog(shader) ?? 'unknown error'}`);
-  }
   return shader;
 }
 
-function linkProgram(
+/** Starts linking a program; nothing about it is queried until `finishLink`. */
+function startLink(
   gl: WebGL2RenderingContext,
   vertexShader: WebGLShader,
-  fragment: string,
-  created: { shaders: WebGLShader[]; programs: WebGLProgram[] },
-): CompiledProgram {
-  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragment, created.shaders);
+  fragmentShader: WebGLShader,
+  created: WebGLProgram[],
+): PendingProgram {
   const program = gl.createProgram();
-  created.programs.push(program);
+  created.push(program);
   gl.attachShader(program, vertexShader);
   gl.attachShader(program, fragmentShader);
   gl.bindAttribLocation(program, POSITION_ATTRIBUTE, 'aPosition');
   gl.linkProgram(program);
+  return { program, vertexShader, fragmentShader };
+}
+
+/** Checks a linked program, reporting a shader's compile log before the link log, and looks up its uniforms. */
+function finishLink(gl: WebGL2RenderingContext, pending: PendingProgram): CompiledProgram {
+  const { program } = pending;
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    for (const shader of [pending.vertexShader, pending.fragmentShader]) {
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        throw new Error(`Shader compile failed: ${gl.getShaderInfoLog(shader) ?? 'unknown error'}`);
+      }
+    }
     throw new Error(`Shader link failed: ${gl.getProgramInfoLog(program) ?? 'unknown error'}`);
   }
   const uniforms = new Map<string, UniformSlot>();
