@@ -1,0 +1,25 @@
+{
+  "name": "@artifact/runtime",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "npm --workspace @artifact/shared run build && tsc -p tsconfig.build.json",
+    "typecheck": "npm --workspace @artifact/shared run build && tsc --noEmit -p tsconfig.json",
+    "test": "npm --workspace @artifact/shared run build && vitest run src"
+  },
+  "dependencies": {
+    "@artifact/shared": "0.0.0"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.11"
+  }
+}

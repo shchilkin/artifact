@@ -11,6 +11,10 @@
     "./hash": {
       "types": "./dist/hash.d.ts",
       "default": "./dist/hash.js"
+    },
+    "./effect-shaders": {
+      "types": "./dist/effectShaders.d.ts",
+      "default": "./dist/effectShaders.js"
     }
   },
   "scripts": {

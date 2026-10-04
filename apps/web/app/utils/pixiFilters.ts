@@ -1,13 +1,6 @@
+import { HEADER, NOISE_FRAG, NORM_UV, SAMPLE } from '@artifact/shared/effect-shaders';
 import { BlurFilter, Filter } from 'pixi.js';
 import type { EffectLayer } from '../types/config';
-
-const NORM_UV = `
-  vec2 extent = inputClamp.zw - inputClamp.xy;
-  vec2 norm   = (vTextureCoord - inputClamp.xy) / extent;
-`;
-
-const SAMPLE = (uv: string) =>
-  `texture2D(uSampler, clamp(inputClamp.xy + ${uv} * extent, inputClamp.xy, inputClamp.zw))`;
 
 function hexToVec3(hex: string): [number, number, number] {
   return [
@@ -16,13 +9,6 @@ function hexToVec3(hex: string): [number, number, number] {
     parseInt(hex.slice(5, 7), 16) / 255,
   ];
 }
-
-const HEADER = `
-precision mediump float;
-varying vec2 vTextureCoord;
-uniform sampler2D uSampler;
-uniform vec4 inputClamp;
-`;
 
 const MORPH_FRAG = `${HEADER}
 uniform float uIntensity;
@@ -55,38 +41,6 @@ void main() {
   float offsetNorm = (hash(chunkId + 57.3) - 0.5) * 2.0 * uIntensity * active;
   vec2 warped      = vec2(fract(norm.x + offsetNorm), norm.y);
   gl_FragColor     = ${SAMPLE('warped')};
-}`;
-
-const NOISE_FRAG = `${HEADER}
-uniform float uIntensity;
-uniform float uSeed;
-
-float h21(vec2 p) {
-  p = fract(p * vec2(234.34, 435.345));
-  p += dot(p, p + 34.23);
-  return fract(p.x * p.y);
-}
-
-float smooth21(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  f = f * f * (3.0 - 2.0 * f);
-  return mix(
-    mix(h21(i), h21(i + vec2(1,0)), f.x),
-    mix(h21(i + vec2(0,1)), h21(i + vec2(1,1)), f.x),
-    f.y
-  );
-}
-
-void main() {
-  ${NORM_UV}
-  vec2 seed2 = vec2(uSeed * 0.001, uSeed * 0.0007);
-  float ox = smooth21(norm * 4.0 + seed2)         - 0.5;
-  float oy = smooth21(norm * 4.0 + seed2 + 100.0) - 0.5;
-  ox += (smooth21(norm * 9.0 + seed2 * 2.0) - 0.5) * 0.4;
-  oy += (smooth21(norm * 9.0 + seed2 * 2.0 + 50.0) - 0.5) * 0.4;
-  vec2 warped = clamp(norm + vec2(ox, oy) * uIntensity, 0.0, 1.0);
-  gl_FragColor = ${SAMPLE('warped')};
 }`;
 
 const VORTEX_FRAG = `${HEADER}
