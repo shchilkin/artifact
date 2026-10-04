@@ -69,4 +69,10 @@ describe('runtime catalogue model', () => {
     expect(catalogueLayer('morph', EFFECT_CASES.morph)).toMatchObject({ preset: 'morph', morphAmt: 20, morphFreq: 5 });
     expect(catalogueBindings(EFFECT_CASES.morph)).toEqual(['wave track', 'pointer.speed']);
   });
+  it('lists radial chromatic aberration with its amount slider and the pointer bindings', () => {
+    expect(catalogueTitle('ca')).toBe('Chrom. Ab.');
+    expect(catalogueControls('ca')).toEqual([expect.objectContaining({ type: 'slider', field: 'ca' })]);
+    expect(catalogueLayer('ca', EFFECT_CASES.ca)).toMatchObject({ preset: 'ca', ca: 15 });
+    expect(catalogueBindings(EFFECT_CASES.ca)).toEqual(['wave track', 'pointer.x', 'pointer.y', 'pointer.speed']);
+  });
 });

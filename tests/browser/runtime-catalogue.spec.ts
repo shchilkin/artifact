@@ -111,3 +111,31 @@ test('the runtime catalogue shows Liquid Morph with a working frequency control'
   if (browserName === 'webkit' && process.platform === 'linux') return;
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });
+
+test('the runtime catalogue shows radial chromatic aberration, with the fringe centre following the pointer', async ({
+  page,
+  browserName,
+}) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const entry = page.locator('article[data-effect="ca"]');
+  await expect(entry.getByRole('heading', { name: 'Chrom. Ab.' })).toBeVisible();
+  await expect(entry.getByText('wave track, pointer.x, pointer.y, pointer.speed')).toBeVisible();
+  await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+
+  // The entry sits below the fold; bring it into view before capturing, so WebKit composites the canvas.
+  await entry.scrollIntoViewIfNeeded();
+  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
+  if (browserName === 'webkit' && process.platform === 'linux') return;
+  const canvas = entry.locator('canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('catalogue canvas has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const centred = await canvas.screenshot();
+  await page.mouse.move(box.x + 4, box.y + 4, { steps: 4 });
+  await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(false);
+  await page.mouse.move(0, 0);
+});
