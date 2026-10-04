@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useEffectEvent, useMemo } from 'react';
 import type { AddAction } from '../../../utils/addActions';
 import { AddLibraryPanel } from '../../add-library/AddLibraryPanel';
 import { preserveScopedAddLibraryEscape } from '../../add-library/addLibraryEscape';
@@ -18,8 +18,16 @@ export function NodeAddMenu({ x, y, onAdd, onDragAdd, onClose, menuRef }: PaneMe
   const mobileSheet = useAddLibraryMobileSheet();
   const position = useMemo(() => clampPopupPosition(x, y, MENU_W, 520), [x, y]);
 
+  const canDragAdd = Boolean(onDragAdd);
+  // Effect events keep the document listeners attached for the menu's lifetime. Re-subscribing on
+  // every render races native drops: a render committed mid-dispatch removes the in-flight listener.
+  const dropAction = useEffectEvent((action: AddLibraryAction, point: { x: number; y: number }) => {
+    onDragAdd?.(action as AddAction, point);
+    onClose();
+  });
+
   useEffect(() => {
-    if (!onDragAdd) return;
+    if (!canDragAdd) return;
     const hasAddLibraryPayload = (event: DragEvent) =>
       Array.from(event.dataTransfer?.types ?? []).includes(ADD_LIBRARY_ACTION_MIME);
     const handleDragOver = (event: DragEvent) => {
@@ -32,8 +40,7 @@ export function NodeAddMenu({ x, y, onAdd, onDragAdd, onClose, menuRef }: PaneMe
       const action = payload ? parseAddLibraryAction(payload) : null;
       if (!action) return;
       event.preventDefault();
-      onDragAdd(action as AddAction, { x: event.clientX, y: event.clientY });
-      onClose();
+      dropAction(action, { x: event.clientX, y: event.clientY });
     };
     document.addEventListener('dragover', handleDragOver, true);
     document.addEventListener('drop', handleDrop, true);
@@ -41,7 +48,7 @@ export function NodeAddMenu({ x, y, onAdd, onDragAdd, onClose, menuRef }: PaneMe
       document.removeEventListener('dragover', handleDragOver, true);
       document.removeEventListener('drop', handleDrop, true);
     };
-  }, [onClose, onDragAdd]);
+  }, [canDragAdd]);
 
   const handleAdd = (action: AddLibraryAction) => {
     onAdd(action as AddAction);
