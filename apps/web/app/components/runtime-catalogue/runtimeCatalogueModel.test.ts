@@ -47,6 +47,20 @@ describe('runtime catalogue model', () => {
     expect(catalogueBindings(EFFECT_CASES.grain)).toEqual(['step track']);
   });
 
+  it('shows Scanlines with its inspector sliders, the step track that crawls it and scroll', () => {
+    expect(catalogueTitle('scanlines')).toBe('Scanlines');
+    expect(catalogueControls('scanlines')).toEqual([
+      expect.objectContaining({ type: 'slider', field: 'scanlines', min: 0, max: 100 }),
+      expect.objectContaining({ type: 'slider', field: 'scanlineWidth', min: 1, max: 12 }),
+    ]);
+    expect(catalogueLayer('scanlines', EFFECT_CASES.scanlines)).toMatchObject({
+      preset: 'scanlines',
+      scanlines: 35,
+      scanlineWidth: 3,
+    });
+    expect(catalogueBindings(EFFECT_CASES.scanlines)).toEqual(['step track', 'scroll']);
+  });
+
   it('formats GPU time', () => {
     expect(formatGpuTime(undefined)).toBe('measuring');
     expect(formatGpuTime(null)).toBe('n/a');

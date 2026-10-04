@@ -175,6 +175,12 @@ Scanlines), a one-pass `ca` chain and the image/text plate; its resting frame ma
 over 8 levels (mean 0.004). The approximate split runs Grain, Noise Warp, Vortex and CA live over a base plate with
 Glitch, Tear and Scanlines moved beneath them.
 
+With Scanlines registered as well (#342), the exact split is a base plate (fill through Tear), a Scanlines + CA chain
+and the image/text plate; its resting frame measures 0.000% of pixels over 8 levels (mean 0.03, worst channel 3) in
+Chromium on macOS. Tear is now the only barrier above the live Grain, Noise Warp and Vortex. The approximate split
+moves Tear beneath the run and plays Grain, Noise Warp, Vortex, Scanlines and CA live (statistics:
+mean 0.38, std dev 0.23, histogram distance 0.010).
+
 Radial CA is the editor colour pass's third step (sepia, infrared, CA, dither: `applyColorPass` in
 `render/workers/effectPixelTransform.ts`), which `EDITOR_EFFECT_ORDER` follows. Its port (`CA_FRAG` in
 `packages/runtime/src/effects/ca.ts`) reads whole pixels with the editor's rounding and edge clamping, scales the
@@ -295,6 +301,12 @@ Why these numbers:
   faithful port in every engine and reject each broken variant on at least one fixture in every engine; the harness
   self-test checks the half-strength case. A later stochastic port that moves larger structures (glitch bands, tears)
   should record its own measurements here before widening them.
+- Browsers round Canvas 2D fills differently, so a port of one can only match one engine byte for byte. Scanlines
+  (#342) shows the size of it: a translucent black fill is truncated by Skia (Chromium, Firefox) and rounded by WebKit
+  (Core Graphics on macOS, Cairo on Linux), and the two editors differ by 0.37 levels of mean difference on the graphic
+  fixture, over the limit. The port computes both roundings and alternates them in a pixel checkerboard: at most one
+  level from either editor, 0.13 / 0.18 / 0.006 levels of mean difference on photo / graphic / text in every engine.
+  Matching Skia alone is exact in Chromium and Firefox and fails WebKit at 0.27 / 0.37.
 
 Every parity test attaches `<effect>-<fixture>-editor-runtime-diff.png` (editor | runtime | diff) to the report. In
 the diff panel, red marks pixels over the threshold (brighter is larger), amber marks smaller non-zero differences,
