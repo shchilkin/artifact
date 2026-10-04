@@ -65,3 +65,22 @@ test('the runtime catalogue shows Vortex, with the swirl centre following the po
   await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(false);
   await page.mouse.move(0, 0);
 });
+
+test('the runtime catalogue shows Liquid Morph with a working frequency control', async ({ page }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const entry = page.locator('article[data-effect="morph"]');
+  await expect(entry.getByRole('heading', { name: 'Morph' })).toBeVisible();
+  await expect(entry.getByText('wave track, pointer.speed')).toBeVisible();
+  await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+
+  const canvas = entry.locator('canvas');
+  const before = await canvas.screenshot();
+  const frequency = entry.locator('input[type="range"]').nth(1);
+  await frequency.focus();
+  await frequency.press('End');
+  await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
+});

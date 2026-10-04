@@ -1,4 +1,4 @@
-import { HEADER, NOISE_FRAG, NORM_UV, SAMPLE, VORTEX_FRAG } from '@artifact/shared/effect-shaders';
+import { HEADER, MORPH_FRAG, NOISE_FRAG, NORM_UV, SAMPLE, VORTEX_FRAG } from '@artifact/shared/effect-shaders';
 import { BlurFilter, Filter } from 'pixi.js';
 import type { EffectLayer } from '../types/config';
 
@@ -9,21 +9,6 @@ function hexToVec3(hex: string): [number, number, number] {
     parseInt(hex.slice(5, 7), 16) / 255,
   ];
 }
-
-const MORPH_FRAG = `${HEADER}
-uniform float uIntensity;
-uniform float uFreq;
-uniform float uSeed;
-
-void main() {
-  ${NORM_UV}
-  float t  = uSeed * 0.00123;
-  float f  = uFreq;
-  float wx = sin(norm.y * f + t * 3.1) * cos(norm.x * f * 0.7 + t * 1.7);
-  float wy = cos(norm.x * f + t * 2.3) * sin(norm.y * f * 0.8 + t * 0.8);
-  vec2 warped = clamp(norm + vec2(wx, wy) * uIntensity, 0.0, 1.0);
-  gl_FragColor = ${SAMPLE('warped')};
-}`;
 
 const TEAR_FRAG = `${HEADER}
 uniform float uIntensity;

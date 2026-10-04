@@ -74,3 +74,22 @@ void main() {
   vec2 warped = clamp(uCenter + dist * vec2(cos(angle), sin(angle)), 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
+
+/**
+ * Liquid Morph: displaces the sample coordinate along crossed sine/cosine waves of frequency `uFreq`, phased by
+ * `uSeed * 0.00123`, so a slowly drifting seed makes the surface flow. Uniforms: `uIntensity`, `uFreq`, `uSeed`.
+ */
+export const MORPH_FRAG = `${HEADER}
+uniform float uIntensity;
+uniform float uFreq;
+uniform float uSeed;
+
+void main() {
+  ${NORM_UV}
+  float t  = uSeed * 0.00123;
+  float f  = uFreq;
+  float wx = sin(norm.y * f + t * 3.1) * cos(norm.x * f * 0.7 + t * 1.7);
+  float wy = cos(norm.x * f + t * 2.3) * sin(norm.y * f * 0.8 + t * 0.8);
+  vec2 warped = clamp(norm + vec2(wx, wy) * uIntensity, 0.0, 1.0);
+  gl_FragColor = ${SAMPLE('warped')};
+}`;

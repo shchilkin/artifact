@@ -31,6 +31,8 @@ export { type ChainRenderer, createChainRenderer } from './chain.js';
 export {
   EFFECTS,
   effectRegistry,
+  type MorphLayer,
+  morph,
   type NoiseWarpLayer,
   noiseWarp,
   type VortexLayer,
