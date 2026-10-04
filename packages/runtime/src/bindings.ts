@@ -1,6 +1,14 @@
 import type { FrameState, FrameUniforms } from './artwork.js';
 import { effectRegistry as defaultRegistry } from './effects/index.js';
 import { INPUT_DOMAINS, INPUT_NAMES, type InputName, isInputName, RESTING_INPUTS } from './inputs.js';
+import {
+  NEUTRAL_PLATE_TRANSFORM,
+  PARALLAX_TRANSFORMS,
+  type ParallaxTransform,
+  PLATE_TRANSFORMS,
+  type PlateTransform,
+  type PlateTransformField,
+} from './plates.js';
 import type { AuthoredEffectLayer, EffectContext, EffectRegistry } from './registry.js';
 import { evaluateTrack, loopPosition, TIME_TRACK_KINDS, type TimeTrack, trackDomain } from './tracks.js';
 import type { ChainPass, UniformValue, UniformValues } from './types.js';
@@ -27,7 +35,24 @@ export interface UniformTarget {
   readonly component?: number;
 }
 
-export type BindingTarget = FieldTarget | UniformTarget;
+/**
+ * Moves one plate of a live package (issue #394). `plate` counts the package's plates bottom up (the background is
+ * not one). Units: `x`/`y` fractions of the frame, `scale` a factor, `rotation` degrees clockwise, `opacity` 0–1.
+ */
+export interface PlateTarget {
+  readonly plate: number;
+  readonly transform: PlateTransformField;
+}
+
+/**
+ * Moves every plate by its depth: each plate's transform gets the binding's value times the plate's `depth`, added
+ * after the plate's own bindings (`scale` adds to the factor, so a value of 0.02 grows a depth-1 plate by 2%).
+ */
+export interface ParallaxTarget {
+  readonly parallax: ParallaxTransform;
+}
+
+export type BindingTarget = FieldTarget | UniformTarget | PlateTarget | ParallaxTarget;
 
 export const EASINGS = ['linear', 'easeIn', 'easeOut', 'easeInOut'] as const;
 export type Easing = (typeof EASINGS)[number];
@@ -217,7 +242,29 @@ function checkSource(
 }
 
 function checkTarget(target: unknown, path: string, fail: (path: string, message: string) => void) {
-  if (!isRecord(target)) return fail(path, 'must be { "pass": n, "field": … } or { "pass": n, "uniform": … }');
+  if (!isRecord(target)) {
+    return fail(
+      path,
+      'must be { "pass": n, "field" | "uniform": … }, { "plate": n, "transform": … } or { "parallax": … }',
+    );
+  }
+  if ('parallax' in target) {
+    unknownKeys(target, ['parallax'], `${path}.`, fail);
+    if (!(PARALLAX_TRANSFORMS as readonly unknown[]).includes(target.parallax)) {
+      fail(`${path}.parallax`, `must be one of ${PARALLAX_TRANSFORMS.join(', ')}, got ${describe(target.parallax)}`);
+    }
+    return;
+  }
+  if ('plate' in target) {
+    unknownKeys(target, ['plate', 'transform'], `${path}.`, fail);
+    if (!(Number.isInteger(target.plate) && (target.plate as number) >= 0)) {
+      fail(`${path}.plate`, `must be a plate index (0 is the bottom plate), got ${describe(target.plate)}`);
+    }
+    if (!(PLATE_TRANSFORMS as readonly unknown[]).includes(target.transform)) {
+      fail(`${path}.transform`, `must be one of ${PLATE_TRANSFORMS.join(', ')}, got ${describe(target.transform)}`);
+    }
+    return;
+  }
   unknownKeys(target, ['pass', 'field', 'uniform', 'component'], `${path}.`, fail);
   if (!(Number.isInteger(target.pass) && (target.pass as number) >= 0)) {
     fail(`${path}.pass`, `must be a pass index (0, 1, …), got ${describe(target.pass)}`);
@@ -244,6 +291,8 @@ function checkTarget(target: unknown, path: string, fail: (path: string, message
 export interface LiveChainOptions {
   readonly passes: readonly LivePass[];
   readonly context: EffectContext;
+  /** A live package's plates, bottom first, with their parallax depth. Plate and parallax targets need them. */
+  readonly plates?: readonly { readonly depth: number }[];
   /** A bindings document as plain JSON; validated here. */
   readonly bindings?: unknown;
   readonly registry?: EffectRegistry;
@@ -257,6 +306,15 @@ export interface LiveChain {
   readonly document: BindingsDocument;
   /** Inputs some binding reads, so hosts can skip attaching listeners when there are none. */
   readonly inputs: readonly InputName[];
+  readonly plates: PlateMotion;
+}
+
+/** Plate transforms from bindings (issue #394). */
+export interface PlateMotion {
+  /** Plates that some binding moves, bottom up; the others are composited as they are. */
+  readonly moving: readonly number[];
+  /** Each moving plate's transform this frame, by plate index; nothing under reduced motion. */
+  readonly transforms: (frame: FrameState) => readonly (PlateTransform | undefined)[] | undefined;
 }
 
 interface ResolvedBinding {
@@ -297,9 +355,24 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
   if (issues.length > 0) throw new BindingError(issues);
 
   const resting = passes.map((pass) => registry.uniforms(pass.effect, pass.layer, context));
+  const plates = options.plates ?? [];
   document.bindings.forEach((binding, index) => {
     const path = `bindings[${index}].to`;
     const target = binding.to;
+    if ('parallax' in target) {
+      if (plates.length === 0) issues.push(`${path}.parallax: parallax moves plates; only a live package has plates`);
+      return;
+    }
+    if ('plate' in target) {
+      if (target.plate >= plates.length) {
+        issues.push(
+          plates.length === 0
+            ? `${path}.plate: only a live package has plates`
+            : `${path}.plate: there is no plate ${target.plate}; the package has ${plates.length} (0 is the bottom)`,
+        );
+      }
+      return;
+    }
     const pass = passes[target.pass];
     if (!pass) {
       issues.push(`${path}.pass: there is no pass ${target.pass}; the chain has ${passes.length}`);
@@ -322,7 +395,10 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
   const chain: ChainPass[] = [];
   const bound: BoundPass[] = [];
   passes.forEach((pass, passIndex) => {
-    const bindings = document.bindings.filter((binding) => binding.to.pass === passIndex);
+    const bindings = document.bindings.filter(
+      (binding): binding is Binding & { readonly to: FieldTarget | UniformTarget } =>
+        'pass' in binding.to && binding.to.pass === passIndex,
+    );
     const authored = registry.pass(pass.effect, pass.layer, context);
     if (!authored && bindings.length === 0) return;
     const chainIndex = chain.length;
@@ -373,7 +449,42 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
   const inputs = [
     ...new Set(document.bindings.flatMap((binding) => ('input' in binding.from ? [binding.from.input] : []))),
   ];
-  return { chain, frameUniforms, document, inputs };
+  return { chain, frameUniforms, document, inputs, plates: plateMotion() };
+
+  function plateMotion(): PlateMotion {
+    const plateBindings = document.bindings.flatMap((binding): PlateBinding[] => {
+      const to = binding.to;
+      if ('plate' in to) return [{ resolved: resolveBinding(binding), plate: to.plate, transform: to.transform }];
+      if ('parallax' in to) return [{ resolved: resolveBinding(binding), plate: null, transform: to.parallax }];
+      return [];
+    });
+    const moving = plates.flatMap((plate, index) =>
+      plateBindings.some((entry) => entry.plate === index || (entry.plate === null && plate.depth !== 0))
+        ? [index]
+        : [],
+    );
+    const transforms = (frame: FrameState) => {
+      if (frame.reducedMotion || moving.length === 0) return undefined;
+      const t = loopPosition(frame.time, duration);
+      const inputs = { ...RESTING_INPUTS, ...frame.inputs };
+      const result: Record<PlateTransformField, number>[] = plates.map(() => ({ ...NEUTRAL_PLATE_TRANSFORM }));
+      // Each plate's own bindings in order, then every parallax contribution scaled by depth.
+      for (const entry of plateBindings) {
+        if (entry.plate === null) continue;
+        const transform = result[entry.plate];
+        transform[entry.transform] = apply(entry.resolved, transform[entry.transform], t, inputs, frame.clock);
+      }
+      for (const entry of plateBindings) {
+        if (entry.plate !== null) continue;
+        const value = apply(entry.resolved, 0, t, inputs, frame.clock);
+        plates.forEach((plate, index) => {
+          result[index][entry.transform] += value * plate.depth;
+        });
+      }
+      return result;
+    };
+    return { moving, transforms };
+  }
 
   function resolveBinding(binding: Binding): ResolvedBinding {
     const source = binding.from;
@@ -386,6 +497,13 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
     const value = (t: number) => evaluateTrack(source, t, duration);
     return { binding, value, domain: trackDomain(source.track), ease, smoothed: null };
   }
+}
+
+interface PlateBinding {
+  readonly resolved: ResolvedBinding;
+  /** `null` for a parallax binding, which moves every plate by its depth. */
+  readonly plate: number | null;
+  readonly transform: PlateTransformField;
 }
 
 /** Why a uniform target does not fit the pass's uniforms, or `null` when it does. */

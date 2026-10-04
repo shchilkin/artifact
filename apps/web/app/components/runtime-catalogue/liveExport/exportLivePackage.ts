@@ -8,6 +8,7 @@ import {
   parseLivePackage,
   type StackItem,
 } from '../../../../../../packages/runtime/src/livePackage';
+import { defaultPlateDepth, PLATE_EDGES, type PlateEdge } from '../../../../../../packages/runtime/src/plates';
 import type { EffectRegistry } from '../../../../../../packages/runtime/src/registry';
 import { ASPECT_SIZES, type CanvasDocument, type Layer } from '../../../types/config';
 import { renderDocument } from '../../../utils/renderer';
@@ -57,16 +58,33 @@ export async function exportLivePackage(
   const stack: StackItem[] = [];
   if (plan.fallback) {
     // One still plate: the editor's own render, background included.
-    stack.push({ type: 'plate', file: STILL, layers: plan.stack[0].layers.map(layerRef) });
+    stack.push({
+      type: 'plate',
+      file: STILL,
+      layers: plan.stack[0].layers.map(layerRef),
+      depth: 1,
+      edges: PLATE_EDGES,
+    });
   } else {
+    // Parallax depth by stack order, top plates nearer; edges are the sides the plate's pixels reach.
+    const plateCount = plan.stack.filter((item) => item.type === 'plate').length;
+    let plateIndex = 0;
     for (const item of plan.stack) {
       if (item.type === 'chain') {
         stack.push({ type: 'chain', passes: item.passes });
         continue;
       }
       const file = `plates/${stack.length}.png`;
-      files.set(file, await toPng(await renderPlate(doc, item.layers, width, height, imageCache)));
-      stack.push({ type: 'plate', file, layers: item.layers.map(layerRef) });
+      const canvas = await renderPlate(doc, item.layers, width, height, imageCache);
+      files.set(file, await toPng(canvas));
+      stack.push({
+        type: 'plate',
+        file,
+        layers: item.layers.map(layerRef),
+        depth: defaultPlateDepth(plateIndex, plateCount),
+        edges: plateEdges(canvas),
+      });
+      plateIndex += 1;
     }
     if (plan.background)
       files.set(BACKGROUND, await toPng(await renderPlate(doc, [], width, height, imageCache, true)));
@@ -121,6 +139,31 @@ function renderPlate(
     layers: [...layers],
   };
   return renderDocument(plateDoc, width, height, imageCache, { graphMode: 'stack' });
+}
+
+/**
+ * The sides of the frame where the plate has a pixel that is not fully transparent. When the plate moves, the runtime
+ * keeps those sides beyond the frame; a plate with a transparent border (`[]`) moves freely.
+ */
+export function plateEdges(plate: HTMLCanvasElement): PlateEdge[] {
+  const { width, height } = plate;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return [...PLATE_EDGES];
+  ctx.drawImage(plate, 0, 0);
+  const strips: Record<PlateEdge, ImageData> = {
+    top: ctx.getImageData(0, 0, width, 1),
+    right: ctx.getImageData(width - 1, 0, 1, height),
+    bottom: ctx.getImageData(0, height - 1, width, 1),
+    left: ctx.getImageData(0, 0, 1, height),
+  };
+  return PLATE_EDGES.filter((edge) => {
+    const { data } = strips[edge];
+    for (let index = 3; index < data.length; index += 4) if (data[index] > 0) return true;
+    return false;
+  });
 }
 
 function layerRef(layer: Layer) {

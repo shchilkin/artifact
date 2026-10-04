@@ -1,8 +1,8 @@
-import { type Artwork, type ArtworkCommonOptions, createArtwork } from './artwork.js';
+import { type Artwork, type ArtworkCommonOptions, createArtwork, type FrameState } from './artwork.js';
 import { compileLiveChain, type LiveChain, type LiveChainOptions } from './bindings.js';
 import type { PointerModelOptions } from './inputs.js';
 import { attachPointerInputs, type PointerInputs } from './inputTracker.js';
-import { effectContext, type LivePackage, livePackagePasses } from './livePackage.js';
+import { effectContext, type LivePackage, livePackagePasses, livePackagePlates } from './livePackage.js';
 import type { EffectRegistry } from './registry.js';
 import type { ArtworkSource } from './types.js';
 
@@ -38,18 +38,23 @@ export function createLiveArtwork(options: LiveArtworkOptions): Artwork {
   let tracker: PointerInputs | null = null;
   const now = options.scheduler ? () => options.scheduler!.now() : () => performance.now();
 
-  const frameUniforms = (frame: Parameters<LiveChain['frameUniforms']>[0]) =>
-    live.frameUniforms(
-      tracker
-        ? {
-            ...frame,
-            inputs: { ...tracker.sample(frame.clock), ...frame.inputs },
-          }
-        : frame,
-    );
+  // Passes and plates read the same frame: sample the tracker once per frame state.
+  let tracked: { readonly frame: FrameState; readonly withInputs: FrameState } | null = null;
+  const withTracked = (frame: FrameState): FrameState => {
+    if (!tracker) return frame;
+    if (tracked?.frame !== frame) {
+      tracked = { frame, withInputs: { ...frame, inputs: { ...tracker.sample(frame.clock), ...frame.inputs } } };
+    }
+    return tracked.withInputs;
+  };
+  const frameUniforms = (frame: FrameState) => live.frameUniforms(withTracked(frame));
+  const plateMotion = {
+    moving: live.plates.moving,
+    transforms: (frame: FrameState) => live.plates.transforms(withTracked(frame)),
+  };
   const artwork =
     'livePackage' in options
-      ? createArtwork({ ...options, chain: live.chain, frameUniforms })
+      ? createArtwork({ ...options, chain: live.chain, frameUniforms, plateMotion })
       : createArtwork({ ...options, chain: live.chain, frameUniforms });
 
   const canvas = options.canvas;
@@ -85,6 +90,7 @@ function compileOptions(options: LiveArtworkOptions): LiveChain {
   const passes = livePackagePasses(manifest);
   const live = compileLiveChain({
     passes,
+    plates: livePackagePlates(manifest),
     context: effectContext(manifest),
     bindings: options.bindings ?? manifest.bindings,
     registry: options.registry,
