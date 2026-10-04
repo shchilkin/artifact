@@ -45,6 +45,9 @@ export {
   grain,
   type NoiseWarpLayer,
   noiseWarp,
+  SCANLINES_FRAG,
+  type ScanlinesLayer,
+  scanlines,
   type VortexLayer,
   vortex,
 } from './effects/index.js';

@@ -64,6 +64,9 @@ Pixi conventions the chain matches:
   pass to the canvas flips. `UNPACK_FLIP_Y` would mirror every effect vertically against the editor.
 - `inputClamp` is the input's extent inset by half a texel, as Pixi sets it. With `(0, 0, 1, 1)`, about 1% of a 540px
   Noise Warp (hard edges) differs from the editor by more than 8 levels; with the inset the outputs match.
+- `uOutputSize` (`vec2`, pixels) is the render size, set on every pass that declares it. Ports of the editor's Canvas
+  2D effects that work in output pixels (`scale = W / 540`, as Scanlines does) read it, so they draw what the editor
+  draws at that size.
 
 `tests/browser/runtime-chain.spec.ts` imports the runtime source from the dev server (`/@fs/`), so no test route
 ships in the app.
@@ -168,7 +171,11 @@ one still plate in the exact split: Tear, Scanlines and Chrom. Ab. sit above the
 approximate split gives a base plate, a Noise Warp + Vortex chain and an image/text plate, with about 24% of pixels
 more than 8 levels off at rest, since the scanlines and colour fringes are warped instead of lying on top.
 These numbers predate Grain's registration (#338); Grain now runs live wherever it sits in a live run, as it does
-in the sample cover's chain.
+in the sample cover's chain. With Scanlines registered (#342) the exact split is still one still plate (Chrom. Ab. is
+on top). The approximate split moves Tear and Chrom. Ab. beneath the run and gives a base plate, a Grain + Noise Warp +
+Vortex + Scanlines chain and the image/text plate. The scanlines now lie on top of the warp as in the editor; the
+resting frame measures mean 0.28, std dev 0.14 and histogram distance 0.010 against the editor (statistics, as Grain
+is live), in Chromium on macOS.
 
 ### Export
 
@@ -285,6 +292,12 @@ Why these numbers:
   faithful port in every engine and reject each broken variant on at least one fixture in every engine; the harness
   self-test checks the half-strength case. A later stochastic port that moves larger structures (glitch bands, tears)
   should record its own measurements here before widening them.
+- Browsers round Canvas 2D fills differently, so a port of one can only match one engine byte for byte. Scanlines
+  (#342) shows the size of it: a translucent black fill is truncated by Skia (Chromium, Firefox) and rounded by WebKit
+  (Core Graphics on macOS, Cairo on Linux), and the two editors differ by 0.37 levels of mean difference on the graphic
+  fixture, over the limit. The port computes both roundings and alternates them in a pixel checkerboard: at most one
+  level from either editor, 0.13 / 0.18 / 0.006 levels of mean difference on photo / graphic / text in every engine.
+  Matching Skia alone is exact in Chromium and Firefox and fails WebKit at 0.27 / 0.37.
 
 Every parity test attaches `<effect>-<fixture>-editor-runtime-diff.png` (editor | runtime | diff) to the report. In
 the diff panel, red marks pixels over the threshold (brighter is larger), amber marks smaller non-zero differences,
