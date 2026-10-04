@@ -4,6 +4,7 @@ import {
   MORPH_FRAG,
   NOISE_FRAG,
   NORM_UV,
+  PIXELATE_FRAG,
   RGB_FRAG,
   SAMPLE,
   TEAR_FRAG,
@@ -29,16 +30,6 @@ void main() {
   vec2  c  = norm - 0.5;
   float r2 = dot(c, c);
   vec2 warped = clamp((c * (1.0 + uK * r2)) + 0.5, 0.0, 1.0);
-  gl_FragColor = ${SAMPLE('warped')};
-}`;
-
-const PIXELATE_FRAG = `${HEADER}
-uniform float uBlocks;
-
-void main() {
-  ${NORM_UV}
-  vec2 px      = floor(norm * uBlocks) / uBlocks + 0.5 / uBlocks;
-  vec2 warped  = clamp(px, 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
 

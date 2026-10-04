@@ -230,6 +230,19 @@ the shader reads the click's age from the impulse (`age = −0.5 s × ln click`,
 packet's front `1.5 × age` half diagonals from the click, and scales the authored peak shift by the impulse, so the
 ring travels out and fades. GPU time at 540px: 0.12 ms (Chromium, Apple M5 Max).
 
+Pixelate (`pixelate`, `packages/runtime/src/effects/pixelate.ts`) keeps the editor's mapping, `uBlocks = max(2,
+round(width / pixelate))`, and its cell lookup: `PIXELATE_FRAG` moved to `@artifact/shared/effect-shaders`, built from
+`PIXELATE_SAMPLE(blocks)`, and the editor imports it (its string is byte-identical). The runtime fragment,
+`PIXELATE_REVEAL_FRAG`, adds a reveal mask around `uCenter` and calls the same lookup with a per-pixel block count, so
+the editor fragment stays as it was. Two runtime-only fields drive the mask: `pixelateRadius` (`uRadius`, in frame
+widths, default 0) and `pixelateSoftness` (`uSoftness`, default 0.2). Within the radius the image is sharp; across the
+band beyond it each pixel's block is a whole number of eighths of the authored block (`smoothstep` of the distance,
+rounded up), so blocks grow in rings with distance; beyond the band every pixel is the editor's. `uRadius = 0` reveals
+nothing, so the resting frame is the editor's: at 540px at most 0.016% of pixels over 8 levels (photo), none on graphic
+and text, in Chromium on macOS. The harness case eases the block size from 36px to the authored 12px and back over the
+loop, binds `pointer.x/y` to `uCenter` and `hover` to `pixelateRadius`; the self-test rejects corner sampling and a
+reveal at radius 0. GPU time at 540px: 0.07 ms (Chromium, Apple M5 Max).
+
 Vignette (`vignette`, `packages/runtime/src/effects/vignette.ts`) runs the editor's `VIGNETTE_FRAG` from
 `@artifact/shared/effect-shaders`, with `uIntensity = vignette × 0.01`. The fragment darkens around `uCenter` instead
 of a fixed centre; the editor passes `0.5, 0.5`, and its `renderDocument` output is byte-identical to before the move

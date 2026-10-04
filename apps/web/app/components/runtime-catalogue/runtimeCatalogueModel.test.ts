@@ -153,6 +153,13 @@ describe('runtime catalogue model', () => {
     expect(catalogueBindings(EFFECT_CASES.ripple)).toEqual(['step track', 'click', 'click.x', 'click.y']);
   });
 
+  it('lists Pixelate with its block size slider, the wave track, the pointer and hover', () => {
+    expect(catalogueTitle('pixelate')).toBe('Pixelate');
+    expect(catalogueControls('pixelate')).toEqual([expect.objectContaining({ type: 'slider', field: 'pixelate' })]);
+    expect(catalogueLayer('pixelate', EFFECT_CASES.pixelate)).toMatchObject({ preset: 'pixelate', pixelate: 12 });
+    expect(catalogueBindings(EFFECT_CASES.pixelate)).toEqual(['wave track', 'pointer.x', 'pointer.y', 'hover']);
+  });
+
   it('lists Vignette with its amount slider, the flicker and the pointer bindings', () => {
     expect(catalogueTitle('vignette')).toBe('Vignette');
     expect(catalogueControls('vignette')).toEqual([expect.objectContaining({ type: 'slider', field: 'vignette' })]);
