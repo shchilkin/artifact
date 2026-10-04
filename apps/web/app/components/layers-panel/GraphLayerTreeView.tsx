@@ -22,15 +22,9 @@ import {
   graphTreeAncestorFolders,
   visibleGraphTreeItems,
 } from './graphTreeItems';
-import {
-  LayerRow,
-  type LayerRowProps,
-  type LayerRowTreePlacement,
-  LayerTreeCaret,
-  layerKindLabel,
-  layerTreeItemProps,
-} from './LayerRow';
+import { LayerRow, type LayerRowProps, LayerTreeCaret } from './LayerRow';
 import { GRAPH_HELPER_META } from './layerDisplayItems';
+import { type LayerRowTreePlacement, layerKindLabel, layerTreeItemProps } from './layerRowTree';
 
 // Read-only graph-derived Layers tree for custom graphs (docs/layers-graph-tree.md).
 // Rows form one flat ARIA tree with roving focus; collapse state is UI state keyed by node id.

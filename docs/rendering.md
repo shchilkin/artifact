@@ -34,6 +34,14 @@ full-resolution pass after a short idle delay. This keeps layer edits feeling
 final while avoiding extra node-thumbnail work. Export, output thumbnails, and
 graph-target previews should still call the renderer with the requested
 full-quality options directly.
+The interactive frame is sized to the device's GPU (v0.50, #324): on a GPU
+where one effect pass at the draft size would take longer than the preview's
+budget (12 ms, typically software WebGL), it renders at 3/4 or 1/2 of the draft
+size, from the GPU bridge's running cost per megapixel
+(`apps/web/app/utils/gpuPassCost.ts`). It also sets `mergeGpuPasses`. The
+full-quality pass that follows is unchanged, so the frame the preview settles
+on, thumbnails, and export match as before. The display canvas takes each
+frame's own size and CSS scales it to the preview box.
 For stack-mode layer previews, the transient graph render cache may use
 per-layer prefix signatures so lower layers can be reused when an upper layer
 changes. Those signatures must include every pixel-affecting input and remain
@@ -445,6 +453,7 @@ interface RenderOptions {
   graphMode?: 'auto' | 'graph' | 'stack';
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
   effectResolution?: { width: number; height: number };
+  mergeGpuPasses?: boolean;
 }
 ```
 
@@ -457,6 +466,13 @@ Guidelines:
 - `effectResolution` is used by export so scale 2/3 increases file
   resolution without changing procedural effect density from the base cover
   size.
+- `mergeGpuPasses` is for interactive preview frames only. An effect layer that
+  is not masked or blended runs its GPU filters in the same GPU pass as the
+  GPU-only effect layers above it, which saves a canvas upload and readback.
+  Opaque pixels are identical
+  (`tests/browser/v050-gpu-readback-parity.spec.ts`); translucent pixels can
+  differ by readback rounding, so full-quality previews, thumbnails, and export
+  never set it.
 - UI render hooks should avoid painting stale async results when a newer
   document, image-cache, or render-option change is already queued.
 

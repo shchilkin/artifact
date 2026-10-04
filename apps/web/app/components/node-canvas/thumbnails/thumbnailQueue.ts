@@ -1,3 +1,4 @@
+import { scheduleIdle } from '../../../utils/idleCallback';
 import { THUMB_DEBOUNCE_MS } from '../constants';
 import type { ThumbnailRenderTask } from '../types';
 
@@ -99,14 +100,6 @@ function pickNextTask() {
   return next;
 }
 
-function requestIdleDrain(callback: () => void) {
-  if (typeof globalThis.requestIdleCallback === 'function') {
-    globalThis.requestIdleCallback(callback, { timeout: 250 });
-    return;
-  }
-  setTimeout(callback, 48);
-}
-
 function scheduleThumbnailQueueDrain(eager = false) {
   if (thumbnailRenderActive || thumbnailRenderQueue.size === 0) return;
   if (thumbnailDrainScheduled && !eager) return;
@@ -119,7 +112,7 @@ function scheduleThumbnailQueueDrain(eager = false) {
     setTimeout(run, 0);
     return;
   }
-  requestIdleDrain(run);
+  scheduleIdle(run, 250, 48);
 }
 
 function drainThumbnailRenderQueue() {

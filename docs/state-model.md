@@ -139,6 +139,11 @@ Current examples:
 
 - text/image node local transform draft
 - active primitive drag ref
+- inspector slider value during a drag: the slider shows each value at once and
+  commits to the document (`debounce` mode) at most once per preview frame
+  interval (`PREVIEW_FRAME_INTERVAL_MS`), and once more on release. A value still
+  waiting goes to the layer or node it was made on: `InspectorTargetContext`
+  flushes it when the inspector's target changes
 
 Rules:
 
@@ -147,6 +152,17 @@ Rules:
 - One continuous gesture should produce one undo snapshot.
 - Draft changes should not trigger thumbnail renders.
 - Draft UI should render live overlays or direct canvas/WebGL updates.
+
+## Preview render state
+
+`useDocumentRenderer` returns `renderState`. Its `isRendering` (and the
+preview's `aria-busy`) is true while there is no frame yet or a full-quality
+pass is rendering. Interactive frames during an edit do not set it. Toggling it
+for every frame cost two React commits per frame (#324). A preview-progress
+indicator (#310) that should also cover interactive frames needs a separate
+signal that does not commit per frame. Examples: a flag set once when a burst
+of input starts and cleared by the full-quality pass, or a ref-backed
+subscription that only the indicator reads.
 
 ## Primitive camera state
 

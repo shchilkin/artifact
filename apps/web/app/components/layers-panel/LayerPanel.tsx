@@ -1,6 +1,7 @@
 import { Button } from '@artifact/ui';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
+import { useStableCallback } from '../../hooks/useStableCallback';
 import type {
   AspectRatio,
   CanvasDocument,
@@ -247,6 +248,12 @@ export function LayerPanel({
     [onSelectLayer, setSelectedLayerIds],
   );
 
+  // Row handlers keep their identity across document edits, so only the edited row re-renders during a gesture.
+  const handleSelectRow = useStableCallback(handleSelectLayer);
+  const handleOpenRowContextMenu = useStableCallback(handleOpenLayerContextMenu);
+  const handleFinishRowRename = useStableCallback(handleFinishRename);
+  const handleDropRow = useStableCallback(handleDrop);
+
   const handleClearLayerSelection = useCallback(() => {
     setSelectedLayerIds(new Set());
     onSelectLayer(null);
@@ -295,11 +302,11 @@ export function LayerPanel({
             selectedLayerId={selectedLayerId}
             selectedActionLayerIds={selectedActionLayerIds}
             editingId={editingId}
-            onSelectLayer={handleSelectLayer}
+            onSelectLayer={handleSelectRow}
             onSelectNode={handleSelectGraphNode}
-            onOpenLayerContextMenu={handleOpenLayerContextMenu}
+            onOpenLayerContextMenu={handleOpenRowContextMenu}
             onStartEditing={setEditingId}
-            onFinishRename={handleFinishRename}
+            onFinishRename={handleFinishRowRename}
             onToggleVisible={onToggleVisible}
             onDuplicateLayer={onDuplicateLayer}
             onRemoveLayer={onRemoveLayer}
@@ -324,13 +331,13 @@ export function LayerPanel({
                 onFinishAreaRename={handleFinishAreaRename}
                 onRemoveArea={onRemoveArea}
                 onToggleAreaVisible={handleToggleAreaVisible}
-                onSelectLayer={handleSelectLayer}
-                onOpenLayerContextMenu={handleOpenLayerContextMenu}
+                onSelectLayer={handleSelectRow}
+                onOpenLayerContextMenu={handleOpenRowContextMenu}
                 onStartEditing={setEditingId}
-                onFinishRename={handleFinishRename}
+                onFinishRename={handleFinishRowRename}
                 onDragStart={handleDragStart}
                 onDragOverLayer={handleDragOverLayer}
-                onDropLayer={handleDrop}
+                onDropLayer={handleDropRow}
                 onDragEnd={handleCancelDrag}
                 onToggleVisible={onToggleVisible}
                 onDuplicateLayer={onDuplicateLayer}

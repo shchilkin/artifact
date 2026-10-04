@@ -133,21 +133,8 @@ needed, so a fixed behavior cannot keep a stale allowance.
 | --- | --- | --- | --- |
 | `desktop/*/inspector/sliderWidthDeltaPx` | 39.5 px | 39.5 | [#309](https://github.com/shchilkin/artifact/issues/309) |
 | `mobile/*/inspector/sliderWidthDeltaPx` | 228 px | 228 | [#309](https://github.com/shchilkin/artifact/issues/309) |
-| `desktop/default/slider-keypress/inputToPreviewMs` | 62.4 ms | 130 | [#324](https://github.com/shchilkin/artifact/issues/324) |
-| `desktop/effect-stack/slider-keypress/inputToPreviewMs` | 121.8 ms | 215 | [#324](https://github.com/shchilkin/artifact/issues/324) |
-| `desktop/*/slider-drag/mainThreadMs` | not measured | 480 | [#324](https://github.com/shchilkin/artifact/issues/324) |
 
-Layout ceilings equal the measured value. Latency ceilings are about 1.75 times
-the baseline value to absorb what the speed scale does not: a slower runner of
-the same class (calibration 142.8 ms) still reported scaled values 24-28% above
-the baseline.
-
-Keypress latency is bounded by the render itself: after #308 the preview render
-starts within 10 ms of the key, but each GPU effect pass takes about 50 ms on
-the CI runner (software WebGL), and the render above the edited layer runs one
-pass in `default` and two in `effect-stack`. Meeting the 50 ms budget there
-needs a cheaper render, which
-[#324](https://github.com/shchilkin/artifact/issues/324) owns.
+Layout ceilings equal the measured value.
 
 `slider-drag/mainThreadMs` replaced the budgeted `slider-drag/durationMs` in
 #308. On the CI runner the drag loop cannot run faster than two frames per step
@@ -174,6 +161,7 @@ baseline value they replaced. The v0.49.0 baseline still exceeds their budgets;
 | `desktop/*/nodes-entry/nodesOutsideViewport` | 5 of 7 / 7 of 9 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `mobile/*/command-bar/obscuredCommands` | 1 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `mobile/*/command-bar/overlappingCommands` | 2 | [#307](https://github.com/shchilkin/artifact/issues/307) |
+| `desktop/*/slider-keypress/inputToPreviewMs` | 62.4 / 121.8 ms | [#324](https://github.com/shchilkin/artifact/issues/324) |
 
 ## v0.49.0 Baseline
 
@@ -282,6 +270,71 @@ CI run [37149562758](https://github.com/shchilkin/artifact/actions/runs/37149562
 Both are within budget without an exception. `sliderSettleMs` stays above the
 #308 values measured with the old fixed zoom (25.1 / 27.5 ms) because more
 downstream thumbnails are on screen, and each of those still renders.
+
+## After #324
+
+CI run [37151771646](https://github.com/shchilkin/artifact/actions/runs/37151771646),
+with the stable editor frame (#307) merged in (calibration 152.3 ms,
+speed 0.779), reference-machine milliseconds:
+
+| Metric | `default` | `effect-stack` | Budget |
+| --- | ---: | ---: | ---: |
+| `slider-keypress/inputToPreviewMs` | 32.8 | 37.9 | 50 |
+| `slider-drag/mainThreadMs` | 128.1 | 121.0 | 160 |
+| `slider-drag/settleMs` | 402.0 | 564.2 | 700 |
+| `node-preview/entrySettleMs` | 442.7 | 557.5 | 1200 |
+| `node-preview/sliderSettleMs` | 53.4 | 72.9 | 100 |
+
+Node-preview values follow #307's thumbnail sizing (see above); #324 does not
+change node thumbnails.
+
+What the numbers measure on CI:
+
+- **Keypress:** on the CI runner (software WebGL) the keypress budget is met by
+  the interactive frame, rendered at 270 px instead of 540 px. The full-quality
+  1080 px frame replaces it after the deferred-render delay and is not part of
+  `inputToPreviewMs`. On a hardware GPU the interactive frame stays at 540 px.
+- **Drag:** the `mainThreadMs` window ends when the last pointer move has been
+  delivered, before `mouse.up`. The slider's final coalesced document update on
+  release and the full-quality pass after the drag fall outside the window.
+  They are covered by `settleMs`.
+
+The drag painted the preview 10 / 9 times (3-4 after #308). In experiment run
+[37135908817](https://github.com/shchilkin/artifact/actions/runs/37135908817),
+four runners (speed 0.83-1.09) measured keypress latency of 24-33 / 30-41 ms
+and drag main-thread time of 108-126 / 117-127 ms. The changes are described
+in [`../performance.md`](../performance.md).
+
+### Keypress render phases
+
+Milliseconds after the key, as `start+duration`, median sample of each run:
+
+| Phase | Before, `default` | After, `default` | Before, `effect-stack` | After, `effect-stack` |
+| --- | --- | --- | --- | --- |
+| Document render (input to finished frame) | 7+90 | 7+34 | 10+176 | 9+39 |
+| Edited layer and those below it | scanlines 11+1 | scanlines 8+0 | scanlines 12+1 | scanlines 10+0 |
+| Grain (Canvas 2D) | - | - | 13+14 | 10+1 (cached texture) |
+| RGB Split worker round trip (Canvas 2D kernel) | not traced | 9+13 | not traced | 12+12 |
+| GPU upload and blit (submitted on the main thread) | not traced | 23+1 | not traced | 25+1 |
+| GPU fence wait (upload, blit, filters, `readPixels` on the GPU) | 29+68, together with readback | 24+15 | 47+71 and 111+67, together with readback | 26+21, one merged pass |
+| Readback copy and unpremultiply, then canvas write | inside the above | 39+2, 41+0 | inside the above | 47+0, 47+0 |
+| GPU passes above the edit | 1 at 540 px | 1 at 270 px | 2 at 540 px | 1 at 270 px |
+
+Before: development, run [37128565147](https://github.com/shchilkin/artifact/actions/runs/37128565147),
+speed 0.831. After: the run above. Before #324 the trace recorded the GPU pass
+only as `gpu-filter-extract` and did not trace the worker. Since #324 it
+records `gpu-upload`, `gpu-blit`, `gpu-fence-wait`, `gpu-readback`,
+`gpu-to-canvas`, and `worker-transform`. The GPU executes the upload, blit,
+filters, and `readPixels` asynchronously in its own process, and the fence
+only reports when all of them are done. JavaScript therefore cannot time them
+apart, and software WebGL has no GPU timer queries
+(see [`../performance.md`](../performance.md)).
+
+The GPU pass shrank fourfold in pixels (fence wait about 68 → 15-21 ms).
+`effect-stack` lost one of its two GPU passes, and its grain layer reuses its
+cached texture (14 → 1 ms). The RGB Split worker round trip (6-18 ms) is now
+the largest Canvas 2D phase. The main thread is free while the GPU fence is
+pending.
 
 ## Changing A Budget Or Exception
 

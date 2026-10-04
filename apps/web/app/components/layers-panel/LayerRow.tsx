@@ -1,5 +1,4 @@
 import type {
-  CSSProperties,
   DragEvent as ReactDragEvent,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
@@ -15,22 +14,9 @@ import {
   EditorRowPrimary,
 } from '../editor-workflow/EditorRowFrame';
 import { getLayerIcon } from './layerDisplayItems';
+import { type LayerRowTreePlacement, layerKindLabel, layerTreeItemProps } from './layerRowTree';
 import type { LayerDropPosition } from './useLayerDragReorder';
 import type { LayerSelectionModifiers } from './useLayerSelection';
-
-/** Placement of a row in the graph-derived Layers tree; the row renders as an ARIA treeitem. */
-export interface LayerRowTreePlacement {
-  key: string;
-  level: number;
-  setSize: number;
-  posInSet: number;
-  /** Roving tab stop: only the active tree item is in the tab order. */
-  focusable: boolean;
-  label: string;
-  /** Present when the row has nested inputs that can be expanded or collapsed. */
-  expanded?: boolean;
-  onToggleExpanded?: () => void;
-}
 
 export interface LayerRowProps {
   layer: Layer;
@@ -239,12 +225,6 @@ function LayerNameEditor({
   );
 }
 
-export function layerKindLabel(layer: Layer) {
-  if (layer.kind === 'emoji') return 'emoji';
-  if (layer.kind === 'primitive') return '3d';
-  return layer.kind;
-}
-
 function LayerKindBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
   return (
     <span
@@ -392,24 +372,6 @@ export function LayerTreeCaret({ expanded, onToggle }: { expanded?: boolean; onT
       ▸
     </button>
   );
-}
-
-/** ARIA treeitem attributes and indentation for a row placed in the graph-derived Layers tree. */
-export function layerTreeItemProps(tree: LayerRowTreePlacement, selected: boolean, areaColor?: string) {
-  const style = { '--layer-tree-level': tree.level, '--layer-area-color': areaColor } as CSSProperties;
-  return {
-    role: 'treeitem',
-    'aria-level': tree.level,
-    'aria-setsize': tree.setSize,
-    'aria-posinset': tree.posInSet,
-    'aria-selected': selected,
-    'aria-expanded': tree.expanded,
-    'aria-label': tree.label,
-    tabIndex: tree.focusable ? 0 : -1,
-    'data-tree-key': tree.key,
-    'data-area-rail': areaColor ? 'true' : undefined,
-    style,
-  };
 }
 
 function LayerRowSelection({

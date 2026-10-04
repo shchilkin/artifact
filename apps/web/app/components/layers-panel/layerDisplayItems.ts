@@ -114,6 +114,9 @@ function getAreaGraphHelpers(graph: CanvasGraph | undefined, area: GraphArea): G
   });
 }
 
+/** Shared by every top-level row, so a memoized row does not re-render for a new empty array. */
+const NO_AREAS: GraphArea[] = [];
+
 export function buildLayerDisplayItems(
   displayLayers: Layer[],
   areasByLayerId: Map<string, GraphArea[]>,
@@ -127,7 +130,7 @@ export function buildLayerDisplayItems(
     if (renderedLayerIds.has(layer.id)) continue;
     const area = areasByLayerId.get(layer.id)?.[0];
     if (!area) {
-      items.push({ type: 'layer', layer, areas: [] });
+      items.push({ type: 'layer', layer, areas: NO_AREAS });
       renderedLayerIds.add(layer.id);
       continue;
     }

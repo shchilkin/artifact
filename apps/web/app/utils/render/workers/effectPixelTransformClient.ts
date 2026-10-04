@@ -12,9 +12,19 @@ const runEffectPixelWorker = createRenderWorkerClient<EffectPixelTransformReques
   transfer: (request) => [request.data.buffer],
 });
 
+const WORKER_TRANSFORM_MEASURE = 'artifact:worker-transform';
+
+/** Runs Canvas 2D pixel kernels in the worker; each call is one `artifact:worker-transform` measure (round trip). */
 export async function renderEffectPixelTransforms(
   request: EffectPixelTransformRequest,
 ): Promise<EffectPixelTransformResult> {
   if (request.operations.length === 0) return { width: request.width, height: request.height, data: request.data };
-  return runEffectPixelWorker(request);
+  const startedAt = typeof performance === 'undefined' ? 0 : performance.now();
+  try {
+    return await runEffectPixelWorker(request);
+  } finally {
+    if (typeof performance !== 'undefined' && typeof performance.measure === 'function') {
+      performance.measure(WORKER_TRANSFORM_MEASURE, { start: startedAt, end: performance.now() });
+    }
+  }
 }

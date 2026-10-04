@@ -82,6 +82,7 @@ import { graphUtilityNodeKind } from '../utils/nodeGraph';
 import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
+import type { DocumentSaveStatus } from '../utils/storageStatus';
 import type { TextPresetId } from '../utils/textPresets';
 
 function isEditableUndoTarget(target: EventTarget | null) {
@@ -96,10 +97,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument);
   // Changes when the whole document is replaced (load, starter, new blank), so per-document UI state can reset.
   const [documentSessionId, setDocumentSessionId] = useState(0);
-  const [documentSaveStatus, setDocumentSaveStatus] = useState<{ ok: boolean; savedAt: string | null }>({
-    ok: true,
-    savedAt: null,
-  });
+  const [documentSaveStatus, setDocumentSaveStatus] = useState<DocumentSaveStatus>({ ok: true });
   const [fromDocParam] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc'),
   );
@@ -238,7 +236,9 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     const ok = saveDocumentToStorage(doc);
     let cancelled = false;
     queueMicrotask(() => {
-      if (!cancelled) setDocumentSaveStatus({ ok, savedAt: ok ? new Date().toISOString() : null });
+      // Keep the same status object while the outcome is unchanged, so autosave on every edit does not re-render
+      // the editor a second time per edit.
+      if (!cancelled) setDocumentSaveStatus((current) => (current.ok === ok ? current : { ok }));
     });
     return () => {
       cancelled = true;

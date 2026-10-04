@@ -10,7 +10,10 @@ const LAYER_PREVIEW_GRAPH_CACHE_LIMIT = 128;
 interface LayerPreviewRenderCacheConfig {
   width: number;
   height: number;
-  renderOptions: Pick<RenderOptions, 'draft' | 'skipEffects' | 'effectResolution' | 'primitiveViewStates'>;
+  renderOptions: Pick<
+    RenderOptions,
+    'draft' | 'skipEffects' | 'effectResolution' | 'mergeGpuPasses' | 'primitiveViewStates'
+  >;
   limit?: number;
 }
 
@@ -36,6 +39,7 @@ export function createLayerPreviewRenderCache(
     `${config.width}x${config.height}`,
     `draft:${config.renderOptions.draft ? 1 : 0}`,
     `skip:${config.renderOptions.skipEffects ? 1 : 0}`,
+    `merge:${config.renderOptions.mergeGpuPasses ? 1 : 0}`,
     config.renderOptions.effectResolution
       ? `effect:${config.renderOptions.effectResolution.width}x${config.renderOptions.effectResolution.height}`
       : 'effect:auto',
