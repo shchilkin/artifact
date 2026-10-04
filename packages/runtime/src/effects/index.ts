@@ -4,6 +4,7 @@ import { ca } from './ca.js';
 import { dataMosh } from './dataMosh.js';
 import { glitch } from './glitch.js';
 import { grain } from './grain.js';
+import { interlace } from './interlace.js';
 import { morph } from './morph.js';
 import { noiseWarp } from './noiseWarp.js';
 import { pixelate } from './pixelate.js';
@@ -28,6 +29,7 @@ export {
   glitchUniforms,
 } from './glitch.js';
 export { GRAIN_FRAG, type GrainLayer, grain } from './grain.js';
+export { type InterlaceLayer, interlace } from './interlace.js';
 export { type MorphLayer, morph } from './morph.js';
 export { type NoiseWarpLayer, noiseWarp } from './noiseWarp.js';
 export {
@@ -65,6 +67,7 @@ export const EFFECTS = [
   ripple,
   pixelate,
   vignette,
+  interlace,
   barrel,
 ] as const;
 

@@ -58,7 +58,7 @@ not its render loop.
   `setInput` fills `inputs`.
 
 Shader reuse: shared fragments live in `@artifact/shared/effect-shaders` (`HEADER`, `NORM_UV`, `SAMPLE`,
-`NOISE_FRAG`, `VORTEX_FRAG`, `BARREL_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`, `RGB_FRAG`, `VIGNETTE_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
+`NOISE_FRAG`, `VORTEX_FRAG`, `BARREL_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`, `RGB_FRAG`, `VIGNETTE_FRAG`, `INTERLACE_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
 byte-identical. Port further editor fragments the same way: move the string, import it in both places.
 
 Pixi conventions the chain matches:
@@ -250,6 +250,13 @@ of a fixed centre; the editor passes `0.5, 0.5`, and its `renderDocument` output
 fast, low waves flicker the amount (13 cycles of ±5 and 37 of ±3 over 4 s), `pointer.x/y` move the light spot through
 `uCenter`, and hover deepens the dark by up to 30. Parity at 540px: 0.000% of pixels over 8 levels, worst channel
 1 level, in all three engines on macOS. GPU time at 540px: 0.06 ms (Chromium, headed, Apple silicon).
+
+Interlace (`interlace`, `packages/runtime/src/effects/interlace.ts`) runs the editor's `INTERLACE_FRAG`, moved to
+`@artifact/shared/effect-shaders` and imported by both: `uIntensity = interlace × 0.003`, `uSeed` the layer seed, and
+`uResY` the render height (the editor's `canvasH`, the `H` it renders at), so rows stay whole pixel rows at any size.
+At a fixed seed it is the editor's fragment, so parity is by pixels: no pixel over 8 levels on any fixture in Chromium,
+Firefox and WebKit on macOS. The harness case re-seeds the rows on a 10 fps step track and adds up to 40 to the amount
+with `pointer.speed`. GPU time at 540px: 0.11–0.19 ms (Chromium, Apple M5 Max).
 
 ### Export
 
@@ -524,7 +531,7 @@ no timer queries, and there is no GPU runner. The budget is enforced by hand, on
 
 Last measured (Playwright 1.60 Chromium, headed, M5 Max, `RUNTIME_GPU_BUDGET=1`): Noise Warp 0.28 ms, Vortex 0.10 ms,
 Grain 0.11 ms, Morph 0.20 ms, Chrom. Ab. 0.07 ms, Data Mosh 0.15 ms, Scanlines 0.17 ms, Tear 0.10 ms, Glitch
-0.67 ms, RGB Split 0.07 ms, Ripple 0.06 ms, Vignette 0.06 ms, Barrel 0.11 ms.
+0.67 ms, RGB Split 0.07 ms, Ripple 0.06 ms, Vignette 0.06 ms, Interlace 0.11–0.19 ms, Barrel 0.11 ms.
 
 ## Order of work
 

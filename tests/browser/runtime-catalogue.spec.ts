@@ -379,6 +379,30 @@ test('the runtime catalogue shows Vignette, with the light spot following the po
   await page.mouse.move(0, 0);
 });
 
+test('the runtime catalogue shows Interlace with a working amount control', async ({ page }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const entry = page.locator('article[data-effect="interlace"]');
+  // Entries hold a WebGL context only near the viewport, so bring this one there first.
+  await entry.scrollIntoViewIfNeeded();
+  await expect(entry.getByRole('heading', { name: 'Interlace' })).toBeVisible();
+  await expect(entry.getByText('step track, pointer.speed')).toBeVisible();
+  await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+
+  const canvas = entry.locator('canvas');
+  await canvas.scrollIntoViewIfNeeded();
+  const amount = entry.getByRole('slider', { name: 'Interlace' });
+  await expect(amount).toHaveValue('20');
+  const before = await canvas.screenshot();
+  await amount.focus();
+  await amount.press('End');
+  await expect(amount).toHaveValue('100');
+  await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
+});
+
 test('the runtime catalogue shows Barrel, with the lens following the pointer', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');

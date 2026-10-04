@@ -167,6 +167,13 @@ describe('runtime catalogue model', () => {
     expect(catalogueBindings(EFFECT_CASES.vignette)).toEqual(['wave track', 'pointer.x', 'pointer.y', 'hover']);
   });
 
+  it('lists Interlace with its amount slider, the step track and pointer speed', () => {
+    expect(catalogueTitle('interlace')).toBe('Interlace');
+    expect(catalogueControls('interlace')).toEqual([expect.objectContaining({ type: 'slider', field: 'interlace' })]);
+    expect(catalogueLayer('interlace', EFFECT_CASES.interlace)).toMatchObject({ preset: 'interlace', interlace: 20 });
+    expect(catalogueBindings(EFFECT_CASES.interlace)).toEqual(['step track', 'pointer.speed']);
+  });
+
   it('lists Barrel with its amount slider, the wave track and the pointer bindings', () => {
     expect(catalogueTitle('barrel')).toBe('Barrel');
     expect(catalogueControls('barrel')).toEqual([expect.objectContaining({ type: 'slider', field: 'barrel' })]);
