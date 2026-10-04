@@ -1833,8 +1833,8 @@ test('layer add library supports search keyboard add and recent items', async ({
   await expect(menu.locator('.add-library-section').filter({ hasText: 'Favorites' })).toContainText('Pixelate');
   await expect(menu.locator('.add-library-tags')).toContainText('low-res');
 
-  await menu.getByRole('button', { name: 'Tone', exact: true }).click();
-  await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Tone' })).toBeVisible();
+  await menu.getByRole('group', { name: 'Filter library' }).getByRole('button', { name: 'Color', exact: true }).click();
+  await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Color' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: 'Pixelate' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
 });
@@ -2945,10 +2945,11 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await clickEditorControl(intentRail.getByRole('button', { name: 'Recipes' }));
   await expect(page.getByRole('group', { name: 'Photo + Type' })).toBeVisible();
   await expect(page.getByRole('group', { name: 'Texture Type' })).toBeVisible();
-  await expect(page.getByRole('group', { name: 'Print Damage' })).toBeVisible();
-  await expect(nodeAddRowByLabel(/^Halftone$/)).toBeVisible();
-  await expect(nodeAddRowByLabel(/^Tear$/)).toBeVisible();
-  await expect(nodeAddRowByLabel(/^Paper$/)).toBeVisible();
+  const printDamage = page.getByRole('group', { name: 'Print Damage' });
+  await expect(printDamage).toBeVisible();
+  for (const label of ['Halftone', 'Tear', 'Paper']) {
+    await expect(printDamage.getByRole('option', { name: new RegExp(label) })).toBeVisible();
+  }
 
   await page.getByLabel('Search nodes and effects').fill('photo type');
   await expect(page.getByRole('option', { name: /^◧ Image/ })).toBeVisible();

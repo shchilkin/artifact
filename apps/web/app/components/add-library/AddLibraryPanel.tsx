@@ -431,6 +431,8 @@ export function AddLibraryPanel({
         value={query}
         onChange={(value) => {
           setQuery(value);
+          // Recipes is a browse view; searching from it looks through the whole library.
+          if (activeIntentId === 'recipes') setActiveIntentId(null);
           setActiveIndex(0);
         }}
         onKeyDown={handleKeyDown}

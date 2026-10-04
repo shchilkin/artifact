@@ -113,6 +113,15 @@ test('New confirms in an accessible dialog that traps focus and cancels with Esc
   await expectNoNativeConfirm(page);
 });
 
+test('Randomize replaces an unedited shared document without asking', async ({ page }) => {
+  await gotoDocument(page, stateDocument);
+  await expectLayerCanvasToHavePixels(page);
+  await page.getByRole('button', { name: 'Randomize document' }).first().click();
+  await expect(page.locator('.layer-row[data-layer-id="state-title"]')).toHaveCount(0);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expectNoNativeConfirm(page);
+});
+
 test('Randomize asks first only when it would replace edited work', async ({ page }) => {
   await gotoDocument(page, stateDocument);
   await expectLayerCanvasToHavePixels(page);
