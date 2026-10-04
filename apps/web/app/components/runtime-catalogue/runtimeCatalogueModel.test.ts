@@ -113,4 +113,16 @@ describe('runtime catalogue model', () => {
     expect(catalogueLayer('glitch', EFFECT_CASES.glitch)).toMatchObject({ preset: 'glitch', glitch: 14 });
     expect(catalogueBindings(EFFECT_CASES.glitch)).toEqual(['step track', 'pulse track', 'click']);
   });
+
+  it('lists Chromatic split with its amount slider, the wave track and the pointer speed and heading', () => {
+    expect(catalogueTitle('rgbSplit')).toBe('RGB Split');
+    expect(catalogueControls('rgbSplit')).toEqual([expect.objectContaining({ type: 'slider', field: 'rgbSplit' })]);
+    expect(catalogueLayer('rgbSplit', EFFECT_CASES.rgbSplit)).toMatchObject({ preset: 'rgbSplit', rgbSplit: 8 });
+    expect(catalogueBindings(EFFECT_CASES.rgbSplit)).toEqual([
+      'wave track',
+      'pointer.speed',
+      'pointer.dirX',
+      'pointer.dirY',
+    ]);
+  });
 });

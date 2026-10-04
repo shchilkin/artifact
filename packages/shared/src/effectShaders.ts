@@ -142,3 +142,20 @@ void main() {
   vec2 warped      = vec2(fract(norm.x + offsetNorm), norm.y);
   gl_FragColor     = ${SAMPLE('warped')};
 }`;
+
+/**
+ * Chromatic split (`rgbSplit`): red sampled at `+uDir`, blue at `-uDir`, green and alpha in place, both offsets
+ * clamped to the input frame. Uniforms: `uDir` (an offset in texture coordinates; the editor passes
+ * `rgbSplit × 0.0006` on both axes).
+ */
+export const RGB_FRAG = `${HEADER}
+uniform vec2 uDir;
+
+void main() {
+  vec2 uv  = vTextureCoord;
+  float r  = texture2D(uSampler, clamp(uv + uDir, inputClamp.xy, inputClamp.zw)).r;
+  float g  = texture2D(uSampler, uv).g;
+  float b  = texture2D(uSampler, clamp(uv - uDir, inputClamp.xy, inputClamp.zw)).b;
+  float a  = texture2D(uSampler, uv).a;
+  gl_FragColor = vec4(r, g, b, a);
+}`;

@@ -50,12 +50,15 @@ not its render loop.
   below); `createLiveArtwork` does the same, with the package's own bindings.
 - `effectRegistry.pass(id, layer, { seed, width, height })` → a `ChainPass` (`id`, `fragment`, `uniforms`) from an
   authored `EffectLayer`, or `null` when the effect's amount is zero. Each `EffectDefinition` declares `id`,
-  `fragment`, `amount`, `uniforms`, `centered` (reads `uCenter`, default `0.5, 0.5`) and `stochastic`.
+  `fragment`, `amount`, `uniforms`, `centered` (reads `uCenter`, default `0.5, 0.5`) and `stochastic`. An effect the
+  editor applies in two places declares `stages`: further fragments drawn after `fragment`, each over the previous
+  draw, with the same uniforms and per-frame overrides. Its `ChainPass` carries them, so bindings, live packages and
+  the exporter still address it as one pass.
 - Seam for bindings (#332): `frameUniforms({ time, frame, inputs })` returns per-pass uniform overrides each frame;
   `setInput` fills `inputs`.
 
 Shader reuse: shared fragments live in `@artifact/shared/effect-shaders` (`HEADER`, `NORM_UV`, `SAMPLE`,
-`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
+`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`, `RGB_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
 byte-identical. Port further editor fragments the same way: move the string, import it in both places.
 
 Pixi conventions the chain matches:
@@ -180,6 +183,24 @@ harness sense: the editor draws one `fillRect` band per unit of `glitch` (its sl
 band's analytic pixel coverage and composites it with the premultiplied screen blend, rounding to bytes after each
 band; that blend is order-independent, so the bands are sorted by top edge and walked in groups of ten around each
 row. Parity is by pixels (worst channel 1 level on every fixture and engine).
+
+Chromatic split (`rgbSplit`, `packages/runtime/src/effects/rgbSplit.ts`) is the first two-stage effect. The editor
+applies `rgbSplit` twice within one effect layer: first a whole-pixel offset among its Canvas 2D effects
+(`applyRgbSplit` in `effectPixelTransform.ts`: red from `(x + o, y + o)`, blue from `(x − o, y − o)`, clamped, with
+`o = round(rgbSplit × W / 540)`), then `RGB_FRAG` among its GPU filters (`uDir = rgbSplit × 0.0006` on both axes, in
+texture coordinates). Canvas 2D effects always run before the layer's GPU filters. The runtime effect is one pass with
+two stages in that order: `RGB_SPLIT_OFFSET_FRAG` (a GLSL port of the CPU offset, with the Radial CA port's
+whole-pixel rounding and unpremultiplied recombination), then the editor's `RGB_FRAG`, imported unchanged. Parity is
+exact on every fixture in Chromium, Firefox and WebKit on macOS (worst channel 1 level); dropping either stage fails
+it (the harness self-test patches each).
+
+The split direction is a runtime-only heading, `rgbSplitDirX/Y`, which editor layers do not have: `0, 0` is the
+editor's diagonal (`(1, 1)` per axis in both stages), and any other vector is normalised to the diagonal's length, so
+`rgbSplit` keeps the split size. Binding `pointer.dirX/dirY` to it turns the split to the pointer's heading; at rest
+the pointer has no heading, so the authored still is unchanged. The exporter places `rgbSplit` at its Canvas 2D
+position and bakes a layer with another active effect between the two editor stages (after `rgbSplit` among the
+Canvas 2D effects, or a GPU filter up to `hueShift`), because the runtime draws both stages back to back. GPU time of
+both stages at 540px: 0.07 ms (Chrome, Apple M5 Max).
 
 ### Export
 

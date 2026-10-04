@@ -26,7 +26,8 @@ export const EDITOR_EFFECT_ORDER: readonly {
   ...positive('retroResolution'),
   { effect: 'rays', fields: ['rays', 'rayInt'], active: (layer) => layer.rayInt > 0 && layer.rays > 0 },
   ...positive('glitch', 'badStream'),
-  // The editor applies rgbSplit twice: a Canvas 2D offset here and a GPU filter later. A runtime port must do both.
+  // The editor applies rgbSplit twice: a Canvas 2D offset here and its GPU filter (after hueShift). The runtime
+  // effect draws both stages back to back, so a layer with another effect between them is baked (`splitStageIssue`).
   ...positive('rgbSplit', 'scanlines', 'grain', 'dotGrain'),
   { effect: 'tint', fields: ['tintOp'], active: (layer) => layer.tintOp > 0 },
   // One colour pass in the editor; its internal order is sepia, infrared, chromatic aberration, dither.
@@ -62,6 +63,30 @@ function positive(...fields: (keyof EffectLayer)[]) {
     fields: [field],
     active: (layer: EffectLayer) => Number(layer[field] ?? 0) > 0,
   }));
+}
+
+/**
+ * Effects whose editor stages run in two places within one layer: the effect's position above (its first stage) and
+ * the GPU filter its second stage follows. The runtime draws both stages as one pass.
+ */
+const SPLIT_STAGE_EFFECTS: Readonly<Record<string, string>> = { rgbSplit: 'hueShift' };
+
+/**
+ * Why a layer's effects cannot run as runtime passes in the editor's order, or `null`: another active effect sits
+ * between the two editor stages of a two-stage effect, which the runtime draws back to back.
+ */
+function splitStageIssue(effects: readonly string[]): string | null {
+  const order = EDITOR_EFFECT_ORDER.map((entry) => entry.effect);
+  for (const [effect, before] of Object.entries(SPLIT_STAGE_EFFECTS)) {
+    if (!effects.includes(effect)) continue;
+    const from = order.indexOf(effect);
+    const to = order.indexOf(before);
+    const between = effects.filter((other) => order.indexOf(other) > from && order.indexOf(other) <= to);
+    if (between.length > 0) {
+      return `${effect} runs in two editor stages around ${between.join(', ')} on the same layer; the runtime draws them together`;
+    }
+  }
+  return null;
 }
 
 /** The effects an effect layer applies, in the editor's order. */
@@ -207,7 +232,7 @@ function classify(layer: Layer, registry: LiveEffectRegistry): Classified[] {
         ? 'alpha masking is not supported in the runtime'
         : !normal
           ? `blend mode "${layer.blendMode}" is not supported in the runtime`
-          : null;
+          : splitStageIssue(effects);
   return [reason ? { kind: 'baked', layer, effects, reason } : { kind: 'live', layer, effects }];
 }
 
