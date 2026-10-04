@@ -24,6 +24,10 @@ export {
   type Easing,
   type FieldTarget,
   type InputSource,
+  type LayerFieldTarget,
+  type LayerPlateTarget,
+  type LayerTarget,
+  type LayerUniformTarget,
   type LiveChain,
   type LiveChainOptions,
   type LivePass,
@@ -111,6 +115,17 @@ export {
   type PointerInputs,
 } from './inputTracker.js';
 export {
+  ALL_LAYERS_ON,
+  findLayer,
+  type LayerControl,
+  LayerOptionsError,
+  type LayerPolicy,
+  type LayerSwitch,
+  type LayerSwitches,
+  layerPolicy,
+  uniqueLayers,
+} from './layers.js';
+export {
   initialLifecycle,
   type LifecycleEvent,
   type LifecycleState,
@@ -122,6 +137,7 @@ export {
 export {
   type ChainLiveArtworkOptions,
   createLiveArtwork,
+  type LiveArtwork,
   type LiveArtworkOptions,
   type PackageLiveArtworkOptions,
 } from './liveArtwork.js';
@@ -140,6 +156,7 @@ export {
   type LoadLivePackageOptions,
   livePackageComposite,
   livePackageFiles,
+  livePackageLayers,
   livePackagePasses,
   livePackagePlates,
   loadLivePackage,

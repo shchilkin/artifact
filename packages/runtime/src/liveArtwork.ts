@@ -2,11 +2,12 @@ import { type Artwork, type ArtworkCommonOptions, createArtwork, type FrameState
 import { compileLiveChain, type LiveChain, type LiveChainOptions } from './bindings.js';
 import type { PointerModelOptions } from './inputs.js';
 import { attachPointerInputs, type PointerInputs } from './inputTracker.js';
+import type { LayerControl, LayerRef } from './layers.js';
 import { effectContext, type LivePackage, livePackagePasses, livePackagePlates } from './livePackage.js';
 import type { EffectRegistry } from './registry.js';
 import type { ArtworkSource } from './types.js';
 
-interface LiveArtworkCommonOptions extends ArtworkCommonOptions {
+interface LiveArtworkCommonOptions extends ArtworkCommonOptions, LayerControl {
   /**
    * Pointer tracking on the canvas for bindings that read inputs. Default on for on-page canvases; `false` leaves
    * inputs to `setInput`. Values set through `setInput` take precedence over tracked ones.
@@ -29,11 +30,23 @@ export interface PackageLiveArtworkOptions extends LiveArtworkCommonOptions {
 
 export type LiveArtworkOptions = ChainLiveArtworkOptions | PackageLiveArtworkOptions;
 
+/** An artwork whose bindings a host can switch per layer (issue #429). */
+export interface LiveArtwork extends Artwork {
+  /** Layers the bindings and layer options can address, bottom first for a package. */
+  readonly layers: readonly LayerRef[];
+  /**
+   * Replaces the layer configuration given at creation (`layers`, `layerDefaults`). A running artwork follows it from
+   * its next frame; a stopped one redraws once. Throws `LayerOptionsError` for a key that names no layer or several.
+   */
+  setLayerOptions(control: LayerControl): void;
+}
+
 /**
  * An artwork whose effect parameters follow bindings: time tracks over the loop and visitor inputs. Under reduced
- * motion every binding is off and the artwork shows the authored still.
+ * motion every binding is off and the artwork shows the authored still. `layers` and `layerDefaults` switch bindings
+ * per Artifact layer (see `LayerControl`).
  */
-export function createLiveArtwork(options: LiveArtworkOptions): Artwork {
+export function createLiveArtwork(options: LiveArtworkOptions): LiveArtwork {
   const live = compileOptions(options);
   let tracker: PointerInputs | null = null;
   const now = options.scheduler ? () => options.scheduler!.now() : () => performance.now();
@@ -73,6 +86,11 @@ export function createLiveArtwork(options: LiveArtworkOptions): Artwork {
     resize: (cssWidth, cssHeight) => artwork.resize(cssWidth, cssHeight),
     setInput: (name, value) => artwork.setInput(name, value),
     redraw: () => artwork.redraw(),
+    layers: live.layers,
+    setLayerOptions(control) {
+      live.setLayerOptions(control);
+      artwork.redraw();
+    },
     destroy() {
       tracker?.detach();
       tracker = null;
@@ -95,6 +113,8 @@ function compileOptions(options: LiveArtworkOptions): LiveChain {
     context: effectContext(manifest),
     bindings: options.bindings ?? manifest.bindings,
     registry: options.registry,
+    layers: options.layers,
+    layerDefaults: options.layerDefaults,
   });
   // Package passes are on at rest, so none is dropped and chain index i is package pass i.
   if (live.chain.length !== passes.length) throw new Error('A package pass is off at rest; re-export the package.');

@@ -248,8 +248,8 @@ describe('plates in a live package', () => {
   it('reads depth and edges, and checks them with their paths', () => {
     const parsed = parseLivePackage(manifest({ bindings: parallax })) as LivePackageManifest;
     expect(livePackagePlates(parsed)).toEqual([
-      { depth: 0.5, edges: PLATE_EDGES },
-      { depth: 1, edges: ['bottom'] },
+      { depth: 0.5, edges: PLATE_EDGES, layers: [{ id: 'fill', name: 'Fill' }] },
+      { depth: 1, edges: ['bottom'], layers: [{ id: 'title', name: 'Title' }] },
     ]);
     const stack = (manifest().stack as Record<string, unknown>[]).map((item) => ({ ...item }));
     stack[0].depth = -1;

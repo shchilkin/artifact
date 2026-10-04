@@ -1,8 +1,8 @@
 import { Button } from '@artifact/ui';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
-import type { Artwork } from '../../../../../../packages/runtime/src/artwork';
-import { createLiveArtwork } from '../../../../../../packages/runtime/src/liveArtwork';
-import type { LivePackage } from '../../../../../../packages/runtime/src/livePackage';
+import type { LayerSwitches } from '../../../../../../packages/runtime/src/layers';
+import { createLiveArtwork, type LiveArtwork } from '../../../../../../packages/runtime/src/liveArtwork';
+import { type LivePackage, livePackageLayers } from '../../../../../../packages/runtime/src/livePackage';
 import { plateCaseBindings } from '../../../../../../packages/runtime/src/testing/plateCase';
 import graphicUrl from '../../../../../../packages/runtime/test/fixtures/graphic.png?url';
 import type { CanvasDocument } from '../../../types/config';
@@ -12,7 +12,7 @@ import { exportLivePackage, type LiveExport, zipLivePackage } from './exportLive
 import { livePackageFromFiles } from './packageFromFiles';
 import { measurePackageParity, type PackageParity } from './packageParity';
 import { loadProjectDocument } from './projectDocument';
-import { sampleLiveCover } from './sampleCover';
+import { sampleLayerBindings, sampleLiveCover } from './sampleCover';
 
 function formatDepth(depth: number | undefined): string {
   return depth === undefined ? 'default' : `${Math.round(depth * 100)}%`;
@@ -51,6 +51,11 @@ export function LiveExportPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  /** Source layers (by id) to export on plates of their own. */
+  const [separate, setSeparate] = useState<readonly string[]>([]);
+  /** Per package layer (by id): what the playing artwork lets it do. */
+  const [switches, setSwitches] = useState<Readonly<Record<string, LayerSwitches>>>({});
+  const artworkRef = useRef<LiveArtwork | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -68,7 +73,7 @@ export function LiveExportPanel() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !result) return;
-    let artwork: Artwork | null = null;
+    let artwork: LiveArtwork | null = null;
     let cancelled = false;
     const fail = (cause: unknown) => {
       const message = cause instanceof Error ? cause.message : String(cause);
@@ -85,6 +90,7 @@ export function LiveExportPanel() {
         devicePixelRatio: result.livePackage.manifest.size.width / CSS_SIZE,
         contextAttributes: CATALOGUE_CONTEXT_ATTRIBUTES,
       });
+      artworkRef.current = artwork;
       artwork.start();
       artwork.ready.catch(fail);
     } catch (cause) {
@@ -92,9 +98,19 @@ export function LiveExportPanel() {
     }
     return () => {
       cancelled = true;
+      artworkRef.current = null;
       artwork?.destroy();
     };
   }, [result]);
+
+  // Layer toggles apply to the playing artwork on its next frame, without re-exporting. This runs after the effect
+  // above on the commit that creates the artwork, so a new artwork starts with the current toggles.
+  useEffect(() => {
+    artworkRef.current?.setLayerOptions({ layers: switches });
+  }, [switches]);
+
+  const toggle = (id: string, key: keyof LayerSwitches, on: boolean) =>
+    setSwitches((current) => ({ ...current, [id]: { ...current[id], [key]: on } }));
 
   const openFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -105,6 +121,7 @@ export function LiveExportPanel() {
       const project = await loadProjectDocument(await file.text());
       setSource({ name: file.name, ...project });
       setResult(null);
+      setSeparate([]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -121,11 +138,13 @@ export function LiveExportPanel() {
         width: size,
         height: size,
         approximate,
+        separate,
         bindings: bindings.trim() ? JSON.parse(bindings) : undefined,
       });
       const livePackage = await livePackageFromFiles(exported.files);
       const parity = await measurePackageParity(source.doc, source.imageCache, livePackage);
       const still = exported.files.get(exported.manifest.still);
+      setSwitches({});
       setResult({ exported, livePackage, parity, stillUrl: still ? URL.createObjectURL(still) : '' });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -147,6 +166,8 @@ export function LiveExportPanel() {
 
   const manifest = result?.exported.manifest;
   const comparison = result?.parity.comparison;
+  const sourceLayers = source?.doc.layers.filter((layer) => layer.kind !== 'effect' && layer.visible) ?? [];
+  const unseparated = result?.exported.plan.unseparated ?? [];
   return (
     <section className="runtime-catalogue-export" aria-labelledby="live-export-title">
       <div className="runtime-catalogue-details">
@@ -179,7 +200,29 @@ export function LiveExportPanel() {
             Download .zip
           </Button>
         </div>
-        <Button onClick={() => setBindings(JSON.stringify(plateCaseBindings(), null, 1))}>Parallax example</Button>
+        {sourceLayers.length > 0 && (
+          <fieldset className="runtime-catalogue-toolbar" aria-label="Own plate">
+            <span>Own plate:</span>
+            {sourceLayers.map((layer) => (
+              <label key={layer.id} className="runtime-catalogue-check">
+                <input
+                  type="checkbox"
+                  checked={separate.includes(layer.id)}
+                  onChange={(event) =>
+                    setSeparate((current) =>
+                      event.target.checked ? [...current, layer.id] : current.filter((id) => id !== layer.id),
+                    )
+                  }
+                />
+                {layer.name}
+              </label>
+            ))}
+          </fieldset>
+        )}
+        <div className="runtime-catalogue-toolbar">
+          <Button onClick={() => setBindings(JSON.stringify(plateCaseBindings(), null, 1))}>Parallax example</Button>
+          <Button onClick={() => setBindings(JSON.stringify(sampleLayerBindings(), null, 1))}>Layer example</Button>
+        </div>
         <label className="runtime-catalogue-bindings">
           <span>Bindings JSON (optional; passes are counted bottom up across chains)</span>
           <textarea
@@ -235,6 +278,12 @@ export function LiveExportPanel() {
                   : manifest.baked.map((layer) => `${layer.name}: ${layer.reason}`).join('; ')}
               </dd>
             </div>
+            {unseparated.length > 0 && (
+              <div>
+                <dt>Not separated</dt>
+                <dd>{unseparated.map((entry) => `${entry.key}: ${entry.reason}`).join('; ')}</dd>
+              </div>
+            )}
             {manifest.fallback && (
               <div>
                 <dt>Fallback</dt>
@@ -251,6 +300,25 @@ export function LiveExportPanel() {
               </dd>
             </div>
           </dl>
+          <fieldset className="runtime-catalogue-layers" aria-label="Layers" data-testid="live-export-layers">
+            <legend>Layers: what the playing package lets each do</legend>
+            {livePackageLayers(manifest).map((layer) => (
+              <div key={layer.id} className="runtime-catalogue-toolbar">
+                <span>{layer.name}</span>
+                {(['interactive', 'animated'] as const).map((key) => (
+                  <label key={key} className="runtime-catalogue-check">
+                    <input
+                      type="checkbox"
+                      aria-label={`${layer.name} ${key}`}
+                      checked={switches[layer.id]?.[key] ?? true}
+                      onChange={(event) => toggle(layer.id, key, event.target.checked)}
+                    />
+                    {key}
+                  </label>
+                ))}
+              </div>
+            ))}
+          </fieldset>
         </div>
       )}
     </section>

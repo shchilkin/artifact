@@ -92,6 +92,38 @@ test('the catalogue exports the sample cover as a live package and plays it', as
   expect((await download).suggestedFilename()).toBe('Sample cover-live-540.zip');
 });
 
+test('the catalogue exports a layer on its own plate and switches layers while the package plays', async ({ page }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const panel = page.getByRole('region', { name: 'Live package export' });
+  // Bring the panel near the viewport first, as catalogue entries hold WebGL contexts only there.
+  await panel.scrollIntoViewIfNeeded();
+  await panel.getByRole('group', { name: 'Own plate' }).getByLabel('Title').check();
+  await panel.getByRole('button', { name: 'Layer example' }).click();
+  await panel.getByRole('button', { name: 'Export' }).click();
+  await expect(panel.getByTestId('live-export-summary')).toContainText(/plate .*: Image.*plate .*: Title/s, {
+    timeout: 30_000,
+  });
+  await expect(panel.getByTestId('live-export-parity')).toHaveText(/^pass/);
+
+  const layers = panel.getByTestId('live-export-layers');
+  await expect(layers.getByLabel('Title interactive')).toBeChecked();
+  const canvas = panel.getByLabel('Live package playing');
+  await canvas.scrollIntoViewIfNeeded();
+  // Every layer still: the playing package stops changing.
+  for (const box of await layers.getByRole('checkbox').all()) await box.uncheck();
+  await page.waitForTimeout(200);
+  const still = await canvas.screenshot();
+  await page.waitForTimeout(500);
+  expect((await canvas.screenshot()).equals(still)).toBe(true);
+  // Noise Warp animated again: its wave moves the frame.
+  await layers.getByLabel('Noise Warp animated').check();
+  await expect.poll(async () => (await canvas.screenshot()).equals(still)).toBe(false);
+});
+
 test('the runtime catalogue shows Liquid Morph with a working frequency control', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');

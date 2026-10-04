@@ -2,6 +2,16 @@ import type { FrameState, FrameUniforms } from './artwork.js';
 import { effectRegistry as defaultRegistry } from './effects/index.js';
 import { INPUT_DOMAINS, INPUT_NAMES, type InputName, isInputName, RESTING_INPUTS } from './inputs.js';
 import {
+  ALL_LAYERS_ON,
+  findLayer,
+  type LayerControl,
+  type LayerPolicy,
+  type LayerRef,
+  type LayerSwitch,
+  layerPolicy,
+  uniqueLayers,
+} from './layers.js';
+import {
   NEUTRAL_PLATE_TRANSFORM,
   PARALLAX_TRANSFORMS,
   type ParallaxTransform,
@@ -52,7 +62,32 @@ export interface ParallaxTarget {
   readonly parallax: ParallaxTransform;
 }
 
-export type BindingTarget = FieldTarget | UniformTarget | PlateTarget | ParallaxTarget;
+/**
+ * Targets by Artifact layer (issue #429), resolved through the package: `layer` is a layer id or name. A field or
+ * uniform target finds the pass of that effect layer that has the field or uniform (`effect` picks one when the layer
+ * runs several effects that have it); a transform target moves the plate the layer is drawn into.
+ */
+export interface LayerFieldTarget {
+  readonly layer: string;
+  readonly effect?: string;
+  readonly field: string;
+}
+
+export interface LayerUniformTarget {
+  readonly layer: string;
+  readonly effect?: string;
+  readonly uniform: string;
+  readonly component?: number;
+}
+
+export interface LayerPlateTarget {
+  readonly layer: string;
+  readonly transform: PlateTransformField;
+}
+
+export type LayerTarget = LayerFieldTarget | LayerUniformTarget | LayerPlateTarget;
+
+export type BindingTarget = FieldTarget | UniformTarget | PlateTarget | ParallaxTarget | LayerTarget;
 
 export const EASINGS = ['linear', 'easeIn', 'easeOut', 'easeInOut'] as const;
 export type Easing = (typeof EASINGS)[number];
@@ -90,6 +125,8 @@ export interface BindingsDocument {
 export interface LivePass {
   readonly effect: string;
   readonly layer: AuthoredEffectLayer & Readonly<Record<string, unknown>>;
+  /** The effect layer the pass comes from: what `layer` targets and layer options address. */
+  readonly source?: LayerRef;
 }
 
 export class BindingError extends Error {
@@ -245,7 +282,8 @@ function checkTarget(target: unknown, path: string, fail: (path: string, message
   if (!isRecord(target)) {
     return fail(
       path,
-      'must be { "pass": n, "field" | "uniform": … }, { "plate": n, "transform": … } or { "parallax": … }',
+      'must be { "pass": n, "field" | "uniform": … }, { "plate": n, "transform": … }, { "parallax": … } or ' +
+        '{ "layer": "id or name", "field" | "uniform" | "transform": … }',
     );
   }
   if ('parallax' in target) {
@@ -255,23 +293,51 @@ function checkTarget(target: unknown, path: string, fail: (path: string, message
     }
     return;
   }
+  if ('layer' in target) {
+    if (!(typeof target.layer === 'string' && target.layer.length > 0)) {
+      fail(`${path}.layer`, `must be a layer id or name, got ${describe(target.layer)}`);
+    }
+    if ('transform' in target) {
+      unknownKeys(target, ['layer', 'transform'], `${path}.`, fail);
+      checkTransform(target, path, fail);
+      return;
+    }
+    unknownKeys(target, ['layer', 'effect', 'field', 'uniform', 'component'], `${path}.`, fail);
+    if (target.effect !== undefined && !(typeof target.effect === 'string' && target.effect.length > 0)) {
+      fail(`${path}.effect`, `must be an effect id, got ${describe(target.effect)}`);
+    }
+    return checkPassField(target, path, fail, 'needs exactly one of "field", "uniform" or "transform"');
+  }
   if ('plate' in target) {
     unknownKeys(target, ['plate', 'transform'], `${path}.`, fail);
     if (!(Number.isInteger(target.plate) && (target.plate as number) >= 0)) {
       fail(`${path}.plate`, `must be a plate index (0 is the bottom plate), got ${describe(target.plate)}`);
     }
-    if (!(PLATE_TRANSFORMS as readonly unknown[]).includes(target.transform)) {
-      fail(`${path}.transform`, `must be one of ${PLATE_TRANSFORMS.join(', ')}, got ${describe(target.transform)}`);
-    }
+    checkTransform(target, path, fail);
     return;
   }
   unknownKeys(target, ['pass', 'field', 'uniform', 'component'], `${path}.`, fail);
   if (!(Number.isInteger(target.pass) && (target.pass as number) >= 0)) {
     fail(`${path}.pass`, `must be a pass index (0, 1, …), got ${describe(target.pass)}`);
   }
+  checkPassField(target, path, fail, 'needs exactly one of "field" or "uniform"');
+}
+
+function checkTransform(target: Record<string, unknown>, path: string, fail: (path: string, message: string) => void) {
+  if (!(PLATE_TRANSFORMS as readonly unknown[]).includes(target.transform)) {
+    fail(`${path}.transform`, `must be one of ${PLATE_TRANSFORMS.join(', ')}, got ${describe(target.transform)}`);
+  }
+}
+
+function checkPassField(
+  target: Record<string, unknown>,
+  path: string,
+  fail: (path: string, message: string) => void,
+  missing: string,
+) {
   const hasField = 'field' in target;
   const hasUniform = 'uniform' in target;
-  if (hasField === hasUniform) return fail(path, 'needs exactly one of "field" or "uniform"');
+  if (hasField === hasUniform) return fail(path, missing);
   if (hasField && !(typeof target.field === 'string' && target.field.length > 0)) {
     fail(`${path}.field`, 'must be a field name');
   }
@@ -288,11 +354,14 @@ function checkTarget(target: unknown, path: string, fail: (path: string, message
   }
 }
 
-export interface LiveChainOptions {
+export interface LiveChainOptions extends LayerControl {
   readonly passes: readonly LivePass[];
   readonly context: EffectContext;
-  /** A live package's plates, bottom first, with their parallax depth. Plate and parallax targets need them. */
-  readonly plates?: readonly { readonly depth: number }[];
+  /**
+   * A live package's plates, bottom first, with their parallax depth and the layers drawn into them. Plate and
+   * parallax targets need them; `layer` transform targets and layer options read their layers.
+   */
+  readonly plates?: readonly { readonly depth: number; readonly layers?: readonly LayerRef[] }[];
   /** A bindings document as plain JSON; validated here. */
   readonly bindings?: unknown;
   readonly registry?: EffectRegistry;
@@ -307,6 +376,13 @@ export interface LiveChain {
   /** Inputs some binding reads, so hosts can skip attaching listeners when there are none. */
   readonly inputs: readonly InputName[];
   readonly plates: PlateMotion;
+  /** Layers bindings and layer options can address: pass sources and plate layers, once each. */
+  readonly layers: readonly LayerRef[];
+  /**
+   * Replaces the layer configuration (see `LayerControl`); frames drawn from now on follow it. Throws
+   * `LayerOptionsError` for a key that names no layer or several.
+   */
+  setLayerOptions(control: LayerControl): void;
 }
 
 /** Plate transforms from bindings (issue #394). */
@@ -322,12 +398,16 @@ interface ResolvedBinding {
   readonly value: (time: number, inputs: Readonly<Record<string, number>>) => number;
   readonly domain: readonly [number, number] | null;
   readonly ease: (t: number) => number;
+  /** Input-driven bindings are `interactive`, time tracks `animated` (layer options switch them). */
+  readonly kind: LayerSwitch;
   smoothed: { value: number; clock: number } | null;
 }
 
 interface BoundPass {
   readonly chainIndex: number;
   readonly pass: LivePass;
+  /** The layer the pass belongs to, for layer options; empty for a pass without a source. */
+  readonly owners: readonly string[];
   readonly resting: UniformValues;
   readonly fields: readonly (ResolvedBinding & { readonly field: string })[];
   readonly uniforms: readonly (ResolvedBinding & {
@@ -336,9 +416,14 @@ interface BoundPass {
   })[];
 }
 
+/** A binding target with layers resolved to pass and plate indices. */
+type IndexTarget = FieldTarget | UniformTarget | PlateTarget | ParallaxTarget;
+type IndexBinding = Binding & { readonly to: IndexTarget };
+
 /**
  * Builds the chain for authored passes and compiles their bindings, checking every target against the registry:
- * fields must be ones the effect reads, uniforms must be ones it declares. Throws `BindingError`.
+ * fields must be ones the effect reads, uniforms must be ones it declares, and `layer` targets must name exactly one
+ * layer that has the field, uniform or plate. Throws `BindingError`, or `LayerOptionsError` for layer options.
  */
 export function compileLiveChain(options: LiveChainOptions): LiveChain {
   const registry = options.registry ?? defaultRegistry;
@@ -356,7 +441,17 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
 
   const resting = passes.map((pass) => registry.uniforms(pass.effect, pass.layer, context));
   const plates = options.plates ?? [];
-  document.bindings.forEach((binding, index) => {
+  const layers = uniqueLayers([
+    ...plates.flatMap((plate) => plate.layers ?? []),
+    ...passes.flatMap((pass) => (pass.source ? [pass.source] : [])),
+  ]);
+  const bindings = document.bindings.map((binding, index): IndexBinding => {
+    const to = resolveLayerTarget(binding.to, `bindings[${index}].to`);
+    return { ...binding, to: to ?? { pass: 0, field: '' } };
+  });
+  if (issues.length > 0) throw new BindingError(issues);
+
+  bindings.forEach((binding, index) => {
     const path = `bindings[${index}].to`;
     const target = binding.to;
     if ('parallax' in target) {
@@ -392,29 +487,39 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
   });
   if (issues.length > 0) throw new BindingError(issues);
 
+  let allows: LayerPolicy = options.layers || options.layerDefaults ? layerPolicy(options, layers) : ALL_LAYERS_ON;
+  const plateOwners = plates.map((plate) => (plate.layers ?? []).map((layer) => layer.id));
+
   const chain: ChainPass[] = [];
   const bound: BoundPass[] = [];
   passes.forEach((pass, passIndex) => {
-    const bindings = document.bindings.filter(
+    const passBindings = bindings.filter(
       (binding): binding is Binding & { readonly to: FieldTarget | UniformTarget } =>
         'pass' in binding.to && binding.to.pass === passIndex,
     );
     const authored = registry.pass(pass.effect, pass.layer, context);
-    if (!authored && bindings.length === 0) return;
+    if (!authored && passBindings.length === 0) return;
     const chainIndex = chain.length;
     chain.push(authored ?? chainPass(registry.get(pass.effect)!, resting[passIndex]));
-    if (bindings.length === 0) return;
+    if (passBindings.length === 0) return;
     const fields: BoundPass['fields'][number][] = [];
     const uniforms: BoundPass['uniforms'][number][] = [];
-    for (const binding of bindings) {
+    for (const binding of passBindings) {
       const resolved = resolveBinding(binding);
       if ('field' in binding.to) fields.push({ ...resolved, field: binding.to.field });
       else uniforms.push({ ...resolved, uniform: binding.to.uniform, component: binding.to.component });
     }
-    bound.push({ chainIndex, pass, resting: chain[chainIndex].uniforms, fields, uniforms });
+    const owners = pass.source ? [pass.source.id] : [];
+    bound.push({ chainIndex, pass, owners, resting: chain[chainIndex].uniforms, fields, uniforms });
   });
 
   const duration = document.loop?.durationSeconds ?? 0;
+  // A binding a layer option switches off leaves its target at the authored value; its smoothing starts afresh.
+  const enabled = (resolved: ResolvedBinding, owners: readonly string[]) => {
+    if (allows(owners, resolved.kind)) return true;
+    resolved.smoothed = null;
+    return false;
+  };
   const frameUniforms: FrameUniforms = (frame: FrameState) => {
     if (frame.reducedMotion || bound.length === 0) return undefined;
     const t = loopPosition(frame.time, duration);
@@ -422,15 +527,17 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
     const overrides: (UniformValues | undefined)[] = new Array(chain.length);
     for (const entry of bound) {
       let uniforms: Record<string, UniformValue> = { ...entry.resting };
-      if (entry.fields.length > 0) {
+      const fields = entry.fields.filter((binding) => enabled(binding, entry.owners));
+      if (fields.length > 0) {
         const layer: Record<string, unknown> = { ...entry.pass.layer };
-        for (const binding of entry.fields) {
+        for (const binding of fields) {
           const current = layer[binding.field];
           layer[binding.field] = apply(binding, typeof current === 'number' ? current : 0, t, inputs, frame.clock);
         }
         uniforms = { ...registry.uniforms(entry.pass.effect, layer, context) };
       }
       for (const binding of entry.uniforms) {
+        if (!enabled(binding, entry.owners)) continue;
         const current = uniforms[binding.uniform];
         if (binding.component === undefined) {
           uniforms[binding.uniform] = apply(binding, current as number, t, inputs, frame.clock);
@@ -445,13 +552,21 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
     return overrides;
   };
 
-  const inputs = [
-    ...new Set(document.bindings.flatMap((binding) => ('input' in binding.from ? [binding.from.input] : []))),
-  ];
-  return { chain, frameUniforms, document, inputs, plates: plateMotion() };
+  const inputs = [...new Set(bindings.flatMap((binding) => ('input' in binding.from ? [binding.from.input] : [])))];
+  return {
+    chain,
+    frameUniforms,
+    document,
+    inputs,
+    plates: plateMotion(),
+    layers,
+    setLayerOptions(control) {
+      allows = layerPolicy(control, layers);
+    },
+  };
 
   function plateMotion(): PlateMotion {
-    const plateBindings = document.bindings.flatMap((binding): PlateBinding[] => {
+    const plateBindings = bindings.flatMap((binding): PlateBinding[] => {
       const to = binding.to;
       if ('plate' in to) return [{ resolved: resolveBinding(binding), plate: to.plate, transform: to.transform }];
       if ('parallax' in to) return [{ resolved: resolveBinding(binding), plate: null, transform: to.parallax }];
@@ -467,9 +582,10 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
       const t = loopPosition(frame.time, duration);
       const inputs = { ...RESTING_INPUTS, ...frame.inputs };
       const result: Record<PlateTransformField, number>[] = plates.map(() => ({ ...NEUTRAL_PLATE_TRANSFORM }));
-      // Each plate's own bindings in order, then every parallax contribution scaled by depth.
+      // Each plate's own bindings in order, then every parallax contribution scaled by depth. A plate moves only
+      // where every layer drawn into it allows the binding's kind: a layer switched off never moves.
       for (const entry of plateBindings) {
-        if (entry.plate === null) continue;
+        if (entry.plate === null || !enabled(entry.resolved, plateOwners[entry.plate])) continue;
         const transform = result[entry.plate];
         transform[entry.transform] = apply(entry.resolved, transform[entry.transform], t, inputs, frame.clock);
       }
@@ -477,7 +593,7 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
         if (entry.plate !== null) continue;
         const value = apply(entry.resolved, 0, t, inputs, frame.clock);
         plates.forEach((plate, index) => {
-          result[index][entry.transform] += value * plate.depth;
+          if (allows(plateOwners[index], entry.resolved.kind)) result[index][entry.transform] += value * plate.depth;
         });
       }
       return result;
@@ -491,10 +607,62 @@ export function compileLiveChain(options: LiveChainOptions): LiveChain {
     if ('input' in source) {
       const value = (_t: number, inputs: Readonly<Record<string, number>>) =>
         inputs[source.input] ?? RESTING_INPUTS[source.input];
-      return { binding, value, domain: INPUT_DOMAINS[source.input], ease, smoothed: null };
+      return { binding, value, domain: INPUT_DOMAINS[source.input], ease, kind: 'interactive', smoothed: null };
     }
     const value = (t: number) => evaluateTrack(source, t, duration);
-    return { binding, value, domain: trackDomain(source.track), ease, smoothed: null };
+    return { binding, value, domain: trackDomain(source.track), ease, kind: 'animated', smoothed: null };
+  }
+
+  /** The pass or plate a `layer` target names, or `null` after recording why there is none. */
+  function resolveLayerTarget(target: BindingTarget, path: string): IndexTarget | null {
+    if (!('layer' in target)) return target;
+    const found = findLayer(target.layer, layers);
+    if ('issue' in found) {
+      issues.push(`${path}.layer: ${found.issue}`);
+      return null;
+    }
+    const { layer } = found;
+    const label = `"${layer.name}" (${layer.id})`;
+    if ('transform' in target) {
+      const plate = plates.findIndex((item) => (item.layers ?? []).some((drawn) => drawn.id === layer.id));
+      if (plate < 0) {
+        issues.push(`${path}.layer: ${label} is an effect the runtime runs, not drawn into a plate, so it cannot move`);
+        return null;
+      }
+      return { plate, transform: target.transform };
+    }
+    const own = passes.flatMap((pass, index) => (pass.source?.id === layer.id ? [index] : []));
+    if (own.length === 0) {
+      issues.push(`${path}.layer: ${label} is drawn into a plate; "field" and "uniform" need an effect layer`);
+      return null;
+    }
+    const ofEffect = target.effect === undefined ? own : own.filter((index) => passes[index].effect === target.effect);
+    const effects = own.map((index) => passes[index].effect).join(', ');
+    if (ofEffect.length === 0) {
+      issues.push(`${path}.effect: ${label} runs ${effects}, not ${target.effect}`);
+      return null;
+    }
+    const name = 'field' in target ? target.field : target.uniform;
+    const having = ofEffect.filter((index) =>
+      'field' in target
+        ? registry.get(passes[index].effect)!.fields.includes(target.field)
+        : resting[index][target.uniform] !== undefined,
+    );
+    if (having.length !== 1) {
+      const key = 'field' in target ? 'field' : 'uniform';
+      issues.push(
+        having.length === 0
+          ? `${path}.${key}: ${label} (${effects}) has no ${key} "${name}"`
+          : `${path}.${key}: ${label} runs several effects with ${key} "${name}" (${having
+              .map((index) => passes[index].effect)
+              .join(', ')}); add "effect" to pick one`,
+      );
+      return null;
+    }
+    const pass = having[0];
+    return 'field' in target
+      ? { pass, field: target.field }
+      : { pass, uniform: target.uniform, ...(target.component === undefined ? {} : { component: target.component }) };
   }
 }
 

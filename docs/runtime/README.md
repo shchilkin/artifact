@@ -338,6 +338,116 @@ writes and the resting frame against the editor; the `LIVE_PACKAGE_PROJECT` run 
 parallax and attaches frames at rest, in two pointer corners and at the top of a breath. The catalogue's "Plate
 parallax" entry plays the fixture with strength, depth, breathing and tilt controls.
 
+## Layers: what is interactive and what moves (issue #429)
+
+An embedding page decides, per Artifact layer, which layers react to the visitor and which only animate or stay
+still, without re-exporting the package.
+
+**Targets by layer.** Besides `pass` and `plate` indices, a binding may name a layer by its Artifact id or its name:
+
+```json
+{ "from": { "input": "hover" }, "to": { "layer": "Vortex", "field": "vortex" }, "range": [20, 80] }
+{ "from": { "input": "pointer.x" }, "to": { "layer": "Phone", "transform": "x" }, "range": [-0.03, 0.03] }
+```
+
+- The runtime resolves them through the manifest: `field` and `uniform` targets to the pass whose `source` is that
+  layer (`passes[].source`), `transform` targets to the plate whose `layers` include it (`plates[].layers`). Index
+  targets keep working, and both kinds can be mixed.
+- An id is tried first, then a name. A name two layers share, a key no layer has, a plate layer given a `field`, or an
+  effect layer given a `transform` is a path-tagged `BindingError`
+  (`bindings[0].to.layer: 2 layers are named "Phone" (ids a1, b7); use an id`). A layer that runs several effects
+  with the same field or uniform needs `"effect": "noiseWarp"` to pick one.
+
+**Host options.** `createLiveArtwork` takes `layers` (switches keyed by layer id or name) and `layerDefaults` (for
+every layer `layers` does not list; default both on):
+
+```ts
+const artwork = createLiveArtwork({
+  canvas,
+  livePackage,
+  layerDefaults: { interactive: false },
+  layers: { Phone: { interactive: true }, Title: { animated: false } },
+});
+```
+
+- `interactive: false` drops the bindings that read a visitor input (`pointer.*`, `hover`, `click`, `scroll`) for that
+  layer; `animated: false` drops its time tracks (`wave`, `step`, `pulse`). A parallax binding counts by its source:
+  pointer parallax is interactive, a breathing wave is animated. A switched-off binding leaves its target at the
+  authored value, so a layer with both switches off draws exactly as in the still.
+- `artwork.setLayerOptions({ layers, layerDefaults })` replaces the whole configuration; a running artwork follows it
+  from its next frame and a stopped one redraws at once. A page can start with `interactive: false` and turn pointer
+  effects on once the visitor engages. `artwork.layers` lists the layers there are to switch.
+- Unknown or ambiguous keys, and switches that are not booleans, throw `LayerOptionsError` with their paths.
+- Reduced motion still turns every binding off, whatever the layer options say.
+
+**Plates hold several layers.** A plate binding (by index, by layer, or a parallax share) belongs to every layer drawn
+into that plate, and the plate moves only when **all** of them allow it. Switching a layer off therefore never leaves it
+moving because it shares a plate; the cost is that its plate-mates rest with it. To let them move apart, export the
+layer on a plate of its own.
+
+**Exporter.** `exportLivePackage(doc, images, { separate: ['Phone'] })` (and `planLivePackage`) draws each listed
+source layer, by id or name, into a plate of its own; the default keeps every run of source layers as one plate. Plates
+keep the stack order, and depths stay `(index + 1) / plates` by that order. A layer beneath an effect layer the editor
+renders stays in the bottom plate, because that effect needs its pixels; the plan lists it in `unseparated` with the
+reason, as it does unknown keys and effect layers. Compositing the split plates over each other gives the same
+resting frame (`runtime-live-package.spec.ts` checks the sample cover with the Title on its own plate against
+`renderDocument`).
+
+**Catalogue.** The live-package panel in `/dev/runtime` has "Own plate" checkboxes for the document's source layers, a
+"Layer example" bindings preset that addresses the sample cover's layers by name and id, and, once exported, the
+package's layers with interactive and animated toggles that apply to the playing package.
+
+**Tests.** `packages/runtime/src/layers.test.ts` covers resolution (id, name, ambiguous, missing, wrong kind), the
+switches, defaults, the plate rule and `setLayerOptions`. `runtime-live-package.spec.ts` exports the sample cover
+with `sampleLayerBindings` and the Title on its own plate, then counts changed pixels against the resting frame where
+the Title plate is opaque and elsewhere: with the pointer in a corner and the Title not interactive, none change on
+the Title and the rest of the frame still moves; the same for a quarter loop with the Title not animated; with every
+layer off nothing changes; and `setLayerOptions` reaches a stopped and a running artwork. The frames are goldens in
+`runtime-live-package.spec.ts-snapshots/layers/`, recorded as the effect goldens are.
+
+### Embedding: a portfolio page and a React component
+
+A plain script (an Astro page's `<script>`) that keeps the cover still until the visitor engages, then lets the phone
+follow the pointer while the title keeps its loop:
+
+```ts
+import { createLiveArtwork, loadLivePackage } from '@artifact/runtime';
+
+const canvas = document.querySelector<HTMLCanvasElement>('#cover')!;
+const livePackage = await loadLivePackage('/covers/vantaa-underground/manifest.json');
+const artwork = createLiveArtwork({
+  canvas,
+  livePackage,
+  layerDefaults: { interactive: false },
+  layers: { Background: { animated: false } },
+});
+await artwork.ready;
+artwork.start();
+canvas.addEventListener(
+  'pointerenter',
+  () => artwork.setLayerOptions({ layers: { Background: { animated: false }, Phone: { interactive: true } } }),
+  { once: true },
+);
+```
+
+The React prop shape for the Vantaa Underground embed (#399) mirrors the options, so a page passes plain data and the
+component calls `setLayerOptions` when the props change:
+
+```ts
+interface LiveCoverProps {
+  /** URL of the package's manifest.json. */
+  readonly src: string;
+  /** Switches per Artifact layer id or name. */
+  readonly layers?: Readonly<Record<string, { interactive?: boolean; animated?: boolean }>>;
+  /** For layers `layers` does not list. Default both true. */
+  readonly layerDefaults?: { interactive?: boolean; animated?: boolean };
+  /** Shown until the artwork is ready, and instead of it without WebGL2. Default the package's still. */
+  readonly fallback?: React.ReactNode;
+}
+
+// <LiveCover src="/covers/vantaa-underground/manifest.json" layers={{ Phone: { interactive: engaged } }} />
+```
+
 ## Verification: one effect at a time
 
 Every effect issue lands with visual tests in the shared harness (issue: parity harness):
