@@ -59,6 +59,8 @@ export {
   glitchLcg,
   glitchUniforms,
   grain,
+  type InterlaceLayer,
+  interlace,
   type MorphLayer,
   morph,
   type NoiseWarpLayer,

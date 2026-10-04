@@ -3,6 +3,7 @@ import ca from './ca.js';
 import dataMosh from './dataMosh.js';
 import glitch from './glitch.js';
 import grain from './grain.js';
+import interlace from './interlace.js';
 import morph from './morph.js';
 import noiseWarp from './noiseWarp.js';
 import pixelate from './pixelate.js';
@@ -26,4 +27,5 @@ export const EFFECT_CASES: Readonly<Record<string, EffectCase>> = {
   rgbSplit,
   ripple,
   pixelate,
+  interlace,
 };

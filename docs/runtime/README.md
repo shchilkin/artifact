@@ -58,7 +58,7 @@ not its render loop.
   `setInput` fills `inputs`.
 
 Shader reuse: shared fragments live in `@artifact/shared/effect-shaders` (`HEADER`, `NORM_UV`, `SAMPLE`,
-`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`, `RGB_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
+`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`, `RGB_FRAG`, `INTERLACE_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
 byte-identical. Port further editor fragments the same way: move the string, import it in both places.
 
 Pixi conventions the chain matches:
@@ -242,6 +242,13 @@ nothing, so the resting frame is the editor's: at 540px at most 0.016% of pixels
 and text, in Chromium on macOS. The harness case eases the block size from 36px to the authored 12px and back over the
 loop, binds `pointer.x/y` to `uCenter` and `hover` to `pixelateRadius`; the self-test rejects corner sampling and a
 reveal at radius 0. GPU time at 540px: 0.07 ms (Chromium, Apple M5 Max).
+
+Interlace (`interlace`, `packages/runtime/src/effects/interlace.ts`) runs the editor's `INTERLACE_FRAG`, moved to
+`@artifact/shared/effect-shaders` and imported by both: `uIntensity = interlace × 0.003`, `uSeed` the layer seed, and
+`uResY` the render height (the editor's `canvasH`, the `H` it renders at), so rows stay whole pixel rows at any size.
+At a fixed seed it is the editor's fragment, so parity is by pixels: no pixel over 8 levels on any fixture in Chromium,
+Firefox and WebKit on macOS. The harness case re-seeds the rows on a 10 fps step track and adds up to 40 to the amount
+with `pointer.speed`. GPU time at 540px: 0.11–0.19 ms (Chromium, Apple M5 Max).
 
 ### Export
 
@@ -511,7 +518,7 @@ no timer queries, and there is no GPU runner. The budget is enforced by hand, on
 
 Last measured (Playwright 1.60 Chromium, headed, M5 Max, `RUNTIME_GPU_BUDGET=1`): Noise Warp 0.28 ms, Vortex 0.10 ms,
 Grain 0.11 ms, Morph 0.20 ms, Chrom. Ab. 0.07 ms, Data Mosh 0.15 ms, Scanlines 0.17 ms, Tear 0.10 ms, Glitch
-0.67 ms, RGB Split 0.07 ms, Ripple 0.06 ms.
+0.67 ms, RGB Split 0.07 ms, Ripple 0.06 ms, Interlace 0.11–0.19 ms.
 
 ## Order of work
 

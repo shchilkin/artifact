@@ -332,3 +332,26 @@ test('the runtime catalogue shows Pixelate, with hovering revealing the image ar
   await expect.poll(async () => (await canvas.screenshot()).equals(revealed)).toBe(false);
   await page.mouse.move(0, 0);
 });
+
+test('the runtime catalogue shows Interlace with a working amount control', async ({ page }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const entry = page.locator('article[data-effect="interlace"]');
+  await expect(entry.getByRole('heading', { name: 'Interlace' })).toBeVisible();
+  await expect(entry.getByText('step track, pointer.speed')).toBeVisible();
+  await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+
+  // The entry sits below the fold; bring it into view before capturing, so WebKit composites the canvas.
+  await entry.scrollIntoViewIfNeeded();
+  const canvas = entry.locator('canvas');
+  const amount = entry.getByRole('slider', { name: 'Interlace' });
+  await expect(amount).toHaveValue('20');
+  const before = await canvas.screenshot();
+  await amount.focus();
+  await amount.press('End');
+  await expect(amount).toHaveValue('100');
+  await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
+});
