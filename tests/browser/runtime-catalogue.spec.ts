@@ -16,7 +16,7 @@ test('the runtime catalogue shows Noise Warp with working controls and a GPU tim
 
   const entry = page.locator('article[data-effect="noiseWarp"]');
   await expect(entry.getByRole('heading', { name: 'Noise Warp' })).toBeVisible();
-  await expect(entry.getByText('time, pointer.speed, pointer.x, pointer.y')).toBeVisible();
+  await expect(entry.getByText('wave track, pointer.x, pointer.y, pointer.speed')).toBeVisible();
   // A measured time where the context has timer queries, "n/a" where it has none; never stuck measuring.
   await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
 
@@ -28,8 +28,17 @@ test('the runtime catalogue shows Noise Warp with working controls and a GPU tim
   await expect(entry.getByText('0%')).toBeVisible();
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 
-  // Animate: the frame changes on its own.
+  // Still: moving the pointer over the canvas drives the pointer bindings.
   await amount.press('End');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('catalogue canvas has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const centred = await canvas.screenshot();
+  await page.mouse.move(box.x + box.width - 4, box.y + box.height - 4, { steps: 4 });
+  await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(false);
+  await page.mouse.move(0, 0);
+
+  // Animate: the frame changes on its own.
   await page.getByRole('button', { name: 'Animate' }).click();
   const moving = await canvas.screenshot();
   await expect.poll(async () => (await canvas.screenshot()).equals(moving)).toBe(false);

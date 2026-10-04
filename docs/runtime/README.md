@@ -138,13 +138,21 @@ export default defineEffectCase({
   effect: 'noiseWarp', // registry id, also the editor preset id
   layer: { noiseWarp: 90 }, // authored values over makeEffectPresetLayer(effect)
   frames: [...MOTION_FRAMES, ...INPUT_FRAMES], // omit for a static effect
-  frameUniforms: ({ time, inputs }, pass) => ({ uSeed: Number(pass.uniforms.uSeed) + time * 400 }),
+  bindings: {
+    // bindings JSON (see Bindings above) for a one-pass chain: targets use pass 0
+    version: 1,
+    loop: { durationSeconds: 4 },
+    bindings: [
+      { from: { track: 'wave', cycles: 1 }, to: { pass: 0, field: 'seedOffset' }, range: [-200, 200], mode: 'add' },
+      { from: { input: 'pointer.speed' }, to: { pass: 0, field: 'noiseWarp' }, range: [0, 60], mode: 'add' },
+    ],
+  },
 });
 ```
 
-Optional fields: `seed` (default 11), `fixtures` (default all three), `goldenFixture` (default `graphic`).
-`frameUniforms` stands in for the time tracks and input bindings of #332; once those land, a case declares its
-binding instead and the harness keeps driving it with `setInput` and `seek(t)`.
+Optional fields: `seed` (default 11), `fixtures` (default all three), `goldenFixture` (default `graphic`),
+`bindings`. Static parity uses the authored layer alone; goldens, GPU timing and the catalogue run the case through
+`createLiveArtwork` with its bindings.
 
 From that one declaration:
 
@@ -194,7 +202,9 @@ and grey is the dimmed editor image.
 
 ### Goldens
 
-Each frame of a case is drawn with its inputs set and `seek(t)`, at 270px (half the parity size, to keep the PNGs
+Each frame of a case is drawn through `createLiveArtwork` with the case's bindings (pointer tracking off): its inputs
+are set with `setInput`, then the artwork seeks to loop position `t` (`t × loop.durationSeconds`, or `t` seconds
+without a loop), at 270px (half the parity size, to keep the PNGs
 small) on the case's golden fixture. `MOTION_FRAMES` samples `t = 0, 0.25, 0.5, 0.75`. `INPUT_FRAMES` samples the
 pointer at the centre, at the bottom-right corner (`pointer.x = pointer.y = 1`, measured from the top left), and a
 full-speed pointer.

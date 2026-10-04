@@ -31,32 +31,12 @@ export function catalogueLayer(effect: string, effectCase: EffectCase | undefine
   return { ...makeEffectPresetLayer(effect), ...effectCase?.layer, seedOffset: 0 } as EffectLayer;
 }
 
-/** What drives the effect between frames: `time` when a frame samples t > 0, plus every input a frame sets. */
+/** What drives the effect: one entry per bound source (a time track by kind, an input by name), in binding order. */
 export function catalogueBindings(effectCase: EffectCase | undefined): string[] {
-  if (!effectCase?.frameUniforms) return [];
-  const frames = effectCase.frames ?? [];
-  const inputs = new Set<string>();
-  for (const frame of frames) for (const name of Object.keys(frame.input ?? {})) inputs.add(name);
-  return [...(frames.some((frame) => frame.t > 0) ? ['time'] : []), ...[...inputs].sort()];
-}
-
-/** Pointer speed in CSS pixels per millisecond that maps to `pointer.speed = 1`. */
-const FULL_SPEED_PX_PER_MS = 2;
-
-/** Pointer inputs for a position inside a `width` × `height` box, `pointer.x/y` in 0..1 from the top left. */
-export function pointerInputs(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  speedPxPerMs: number,
-): Record<'pointer.x' | 'pointer.y' | 'pointer.speed', number> {
-  const clamp = (value: number) => Math.min(1, Math.max(0, value));
-  return {
-    'pointer.x': width > 0 ? clamp(x / width) : 0.5,
-    'pointer.y': height > 0 ? clamp(y / height) : 0.5,
-    'pointer.speed': clamp(speedPxPerMs / FULL_SPEED_PX_PER_MS),
-  };
+  const sources = (effectCase?.bindings?.bindings ?? []).map((binding) =>
+    'input' in binding.from ? binding.from.input : `${binding.from.track} track`,
+  );
+  return [...new Set(sources)];
 }
 
 export function formatGpuTime(ms: number | null | undefined): string {

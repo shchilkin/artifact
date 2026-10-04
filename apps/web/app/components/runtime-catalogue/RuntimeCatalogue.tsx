@@ -1,7 +1,8 @@
-import { type PointerEvent, useEffect, useRef, useState } from 'react';
-import { type Artwork, createArtwork } from '../../../../../packages/runtime/src/artwork';
+import { useEffect, useRef, useState } from 'react';
+import type { Artwork } from '../../../../../packages/runtime/src/artwork';
 import { measureGpuTime } from '../../../../../packages/runtime/src/gpuTiming';
 import { effectRegistry } from '../../../../../packages/runtime/src/index';
+import { createLiveArtwork } from '../../../../../packages/runtime/src/liveArtwork';
 import {
   DEFAULT_CASE_SEED,
   type EffectCase,
@@ -23,14 +24,11 @@ import {
   catalogueLayer,
   catalogueTitle,
   formatGpuTime,
-  pointerInputs,
 } from './runtimeCatalogueModel';
 
 const FIXTURE_URLS: Record<FixtureName, string> = { photo: photoUrl, graphic: graphicUrl, text: textUrl };
 /** Displayed size; the drawing buffer is twice that, so every effect renders and is timed at 540px. */
 const CSS_SIZE = PARITY_SIZE / 2;
-/** Pointer speed falls back to zero this long after the last move. */
-const SPEED_DECAY_MS = 120;
 
 const images = new Map<string, Promise<HTMLImageElement>>();
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -118,13 +116,13 @@ function EffectEntry({
       if (cancelled) return;
       try {
         const authored: Readonly<Record<string, unknown>> = { ...layer };
-        const pass = effectRegistry.pass(effect, authored, { seed, width: PARITY_SIZE, height: PARITY_SIZE });
-        const frameUniforms = effectCase?.frameUniforms;
-        artwork = createArtwork({
+        // Pointer input on the canvas feeds the case's input bindings, in still and animated playback.
+        artwork = createLiveArtwork({
           canvas,
           source: image,
-          chain: pass ? [pass] : [],
-          frameUniforms: pass && frameUniforms ? (frame) => [frameUniforms(frame, pass)] : undefined,
+          passes: [{ effect, layer: authored }],
+          context: { seed, width: PARITY_SIZE, height: PARITY_SIZE },
+          bindings: effectCase?.bindings,
           reducedMotion: false,
           observeVisibility: null,
           maxRenderSize: PARITY_SIZE,
@@ -162,37 +160,6 @@ function EffectEntry({
     else artwork.pause();
   }, [animate]);
 
-  const lastMove = useRef<{ x: number; y: number; time: number } | null>(null);
-  const decayTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const setInputs = (inputs: Record<string, number>) => {
-    const artwork = artworkRef.current;
-    if (!artwork) return;
-    for (const [name, value] of Object.entries(inputs)) artwork.setInput(name, value);
-    // A paused artwork redraws its current frame so pointer changes show while still.
-    if (!animate) artwork.seek(artwork.state.time);
-  };
-
-  const onPointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const previous = lastMove.current;
-    const elapsed = previous ? Math.max(1, event.timeStamp - previous.time) : 1;
-    const speed = previous ? Math.hypot(x - previous.x, y - previous.y) / elapsed : 0;
-    lastMove.current = { x, y, time: event.timeStamp };
-    setInputs(pointerInputs(x, y, rect.width, rect.height, speed));
-    clearTimeout(decayTimer.current);
-    decayTimer.current = setTimeout(() => setInputs({ 'pointer.speed': 0 }), SPEED_DECAY_MS);
-  };
-
-  const onPointerLeave = () => {
-    lastMove.current = null;
-    clearTimeout(decayTimer.current);
-    setInputs(pointerInputs(0.5, 0.5, 1, 1, 0));
-  };
-
-  useEffect(() => () => clearTimeout(decayTimer.current), []);
-
   const update = (field: string, value: number | string) =>
     setLayer((current) => (current ? ({ ...current, [field]: value } as EffectLayer) : current));
 
@@ -203,8 +170,6 @@ function EffectEntry({
         className="runtime-catalogue-canvas"
         style={{ width: CSS_SIZE, height: CSS_SIZE }}
         aria-label={`${catalogueTitle(effect)} on the ${fixture} image`}
-        onPointerMove={onPointerMove}
-        onPointerLeave={onPointerLeave}
       />
       <div className="runtime-catalogue-details">
         <h2 className="runtime-catalogue-name">{catalogueTitle(effect)}</h2>

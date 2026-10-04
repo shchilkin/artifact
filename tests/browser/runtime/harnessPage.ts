@@ -1,10 +1,12 @@
 // Browser side of the runtime parity harness (issue #331). The spec imports this module into the page from the dev
 // server (`/@fs/`), next to the runtime source, and calls its functions through `page.evaluate`. Every result is
 // plain JSON: images travel back as PNG data URLs.
-import { createArtwork } from '../../../packages/runtime/src/artwork';
+import { type Artwork, createArtwork } from '../../../packages/runtime/src/artwork';
 import { measureGpuTime } from '../../../packages/runtime/src/gpuTiming';
 import { effectRegistry } from '../../../packages/runtime/src/index';
+import { createLiveArtwork } from '../../../packages/runtime/src/liveArtwork';
 import {
+  caseFrameTime,
   DEFAULT_CASE_SEED,
   type EffectCase,
   FIXTURE_FILES,
@@ -127,32 +129,59 @@ function runtimePass(effectCase: EffectCase, size: number, seed: number, patch?:
 interface RuntimeRender {
   readonly canvas: HTMLCanvasElement;
   readonly gl: WebGL2RenderingContext;
-  readonly artwork: ReturnType<typeof createArtwork>;
+  readonly artwork: Artwork;
 }
 
-function createRuntime(
-  effectCase: EffectCase | null,
-  source: TexImageSource,
-  size: number,
-  pass: ChainPass,
-): RuntimeRender {
+const RUNTIME_OPTIONS = {
+  observeVisibility: null,
+  devicePixelRatio: 1,
+  contextAttributes: { preserveDrawingBuffer: true },
+} as const;
+
+function runtimeRender(canvas: HTMLCanvasElement, artwork: Artwork): RuntimeRender {
+  return { canvas, gl: canvas.getContext('webgl2') as WebGL2RenderingContext, artwork };
+}
+
+function sizedCanvas(size: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const frameUniforms = effectCase?.frameUniforms;
+  return canvas;
+}
+
+/** The resting chain for parity: one pass, no bindings, as the editor renders the authored layer. */
+function createRestingRuntime(source: TexImageSource, size: number, pass: ChainPass): RuntimeRender {
+  const canvas = sizedCanvas(size);
   const artwork = createArtwork({
+    ...RUNTIME_OPTIONS,
     canvas,
     source,
     chain: [pass],
-    frameUniforms: frameUniforms ? (frame) => [frameUniforms(frame, pass)] : undefined,
     reducedMotion: true,
-    observeVisibility: null,
     maxRenderSize: size,
-    devicePixelRatio: 1,
-    contextAttributes: { preserveDrawingBuffer: true },
   });
-  const gl = canvas.getContext('webgl2') as WebGL2RenderingContext;
-  return { canvas, gl, artwork };
+  return runtimeRender(canvas, artwork);
+}
+
+/**
+ * The case as a live artwork: its layer as pass 0 with its bindings. Motion is allowed so bindings apply, but
+ * nothing starts the loop: frames come from `setInput` and `seek` only. Pointer tracking is off; inputs come from the
+ * frame declarations.
+ */
+function createLiveRuntime(effectCase: EffectCase, source: TexImageSource, size: number): RuntimeRender {
+  const canvas = sizedCanvas(size);
+  const artwork = createLiveArtwork({
+    ...RUNTIME_OPTIONS,
+    canvas,
+    source,
+    passes: [{ effect: effectCase.effect, layer: { ...effectCase.layer, seedOffset: 0 } }],
+    context: { seed: effectCase.seed ?? DEFAULT_CASE_SEED, width: size, height: size },
+    bindings: effectCase.bindings,
+    pointer: false,
+    reducedMotion: false,
+    maxRenderSize: size,
+  });
+  return runtimeRender(canvas, artwork);
 }
 
 export async function parity(effect: string, fixture: FixtureName, options: ParityOptions = {}): Promise<ParityResult> {
@@ -163,8 +192,8 @@ export async function parity(effect: string, fixture: FixtureName, options: Pari
   const image = await loadImage(fixtureUrl(fixture));
   const seed = options.runtimeSeed ?? effectCase.seed ?? DEFAULT_CASE_SEED;
   const pass = runtimePass(effectCase, PARITY_SIZE, seed, options.fragmentPatch);
-  // The resting frame, without the case's frame uniforms: the authored values, as the editor renders them.
-  const runtime = createRuntime(null, image, PARITY_SIZE, pass);
+  // The resting frame, without the case's bindings: the authored values, as the editor renders them.
+  const runtime = createRestingRuntime(image, PARITY_SIZE, pass);
   const actual = readPixels(runtime.canvas, PARITY_SIZE);
   runtime.artwork.destroy();
   const comparison = compareParity(editor, actual, options.stochastic ?? definition.stochastic);
@@ -180,16 +209,15 @@ export interface GoldenFrame {
   readonly png: string;
 }
 
-/** Each declared frame: inputs set, then `seek(t)`, then the canvas read back. */
+/** Each declared frame through the case's bindings: inputs set, then `seek`, then the canvas read back. */
 export async function goldens(effect: string): Promise<GoldenFrame[]> {
   const effectCase = caseFor(effect);
   const image = await loadImage(fixtureUrl(effectCase.goldenFixture ?? 'graphic'));
-  const pass = runtimePass(effectCase, GOLDEN_SIZE, effectCase.seed ?? DEFAULT_CASE_SEED);
   const frames: GoldenFrame[] = [];
   for (const frame of effectCase.frames ?? []) {
-    const runtime = createRuntime(effectCase, image, GOLDEN_SIZE, pass);
+    const runtime = createLiveRuntime(effectCase, image, GOLDEN_SIZE);
     for (const [name, value] of Object.entries(frame.input ?? {})) runtime.artwork.setInput(name, value);
-    runtime.artwork.seek(frame.t);
+    runtime.artwork.seek(caseFrameTime(effectCase, frame.t));
     frames.push({ name: frame.name, png: toPng(readPixels(runtime.canvas, GOLDEN_SIZE)) });
     runtime.artwork.destroy();
   }
@@ -200,8 +228,7 @@ export async function goldens(effect: string): Promise<GoldenFrame[]> {
 export async function gpuTime(effect: string): Promise<number | null> {
   const effectCase = caseFor(effect);
   const image = await loadImage(fixtureUrl('photo'));
-  const pass = runtimePass(effectCase, PARITY_SIZE, effectCase.seed ?? DEFAULT_CASE_SEED);
-  const runtime = createRuntime(effectCase, image, PARITY_SIZE, pass);
+  const runtime = createLiveRuntime(effectCase, image, PARITY_SIZE);
   try {
     const timing = await measureGpuTime(runtime.gl, () => runtime.artwork.seek(0));
     return timing?.medianMs ?? null;

@@ -1,5 +1,4 @@
-import type { FrameState } from '../artwork.js';
-import type { ChainPass, UniformValues } from '../types.js';
+import type { BindingsDocument } from '../bindings.js';
 
 /**
  * One declaration per effect drives the whole harness (issue #331): static parity against the editor, motion and
@@ -17,16 +16,17 @@ export const FIXTURE_FILES: Readonly<Record<FixtureName, string>> = {
   text: 'text.png',
 };
 
-/** One golden frame: the artwork seeked to `t` seconds with these inputs set. */
+/** One golden frame: the artwork at loop position `t` with these inputs set. */
 export interface CaseFrame {
   /** File-safe name, unique within the case. Becomes the golden's file name. */
   readonly name: string;
+  /** Loop position, 0..1. The harness seeks to `t × loop.durationSeconds` (1 s without a loop). */
   readonly t: number;
   /** Values passed to `setInput` before the frame is drawn, for example `{ 'pointer.x': 0.5 }`. */
   readonly input?: Readonly<Record<string, number>>;
 }
 
-/** Time samples every animated effect records: `t = 0, 0.25, 0.5, 0.75`. */
+/** Loop positions every animated effect records: `t = 0, 0.25, 0.5, 0.75`. */
 export const MOTION_FRAMES: readonly CaseFrame[] = [0, 0.25, 0.5, 0.75].map((t) => ({ name: `t-${t}`, t }));
 
 /** Pointer samples for effects with an input binding: centre, a corner, and a fast pointer. */
@@ -50,11 +50,11 @@ export interface EffectCase {
   /** Golden frames. Default: none (a static effect only needs parity). */
   readonly frames?: readonly CaseFrame[];
   /**
-   * Per-frame uniforms for the effect's pass, merged over its resting uniforms. A stand-in for the time tracks and
-   * input bindings of issue #332: when those land, a case declares its binding instead and the harness drives it
-   * through the same `seek` and `setInput` calls.
+   * Bindings JSON (`docs/runtime/README.md`, issue #332) for a one-pass chain: targets use `pass: 0`. Goldens, GPU
+   * timing and the catalogue run the case through `createLiveArtwork` with these bindings; static parity uses the
+   * authored layer alone.
    */
-  readonly frameUniforms?: (frame: FrameState, pass: ChainPass) => UniformValues | undefined;
+  readonly bindings?: BindingsDocument;
 }
 
 export const DEFAULT_CASE_SEED = 11;
@@ -62,6 +62,11 @@ export const DEFAULT_CASE_SEED = 11;
 export const PARITY_SIZE = 540;
 /** Golden size: half of the parity size keeps the committed PNGs small while every pass still runs. */
 export const GOLDEN_SIZE = 270;
+
+/** Seconds for a loop position `t` of a case. */
+export function caseFrameTime(effectCase: EffectCase, t: number): number {
+  return t * (effectCase.bindings?.loop?.durationSeconds ?? 1);
+}
 
 export function defineEffectCase(effectCase: EffectCase): EffectCase {
   return effectCase;
