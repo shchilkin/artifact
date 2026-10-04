@@ -8,6 +8,7 @@
     "apps/api",
     "apps/backoffice",
     "apps/web",
+    "packages/runtime",
     "packages/shared",
     "packages/ui"
   ],
@@ -73,7 +74,10 @@
     "test:loading": "node --test scripts/loading/*.test.mjs",
     "loading:gate": "node scripts/loading/gate.mjs",
     "test:editor-ux": "node --test scripts/editor-ux/*.test.mjs",
-    "ux:gate": "node scripts/editor-ux/gate.mjs"
+    "ux:gate": "node scripts/editor-ux/gate.mjs",
+    "build:runtime": "npm --workspace @artifact/runtime run build",
+    "typecheck:runtime": "npm --workspace @artifact/runtime run typecheck",
+    "test:runtime": "npm --workspace @artifact/runtime run test"
   },
   "dependencies": {
     "@react-router/node": "^7.18.4",

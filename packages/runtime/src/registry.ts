@@ -1,0 +1,96 @@
+import type { ChainPass, UniformValues } from './types.js';
+
+/**
+ * The authored fields of an editor `EffectLayer` (`apps/web/app/types/config.ts`) that an effect reads. The runtime
+ * does not import the editor's types; each effect names the fields it needs.
+ */
+export interface AuthoredEffectLayer {
+  readonly seedOffset?: number;
+}
+
+/** Document-level values an effect's uniforms may depend on. */
+export interface EffectContext {
+  /** `doc.global.seed`. */
+  readonly seed: number;
+  /** Render size in pixels, for effects whose editor uniforms depend on it. */
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Default `uCenter` for centred effects: the middle of the frame, so static output matches the editor. */
+export const DEFAULT_CENTER: readonly [number, number] = [0.5, 0.5];
+
+export interface EffectDefinition<Layer extends AuthoredEffectLayer = AuthoredEffectLayer> {
+  /** Stable id, matching the editor's effect control name (for example `noiseWarp`). */
+  readonly id: string;
+  /** A Pixi-compatible GLSL ES 1.00 fragment, imported from the editor's shader source. */
+  readonly fragment: string;
+  // Method syntax keeps definitions for narrower layer types assignable to the registry's list.
+  /** The effect runs when this authored field is above zero, as in the editor's filter builder. */
+  amount(layer: Layer): number;
+  /** Maps authored values to the uniforms the editor passes for the same layer. */
+  uniforms(layer: Layer, context: EffectContext): UniformValues;
+  /** The fragment reads `uniform vec2 uCenter`, defaulting to `DEFAULT_CENTER`, so the centre can be bound. */
+  readonly centered: boolean;
+  /**
+   * The output depends on noise that differs from the editor's CPU path by design, so parity is judged by
+   * statistics rather than pixels.
+   */
+  readonly stochastic: boolean;
+}
+
+export interface EffectRegistry {
+  has(id: string): boolean;
+  get(id: string): EffectDefinition | undefined;
+  ids(): readonly string[];
+  /**
+   * The pass for one effect of an authored layer (for example an editor `EffectLayer`), or `null` when the effect
+   * is off for that layer.
+   */
+  pass(
+    id: string,
+    layer: AuthoredEffectLayer & Readonly<Record<string, unknown>>,
+    context: EffectContext,
+  ): ChainPass | null;
+}
+
+const CENTER_DECLARATION = /uniform\s+vec2\s+uCenter\s*;/;
+
+export function defineEffect<Layer extends AuthoredEffectLayer>(
+  definition: EffectDefinition<Layer>,
+): EffectDefinition<Layer> {
+  return definition;
+}
+
+export function createEffectRegistry(definitions: readonly EffectDefinition[]): EffectRegistry {
+  const byId = new Map<string, EffectDefinition>();
+  for (const definition of definitions) {
+    if (byId.has(definition.id)) throw new Error(`Effect "${definition.id}" is registered twice.`);
+    if (definition.centered && !CENTER_DECLARATION.test(definition.fragment)) {
+      throw new Error(`Effect "${definition.id}" is centred but its fragment does not declare uniform vec2 uCenter.`);
+    }
+    byId.set(definition.id, definition);
+  }
+
+  return {
+    has: (id) => byId.has(id),
+    get: (id) => byId.get(id),
+    ids: () => [...byId.keys()],
+    pass(id, layer, context) {
+      const definition = byId.get(id);
+      if (!definition) throw new Error(`Unknown effect "${id}".`);
+      if (!(definition.amount(layer) > 0)) return null;
+      const uniforms = definition.uniforms(layer, context);
+      return {
+        id,
+        fragment: definition.fragment,
+        uniforms: definition.centered ? { uCenter: DEFAULT_CENTER, ...uniforms } : uniforms,
+      };
+    },
+  };
+}
+
+/** The seed the editor gives an effect layer's GPU filters: `doc.global.seed + layer.seedOffset`. */
+export function effectLayerSeed(context: EffectContext, layer: AuthoredEffectLayer): number {
+  return context.seed + (layer.seedOffset ?? 0);
+}
