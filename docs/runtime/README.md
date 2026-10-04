@@ -38,6 +38,36 @@ not its render loop.
   `destroy`. Pauses off-screen (IntersectionObserver), honours `prefers-reduced-motion` (renders the authored still
   frame), caps device pixel ratio, and renders at most at the package's `maxRenderSize`.
 
+## Package (issue #330)
+
+`packages/runtime` exports:
+
+- `createArtwork({ canvas, source, chain, frameUniforms?, maxRenderSize?, maxDevicePixelRatio?, reducedMotion?,
+  observeVisibility?, scheduler? })` → `start`, `pause`, `seek(t)`, `resize(w?, h?)`, `setInput(name, value)`,
+  `destroy`, and a `state` snapshot (`status`, `time`, `frames`, `width`, `height`). It draws one resting frame on
+  creation; reduced motion keeps that still frame and never requests animation frames. Defaults: DPR cap 2,
+  `maxRenderSize` 1080. Until the live package exists, `createArtwork` takes the resolved `chain` instead of
+  `livePackage`.
+- `effectRegistry.pass(id, layer, { seed, width, height })` → a `ChainPass` (`id`, `fragment`, `uniforms`) from an
+  authored `EffectLayer`, or `null` when the effect's amount is zero. Each `EffectDefinition` declares `id`,
+  `fragment`, `amount`, `uniforms`, `centered` (reads `uCenter`, default `0.5, 0.5`) and `stochastic`.
+- Seam for bindings (#332): `frameUniforms({ time, frame, inputs })` returns per-pass uniform overrides each frame;
+  `setInput` fills `inputs`.
+
+Shader reuse: shared fragments live in `@artifact/shared/effect-shaders` (`HEADER`, `NORM_UV`, `SAMPLE`,
+`NOISE_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
+byte-identical. Port further editor fragments the same way: move the string, import it in both places.
+
+Pixi conventions the chain matches:
+
+- Textures are uploaded unflipped and premultiplied, so `vTextureCoord.y = 0` is the top of the image; only the final
+  pass to the canvas flips. `UNPACK_FLIP_Y` would mirror every effect vertically against the editor.
+- `inputClamp` is the input's extent inset by half a texel, as Pixi sets it. With `(0, 0, 1, 1)`, about 1% of a 540px
+  Noise Warp (hard edges) differs from the editor by more than 8 levels; with the inset the outputs match.
+
+`tests/browser/runtime-chain.spec.ts` imports the runtime source from the dev server (`/@fs/`), so no test route
+ships in the app.
+
 ## Verification: one effect at a time
 
 Every effect issue lands with visual tests in the shared harness (issue: parity harness):

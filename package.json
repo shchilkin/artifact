@@ -32,7 +32,7 @@
     "build:api": "npm --workspace @artifact/api run build",
     "build:ci": "npm --workspace @artifact/web run build:ci",
     "build:shared": "npm --workspace @artifact/shared run build",
-    "check": "npm run format:check && npm run lint && npm run quality:ui-legacy-registry && npm run typecheck:shared && npm run typecheck:ui && npm run typecheck && npm run typecheck:api && npm run typecheck:backoffice && npm run test:deploy && npm run test:loading && npm run test:editor-ux && npm run test:ui-legacy-registry && npm run test:ui && npm test && npm run test:api && npm run test:backoffice",
+    "check": "npm run format:check && npm run lint && npm run quality:ui-legacy-registry && npm run typecheck:shared && npm run typecheck:runtime && npm run typecheck:ui && npm run typecheck && npm run typecheck:api && npm run typecheck:backoffice && npm run test:deploy && npm run test:loading && npm run test:editor-ux && npm run test:ui-legacy-registry && npm run test:ui && npm run test:runtime && npm test && npm run test:api && npm run test:backoffice",
     "check:backoffice": "npm --workspace @artifact/backoffice run check",
     "format": "biome check --write .",
     "format:check": "biome check .",
