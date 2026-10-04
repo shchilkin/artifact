@@ -250,7 +250,7 @@ test('the runtime catalogue shows plate parallax, with depth and strength contro
   await page.mouse.move(0, 0);
 });
 
-test('the runtime catalogue shows Chromatic split with a working amount control', async ({ page, browserName }) => {
+test('the runtime catalogue shows Chromatic split with a working amount control', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -271,7 +271,5 @@ test('the runtime catalogue shows Chromatic split with a working amount control'
   await amount.press('End');
   // The editor's slider runs to 15.
   await expect(amount).toHaveValue('15');
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });
