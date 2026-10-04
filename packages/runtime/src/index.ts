@@ -41,6 +41,8 @@ export {
   CA_FRAG,
   type CaLayer,
   ca,
+  type DataMoshLayer,
+  dataMosh,
   EFFECTS,
   effectRegistry,
   GRAIN_FRAG,
