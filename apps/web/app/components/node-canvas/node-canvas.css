@@ -2702,6 +2702,8 @@
   min-height: var(--control-h-default);
 }
 
+/* Opening the panel narrows the graph workspace in one layout step; only opacity (and the mobile sheet's transform)
+   animate. Animating flex-basis resized the workspace every frame and moved the toolbar with it (layout shift). */
 .node-props-panel {
   position: relative;
   width: 0;
@@ -2713,8 +2715,7 @@
   flex-direction: column;
   transition:
     opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    flex-basis 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 35;
   border-left: 1px solid var(--line-default);
   border-top: none;

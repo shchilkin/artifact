@@ -3148,16 +3148,42 @@ test('node add menu can drag an effect onto the canvas', async ({ page }) => {
     delete document.documentElement.dataset.artifactAddLibraryAction;
   });
 
-  await pixelateMenuRow.dragTo(page.locator('.react-flow__pane'), {
-    targetPosition: { x: 520, y: 320 },
+  // Drop on empty pane, clear of every node card, so this covers a plain canvas drop rather than an edge split.
+  const targetPosition = await page.locator('.react-flow__pane').evaluate((pane) => {
+    const paneRect = pane.getBoundingClientRect();
+    const nodeRects = Array.from(document.querySelectorAll<HTMLElement>('.react-flow__node')).map((node) =>
+      node.getBoundingClientRect(),
+    );
+    if (nodeRects.length === 0) throw new Error('Expected fitted graph nodes');
+    const graphTop = Math.min(...nodeRects.map((rect) => rect.top));
+    if (graphTop - paneRect.top < 80) throw new Error('Expected empty pane above the fitted graph');
+    const graphLeft = Math.min(...nodeRects.map((rect) => rect.left));
+    const graphRight = Math.max(...nodeRects.map((rect) => rect.right));
+    const clientX = (graphLeft + graphRight) / 2;
+    const clientY = (paneRect.top + graphTop) / 2;
+    const hit = document.elementFromPoint(clientX, clientY);
+    if (!hit?.classList.contains('react-flow__pane')) {
+      throw new Error(`Expected empty pane at drop point, got ${hit?.className}`);
+    }
+    return { x: clientX - paneRect.left, y: clientY - paneRect.top };
   });
+  await pixelateMenuRow.dragTo(page.locator('.react-flow__pane'), { targetPosition });
 
   await expectPixelateNode(page);
   await expect(page.locator('.add-library-node-menu')).toHaveCount(0);
+  await expect
+    .poll(
+      async () => {
+        const state = await readPixelateEdgeInsertionState(page);
+        return { added: Boolean(state.pixelateId), removedOriginal: state.removedOriginal };
+      },
+      { timeout: 15_000 },
+    )
+    .toEqual({ added: true, removedOriginal: false });
 });
 
 test('node add menu can drag an effect onto an edge and split it', async ({ page }) => {
-  let pixelateMenuRow = await openPixelateNodeAddMenu(page);
+  const pixelateMenuRow = await openPixelateNodeAddMenu(page);
   const targetPosition = await page.locator('.react-flow__pane').evaluate((pane) => {
     const source = document.querySelector<HTMLElement>('.react-flow__node[data-id="wide-fill"]');
     const target = document.querySelector<HTMLElement>('.react-flow__node[data-id="__export__"]');
@@ -3171,14 +3197,7 @@ test('node add menu can drag an effect onto an edge and split it', async ({ page
   });
   await pixelateMenuRow.dragTo(page.locator('.react-flow__pane'), { targetPosition });
 
-  let graphState = await waitForPixelateEdgeInsertion(page, 4_000);
-  if (!graphState.pixelateId) {
-    await openNodeAddMenuWithSearch(page, 'pixelate', { waitForExportNode: true });
-    pixelateMenuRow = page.getByRole('option', { name: /^▦ Pixelate/ });
-    await expect(pixelateMenuRow).toContainText('Drag');
-    await pixelateMenuRow.dragTo(page.locator('.react-flow__pane'), { targetPosition });
-    graphState = await waitForPixelateEdgeInsertion(page, 15_000);
-  }
+  const graphState = await waitForPixelateEdgeInsertion(page, 15_000);
 
   const pixelateNode = await expectPixelateNode(page);
   expect(graphState).toMatchObject({ removedOriginal: true, hasBefore: true, hasAfter: true });
