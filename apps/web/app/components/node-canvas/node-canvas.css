@@ -2640,28 +2640,17 @@
   color: var(--node-text);
 }
 
-.nadd-intents,
-.nadd-recipes {
+.nadd-intents {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  padding: 8px;
   border-bottom: 1px solid var(--node-border);
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
+  background: color-mix(in oklch, var(--surface-panel) 76%, var(--surface-panel-raised));
   flex-shrink: 0;
 }
 
-.nadd-intents {
-  padding: 8px;
-  background: color-mix(in oklch, var(--surface-panel) 76%, var(--surface-panel-raised));
-}
-
-.nadd-recipes {
-  padding: 8px;
-  background: color-mix(in oklch, var(--surface-panel) 72%, var(--surface-panel-raised));
-}
-
-.nadd-intent,
-.nadd-recipe {
+.nadd-intent {
   min-height: 28px;
   padding: 0 9px;
   border: 1px solid var(--node-border);
@@ -2692,22 +2681,13 @@
   content: "";
 }
 
-.nadd-recipe.artifact-toolbar-button {
-  border-width: 1px;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-}
-
 .nadd-intent:hover,
-.nadd-intent-active,
-.nadd-recipe:hover,
-.nadd-recipe-active {
+.nadd-intent-active {
   border-color: color-mix(in oklch, var(--add-kind-color, var(--accent-primary)) 72%, var(--node-border));
   color: var(--add-kind-color, var(--accent-primary));
 }
 
-.nadd-intent-active,
-.nadd-recipe-active {
+.nadd-intent-active {
   background: color-mix(in oklch, var(--add-kind-color, var(--accent-primary)) 10%, transparent);
 }
 

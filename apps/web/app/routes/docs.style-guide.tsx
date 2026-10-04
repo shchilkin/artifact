@@ -23,6 +23,7 @@ import { CanvasChromeSpecimens } from '../components/canvas-chrome/CanvasChromeS
 import { EditorTargetHeader } from '../components/editor-target/EditorTargetHeader';
 import { EditorCommandBar } from '../components/editor-workflow/EditorCommandBar';
 import { EditorCommandGroup } from '../components/editor-workflow/EditorCommandGroup';
+import { EditorConfirmDialog } from '../components/editor-workflow/EditorConfirmDialog';
 import { EditorOrganizationGroup } from '../components/editor-workflow/EditorOrganizationGroup';
 import { EditorOverlayFrame } from '../components/editor-workflow/EditorOverlayFrame';
 import { EditorRowFrame } from '../components/editor-workflow/EditorRowFrame';
@@ -1141,6 +1142,26 @@ function TokenSpec({ name, value, color }: { name: string; value: string; color:
   );
 }
 
+function ConfirmDialogSpecimen() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        Open confirmation specimen
+      </Button>
+      <EditorConfirmDialog
+        open={open}
+        tone="danger"
+        title="Delete project?"
+        description="Night Drive will be removed from this browser."
+        confirmLabel="Delete"
+        onCancel={() => setOpen(false)}
+        onConfirm={() => setOpen(false)}
+      />
+    </>
+  );
+}
+
 function OverlayPrimitiveSpecimens() {
   return (
     <div className="style-guide-overlay-specimens">
@@ -1171,6 +1192,7 @@ function OverlayPrimitiveSpecimens() {
             </DialogClose>
           </DialogContent>
         </Dialog>
+        <ConfirmDialogSpecimen />
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="secondary">Open sheet specimen</Button>

@@ -17,6 +17,7 @@ import type { ArrayPresetId } from '../../utils/arrayPresets';
 import { isLayerStackGraph } from '../../utils/documentCommands';
 import { getLayerAreaMap } from '../../utils/layerAreas';
 import type { NoisePresetId } from '../../utils/noisePresets';
+import { collectDocumentOutputNodeIds } from '../../utils/renderer';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
 import type { TextPresetId } from '../../utils/textPresets';
 import { EditorCommandGroup } from '../editor-workflow/EditorCommandGroup';
@@ -132,6 +133,7 @@ export function LayerPanel({
   });
 
   const reorderDisabled = !isLayerStackGraph(doc);
+  const outputNodeIds = useMemo(() => collectDocumentOutputNodeIds(doc), [doc]);
   const { dragOverTarget, handleDragStart, handleDragOverLayer, handleDrop, handleCancelDrag } = useLayerDragReorder({
     displayLayers,
     areasByLayerId,
@@ -276,6 +278,7 @@ export function LayerPanel({
             dragOverTarget={dragOverTarget}
             editingId={editingId}
             reorderDisabled={reorderDisabled}
+            outputNodeIds={outputNodeIds}
             onToggleAreaCollapsed={handleToggleAreaCollapsed}
             onStartAreaEditing={setEditingAreaId}
             onFinishAreaRename={handleFinishAreaRename}
@@ -459,6 +462,7 @@ function LayerDisplayEntry({
   dragOverTarget,
   editingId,
   reorderDisabled,
+  outputNodeIds,
   onToggleAreaCollapsed,
   onStartAreaEditing,
   onFinishAreaRename,
@@ -484,6 +488,7 @@ function LayerDisplayEntry({
   dragOverTarget: { id: string; position: 'before' | 'after' } | null;
   editingId: string | null;
   reorderDisabled: boolean;
+  outputNodeIds: ReadonlySet<string>;
   onToggleAreaCollapsed: (areaId: string) => void;
   onStartAreaEditing: (id: string | null) => void;
   onFinishAreaRename: (id: string, name: string | null) => void;
@@ -513,6 +518,7 @@ function LayerDisplayEntry({
         selectedActionLayerIds={selectedActionLayerIds}
         dragOverTarget={dragOverTarget}
         editingId={editingId}
+        outputNodeIds={outputNodeIds}
         onToggleCollapsed={onToggleAreaCollapsed}
         onStartAreaEditing={onStartAreaEditing}
         onFinishAreaRename={onFinishAreaRename}
@@ -542,6 +548,7 @@ function LayerDisplayEntry({
       dragOverPosition={dragOverTarget?.id === item.layer.id ? dragOverTarget.position : null}
       editing={editingId === item.layer.id}
       reorderDisabled={reorderDisabled}
+      reachesOutput={outputNodeIds.has(item.layer.id)}
       onSelect={onSelectLayer}
       onOpenContextMenu={onOpenLayerContextMenu}
       onStartEditing={onStartEditing}

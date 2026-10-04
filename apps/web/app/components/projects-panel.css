@@ -292,41 +292,6 @@ button.library-card-open:focus-visible {
   outline-offset: 2px;
 }
 
-.project-delete-dialog {
-  top: 50%;
-  left: 50%;
-  width: min(420px, calc(100vw - 32px));
-  border: 1px solid color-mix(in oklch, var(--state-danger) 42%, var(--line-default));
-  background: color-mix(in oklch, var(--surface-card) 90%, var(--surface-panel));
-  color: var(--text-primary);
-  padding: 22px;
-  transform: translate(-50%, -50%);
-}
-
-.project-delete-dialog__title {
-  margin: 0;
-  color: var(--state-danger);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.project-delete-dialog__copy {
-  margin: 14px 0 0;
-  color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.project-delete-dialog__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 22px;
-}
-
 .library-panel {
   box-shadow: -18px 0 50px color-mix(in oklch, black 44%, transparent);
 }

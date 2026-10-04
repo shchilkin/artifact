@@ -787,7 +787,10 @@ async function openProjectPackage(page: Page, packageJson: string) {
     mimeType: 'application/vnd.artifact.project+json',
     buffer: Buffer.from(packageJson),
   });
-  await page.getByRole('dialog', { name: 'Open artifact file' }).getByRole('button', { name: 'OPEN FILE' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Open artifact file' })
+    .getByRole('button', { name: 'OPEN FILE' })
+    .click();
 }
 
 async function waitForStored3DAssets(page: Page, refs: { modelRef: string; environmentRef: string }) {

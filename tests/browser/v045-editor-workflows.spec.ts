@@ -80,18 +80,13 @@ test('mobile Layers commands and Add Library filters keep 44px targets and reada
   expect(await renderedContrastRatio(randomize)).toBeGreaterThanOrEqual(4.5);
 
   await page.getByRole('button', { name: 'Add layer' }).click();
-  for (const filter of [
-    page.locator('.add-library-intent').first(),
-    page.locator('.add-library-browse-item').first(),
-  ]) {
-    await expectMinimumTarget(filter);
-  }
+  await expectMinimumTarget(page.locator('.add-library-intent').first());
 
   await page.keyboard.press('Escape');
   await page.getByRole('tab', { name: 'Switch to nodes view' }).click();
   await expect(page.locator('.node-canvas-root')).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Add node' }).click();
-  await expectMinimumTarget(page.locator('.add-library-recipe').first());
+  await expectMinimumTarget(page.locator('.add-library-intent').last());
 });
 
 test('layer context menu supports Home End Escape and returns focus to row selection', async ({ page }) => {
@@ -199,9 +194,9 @@ test('document import confirmation uses the editor overlay and returns focus aft
     buffer: Buffer.from(JSON.stringify(workflowDocument)),
   });
 
-  await expect(page.getByRole('dialog', { name: 'Open artifact file' })).toBeVisible();
+  await expect(page.getByRole('alertdialog', { name: 'Open artifact file' })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Open artifact file' })).toBeHidden();
+  await expect(page.getByRole('alertdialog', { name: 'Open artifact file' })).toBeHidden();
   await expect(trigger).toBeFocused();
 });
 

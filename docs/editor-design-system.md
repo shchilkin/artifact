@@ -174,8 +174,12 @@ still consume the same tokens:
 - `InspectorField`
 - `PropertyRow`
 - `PreviewFrame`
-- `AddLibraryPanel`
+- `AddLibraryPanel` (one filter axis: All or one intent, plus Recipes on the
+  Nodes surface; opaque from its first frame)
 - `EditorTargetHeader`
+- `EditorConfirmDialog` (replacing and destructive editor actions; modal,
+  Cancel takes initial focus, Escape cancels; `useEditorConfirm` for
+  promise-style callers)
 
 ### Route-Level Style Guide
 

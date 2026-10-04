@@ -7,6 +7,7 @@ import { CanvasHandles } from './CanvasHandles';
 import { type CanvasPreviewRenderState, resolveCanvasPreviewState } from './canvasPreviewState';
 import type { PrimitiveViewportState } from './PrimitiveViewportState';
 import { EmptyState } from './ui/EmptyState';
+import { PreviewProgress } from './ui/PreviewProgress';
 
 import './canvas-preview.css';
 
@@ -97,6 +98,8 @@ export function CanvasPreview({
           className="pixi-container artifact-canvas-preview__surface checkerboard-surface flex items-center justify-center w-full h-full"
           onClick={(event) => handleCanvasPreviewSurfaceClick(event, onSelectLayer)}
         />
+        {/* Shown by CSS while the surface's data-preview-pending is "true"; see useDocumentRenderer. */}
+        <PreviewProgress />
         <CanvasPreviewHandles
           selectedLayer={selectedLayer}
           canvasW={pw}

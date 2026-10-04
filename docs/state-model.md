@@ -120,8 +120,18 @@ Includes:
 - open context menu
 - open gallery node
 
+Editor confirmation state is also overlay state. `useEditorConfirm`
+(`components/editor-workflow/useEditorConfirm.tsx`) holds one pending
+`EditorConfirmDialog` request, and `useReplaceableWork`
+(`routes/editor/useReplaceableWork.ts`) remembers a fingerprint of the document
+the editor last put in place (the default document, a shared link, a loaded
+file or project, New, Randomize). Randomize and opening a project ask first
+only when the current document differs from that baseline; New asks whenever
+the canvas is not blank. Neither value is saved or part of undo.
+
 Rules:
 
+- Replacing or destructive editor actions confirm through `EditorConfirmDialog`, never `window.confirm`.
 - Selection changes must not dirty the document.
 - Opening/closing menus must not invalidate thumbnails.
 - Node-local controls should stop propagation when they are not intended to select, pan, or zoom the graph.
@@ -155,9 +165,22 @@ preview's `aria-busy`) is true while there is no frame yet or a full-quality
 pass is rendering. Interactive frames during an edit do not set it. Toggling it
 for every frame cost two React commits per frame (#324). A preview-progress
 indicator (#310) that should also cover interactive frames needs a separate
-signal that does not commit per frame. Examples: a flag set once when a burst
-of input starts and cleared by the full-quality pass, or a ref-backed
-subscription that only the indicator reads.
+signal that does not commit per frame.
+
+That signal is `data-preview-pending` on the render container. The hook writes
+it straight to the DOM (`syncPreviewPending`) whenever its scheduling state
+changes: a render requested, started or settled, and the settle or deferred
+full-quality timers set or fired. It is `"true"` from an edit until the frame
+for the latest document, including the deferred full-quality pass, has
+painted. The layer preview's progress bar (`PreviewProgress`,
+`components/ui/preview-progress.css`) is shown by CSS from that attribute, so it
+costs no React commit and, being an absolutely positioned overlay, no layout
+shift. Unpainted warm-up renders do not count as pending.
+
+Nodes has no layer preview. `NodePreviewProgress` subscribes to the node
+thumbnail queue (`subscribeThumbnailQueue`) and writes the same attribute on its
+own bar while previews, including the Output preview, are queued or rendering.
+A preview's short debounce before it joins the queue is not counted.
 
 ## Primitive camera state
 
