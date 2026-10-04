@@ -5,6 +5,7 @@ import {
   activeIndexedPaletteCount,
   EFFECT_SECTION_DEFINITIONS,
   type EffectSliderControl,
+  effectSliderUnit,
   formatEffectSliderValue,
   randomIndexedPalettePatch,
 } from './EffectControlSections';
@@ -25,6 +26,15 @@ describe('EffectControlSections metadata', () => {
     expect(formatEffectSliderValue(6, 'bands')).toBe('6 bands');
     expect(formatEffectSliderValue(6, 'steps')).toBe('6 steps');
     expect(formatEffectSliderValue(1.5, 'px')).toBe('1.5px');
+  });
+
+  it('shows short units after numeric entry and leaves counted formats to the read-out', () => {
+    expect(effectSliderUnit('percent')).toBe('%');
+    expect(effectSliderUnit('px')).toBe('px');
+    expect(effectSliderUnit('deg')).toBe('°');
+    expect(effectSliderUnit('bands')).toBeUndefined();
+    expect(effectSliderUnit('steps')).toBeUndefined();
+    expect(effectSliderUnit()).toBeUndefined();
   });
 
   it('keeps every effect preset represented by the shared inspector metadata', () => {

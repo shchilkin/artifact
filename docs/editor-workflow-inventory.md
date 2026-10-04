@@ -52,7 +52,7 @@ product contract, not a v0.45 navigation requirement.
 | Document import confirmation | ready, saving/busy, cancel, confirm, keyboard focus order, narrow | **v0.45 E2** |
 | Projects trigger and editor sheet placement | closed, open, active trigger, mobile | **v0.45 E2 integration**; Projects list/content remains the v0.44 Product Library pattern |
 | Left and right editor rails | collapsed, expanded, mobile sheet, active side | **v0.45 E2 shell** |
-| Inspector target header inside the right rail | default, compact, minimal, long target name | **v0.45 E2 anatomy** |
+| Inspector target header inside the right rail | default, compact, long target name (the minimal variant was removed in v0.50, when Layers and Nodes moved to one header) | **v0.45 E2 anatomy** |
 | Inspector sections, property fields, validation, and committed/live controls | all layer, graph, effect, material, scene, shader, and AI Shader property variants | **v0.46** |
 | Existing AI Image generation panel in the right rail | prompt/provider controls, disabled, empty, loading, success, error, recovery | **v0.46 visual integration**; existing generation behavior remains unchanged |
 

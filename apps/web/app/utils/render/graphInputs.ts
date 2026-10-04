@@ -9,6 +9,9 @@ import { EXPORT_NODE_ID, type GraphUtilityNodeKind, graphUtilityNodeKind } from 
 
 export type GraphInputPort = GraphEdge['toPort'];
 
+/** The part of a document reachability reads: graph topology plus which ids are layers, and their kinds. */
+export type GraphDocument = Pick<CanvasDocument, 'layers'>;
+
 /** The renderer's port lookup: when several edges feed one port, the first edge in `graph.edges` wins. */
 export function findIncomingSource(graph: CanvasGraph, toId: string, toPort: GraphInputPort): string | null {
   const edge = graph.edges.find((item) => item.toId === toId && item.toPort === toPort);
@@ -23,7 +26,7 @@ export function graphLayerInputPort(layer: Layer): 'in' | 'bg' {
 export type GraphRenderNodeKind = 'export' | GraphUtilityNodeKind | 'layer' | 'missing';
 
 /** Classifies a node id in the same order the renderer dispatches it (`GRAPH_NODE_RENDERERS`). */
-export function graphRenderNodeKind(doc: CanvasDocument, graph: CanvasGraph, nodeId: string): GraphRenderNodeKind {
+export function graphRenderNodeKind(doc: GraphDocument, graph: CanvasGraph, nodeId: string): GraphRenderNodeKind {
   if (nodeId === EXPORT_NODE_ID) return 'export';
   const utilityKind = graphUtilityNodeKind(graph, nodeId);
   if (utilityKind) return utilityKind;
@@ -58,12 +61,12 @@ export interface GraphRenderInput {
 
 type InputCandidate = { port: GraphInputPort; role: GraphInputRole; mode: GraphReachMode };
 
-function environmentPortMode(doc: CanvasDocument, graph: CanvasGraph, sourceId: string): GraphReachMode {
+function environmentPortMode(doc: GraphDocument, graph: CanvasGraph, sourceId: string): GraphReachMode {
   if (graphRenderNodeKind(doc, graph, sourceId) !== 'environment') return 'render';
   return findIncomingSource(graph, sourceId, 'in') ? 'render' : 'read';
 }
 
-function modelPortMode(doc: CanvasDocument, sourceId: string): GraphReachMode | null {
+function modelPortMode(doc: GraphDocument, sourceId: string): GraphReachMode | null {
   const layer = doc.layers.find((item) => item.id === sourceId);
   return layer?.kind === 'model' || layer?.kind === 'primitive' ? 'read' : null;
 }
@@ -83,7 +86,7 @@ const TEXTURE_CANDIDATES: InputCandidate[] = MATERIAL_TEXTURE_INPUT_PORTS.map((p
 
 const SINGLE_INPUT: InputCandidate[] = [{ port: 'in', role: 'primary', mode: 'render' }];
 
-function renderModeCandidates(doc: CanvasDocument, graph: CanvasGraph, nodeId: string): InputCandidate[] {
+function renderModeCandidates(doc: GraphDocument, graph: CanvasGraph, nodeId: string): InputCandidate[] {
   switch (graphRenderNodeKind(doc, graph, nodeId)) {
     case 'export':
     case 'color':
@@ -128,7 +131,7 @@ function renderModeCandidates(doc: CanvasDocument, graph: CanvasGraph, nodeId: s
   }
 }
 
-function modeCandidates(doc: CanvasDocument, graph: CanvasGraph, nodeId: string, mode: GraphReachMode) {
+function modeCandidates(doc: GraphDocument, graph: CanvasGraph, nodeId: string, mode: GraphReachMode) {
   if (mode === 'read') return [];
   if (mode === 'material') return TEXTURE_CANDIDATES;
   return renderModeCandidates(doc, graph, nodeId);
@@ -147,7 +150,7 @@ function textureInputs(graph: CanvasGraph, nodeId: string): GraphRenderInput[] {
  * texture ports rendered; any other node is neither rendered nor read, but whatever feeds its texture
  * ports still renders, so those sources count as the consumer's own inputs.
  */
-function materialPortInputs(doc: CanvasDocument, graph: CanvasGraph, sourceId: string): GraphRenderInput[] {
+function materialPortInputs(doc: GraphDocument, graph: CanvasGraph, sourceId: string): GraphRenderInput[] {
   const kind = graphRenderNodeKind(doc, graph, sourceId);
   if (kind === 'shader') return [{ port: 'material', sourceId, role: 'side', mode: 'render' }];
   if (kind === 'material') return [{ port: 'material', sourceId, role: 'side', mode: 'material' }];
@@ -155,7 +158,7 @@ function materialPortInputs(doc: CanvasDocument, graph: CanvasGraph, sourceId: s
 }
 
 function candidateInputs(
-  doc: CanvasDocument,
+  doc: GraphDocument,
   graph: CanvasGraph,
   candidate: InputCandidate,
   sourceId: string,
@@ -175,7 +178,7 @@ function candidateInputs(
  * first, then the merge `b` stack, the mask, the repeat item, and side inputs.
  */
 export function graphNodeRenderInputs(
-  doc: CanvasDocument,
+  doc: GraphDocument,
   graph: CanvasGraph,
   nodeId: string,
   mode: GraphReachMode,
@@ -192,7 +195,7 @@ export function graphNodeRenderInputs(
  * nodes; callers filter those.
  */
 export function collectGraphRenderReachModes(
-  doc: CanvasDocument,
+  doc: GraphDocument,
   graph: CanvasGraph,
   targetId: string = EXPORT_NODE_ID,
 ): Map<string, Set<GraphReachMode>> {
@@ -217,7 +220,7 @@ export function collectGraphRenderReachModes(
  * duplicate edges after the first on one port, do not count.
  */
 export function collectGraphRenderReach(
-  doc: CanvasDocument,
+  doc: GraphDocument,
   graph: CanvasGraph,
   targetId: string = EXPORT_NODE_ID,
 ): Set<string> {

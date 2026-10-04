@@ -15,7 +15,8 @@ import type {
 } from '../types/config';
 import { EFFECT_PRESETS } from '../types/config';
 import { getLayerGuardrailState } from './editorGuardrails';
-import { EXPORT_NODE_ID, resolveOutputPath } from './nodeGraph';
+import { EXPORT_NODE_ID } from './nodeGraph';
+import { collectGraphRenderReach } from './render/graphInputs';
 
 export type EditorTargetTone = 'accent' | 'muted' | 'warning' | 'success';
 type EditorTargetSurface = 'layers' | 'nodes';
@@ -50,7 +51,14 @@ interface LayerTargetOptions {
 
 interface GraphTargetOptions {
   graph: CanvasGraph;
+  /** The document's layers, so reachability can tell layer nodes apart; see `collectGraphRenderReach`. */
+  layers: Layer[];
   surface: EditorTargetSurface;
+}
+
+/** Ids the renderer reaches from Output: the same reachability as Layers rows and the Layers tree. */
+function outputNodeIds(graph: CanvasGraph, layers: Layer[] | undefined): Set<string> {
+  return collectGraphRenderReach({ layers: layers ?? [] }, graph);
 }
 
 const SOURCE_KINDS = new Set<Layer['kind']>([
@@ -93,8 +101,7 @@ export function buildLayerTargetSummary(layer: Layer, options: LayerTargetOption
     if (guardrail.reason) notes.push({ text: guardrail.reason, tone: 'warning' });
   }
 
-  addGraphStatus(badges, notes, layer.id, role, options.graph, options.surface);
-  addLayerContextNotes(notes, layer, options);
+  addGraphStatus(badges, notes, layer.id, role, options.graph, options.layers);
 
   return {
     title: layer.name,
@@ -166,7 +173,7 @@ export function buildGraphTargetSummary(
   const [kindLabel, description] = labels[target.kind];
   const badges: EditorTargetBadge[] = [{ label: 'Utility', tone: 'accent' }];
   const notes: EditorTargetNote[] = [];
-  addGraphStatus(badges, notes, id, 'utility', options.graph, options.surface);
+  addGraphStatus(badges, notes, id, 'utility', options.graph, options.layers);
   notes.push({
     text: 'Graph-only utility nodes can be deleted or moved; durable locking is reserved for layer-backed targets in v0.28.',
     tone: 'muted',
@@ -174,11 +181,11 @@ export function buildGraphTargetSummary(
 
   return {
     title: target.node.name,
-    eyebrow: 'Nodes / Utility',
+    eyebrow: `${capitalize(options.surface)} / Utility`,
     role: 'utility',
     kindLabel,
     description,
-    breadcrumbs: buildGraphBreadcrumbs(id, options.graph),
+    breadcrumbs: buildGraphBreadcrumbs(id, options),
     badges,
     notes,
   };
@@ -213,28 +220,17 @@ function addGraphStatus(
   nodeId: string,
   role: EditorTargetRole,
   graph: CanvasGraph | undefined,
-  surface: EditorTargetSurface,
+  layers: Layer[] | undefined,
 ) {
   if (!graph) return;
   addConnectionBadges(badges, notes, nodeId, graph, role);
-  const outputPath = resolveOutputPath(graph);
-  if (outputPath.nodeIds.has(nodeId)) {
+  if (outputNodeIds(graph, layers).has(nodeId)) {
     badges.push({ label: 'On output path', tone: 'success' });
-  } else if (surface === 'nodes') {
+  } else {
     badges.push({ label: 'Not in output', tone: 'warning' });
     notes.push({
       text: 'This target is editable, but it is not connected to the current output branch.',
       tone: 'warning',
-    });
-  }
-}
-
-function addLayerContextNotes(notes: EditorTargetNote[], layer: Layer, options: LayerTargetOptions) {
-  const area = options.graph?.areas?.find((item) => item.nodeIds.includes(layer.id));
-  if (area && options.surface === 'layers') {
-    notes.push({
-      text: `This layer is also grouped in the "${area.name}" graph area.`,
-      tone: 'muted',
     });
   }
 }
@@ -250,19 +246,17 @@ function buildLayerBreadcrumbs(layer: Layer, options: LayerTargetOptions): strin
   if (area) crumbs.push(`Area: ${area.name}`);
 
   if (options.graph) {
-    const outputPath = resolveOutputPath(options.graph);
-    crumbs.push(outputPath.nodeIds.has(layer.id) ? 'Output path' : 'Off output path');
+    crumbs.push(outputNodeIds(options.graph, options.layers).has(layer.id) ? 'Output path' : 'Off output path');
   }
 
   return crumbs;
 }
 
-function buildGraphBreadcrumbs(nodeId: string, graph: CanvasGraph): string[] {
-  const crumbs = ['Nodes', 'Utility'];
+function buildGraphBreadcrumbs(nodeId: string, { graph, layers, surface }: GraphTargetOptions): string[] {
+  const crumbs = [capitalize(surface), 'Utility'];
   const area = graph.areas?.find((item) => item.nodeIds.includes(nodeId));
   if (area) crumbs.push(`Area: ${area.name}`);
-  const outputPath = resolveOutputPath(graph);
-  crumbs.push(outputPath.nodeIds.has(nodeId) ? 'Output path' : 'Off output path');
+  crumbs.push(outputNodeIds(graph, layers).has(nodeId) ? 'Output path' : 'Off output path');
   return crumbs;
 }
 

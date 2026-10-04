@@ -76,6 +76,20 @@ export function formatEffectSliderValue(value: number, format: EffectSliderValue
   }
 }
 
+/** The unit shown after a slider's numeric entry; counted formats such as `bands` read out through the slider. */
+export function effectSliderUnit(format: EffectSliderValueFormat = 'number'): string | undefined {
+  switch (format) {
+    case 'percent':
+      return '%';
+    case 'px':
+      return 'px';
+    case 'deg':
+      return '°';
+    default:
+      return undefined;
+  }
+}
+
 const INDEXED_COLOR_FIELDS = [
   'indexedColorA',
   'indexedColorB',
@@ -969,6 +983,7 @@ function renderControl(control: EffectControl, props: Props) {
       min={control.min}
       max={control.max}
       formatValue={(value) => formatEffectSliderValue(value, control.valueFormat)}
+      unit={effectSliderUnit(control.valueFormat)}
       overrideMax={control.overrideMax}
       effectKey={effectKey}
       onInfoEnter={onInfoEnter}

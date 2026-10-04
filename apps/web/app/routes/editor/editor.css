@@ -150,21 +150,6 @@
 .artifact-inspector-sidebar {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.artifact-inspector-sidebar::-webkit-scrollbar {
-  width: 4px;
-}
-
-.artifact-inspector-sidebar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.artifact-inspector-sidebar::-webkit-scrollbar-thumb {
-  background: var(--line-default);
-  border-radius: 2px;
 }
 
 .artifact-inspector-sidebar {
@@ -174,19 +159,6 @@
   --node-text: var(--text-primary);
   --node-text-dim: var(--text-secondary);
   --node-focus: var(--accent-primary);
-}
-
-.sidebar-toggle-row {
-  display: flex;
-  min-height: var(--touch);
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: var(--type-ui-xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .asset-image-preview {
