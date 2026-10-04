@@ -299,6 +299,26 @@ describe('reorder within a run', () => {
     await expectDocumentTreeMatchesRenderer(next, ['sphere', 'chrome']);
   });
 
+  it('reorders the masked run and the repeat backdrop run', async () => {
+    const mask = maskDoc();
+    const maskNext = edited(moveTreeRow(mask, 'source', 'mask', 'above'));
+    expect(outline(maskNext).output).toEqual(['source', { mask: { Mask: ['soften', 'matte'] } }]);
+    expect(edgeDiff(mask, maskNext)).toEqual({
+      removed: [`mask>${EXPORT_NODE_ID}.in`, 'source>mask.in'],
+      added: ['mask>source.bg', `source>${EXPORT_NODE_ID}.in`],
+    });
+    await expectDocumentTreeMatchesRenderer(maskNext);
+
+    const repeat = repeatDoc();
+    const repeatNext = edited(moveTreeRow(repeat, 'backdrop', 'repeat', 'above'));
+    expect(outline(repeatNext).output).toEqual(['backdrop', { repeat: { 'Pattern source': ['item'] } }]);
+    expect(edgeDiff(repeat, repeatNext)).toEqual({
+      removed: ['backdrop>repeat.bg', `repeat>${EXPORT_NODE_ID}.in`],
+      added: [`backdrop>${EXPORT_NODE_ID}.in`, 'repeat>backdrop.bg'],
+    });
+    await expectDocumentTreeMatchesRenderer(repeatNext);
+  });
+
   it('keeps a moved edge first on its port so the renderer still reads it', async () => {
     const doc = linearDoc();
     // `spare` also points at mid.bg, after the winning edge: the renderer ignores it.
@@ -371,6 +391,19 @@ describe('move a row between runs', () => {
       added: ['backdrop>env.in', 'sky>backdrop.bg'],
     });
     await expectDocumentTreeMatchesRenderer(next, ['sphere', 'chrome']);
+  });
+
+  it('moves a row past a shared node into its other use', async () => {
+    const doc = fanOutDoc();
+    const next = edited(moveTreeRow(doc, 'title', 'shared', 'below'));
+
+    // `title` now sits under `shared`, so both uses of `shared` show it.
+    expect(outline(next).output).toEqual([{ merge: { Group: ['↪ shared'] } }, 'move', 'shared', 'title']);
+    expect(edgeDiff(doc, next)).toEqual({
+      removed: ['merge>title.bg', `title>${EXPORT_NODE_ID}.in`],
+      added: [`merge>${EXPORT_NODE_ID}.in`, 'title>shared.bg'],
+    });
+    await expectDocumentTreeMatchesRenderer(next);
   });
 
   it('moves a row into and out of Not in output', async () => {
@@ -478,6 +511,25 @@ describe('add above the selected row', () => {
     const maskTopDoc = addLayerAboveTreeRow(maskDoc(), fill('new'), 'soften')!;
     expect(outline(maskTopDoc).output).toEqual([{ mask: { Mask: ['new', 'soften', 'matte'] } }, 'source']);
     await expectDocumentTreeMatchesRenderer(maskTopDoc);
+  });
+
+  it('inserts above a repeat item and above one use of a shared node', async () => {
+    const repeat = addLayerAboveTreeRow(repeatDoc(), fill('new'), 'item')!;
+    expect(outline(repeat).output).toEqual([{ repeat: { 'Pattern source': ['new', 'item'] } }, 'backdrop']);
+    expect(edgeDiff(repeatDoc(), repeat)).toEqual({
+      removed: ['item>repeat.in'],
+      added: ['item>new.bg', 'new>repeat.in'],
+    });
+    await expectDocumentTreeMatchesRenderer(repeat);
+
+    // Above the full entry of `shared`: only the use that row stands for changes.
+    const fanOut = addLayerAboveTreeRow(fanOutDoc(), fill('new'), 'shared')!;
+    expect(edgeDiff(fanOutDoc(), fanOut)).toEqual({
+      removed: ['shared>move.in'],
+      added: ['new>move.in', 'shared>new.bg'],
+    });
+    expect(outline(fanOut).output).toEqual(['title', { merge: { Group: ['↪ shared'] } }, 'move', 'new', 'shared']);
+    await expectDocumentTreeMatchesRenderer(fanOut);
   });
 
   it('refuses side-input tops so the caller falls back to adding before Output', () => {

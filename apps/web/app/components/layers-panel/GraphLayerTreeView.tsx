@@ -24,6 +24,7 @@ import {
   type TreeDropPosition,
 } from '../../utils/graphTreeEdits';
 import {
+  EditorRowActions,
   EditorRowFrame,
   EditorRowLeading,
   EditorRowMetadata,
@@ -165,6 +166,36 @@ function folderAccessibleLabel(label: string, count: number) {
   return `${label}, ${count} ${count === 1 ? 'item' : 'items'}`;
 }
 
+/** The row's "•••" button: tree actions for a graph-only node or a shared use, also on touch. */
+function TreeRowActionsButton({
+  name,
+  onOpen,
+}: {
+  name: string;
+  onOpen?: (event: ReactMouseEvent<HTMLElement>) => void;
+}) {
+  if (!onOpen) return null;
+  return (
+    <EditorRowActions>
+      <div className="layer-row-actions">
+        <button
+          type="button"
+          className="layer-row-action"
+          tabIndex={-1}
+          aria-label={`Open actions for ${name}`}
+          title={`Open actions for ${name}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(event);
+          }}
+        >
+          •••
+        </button>
+      </div>
+    </EditorRowActions>
+  );
+}
+
 function GraphNodeTreeRow({
   row,
   placement,
@@ -210,6 +241,7 @@ function GraphNodeTreeRow({
         <span className="layer-tree-node-kind">{row.kind === 'merge' ? 'group' : meta?.label}</span>
         <LayerAreaChip areas={areas} />
       </EditorRowMetadata>
+      <TreeRowActionsButton name={row.name} onOpen={onContextMenu} />
     </EditorRowFrame>
   );
 }
@@ -248,6 +280,7 @@ function ReferenceTreeRow({
       <EditorRowMetadata className="layer-row-meta">
         <span className="layer-tree-node-kind">shared</span>
       </EditorRowMetadata>
+      <TreeRowActionsButton name={`shared ${row.name}`} onOpen={onContextMenu} />
     </EditorRowFrame>
   );
 }
@@ -577,8 +610,8 @@ export function GraphLayerTreeView({
     (row: GraphTreeRow, event: ReactMouseEvent<HTMLElement>) => {
       if (!editing) return;
       event.preventDefault();
-      const target = event.currentTarget;
-      editing.onOpenNodeContextMenuAt(row.nodeId, { x: event.clientX, y: event.clientY }, target, row.reference);
+      const rowElement = event.currentTarget.closest<HTMLElement>('[role="treeitem"]') ?? event.currentTarget;
+      editing.onOpenNodeContextMenuAt(row.nodeId, { x: event.clientX, y: event.clientY }, rowElement, row.reference);
     },
     [editing],
   );

@@ -151,7 +151,8 @@ moved to a gap the person can see.
   <kbd>Backspace</kbd> deletes it (or the selection it belongs to);
   <kbd>Shift</kbd>+<kbd>F10</kbd> opens row actions.
 - Row actions add Move up, Move down, Move to…, Edit in Nodes, and Delete for
-  graph-only nodes. A blocked action stays focusable and announces its reason.
+  graph-only nodes. Graph-only and shared-use rows get the same "•••" actions
+  button as layer rows, so touch screens reach them too. A blocked action stays focusable and announces its reason.
   Move to… starts a keyboard move: arrow to a row, then <kbd>Enter</kbd> places
   the moving row above it and <kbd>Shift</kbd>+<kbd>Enter</kbd> below it;
   <kbd>Escape</kbd> cancels.
