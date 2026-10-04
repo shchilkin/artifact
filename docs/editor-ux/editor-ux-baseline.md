@@ -82,8 +82,16 @@ latency pass) and scales every latency value by
 `calibration.referenceMs / calibrationMs`. Budgets and exception ceilings are in
 these reference-machine milliseconds; the reference is the v0.49.0 baseline run
 (GitHub-hosted `ubuntu-latest`, 4 CPUs, Playwright container, software WebGL,
-calibration 118.6 ms). The measurement keeps the raw values under `details` and
-the scale under `environment.speed`.
+calibration 118.6 ms). The measurement keeps the raw values under `details`, the
+measured ratio under `environment.measuredSpeed`, and the applied scale under
+`environment.speed`.
+
+The scale is never above 1. The editor's latency grows more slowly than the
+calibration workload as runners get faster, so scaling a fast runner up
+overstated its values. One runner with calibration 90.4 ms (ratio 1.31) measured
+127 ms of drag main-thread time, about what slower runners measure, and the
+scaled 166.9 ms failed the 160 ms budget. A runner faster than the reference
+reports its values as measured; a slower runner is still scaled down.
 
 The 20-step drag loop also has a floor that does not depend on the CPU: the
 harness cannot deliver steps faster than the platform paces frames. Each run
