@@ -41,11 +41,11 @@ a stack.
 
 ## Tree derivation
 
-Reachability is shared with the renderer: `collectGraphRenderReach` in
-`apps/web/app/utils/render/graph.ts` lists the nodes `renderGraphTarget`
-reaches, and Layers rows already use it (through
-`collectDocumentOutputNodeIds`) for their "not in output" status. The tree
-builder should take its in-output set from the same helper.
+Reachability has one home: the walk in
+`apps/web/app/utils/render/graphInputs.ts`. Layers rows use it (through
+`collectGraphRenderReach` and `collectDocumentOutputNodeIds`) for their "not in
+output" status, and the tree builder takes its in-output set and the inputs it
+nests from the same walk (`collectGraphRenderReachModes`).
 
 A pure `buildGraphLayerTree(doc)` starts at `__export__.in` and follows each
 node's primary input upstream. Rows are listed top-first: the node nearest
@@ -110,3 +110,35 @@ several branches, so both cannot be folders at once.
   invalidation rules in [`rendering.md`](./rendering.md).
 - Structural folder collapse state is UI state keyed by node id.
 - Selecting a reference row selects the canonical node in both modes.
+
+## Implementation notes (v0.50 U6)
+
+- `apps/web/app/utils/render/graphInputs.ts` describes the inputs the renderer
+  follows per node kind and use (`render`, `material`, `read`); the renderer
+  imports only its port lookup from there, and the shared renderer-backed
+  fixtures in `test-fixtures/render/graphReachFixtures.ts` guard the rest
+  against drift. `buildGraphLayerTree`
+  (`apps/web/app/utils/graphLayerTree.ts`) walks those inputs, so ignored
+  inputs land in "Not in output" exactly as the renderer ignores them: a
+  losing duplicate edge, a fill-role shader's `bg`, a standalone material's
+  non-albedo maps, a node that is not a 3D source on `model`, and a node that
+  is not a material or shader on `material`. In that last case the renderer
+  still renders whatever feeds the node's texture ports, so those sources
+  appear as the consumer's own inputs (for example Inputs → Roughness).
+- Merge `b` rows sit directly under the merge row; mask, pattern, and "Inputs"
+  folders are labelled rows. Visual indentation is capped (6 levels on wide
+  screens, 3 on narrow ones) while `aria-level` stays exact. Narrow screens
+  start with nested folders and "Not in output" collapsed.
+- The tree is one multi-selectable ARIA tree with roving focus: arrows move
+  and expand or collapse, Home/End jump, typing a character jumps to the next
+  row whose name starts with it, Enter/Space select, F2 renames a layer, and
+  Shift+F10 or the context-menu key opens layer actions. Carets are pointer
+  shortcuts and never take focus.
+- Custom graphs switch views with a Structure/Areas segmented control (toggle
+  buttons, not tabs: both views fill the same list).
+- Selecting a graph-only node shows a short inspector notice; its settings are
+  edited in Nodes until a later release brings those inspectors to Layers.
+- Folder rows have no thumbnails, matching layer rows. If they are added, they
+  must render through the content-keyed graph cache described in
+  [`rendering.md`](./rendering.md) and invalidate only on commit.
+

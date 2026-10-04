@@ -2793,6 +2793,13 @@ test('layer drag reorder keeps a custom graph and points to Nodes', async ({ pag
   await expectStoredGraphEdges(page, ['custom-bottom-fill->__export__']);
   await expect(page.getByText('Layer order follows the node graph. Reorder in Nodes.')).toBeVisible();
 
+  // Structure (the default for custom graphs) shows the graph-derived tree; its rows cannot be dragged.
+  const treeRow = page.getByRole('treeitem', { name: 'Custom top, fill layer', exact: true });
+  await expect(treeRow).toBeVisible({ timeout: 15_000 });
+  await expect(treeRow).toHaveAttribute('draggable', 'false');
+
+  // Areas shows the flat list, where the drag handle is disabled.
+  await showLayerAreasView(page);
   const source = page.locator('.layer-row').filter({ hasText: 'Custom top' }).first();
   await expect(source).toBeVisible({ timeout: 15_000 });
   await expect(source).toHaveAttribute('draggable', 'false');
@@ -3695,6 +3702,7 @@ test('selected nodes can be marked as graph areas and reflected in layers', asyn
 
 test('layer area folders collapse and summarize graph-only nodes', async ({ page }) => {
   await gotoDocument(page, areaMergeDocument);
+  await showLayerAreasView(page);
 
   const folder = page.locator('.layer-area-folder').first();
   await expect(folder).toContainText('Area 1');
@@ -3747,6 +3755,7 @@ test('layers can create areas from multi-selected rows', async ({ page }) => {
 
 test('layer area folders can be renamed', async ({ page }) => {
   await gotoDocument(page, areaMergeDocument);
+  await showLayerAreasView(page);
 
   const folder = page.locator('.layer-area-folder').first();
   await folder.getByRole('button', { name: /Rename Area 1/ }).click();
@@ -3808,6 +3817,7 @@ test('dragging a node away from its area separates the node', async ({ page }) =
 
 test('dragging a layer row out of an area separates the layer', async ({ page }) => {
   await gotoDocument(page, areaSeparationDocument);
+  await showLayerAreasView(page);
 
   await dragLayerRowOverText(page, 'Area noise', 'Outside fill');
   await dropLayerRowOnText(page, 'Outside fill');
@@ -4576,6 +4586,14 @@ async function getVisibleNoiseNodeBox(page: Page) {
   expect(nodeBox).not.toBeNull();
   if (!nodeBox) throw new Error('Expected a visible noise node bounding box');
   return { noiseNode, nodeBox };
+}
+
+/** Custom graphs open Layers in Structure; area folders live in the Areas view. */
+async function showLayerAreasView(page: Page) {
+  const areasView = page.getByRole('group', { name: 'Layers view' }).getByRole('button', { name: 'Areas' });
+  await expect(areasView).toBeVisible({ timeout: 15_000 });
+  await areasView.click();
+  await expect(areasView).toHaveAttribute('aria-pressed', 'true');
 }
 
 async function dragLayerRowOverText(page: Page, sourceText: string, targetText: string, targetYRatio = 0.75) {

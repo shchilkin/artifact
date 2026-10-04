@@ -333,7 +333,12 @@ test('v0.36 layers treats 3D scene as the layer and model as a scene setting', a
 
   const layerRows = page.locator('.sidebar .layer-row');
   await expect(layerRows.filter({ hasText: '3D Scene' })).toHaveCount(1, { timeout: 15_000 });
-  await expect(layerRows.filter({ hasText: 'Tiny GLB' })).toHaveCount(0);
+  // The model is never a stack layer of its own: the Layers tree lists it only under the scene's Inputs.
+  const modelRows = layerRows.filter({ hasText: 'Tiny GLB' });
+  await expect(modelRows).toHaveCount(1);
+  // Scene → Inputs → Model → model row.
+  const sceneLevel = Number(await sceneTreeLevel(page));
+  await expect(modelRows.first()).toHaveAttribute('aria-level', String(sceneLevel + 3));
 
   await layerRows.filter({ hasText: '3D Scene' }).first().click();
   const inspector = page.locator('.layer-inspector-drawer');
@@ -894,4 +899,8 @@ async function storedModelRotationY(page: Page) {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
     return doc.graph?.primitiveViewStates?.['v036-model']?.rotationY ?? null;
   });
+}
+
+async function sceneTreeLevel(page: Page) {
+  return page.locator('.sidebar [role="treeitem"][data-tree-node-kind="scene3d"]').getAttribute('aria-level');
 }

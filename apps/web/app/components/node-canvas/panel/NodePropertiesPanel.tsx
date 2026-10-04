@@ -198,8 +198,9 @@ function buildSelectedTargetSummary(
       layers: doc.layers,
     });
   }
-  if (target.kind === 'output') return buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph });
-  return buildGraphTargetSummary(target, { surface: 'nodes', graph });
+  const options = { surface: 'nodes' as const, graph, layers: doc.layers };
+  if (target.kind === 'output') return buildGraphTargetSummary({ kind: 'output' }, options);
+  return buildGraphTargetSummary(target, options);
 }
 
 function modelFileLoader(

@@ -14,6 +14,7 @@ import {
   EditorRowPrimary,
 } from '../editor-workflow/EditorRowFrame';
 import { getLayerIcon } from './layerDisplayItems';
+import { type LayerRowTreePlacement, layerKindLabel, layerTreeItemProps } from './layerRowTree';
 import type { LayerDropPosition } from './useLayerDragReorder';
 import type { LayerSelectionModifiers } from './useLayerSelection';
 
@@ -21,11 +22,12 @@ export interface LayerRowProps {
   layer: Layer;
   areas: GraphArea[];
   selected: boolean;
-  dragOverPosition: LayerDropPosition | null;
+  dragOverPosition?: LayerDropPosition | null;
   editing: boolean;
   nested?: boolean;
   /** Stack order is owned by a custom node graph, so rows cannot be dragged. */
   reorderDisabled?: boolean;
+  tree?: LayerRowTreePlacement;
   /**
    * Whether the renderer reaches this layer from Output; see `collectDocumentOutputNodeIds`. A hidden layer on the
    * path still counts as reached.
@@ -35,10 +37,11 @@ export interface LayerRowProps {
   onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLElement>) => void;
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
-  onDragStart: (id: string) => void;
-  onDragOverLayer: (id: string, position: LayerDropPosition) => void;
-  onDropLayer: (id: string, position: LayerDropPosition) => void;
-  onDragEnd: () => void;
+  /** Drag handlers are omitted where rows cannot be reordered, such as the graph-derived tree. */
+  onDragStart?: (id: string) => void;
+  onDragOverLayer?: (id: string, position: LayerDropPosition) => void;
+  onDropLayer?: (id: string, position: LayerDropPosition) => void;
+  onDragEnd?: () => void;
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRemoveLayer: (id: string) => void;
@@ -87,7 +90,7 @@ function selectedClassName(selected: boolean) {
   return selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50';
 }
 
-function dropTargetClassName(position: LayerDropPosition | null) {
+function dropTargetClassName(position: LayerDropPosition | null | undefined) {
   return position ? `layer-row-drop-target layer-row-drop-${position}` : '';
 }
 
@@ -132,16 +135,16 @@ function shouldCancelLayerRowDrag(target: EventTarget) {
   );
 }
 
-function startLayerDrag(event: ReactDragEvent<HTMLElement>, layer: Layer, onDragStart: (id: string) => void) {
+function startLayerDrag(event: ReactDragEvent<HTMLElement>, layer: Layer, onDragStart?: (id: string) => void) {
   event.dataTransfer.effectAllowed = 'move';
   event.dataTransfer.setData('text/plain', layer.id);
-  onDragStart(layer.id);
+  onDragStart?.(layer.id);
 }
 
 function handleLayerRowDragStart(
   event: ReactDragEvent<HTMLElement>,
   layer: Layer,
-  onDragStart: (id: string) => void,
+  onDragStart: ((id: string) => void) | undefined,
   reorderDisabled: boolean,
 ) {
   if (layer.locked || reorderDisabled || shouldCancelLayerRowDrag(event.target)) {
@@ -190,9 +193,10 @@ function LayerNameEditor({
   layer,
   editing,
   selected,
+  inTree,
   onStartEditing,
   onFinishRename,
-}: Pick<LayerRowProps, 'layer' | 'editing' | 'selected' | 'onStartEditing' | 'onFinishRename'>) {
+}: Pick<LayerRowProps, 'layer' | 'editing' | 'selected' | 'onStartEditing' | 'onFinishRename'> & { inTree: boolean }) {
   const finishRename = (value: string | null) => onFinishRename(layer.id, value);
   if (!editing) {
     return (
@@ -200,6 +204,7 @@ function LayerNameEditor({
         type="button"
         className={`layer-row-name layer-row-name-button ${selected ? 'text-text' : 'text-dim'}`}
         title={layer.name}
+        tabIndex={inTree ? -1 : undefined}
         onClick={(event) => {
           if (!selected) return;
           event.stopPropagation();
@@ -224,12 +229,6 @@ function LayerNameEditor({
       onClick={(event) => event.stopPropagation()}
     />
   );
-}
-
-function layerKindLabel(layer: Layer) {
-  if (layer.kind === 'emoji') return 'emoji';
-  if (layer.kind === 'primitive') return '3d';
-  return layer.kind;
 }
 
 function LayerKindBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
@@ -318,7 +317,7 @@ function LayerAiBadges({ layer }: Pick<LayerRowProps, 'layer'>) {
   );
 }
 
-function LayerAreaChip({ areas, nested }: Pick<LayerRowProps, 'areas' | 'nested'>) {
+export function LayerAreaChip({ areas, nested }: Pick<LayerRowProps, 'areas' | 'nested'>) {
   if (areas.length === 0 || nested) return null;
   const areaNames = areas.map((area) => area.name).join(', ');
   return (
@@ -330,11 +329,16 @@ function LayerAreaChip({ areas, nested }: Pick<LayerRowProps, 'areas' | 'nested'
   );
 }
 
-function LayerMoreButton({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'>) {
+function LayerMoreButton({
+  layer,
+  inTree,
+  onOpenContextMenu,
+}: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'> & { inTree: boolean }) {
   return (
     <button
       type="button"
       className="layer-row-action"
+      tabIndex={inTree ? -1 : undefined}
       onClick={(event) => {
         event.stopPropagation();
         onOpenContextMenu(layer.id, event);
@@ -356,11 +360,54 @@ function LayerLockedBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
   );
 }
 
-function LayerRowActions({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'>) {
+function LayerRowActions({
+  layer,
+  inTree,
+  onOpenContextMenu,
+}: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'> & { inTree: boolean }) {
   return (
     <div className="layer-row-actions">
-      <LayerMoreButton layer={layer} onOpenContextMenu={onOpenContextMenu} />
+      <LayerMoreButton layer={layer} inTree={inTree} onOpenContextMenu={onOpenContextMenu} />
     </div>
+  );
+}
+
+/**
+ * Expand/collapse affordance for tree rows. It is not focusable: a click lands focus on its row, and
+ * the keyboard uses the tree's arrow keys.
+ */
+export function LayerTreeCaret({ expanded, onToggle }: { expanded?: boolean; onToggle?: () => void }) {
+  if (expanded === undefined) return <span className="layer-tree-caret layer-tree-caret-leaf" aria-hidden="true" />;
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: pointer shortcut; the treeitem owns keyboard expand/collapse.
+    // biome-ignore lint/a11y/useKeyWithClickEvents: ArrowLeft/ArrowRight on the treeitem expand and collapse.
+    <span
+      aria-hidden="true"
+      className="layer-tree-caret"
+      data-expanded={expanded ? 'true' : 'false'}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle?.();
+      }}
+    >
+      ▸
+    </span>
+  );
+}
+
+function LayerRowSelection({
+  layer,
+  selected,
+  tree,
+  onSelect,
+}: Pick<LayerRowProps, 'layer' | 'selected' | 'tree' | 'onSelect'>) {
+  if (tree) return <LayerTreeCaret expanded={tree.expanded} onToggle={tree.onToggleExpanded} />;
+  return (
+    <LayerSelectionControl
+      label={`Select ${layer.name} layer`}
+      selected={selected}
+      onSelect={(event) => onSelect(layer.id, event)}
+    />
   );
 }
 
@@ -372,6 +419,7 @@ export const LayerRow = memo(function LayerRow({
   editing,
   nested = false,
   reorderDisabled = false,
+  tree,
   reachesOutput = true,
   onSelect,
   onOpenContextMenu,
@@ -389,10 +437,12 @@ export const LayerRow = memo(function LayerRow({
     layer,
   });
 
+  const treeProps = tree ? layerTreeItemProps(tree, selected, areas[0]?.color) : { role: 'listitem' };
+
   return (
     <EditorRowFrame
+      {...treeProps}
       draggable={!layer.locked && !reorderDisabled}
-      role="listitem"
       selected={selected}
       isHidden={!layer.visible}
       isLocked={layer.locked}
@@ -406,11 +456,11 @@ export const LayerRow = memo(function LayerRow({
       onDragStart={(event) => handleLayerRowDragStart(event, layer, onDragStart, reorderDisabled)}
       onDragOver={(event) => {
         event.preventDefault();
-        onDragOverLayer(layer.id, getDropPosition(event));
+        onDragOverLayer?.(layer.id, getDropPosition(event));
       }}
       onDrop={(event) => {
         event.preventDefault();
-        onDropLayer(layer.id, getDropPosition(event));
+        onDropLayer?.(layer.id, getDropPosition(event));
       }}
       onDragEnd={onDragEnd}
       onClick={(event) => onSelect(layer.id, event)}
@@ -419,14 +469,10 @@ export const LayerRow = memo(function LayerRow({
         event.stopPropagation();
         onStartEditing(layer.id);
       }}
-      className={`layer-row layer-row-kind-${layer.kind} px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
+      className={`layer-row layer-row-kind-${layer.kind} px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${tree ? 'layer-row-tree' : ''} ${stateClassNames}`}
     >
       <EditorRowLeading>
-        <LayerSelectionControl
-          label={`Select ${layer.name} layer`}
-          selected={selected}
-          onSelect={(event) => onSelect(layer.id, event)}
-        />
+        <LayerRowSelection layer={layer} selected={selected} tree={tree} onSelect={onSelect} />
         <LayerDragHandle layer={layer} reorderDisabled={reorderDisabled} onDragStart={onDragStart} />
         <LayerKindBadge layer={layer} />
       </EditorRowLeading>
@@ -435,6 +481,7 @@ export const LayerRow = memo(function LayerRow({
           layer={layer}
           editing={editing}
           selected={selected}
+          inTree={Boolean(tree)}
           onStartEditing={onStartEditing}
           onFinishRename={onFinishRename}
         />
@@ -446,7 +493,7 @@ export const LayerRow = memo(function LayerRow({
         <LayerAreaChip areas={areas} nested={nested} />
       </EditorRowMetadata>
       <EditorRowActions>
-        <LayerRowActions layer={layer} onOpenContextMenu={onOpenContextMenu} />
+        <LayerRowActions layer={layer} inTree={Boolean(tree)} onOpenContextMenu={onOpenContextMenu} />
       </EditorRowActions>
     </EditorRowFrame>
   );

@@ -119,6 +119,8 @@ Includes:
 - expanded node panel
 - open context menu
 - open gallery node
+- Layers tree folder collapse state and the Structure/Areas switch
+  (`GraphLayerTreeView`, `LayerPanel`), keyed by node id
 
 Editor confirmation state is also overlay state. `useEditorConfirm`
 (`components/editor-workflow/useEditorConfirm.tsx`) holds one pending
@@ -134,6 +136,9 @@ Rules:
 - Replacing or destructive editor actions confirm through `EditorConfirmDialog`, never `window.confirm`.
 - Selection changes must not dirty the document.
 - Opening/closing menus must not invalidate thumbnails.
+- The editor's shared selection (`useEditorDocument` `selectedLayerId`) holds any
+  existing layer or graph node id, so a node selected in the Layers tree stays
+  selected in Nodes and back.
 - Node-local controls should stop propagation when they are not intended to select, pan, or zoom the graph.
 
 ## Gesture draft state

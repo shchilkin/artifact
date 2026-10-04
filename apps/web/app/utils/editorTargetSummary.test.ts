@@ -68,7 +68,7 @@ describe('editor target summaries', () => {
       colorNodes: [],
     };
 
-    expect(buildLayerTargetSummary(layer, { surface: 'nodes', graph }).badges).toContainEqual({
+    expect(buildLayerTargetSummary(layer, { surface: 'nodes', graph, layers: [] }).badges).toContainEqual({
       label: 'Not in output',
       tone: 'warning',
     });
@@ -130,7 +130,7 @@ describe('editor target summaries', () => {
       colorNodes: [],
     };
 
-    const summary = buildLayerTargetSummary(layer, { surface: 'nodes', graph });
+    const summary = buildLayerTargetSummary(layer, { surface: 'nodes', graph, layers: [] });
 
     expect(summary.badges).toContainEqual({ label: 'No input', tone: 'warning' });
     expect(summary.notes).toContainEqual({
@@ -147,7 +147,10 @@ describe('editor target summaries', () => {
       colorNodes: [],
     };
 
-    const summary = buildGraphTargetSummary({ kind: 'merge', node: graph.mergeNodes[0] }, { surface: 'nodes', graph });
+    const summary = buildGraphTargetSummary(
+      { kind: 'merge', node: graph.mergeNodes[0] },
+      { surface: 'nodes', graph, layers: [] },
+    );
 
     expect(summary.breadcrumbs).toEqual(['Nodes', 'Utility', 'Off output path']);
     expect(summary.badges.filter((badge) => badge.label === 'No input')).toEqual([
@@ -165,6 +168,30 @@ describe('editor target summaries', () => {
     ]);
   });
 
+  it('uses renderer reachability, so an edge on a port the renderer ignores is not on the output path', () => {
+    const ignored = makeFillLayer({ id: 'ignored', name: 'ignored' });
+    const title = makeTextLayer({ id: 'title', name: 'title' });
+    const graph: CanvasGraph = {
+      edges: [
+        // Text layers composite over `bg`; the renderer never reads their `in` port.
+        { id: 'e-ignored', fromId: 'ignored', fromPort: 'out', toId: 'title', toPort: 'in' },
+        { id: 'e-title', fromId: 'title', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+      ],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+    };
+    const layers = [ignored, title];
+
+    const ignoredSummary = buildLayerTargetSummary(ignored, { surface: 'layers', graph, layers });
+    expect(ignoredSummary.badges).toContainEqual({ label: 'Not in output', tone: 'warning' });
+    expect(ignoredSummary.breadcrumbs.at(-1)).toBe('Off output path');
+    expect(buildLayerTargetSummary(title, { surface: 'layers', graph, layers }).badges).toContainEqual({
+      label: 'On output path',
+      tone: 'success',
+    });
+  });
+
   it('shows output connection state for export target', () => {
     const graph: CanvasGraph = {
       edges: [],
@@ -173,7 +200,7 @@ describe('editor target summaries', () => {
       colorNodes: [],
     };
 
-    expect(buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph }).badges).toContainEqual({
+    expect(buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph, layers: [] }).badges).toContainEqual({
       label: 'No input',
       tone: 'warning',
     });
@@ -187,7 +214,7 @@ describe('editor target summaries', () => {
       colorNodes: [],
     };
 
-    expect(buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph }).notes).toContainEqual({
+    expect(buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph, layers: [] }).notes).toContainEqual({
       text: 'Connect a source, effect, or utility branch to the output before export.',
       tone: 'warning',
     });

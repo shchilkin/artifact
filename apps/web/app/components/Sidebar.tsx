@@ -24,6 +24,7 @@ import {
   updateScene3DNodeInDocument,
 } from '../utils/documentCommands';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../utils/editorTargetSummary';
+import { findGraphUtilityNode } from '../utils/nodeGraph';
 import { getScene3DTarget } from '../utils/scene3DInputs';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetOverview } from './editor-target/EditorTargetHeader';
@@ -108,7 +109,10 @@ function selectedLayerTargetSummary(doc: CanvasDocument, selectedLayer: Layer | 
 
 function selectedSceneTargetSummary(doc: CanvasDocument, scene: GraphScene3DNode | null) {
   if (!scene || !doc.graph) return null;
-  return buildGraphTargetSummary({ kind: 'scene3d', node: scene }, { graph: doc.graph, surface: 'layers' });
+  return buildGraphTargetSummary(
+    { kind: 'scene3d', node: scene },
+    { graph: doc.graph, layers: doc.layers, surface: 'layers' },
+  );
 }
 
 function useLayerPanelHandlers({
@@ -259,6 +263,27 @@ function InspectorEmptyState() {
   );
 }
 
+/** A graph-only node selected from the Layers tree; its settings are edited in Nodes. */
+function selectedGraphOnlyNode(doc: CanvasDocument, id: string | null) {
+  if (!id || !doc.graph) return null;
+  const found = findGraphUtilityNode(doc.graph, id);
+  return found && found.kind !== 'scene3d' ? found.node : null;
+}
+
+function GraphNodeInspectorNotice({ node }: { node: { name: string } | null }) {
+  if (!node) return null;
+  return (
+    <>
+      <h2 className="sr-only">Node settings</h2>
+      <EmptyState
+        className="layer-inspector-empty-state"
+        title={node.name}
+        body="This node's settings are edited in Nodes."
+      />
+    </>
+  );
+}
+
 function MobileActionBar({ content }: { content?: React.ReactNode }) {
   return content ? <div className="sidebar-mobile-bar">{content}</div> : null;
 }
@@ -304,6 +329,7 @@ export function Sidebar({
 }: Props) {
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
   const selectedScene = getScene3DTarget(doc, selectedLayerId);
+  const selectedGraphNode = selectedGraphOnlyNode(doc, selectedLayerId);
   const selectedTargetSummary = useMemo(() => selectedLayerTargetSummary(doc, selectedLayer), [doc, selectedLayer]);
   const selectedSceneSummary = useMemo(() => selectedSceneTargetSummary(doc, selectedScene), [doc, selectedScene]);
   const docRef = useDocumentRef(doc);
@@ -314,7 +340,7 @@ export function Sidebar({
     [doc, onDocChange],
   );
 
-  const hasInspectorContent = Boolean(showAiGeneration || selectedLayer || selectedScene);
+  const hasInspectorContent = Boolean(showAiGeneration || selectedLayer || selectedScene || selectedGraphNode);
 
   return (
     <>
@@ -357,6 +383,8 @@ export function Sidebar({
         aria-label="Layer settings"
       >
         {!hasInspectorContent && <InspectorEmptyState />}
+        {/* The notice stands in for the empty state; an open AI panel is the relevant content instead. */}
+        <GraphNodeInspectorNotice node={showAiGeneration ? null : selectedGraphNode} />
         <AiImageSection
           aspect={doc.global.aspect ?? '1:1'}
           show={showAiGeneration}

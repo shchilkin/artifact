@@ -406,6 +406,13 @@
   margin-top: var(--space-4);
 }
 
+.style-guide-layer-tree {
+  width: min(100%, 760px);
+  margin-top: var(--space-4);
+  border: 1px solid var(--line-default);
+  background: var(--surface-panel);
+}
+
 .style-guide-workflow-state-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));

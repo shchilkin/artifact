@@ -10,7 +10,9 @@ import {
   type ComponentProps,
   type CSSProperties,
   type KeyboardEvent,
+  lazy,
   type ReactNode,
+  Suspense,
   useEffect,
   useRef,
   useState,
@@ -174,6 +176,9 @@ const styleArea: GraphArea = {
   color: '#ff705f',
   nodeIds: ['style-layer-selected'],
 };
+
+// Loaded after first render so the tree, its builder, and graph reachability stay out of the route's initial bundle.
+const LayerTreeSpecimen = lazy(() => import('../components/layers-panel/LayerTreeSpecimen'));
 
 const styleGuideAddLibraryItem = ADD_LIBRARY_ITEMS.find((item) => item.id === 'layer:fill')!;
 const STYLE_GUIDE_READY_PREVIEW =
@@ -535,7 +540,7 @@ export default function DocsStyleGuide() {
         <StyleSection
           kicker="04 / Editor states"
           title="Layer rows"
-          body="Layer states must stay visually distinct: selected, hidden, locked, and selected plus hidden are treated as product states."
+          body="Layer states must stay visually distinct: selected, hidden, locked, and selected plus hidden are treated as product states. Custom graphs switch between Structure, a tree of how layers and nodes reach Output, and Areas."
         >
           <div className="style-guide-layer-stack" aria-label="Layer row state specimens">
             {layers.map((layer) => (
@@ -589,6 +594,9 @@ export default function DocsStyleGuide() {
               onRemoveNodesFromArea={noop}
             />
           </div>
+          <Suspense fallback={<div className="style-guide-layer-tree" aria-label="Layers tree specimen" />}>
+            <LayerTreeSpecimen layers={layers} area={styleArea} />
+          </Suspense>
           <div className="style-guide-workflow-state-grid" aria-label="Editor row and organization contract states">
             <EditorRowFrame
               className="style-guide-workflow-contract-state"

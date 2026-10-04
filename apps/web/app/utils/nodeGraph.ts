@@ -39,35 +39,22 @@ export type GraphUtilityNodeKind =
   | 'environment'
   | 'shader';
 
+// Listed in the renderer's dispatch order (`GRAPH_NODE_RENDERERS` in `render/graph.ts`), so a lookup by id
+// classifies a node the way the renderer does.
 const GRAPH_UTILITY_NODE_SELECTORS = [
   { kind: 'merge', nodes: (graph: CanvasGraph) => graph.mergeNodes },
   { kind: 'color', nodes: (graph: CanvasGraph) => graph.colorNodes ?? [] },
   { kind: 'repeat', nodes: (graph: CanvasGraph) => graph.repeatNodes ?? [] },
   { kind: 'material', nodes: (graph: CanvasGraph) => graph.materialNodes ?? [] },
   { kind: 'mask', nodes: (graph: CanvasGraph) => graph.maskNodes ?? [] },
-  {
-    kind: 'transform',
-    nodes: (graph: CanvasGraph) => graph.transformNodes ?? [],
-  },
-  {
-    kind: 'grimeShadow',
-    nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [],
-  },
-  {
-    kind: 'scene3d',
-    nodes: (graph: CanvasGraph) => graph.scene3dNodes ?? [],
-  },
-  {
-    kind: 'environment',
-    nodes: (graph: CanvasGraph) => graph.environmentNodes ?? [],
-  },
-  {
-    kind: 'shader',
-    nodes: (graph: CanvasGraph) => graph.shaderNodes ?? [],
-  },
+  { kind: 'transform', nodes: (graph: CanvasGraph) => graph.transformNodes ?? [] },
+  { kind: 'grimeShadow', nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [] },
+  { kind: 'shader', nodes: (graph: CanvasGraph) => graph.shaderNodes ?? [] },
+  { kind: 'environment', nodes: (graph: CanvasGraph) => graph.environmentNodes ?? [] },
+  { kind: 'scene3d', nodes: (graph: CanvasGraph) => graph.scene3dNodes ?? [] },
 ] satisfies Array<{
   kind: GraphUtilityNodeKind;
-  nodes: (graph: CanvasGraph) => Array<{ id: string }>;
+  nodes: (graph: CanvasGraph) => Array<{ id: string; name: string }>;
 }>;
 
 type GraphLayoutState = {
@@ -703,11 +690,20 @@ export function graphUtilityNodeCollections(graph: CanvasGraph) {
   return GRAPH_UTILITY_NODE_SELECTORS.map((selector) => selector.nodes(graph));
 }
 
+/** The graph-only node with this id and its kind, classified in the renderer's dispatch order. */
+export function findGraphUtilityNode(
+  graph: CanvasGraph,
+  nodeId: string,
+): { kind: GraphUtilityNodeKind; node: { id: string; name: string } } | null {
+  for (const selector of GRAPH_UTILITY_NODE_SELECTORS) {
+    const node = selector.nodes(graph).find((item) => item.id === nodeId);
+    if (node) return { kind: selector.kind, node };
+  }
+  return null;
+}
+
 export function graphUtilityNodeKind(graph: CanvasGraph, nodeId: string): GraphUtilityNodeKind | null {
-  return (
-    GRAPH_UTILITY_NODE_SELECTORS.find((selector) => selector.nodes(graph).some((node) => node.id === nodeId))?.kind ??
-    null
-  );
+  return findGraphUtilityNode(graph, nodeId)?.kind ?? null;
 }
 
 function createEmptyGraphLayoutState(nodeIds: string[]): GraphLayoutState {
