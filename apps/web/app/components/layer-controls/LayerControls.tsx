@@ -43,6 +43,7 @@ import {
   InspectorSelect,
   InspectorSlider,
   InspectorStateProvider,
+  InspectorTargetContext,
   InspectorTextArea,
   InspectorTextInput,
   InspectorToggle,
@@ -1265,7 +1266,11 @@ export function LayerControls({
     <EffectInspector layer={layer} onChange={(patch) => onChange(patch as Partial<Layer>)} detached={detached} />
   ) : null;
 
-  return <InspectorStateProvider value={{ dirty, locked: layer.locked }}>{content}</InspectorStateProvider>;
+  return (
+    <InspectorTargetContext.Provider value={layer.id}>
+      <InspectorStateProvider value={{ dirty, locked: layer.locked }}>{content}</InspectorStateProvider>
+    </InspectorTargetContext.Provider>
+  );
 }
 
 function sourceSummary(layer: SourceLayer) {

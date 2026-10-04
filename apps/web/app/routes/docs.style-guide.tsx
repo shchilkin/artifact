@@ -1326,7 +1326,7 @@ function InspectorFieldSpecimens() {
         <InspectorSlider
           label="Opacity"
           value={opacity}
-          valueLabel={`${opacity}%`}
+          formatValue={(value) => `${value}%`}
           min={0}
           max={100}
           onChange={setOpacity}

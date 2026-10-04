@@ -1,3 +1,5 @@
+import { browserTimerClock, type TimerClock } from '../utils/timerClock';
+
 /**
  * Latest-wins scheduling for a preview surface that renders from refs (the render reads the newest document when
  * it starts, so a request carries no payload).
@@ -8,7 +10,8 @@
  *   one render in flight and one waiting, however many inputs it delivers.
  * - After a render that asks for a cooldown, the next one waits until the main thread has been free for
  *   `cooldownRatio` times that render's duration (at most 250 ms), so input keeps flowing while renders are
- *   expensive. The wait ends early once requests stop for twice their recent interval (at least two frames): when a
+ *   expensive, and until at least `minIntervalMs` after that render started, so cheap renders do not take over the
+ *   main thread either. The wait ends early once requests stop for twice their recent interval (at least two frames): when a
  *   gesture ends, its last state renders at once. A request more than 120 ms after the previous one starts a
  *   new burst without a cooldown, such as an edit after a pause or the full-quality pass that follows a gesture.
  */
@@ -22,9 +25,9 @@ export interface PreviewRenderSchedulerOptions {
   onSupersede?: () => void;
   /** Free time left between consecutive renders, as a multiple of the previous render's duration. */
   cooldownRatio?: number;
-  now?: () => number;
-  setTimer?: (callback: () => void, ms: number) => unknown;
-  clearTimer?: (handle: unknown) => void;
+  /** Shortest time between the starts of two renders in one burst of input, which caps the preview frame rate. */
+  minIntervalMs?: number;
+  clock?: TimerClock;
   queueMicrotask?: (callback: () => void) => void;
 }
 
@@ -48,9 +51,8 @@ export function createPreviewRenderScheduler({
   run,
   onSupersede,
   cooldownRatio = DEFAULT_PREVIEW_COOLDOWN_RATIO,
-  now = () => performance.now(),
-  setTimer = (callback, ms) => setTimeout(callback, ms),
-  clearTimer = (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+  minIntervalMs = 0,
+  clock = browserTimerClock,
   queueMicrotask: enqueueMicrotask = (callback) => queueMicrotask(callback),
 }: PreviewRenderSchedulerOptions): PreviewRenderScheduler {
   let running = false;
@@ -70,7 +72,7 @@ export function createPreviewRenderScheduler({
     scheduled = false;
     timer = null;
     running = true;
-    startedAt = now();
+    startedAt = clock.now();
     let settled = false;
     run((options) => {
       if (settled) return;
@@ -81,10 +83,13 @@ export function createPreviewRenderScheduler({
 
   function finish(cooldown: boolean) {
     running = false;
-    const endedAt = now();
+    const endedAt = clock.now();
     cooldownUntil =
       cooldown && !freshBurst
-        ? endedAt + Math.min(MAX_COOLDOWN_MS, Math.max(0, endedAt - startedAt) * cooldownRatio)
+        ? Math.max(
+            endedAt + Math.min(MAX_COOLDOWN_MS, Math.max(0, endedAt - startedAt) * cooldownRatio),
+            startedAt + minIntervalMs,
+          )
         : Number.NEGATIVE_INFINITY;
     if (!pending) return;
     pending = false;
@@ -93,7 +98,7 @@ export function createPreviewRenderScheduler({
 
   /** Time left before a start may happen: the cooldown, unless input has gone quiet first. */
   function waitMs() {
-    const current = now();
+    const current = clock.now();
     if (current >= cooldownUntil) return 0;
     const quietAt = lastRequestAt + quietGapMs();
     return current >= quietAt ? 0 : Math.min(cooldownUntil, quietAt) - current;
@@ -105,7 +110,7 @@ export function createPreviewRenderScheduler({
       start(scheduledGeneration);
       return;
     }
-    timer = setTimer(() => {
+    timer = clock.setTimer(() => {
       if (scheduledGeneration === generation && scheduled) armTimer(scheduledGeneration);
     }, wait);
   }
@@ -126,7 +131,7 @@ export function createPreviewRenderScheduler({
   }
 
   function request() {
-    const requestedAt = now();
+    const requestedAt = clock.now();
     const interval = requestedAt - lastRequestAt;
     if (interval > Math.max(FRESH_GAP_MS, quietGapMs())) {
       // Input had gone quiet: this request starts a new burst, and its render does not wait for a cooldown.
@@ -150,7 +155,7 @@ export function createPreviewRenderScheduler({
     generation += 1;
     scheduled = false;
     pending = false;
-    if (timer !== null) clearTimer(timer);
+    if (timer !== null) clock.clearTimer(timer);
     timer = null;
   }
 
