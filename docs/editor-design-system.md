@@ -181,6 +181,12 @@ still consume the same tokens:
 - `EditorConfirmDialog` (replacing and destructive editor actions; modal,
   Cancel takes initial focus, Escape cancels; `useEditorConfirm` for
   promise-style callers)
+- `EditorWorkflowNotice` laid over a panel (`LayerTreeEditStatus`): the
+  shared `InlineNotice` used as a non-shifting overlay for transient edit
+  feedback. It stays mounted while empty, so its status live region is
+  registered before the first message, and it ignores pointer events. Use it
+  where an inline notice would push rows the person is dragging or
+  navigating; otherwise use an inline `EditorWorkflowNotice`.
 
 ### Route-Level Style Guide
 
@@ -193,6 +199,8 @@ The deterministic internal route for the visual UI catalog is
 - sheets/dialogs/floating menus
 - badges and status chips
 - layer rows: default, selected, hidden, locked, selected+hidden
+- Layers tree edit states: drop line above and below, dragging row, row being
+  placed with Move to…, and the edit notice (blocked reason)
 - node frames: default, selected, output path, muted, locked delete action
 - node color states: at least two distinct categories selected in sequence
   (for example emoji and effect), selected+output-path, and active output edge

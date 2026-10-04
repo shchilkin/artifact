@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import type { CanvasDocument } from '../../types/config';
 import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
 import type { GraphLayerTree } from '../../utils/graphLayerTree';
@@ -17,7 +17,7 @@ import {
   treeRowStepTarget,
 } from '../../utils/graphTreeEdits';
 import { useEditorConfirm } from '../editor-workflow/useEditorConfirm';
-import type { GraphLayerTreeEditing } from './GraphLayerTreeView';
+import type { GraphLayerTreeEditActions, GraphLayerTreeEditing } from './graphLayerTreeEditing';
 import type { LayerContextMenuState, LayerTreeMenuItem } from './LayerContextMenu';
 
 // Edits in the Layers tree (docs/layers-graph-tree.md, "Editing in the tree"): moves, keyboard move
@@ -26,6 +26,12 @@ import type { LayerContextMenuState, LayerTreeMenuItem } from './LayerContextMen
 const STATUS_CLEAR_MS = 6000;
 
 type ApplyTreeEdit = (edit: (doc: CanvasDocument) => TreeEditResult) => TreeEditResult;
+
+/** The latest edit outcome. `blocked` messages say why an edit did not happen. */
+export interface LayerTreeEditStatus {
+  message: string;
+  tone: 'done' | 'blocked';
+}
 
 export function useLayerTreeEditing({
   doc,
@@ -47,11 +53,7 @@ export function useLayerTreeEditing({
   const helpId = useId();
   const { confirm, confirmDialog } = useEditorConfirm();
   const [movingNodeId, setMovingNodeId] = useState<string | null>(null);
-  const [status, setStatus] = useState<{ message: string; serial: number }>({ message: '', serial: 0 });
-  const docRef = useRef(doc);
-  useLayoutEffect(() => {
-    docRef.current = doc;
-  }, [doc]);
+  const [status, setStatus] = useState<LayerTreeEditStatus | null>(null);
 
   const index = useMemo(
     () => (tree && onApplyTreeEdit ? buildGraphTreeEditIndex(doc, tree) : null),
@@ -59,14 +61,15 @@ export function useLayerTreeEditing({
   );
 
   useEffect(() => {
-    if (!status.message) return;
-    const timer = window.setTimeout(() => setStatus((current) => ({ ...current, message: '' })), STATUS_CLEAR_MS);
+    if (!status) return;
+    const timer = window.setTimeout(() => setStatus(null), STATUS_CLEAR_MS);
     return () => window.clearTimeout(timer);
   }, [status]);
 
-  const announce = useCallback((message: string) => {
-    setStatus((current) => ({ message, serial: current.serial + 1 }));
+  const announce = useCallback((message: string, tone: LayerTreeEditStatus['tone'] = 'done') => {
+    setStatus({ message, tone });
   }, []);
+  const announceBlocked = useCallback((reason: string) => announce(reason, 'blocked'), [announce]);
 
   const nameOf = useCallback(
     (nodeId: string) => index?.places.get(nodeId)?.row.name ?? doc.layers.find((layer) => layer.id === nodeId)?.name,
@@ -78,13 +81,14 @@ export function useLayerTreeEditing({
     (edit: (current: CanvasDocument) => TreeEditResult, success: string) => {
       if (!onApplyTreeEdit) return null;
       const result = onApplyTreeEdit(edit);
-      announce(result.ok ? success : result.reason);
+      if (result.ok) announce(success);
+      else announceBlocked(result.reason);
       return result.ok ? result.doc : null;
     },
-    [announce, onApplyTreeEdit],
+    [announce, announceBlocked, onApplyTreeEdit],
   );
 
-  const moveRow = useCallback(
+  const move = useCallback(
     (nodeId: string, targetId: string, position: TreeDropPosition) => {
       setMovingNodeId(null);
       return apply(
@@ -95,37 +99,38 @@ export function useLayerTreeEditing({
     [apply, nameOf],
   );
 
-  const stepRow = useCallback(
+  const step = useCallback(
     (nodeId: string, direction: 'up' | 'down') =>
       apply((current) => stepTreeRow(current, nodeId, direction), `Moved ${nameOf(nodeId)} ${direction}.`),
     [apply, nameOf],
   );
 
+  // Reads the document this render shows; the edit itself runs on the latest document.
   const deleteRows = useCallback(
     async (nodeIds: string[]) => {
-      const current = docRef.current;
-      const deletable = nodeIds.filter((id) => canDeleteNodeFromDocument(current, id));
+      const deletable = nodeIds.filter((id) => canDeleteNodeFromDocument(doc, id));
       if (deletable.length === 0) {
-        announce('Locked layers can’t be deleted. Unlock them first.');
+        announceBlocked('Locked layers can’t be deleted. Unlock them first.');
         return;
       }
       const names = deletable.map((id) => nameOf(id) ?? id).join(', ');
-      const shared = deletable.filter((id) => graphNodeConsumerCount(current, id) > 1);
+      const shared = deletable.filter((id) => graphNodeConsumerCount(doc, id) > 1);
       if (shared.length > 0) {
         const sharedNames = shared.map((id) => nameOf(id) ?? id).join(', ');
+        const one = shared.length === 1;
         const confirmed = await confirm({
-          title: shared.length === 1 ? `Delete shared ${sharedNames}?` : 'Delete shared nodes?',
-          description: `${sharedNames} ${shared.length === 1 ? 'is' : 'are'} used in more than one place. Deleting changes every place that uses ${shared.length === 1 ? 'it' : 'them'}.`,
+          title: one ? `Delete shared ${sharedNames}?` : 'Delete shared nodes?',
+          description: `${sharedNames} ${one ? 'is' : 'are'} used in more than one place. Each of those places will use what was under ${one ? 'it' : 'them'} instead, so that source becomes shared.`,
           confirmLabel: 'Delete',
           tone: 'danger',
         });
         if (!confirmed) return;
       }
       setMovingNodeId(null);
-      const applied = apply((latest) => ({ ok: true, doc: deleteTreeNodes(latest, deletable) }), `Deleted ${names}.`);
-      if (applied && selectedLayerId && deletable.includes(selectedLayerId)) onSelectLayer(null);
+      const edited = apply((latest) => ({ ok: true, doc: deleteTreeNodes(latest, deletable) }), `Deleted ${names}.`);
+      if (edited && selectedLayerId && deletable.includes(selectedLayerId)) onSelectLayer(null);
     },
-    [announce, apply, confirm, nameOf, onSelectLayer, selectedLayerId],
+    [announceBlocked, apply, confirm, doc, nameOf, onSelectLayer, selectedLayerId],
   );
 
   const startMove = useCallback(
@@ -143,7 +148,7 @@ export function useLayerTreeEditing({
     announce('Move cancelled.');
   }, [announce]);
 
-  const openNodeContextMenuAt = useCallback<GraphLayerTreeEditing['onOpenNodeContextMenuAt']>(
+  const openNodeMenu = useCallback<GraphLayerTreeEditActions['openNodeMenu']>(
     (nodeId, position, returnFocusTarget, reference) => {
       onSelectLayer(nodeId);
       onOpenNodeContextMenu({ ...position, ids: [nodeId], returnFocusTarget, reference });
@@ -151,22 +156,21 @@ export function useLayerTreeEditing({
     [onOpenNodeContextMenu, onSelectLayer],
   );
 
-  const editing = useMemo<GraphLayerTreeEditing | undefined>(
-    () =>
-      index
-        ? {
-            index,
-            helpId,
-            movingNodeId,
-            onMoveRow: moveRow,
-            onStepRow: stepRow,
-            onDeleteRows: (ids) => void deleteRows(ids),
-            onCancelMove: cancelMove,
-            onBlocked: announce,
-            onOpenNodeContextMenuAt: openNodeContextMenuAt,
-          }
-        : undefined,
-    [announce, cancelMove, deleteRows, helpId, index, movingNodeId, moveRow, openNodeContextMenuAt, stepRow],
+  const actions = useMemo<GraphLayerTreeEditActions>(
+    () => ({
+      move,
+      step,
+      deleteRows: (ids) => void deleteRows(ids),
+      cancelMove,
+      announceBlocked,
+      openNodeMenu,
+    }),
+    [announceBlocked, cancelMove, deleteRows, move, openNodeMenu, step],
+  );
+
+  const editing = useMemo<GraphLayerTreeEditing | null>(
+    () => (index ? { index, helpId, movingNodeId, actions } : null),
+    [actions, helpId, index, movingNodeId],
   );
 
   /** Tree actions for a row's context menu: moves, Edit in Nodes, and Delete for graph-only nodes. */
@@ -177,13 +181,13 @@ export function useLayerTreeEditing({
       const items: LayerTreeMenuItem[] = [];
       if (!menu.reference && index.places.has(nodeId)) {
         for (const direction of ['up', 'down'] as const) {
-          const step = treeRowStepTarget(index, nodeId, direction);
-          const check = 'ok' in step ? step : checkTreeMove(index, nodeId, step.targetId, step.position);
+          const target = treeRowStepTarget(index, nodeId, direction);
+          const check = 'ok' in target ? target : checkTreeMove(index, nodeId, target.targetId, target.position);
           const blockedReason = check.ok ? undefined : check.reason;
           items.push({
             label: direction === 'up' ? 'Move up' : 'Move down',
             blockedReason,
-            onSelect: () => (blockedReason ? announce(blockedReason) : stepRow(nodeId, direction)),
+            onSelect: () => (blockedReason ? announceBlocked(blockedReason) : step(nodeId, direction)),
           });
         }
         const movable = checkTreeRowMovable(index, nodeId);
@@ -191,7 +195,7 @@ export function useLayerTreeEditing({
         items.push({
           label: 'Move to…',
           blockedReason: moveReason,
-          onSelect: () => (moveReason ? announce(moveReason) : startMove(nodeId)),
+          onSelect: () => (moveReason ? announceBlocked(moveReason) : startMove(nodeId)),
         });
       }
       if (onEditInNodes) items.push({ label: 'Edit in Nodes', keepFocus: true, onSelect: () => onEditInNodes(nodeId) });
@@ -201,7 +205,7 @@ export function useLayerTreeEditing({
       }
       return items;
     },
-    [announce, deleteRows, doc.layers, index, onEditInNodes, startMove, stepRow],
+    [announceBlocked, deleteRows, doc.layers, index, onEditInNodes, startMove, step],
   );
 
   /** Add goes above the selected tree row when that row has a gap above it. */
@@ -213,13 +217,5 @@ export function useLayerTreeEditing({
     [index, selectedLayerId],
   );
 
-  return {
-    editing,
-    menuItems,
-    deleteRows,
-    addPlacement,
-    helpId,
-    status,
-    confirmDialog,
-  };
+  return { editing, menuItems, deleteRows, addPlacement, helpId, status, confirmDialog };
 }

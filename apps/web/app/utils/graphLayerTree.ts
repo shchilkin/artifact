@@ -1,5 +1,5 @@
 import type { CanvasDocument, CanvasGraph } from '../types/config';
-import { EXPORT_NODE_ID, findGraphUtilityNode, graphUtilityNodeCollections, inferLinearGraph } from './nodeGraph';
+import { documentGraph, EXPORT_NODE_ID, findGraphUtilityNode, graphUtilityNodeCollections } from './nodeGraph';
 import {
   collectGraphRenderReachModes,
   type GraphInputPort,
@@ -252,11 +252,6 @@ function buildNotInOutput(context: TreeContext, unreached: string[]): GraphTreeR
     stacks.push(buildStack(context, nodeId, 'detached', null));
   }
   return stacks;
-}
-
-/** The graph a document renders through: its own graph, or the stack wired straight to Output. */
-function documentGraph(doc: CanvasDocument): CanvasGraph {
-  return doc.graph ?? inferLinearGraph(doc.layers);
 }
 
 /**

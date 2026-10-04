@@ -1,6 +1,14 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
+import type { CanvasDocument, GraphEdge, Layer } from '../../apps/web/app/types/config';
 import { expectNoBrowserIssues, gotoDocument, setupBrowserTestPage } from './helpers';
 import { layersTreeDocument } from './layersTreeFixture';
+
+declare global {
+  interface Window {
+    /** The DataTransfer shared by one synthetic drag in these tests. */
+    __treeDrag?: DataTransfer;
+  }
+}
 
 // v0.50 U7: edit runs in the Layers tree. Every edit is one undo step.
 
@@ -81,13 +89,12 @@ async function dispatchDrag(page: Page, step: DragStep, element: Locator, target
   const targetHandle = await target.elementHandle();
   await page.evaluate(
     ([node, over, type, atLower]) => {
-      const store = window as unknown as { __treeDrag?: DataTransfer };
-      if (type === 'dragstart') store.__treeDrag = new DataTransfer();
+      if (type === 'dragstart') window.__treeDrag = new DataTransfer();
       const rect = over!.getBoundingClientRect();
       const init = {
         bubbles: true,
         cancelable: true,
-        dataTransfer: store.__treeDrag,
+        dataTransfer: window.__treeDrag,
         clientX: rect.left + rect.width / 2,
         clientY: atLower ? rect.bottom - 3 : rect.top + 3,
       };
@@ -204,9 +211,7 @@ test('blocked moves keep the document and say why', async ({ page }) => {
   );
 
   await dragRow(page, treeItem(page, 'Glow, merge group, screen · 70%'), treeItem(page, 'Badge, fill layer'), 'upper');
-  await expect(treeStatus(page)).toHaveText(
-    'Glow has its own inputs, so it only moves within its stack. Move it in Nodes.',
-  );
+  await expect(treeStatus(page)).toHaveText('Glow can’t move into its own inputs.');
   await expectOutline(page, INITIAL_OUTLINE);
   await expect(page.getByRole('button', { name: 'Undo' }).first()).toBeDisabled();
 });
@@ -274,4 +279,147 @@ test('Add inserts above the selected tree row in one undo step', async ({ page }
   const edited = [...INITIAL_OUTLINE.slice(0, 5), '2 Pixelate, effect layer', ...INITIAL_OUTLINE.slice(5)];
   await expectOutline(page, edited);
   await undoOnceAndRedo(page, edited);
+});
+
+// Each kind of tree edit must give the same document, and the same preview, as wiring it by hand in Nodes.
+
+function wire(fromId: string, toId: string, toPort: GraphEdge['toPort']): GraphEdge {
+  return { id: `nodes-${fromId}-${toId}-${toPort}`, fromId, fromPort: 'out', toId, toPort };
+}
+
+const EXPORT = '__export__';
+const FIXTURE_EDGES = layersTreeDocument.graph!.edges.map((item) => wire(item.fromId, item.toId, item.toPort));
+
+function withoutEdge(edges: GraphEdge[], fromId: string, toId: string, toPort: GraphEdge['toPort']) {
+  return edges.filter((item) => !(item.fromId === fromId && item.toId === toId && item.toPort === toPort));
+}
+
+const edgeKeys = (edges: GraphEdge[]) => edges.map((item) => `${item.fromId}>${item.toId}.${item.toPort}`).sort();
+
+async function storedDocument(page: Page): Promise<CanvasDocument> {
+  return page.evaluate(() => JSON.parse(localStorage.getItem('doc') ?? '{}'));
+}
+
+/** A coarse fingerprint of the preview canvas, read once three reads in a row agree. */
+async function previewFingerprint(page: Page) {
+  const canvas = page.locator('.pixi-container canvas').first();
+  await expect(canvas).toBeVisible({ timeout: 15_000 });
+  const read = () =>
+    canvas.evaluate((element) => {
+      const target = element as HTMLCanvasElement;
+      const pixels = target
+        .getContext('2d', { willReadFrequently: true })!
+        .getImageData(0, 0, target.width, target.height).data;
+      const stride = Math.max(4, Math.floor(pixels.length / (4 * 2048)) * 4);
+      let hash = 0;
+      for (let index = 0; index < pixels.length; index += stride) {
+        hash =
+          (hash * 31 + pixels[index] + pixels[index + 1] * 3 + pixels[index + 2] * 7 + pixels[index + 3]) % 2147483647;
+      }
+      return `${target.width}x${target.height}:${hash}`;
+    });
+  const reads: string[] = [];
+  await expect
+    .poll(
+      async () => {
+        await page.waitForTimeout(250);
+        reads.push(await read());
+        const last = reads.slice(-3);
+        return last.length === 3 && last.every((value) => value === last[0]);
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  return reads.at(-1)!;
+}
+
+/** The edited document has exactly `edges`, and previews like that wiring loaded fresh. */
+async function expectSameAsWiredInNodes(
+  page: Page,
+  edges: GraphEdge[],
+  extra: { layers?: Layer[]; withoutNodes?: string[] } = {},
+) {
+  const stored = await storedDocument(page);
+  expect(edgeKeys(stored.graph!.edges)).toEqual(edgeKeys(edges));
+  const edited = await previewFingerprint(page);
+
+  const gone = new Set(extra.withoutNodes ?? []);
+  const graph = layersTreeDocument.graph!;
+  const wired: CanvasDocument = {
+    ...layersTreeDocument,
+    layers: [...layersTreeDocument.layers, ...(extra.layers ?? [])],
+    graph: { ...graph, edges, colorNodes: graph.colorNodes.filter((node) => !gone.has(node.id)) },
+  };
+  await gotoDocument(page, wired);
+  await expect(layerTree(page)).toBeVisible({ timeout: 15_000 });
+  expect(await previewFingerprint(page)).toBe(edited);
+}
+
+test('each tree edit matches the same wiring done in Nodes, in the document and the preview', async ({ page }) => {
+  // Reorder within a run.
+  await openTree(page);
+  await dragRow(page, treeItem(page, 'Grade, grade'), treeItem(page, 'Headline, text layer'), 'upper');
+  await expect(treeStatus(page)).toHaveText('Moved Grade above Headline.');
+  await expectSameAsWiredInNodes(page, [
+    ...withoutEdge(
+      withoutEdge(withoutEdge(FIXTURE_EDGES, 'tree-backdrop', 'tree-grade', 'in'), 'tree-grade', 'tree-glow', 'a'),
+      'tree-headline',
+      EXPORT,
+      'in',
+    ),
+    wire('tree-backdrop', 'tree-glow', 'a'),
+    wire('tree-headline', 'tree-grade', 'in'),
+    wire('tree-grade', EXPORT, 'in'),
+  ]);
+
+  // Move between runs: Not in output into the merge group. This one changes the picture, so it also
+  // proves the fingerprint sees an edit.
+  await openTree(page);
+  const before = await previewFingerprint(page);
+  await dragRow(page, treeItem(page, 'Unused fill, fill layer'), treeItem(page, 'Badge, fill layer'), 'upper');
+  await expect.poll(() => previewFingerprint(page), { timeout: 20_000 }).not.toBe(before);
+  await expectOutline(page, [
+    ...INITIAL_OUTLINE.slice(0, 5),
+    '2 Unused fill, fill layer',
+    ...INITIAL_OUTLINE.slice(5, 12),
+  ]);
+  await expectSameAsWiredInNodes(page, [
+    ...withoutEdge(FIXTURE_EDGES, 'tree-badge', 'tree-cutout', 'in'),
+    wire('tree-badge', 'tree-unused', 'bg'),
+    wire('tree-unused', 'tree-cutout', 'in'),
+  ]);
+
+  // Delete with reconnection.
+  await openTree(page);
+  await treeItem(page, 'Grade, grade').focus();
+  await page.keyboard.press('Delete');
+  await expect(treeStatus(page)).toHaveText('Deleted Grade.');
+  await expectSameAsWiredInNodes(
+    page,
+    [
+      ...withoutEdge(withoutEdge(FIXTURE_EDGES, 'tree-backdrop', 'tree-grade', 'in'), 'tree-grade', 'tree-glow', 'a'),
+      wire('tree-backdrop', 'tree-glow', 'a'),
+    ],
+    { withoutNodes: ['tree-grade'] },
+  );
+
+  // Add above the selected row.
+  await openTree(page);
+  await treeItem(page, 'Badge, fill layer').click();
+  await page.locator('.layer-panel-header').getByRole('button', { name: 'Add layer' }).click();
+  const search = page.getByLabel('Search layers and effects');
+  await expect(search).toBeVisible({ timeout: 15_000 });
+  await search.fill('pixelate');
+  await search.press('Enter');
+  await expect(treeItem(page, 'Pixelate, effect layer')).toBeVisible({ timeout: 15_000 });
+  const added = (await storedDocument(page)).layers.find((layer) => layer.name === 'Pixelate')!;
+  await expectSameAsWiredInNodes(
+    page,
+    [
+      ...withoutEdge(FIXTURE_EDGES, 'tree-badge', 'tree-cutout', 'in'),
+      wire('tree-badge', added.id, 'in'),
+      wire(added.id, 'tree-cutout', 'in'),
+    ],
+    { layers: [added] },
+  );
 });

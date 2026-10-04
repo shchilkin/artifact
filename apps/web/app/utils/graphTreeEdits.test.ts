@@ -94,6 +94,11 @@ function edgeDiff(before: CanvasDocument, after: CanvasDocument) {
   };
 }
 
+/** The sources on one input port, in `graph.edges` order. The renderer reads the first. */
+function portSources(doc: CanvasDocument, toId: string, toPort: GraphEdge['toPort']) {
+  return doc.graph!.edges.filter((item) => item.toId === toId && item.toPort === toPort).map((item) => item.fromId);
+}
+
 function edited(result: TreeEditResult): CanvasDocument {
   if (!result.ok) throw new Error(`Edit was blocked: ${result.reason}`);
   return result.doc;
@@ -216,6 +221,25 @@ function fanOutDoc() {
   );
 }
 
+/** Output ← mask(in: merge(a: base, b: title), mask: matte), plus a loose `spare` layer. */
+function nestedDoc() {
+  const layers = [fill('base'), text('title'), text('matte'), fill('spare', '#22aa66')];
+  return documentOf(
+    layers,
+    graphOf({
+      mergeNodes: [makeGraphMergeNode({ id: 'merge' })],
+      maskNodes: [makeGraphMaskNode({ id: 'mask' })],
+      edges: [
+        edge('base', 'merge', 'a'),
+        edge('title', 'merge', 'b'),
+        edge('merge', 'mask', 'in'),
+        edge('matte', 'mask', 'mask'),
+        edge('mask', EXPORT_NODE_ID, 'in'),
+      ],
+    }),
+  );
+}
+
 describe('reorder within a run', () => {
   it('rewires a linear run and keeps its outer ends attached', async () => {
     const doc = linearDoc();
@@ -227,6 +251,8 @@ describe('reorder within a run', () => {
       added: [`base>${EXPORT_NODE_ID}.in`, 'top>base.bg'],
     });
     expect(layerOrder(next)).toEqual(['mid', 'top', 'base', 'spare']);
+    expect(portSources(next, EXPORT_NODE_ID, 'in')).toEqual(['base']);
+    expect(portSources(next, 'base', 'bg')).toEqual(['top']);
     await expectDocumentTreeMatchesRenderer(next);
   });
 
@@ -406,6 +432,46 @@ describe('move a row between runs', () => {
     await expectDocumentTreeMatchesRenderer(next);
   });
 
+  it('moves a merge folder into another stack together with its group', async () => {
+    const doc = nestedDoc();
+    const next = edited(moveTreeRow(doc, 'merge', 'matte', 'below'));
+
+    expect(outline(next).output).toEqual([{ mask: { Mask: ['matte', { merge: { Group: ['title'] } }] } }, 'base']);
+    expect(edgeDiff(doc, next)).toEqual({
+      removed: ['base>merge.a', 'merge>mask.in'],
+      added: ['base>mask.in', 'merge>matte.bg'],
+    });
+    await expectDocumentTreeMatchesRenderer(next);
+  });
+
+  it('moves a mask into a merge group together with its clip', async () => {
+    const doc = nestedDoc();
+    const next = edited(moveTreeRow(doc, 'mask', 'title', 'above'));
+
+    expect(outline(next).output).toEqual([{ merge: { Group: [{ mask: { Mask: ['matte'] } }, 'title'] } }, 'base']);
+    expect(edgeDiff(doc, next)).toEqual({
+      removed: [`mask>${EXPORT_NODE_ID}.in`, 'merge>mask.in', 'title>merge.b'],
+      added: ['mask>merge.b', `merge>${EXPORT_NODE_ID}.in`, 'title>mask.in'],
+    });
+    await expectDocumentTreeMatchesRenderer(next);
+  });
+
+  it('moves a repeat out of Output together with its pattern source', async () => {
+    const doc = repeatDoc();
+    const withSpare = documentOf([...doc.layers, fill('spare', '#22aa66')], doc.graph!);
+    const next = edited(moveTreeRow(withSpare, 'repeat', 'spare', 'below'));
+
+    expect(outline(next)).toEqual({
+      output: ['backdrop'],
+      notInOutput: [['spare', { repeat: { 'Pattern source': ['item'] } }]],
+    });
+    expect(edgeDiff(withSpare, next)).toEqual({
+      removed: ['backdrop>repeat.bg', `repeat>${EXPORT_NODE_ID}.in`],
+      added: [`backdrop>${EXPORT_NODE_ID}.in`, 'repeat>spare.bg'],
+    });
+    await expectDocumentTreeMatchesRenderer(next);
+  });
+
   it('moves a row into and out of Not in output', async () => {
     const doc = linearDoc();
     const out = edited(moveTreeRow(doc, 'mid', 'spare', 'above'));
@@ -423,7 +489,7 @@ describe('move a row between runs', () => {
 });
 
 describe('blocked moves', () => {
-  it('blocks shared nodes, side-input tops, locked layers, and rows with their own inputs across runs', () => {
+  it('blocks shared nodes, side-input tops, locked layers, moves into a row’s own inputs, and 3D inputs across runs', () => {
     const fanOut = buildGraphTreeEditIndex(fanOutDoc());
     expect(checkTreeRowMovable(fanOut, 'shared')).toEqual({
       ok: false,
@@ -447,7 +513,15 @@ describe('blocked moves', () => {
     const merge = buildGraphTreeEditIndex(mergeDoc());
     expect(checkTreeMove(merge, 'merge', 'grade', 'above')).toEqual({
       ok: false,
-      reason: 'Merge has its own inputs, so it only moves within its stack. Move it in Nodes.',
+      reason: 'Merge can’t move into its own inputs.',
+    });
+    expect(checkTreeMove(merge, 'merge', 'title', 'below')).toEqual({
+      ok: false,
+      reason: 'Merge can’t move into its own inputs.',
+    });
+    expect(checkTreeMove(scene, 'scene', 'sky', 'below')).toEqual({
+      ok: false,
+      reason: '3D Scene has 3D or material inputs, so it only moves within its stack. Move it in Nodes.',
     });
 
     const locked = linearDoc();
@@ -532,6 +606,20 @@ describe('add above the selected row', () => {
     await expectDocumentTreeMatchesRenderer(fanOut);
   });
 
+  it('refuses the top of a detached stack that still feeds an input the renderer ignores', () => {
+    const doc = linearDoc();
+    // `spare` is not drawn, but it is wired to top.bg after the edge the renderer reads.
+    doc.graph!.edges.push(edge('spare', 'top', 'bg'));
+    const index = buildGraphTreeEditIndex(doc);
+    const reason = 'spare feeds an input that is not drawn. Rewire it in Nodes.';
+    expect(checkTreeInsertAbove(index, 'spare')).toEqual({ ok: false, reason });
+    expect(addLayerAboveTreeRow(doc, fill('new'), 'spare')).toBeNull();
+    expect(blockedReason(moveTreeRow(doc, 'mid', 'spare', 'above'))).toBe(reason);
+    // Below it is still a plain gap: `spare` keeps exactly its one edge.
+    const below = edited(moveTreeRow(doc, 'mid', 'spare', 'below'));
+    expect(graphNodeConsumerCount(below, 'spare')).toBe(1);
+  });
+
   it('refuses side-input tops so the caller falls back to adding before Output', () => {
     const index = buildGraphTreeEditIndex(sceneDoc());
     expect(checkTreeInsertAbove(index, 'env').ok).toBe(false);
@@ -563,11 +651,59 @@ describe('delete', () => {
   it('reconnects the masked source and the repeat backdrop, dropping the mask and the item', async () => {
     const mask = edited(deleteTreeNode(maskDoc(), 'mask'));
     expect(outline(mask)).toEqual({ output: ['source'], notInOutput: [['soften', 'matte']] });
+    expect(edgeDiff(maskDoc(), mask)).toEqual({
+      removed: [`mask>${EXPORT_NODE_ID}.in`, 'soften>mask.mask', 'source>mask.in'],
+      added: [`source>${EXPORT_NODE_ID}.in`],
+    });
     await expectDocumentTreeMatchesRenderer(mask);
 
     const repeat = edited(deleteTreeNode(repeatDoc(), 'repeat'));
     expect(outline(repeat)).toEqual({ output: ['backdrop'], notInOutput: [['item']] });
+    expect(edgeDiff(repeatDoc(), repeat)).toEqual({
+      removed: ['backdrop>repeat.bg', 'item>repeat.in', `repeat>${EXPORT_NODE_ID}.in`],
+      added: [`backdrop>${EXPORT_NODE_ID}.in`],
+    });
     await expectDocumentTreeMatchesRenderer(repeat);
+  });
+
+  it('deletes the bottom row of a run, leaving the row above without a source', async () => {
+    const doc = linearDoc();
+    const next = edited(deleteTreeNode(doc, 'base'));
+    expect(outline(next).output).toEqual(['top', 'grade', 'mid']);
+    expect(edgeDiff(doc, next)).toEqual({ removed: ['base>mid.bg'], added: [] });
+    await expectDocumentTreeMatchesRenderer(next);
+  });
+
+  it('keeps the bridge in the deleted edge’s place, so ignored edges stay ignored', async () => {
+    const doc = linearDoc();
+    doc.graph!.edges.push(edge('spare', 'top', 'bg'));
+    const next = edited(deleteTreeNode(doc, 'grade'));
+    expect(portSources(next, 'top', 'bg')).toEqual(['mid', 'spare']);
+    await expectDocumentTreeMatchesRenderer(next);
+  });
+
+  it('drops a material texture input when the material is read through a material port', async () => {
+    const scene = sceneDoc();
+    const doc = documentOf([...scene.layers, fill('under'), fill('paint', '#cc8844')], {
+      ...scene.graph!,
+      edges: [...scene.graph!.edges, edge('under', 'paint', 'bg'), edge('paint', 'chrome', 'albedo')],
+    });
+    const next = edited(deleteTreeNode(doc, 'paint'));
+    // `albedo` is a texture map here, so `under` is not wired into it.
+    expect(edgeDiff(doc, next)).toEqual({ removed: ['paint>chrome.albedo', 'under>paint.bg'], added: [] });
+    await expectDocumentTreeMatchesRenderer(next, ['sphere', 'chrome']);
+
+    // A standalone material renders through albedo, so there it is the stack and is reconnected.
+    const standalone = documentOf(
+      [fill('under'), fill('paint', '#cc8844')],
+      graphOf({
+        materialNodes: [makeGraphMaterialNode({ id: 'chrome' })],
+        edges: [edge('under', 'paint', 'bg'), edge('paint', 'chrome', 'albedo'), edge('chrome', EXPORT_NODE_ID, 'in')],
+      }),
+    );
+    const reconnected = edited(deleteTreeNode(standalone, 'paint'));
+    expect(edgeDiff(standalone, reconnected).added).toEqual(['under>chrome.albedo']);
+    await expectDocumentTreeMatchesRenderer(reconnected);
   });
 
   it('drops side inputs instead of rewiring them', async () => {

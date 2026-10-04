@@ -4,6 +4,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -17,12 +18,7 @@ import {
   type GraphTreeNodeKind,
   type GraphTreeRow,
 } from '../../utils/graphLayerTree';
-import {
-  checkTreeDrop,
-  checkTreeRowMovable,
-  type GraphTreeEditIndex,
-  type TreeDropPosition,
-} from '../../utils/graphTreeEdits';
+import { checkTreeDrop, checkTreeRowMovable, type TreeDropPosition } from '../../utils/graphTreeEdits';
 import {
   EditorRowActions,
   EditorRowFrame,
@@ -30,19 +26,26 @@ import {
   EditorRowMetadata,
   EditorRowPrimary,
 } from '../editor-workflow/EditorRowFrame';
+import { GraphLayerTreeEditingContext } from './graphLayerTreeEditing';
 import {
   type GraphTreeCollapseState,
   type GraphTreeItem,
   graphTreeAncestorFolders,
   visibleGraphTreeItems,
 } from './graphTreeItems';
-import { LayerAreaChip, LayerRow, type LayerRowProps, LayerTreeCaret } from './LayerRow';
+import { LayerAreaChip, LayerRow, type LayerRowProps, LayerTreeCaret, RowActionsButton } from './LayerRow';
 import { GRAPH_HELPER_META } from './layerDisplayItems';
-import { type LayerRowTreeDrag, type LayerRowTreePlacement, layerKindLabel, layerTreeItemProps } from './layerRowTree';
+import {
+  isPointerInLowerHalf,
+  type LayerRowTreeDrag,
+  type LayerRowTreePlacement,
+  layerKindLabel,
+  layerTreeItemProps,
+} from './layerRowTree';
 
 // Graph-derived Layers tree for custom graphs (docs/layers-graph-tree.md).
 // Rows form one flat ARIA tree with roving focus; collapse state is UI state keyed by node id.
-// With `editing`, rows move by drag and drop, Alt+Arrow keys, or a keyboard move mode, and delete with Delete.
+// Inside `GraphLayerTreeEditingContext`, rows move by drag and drop, Alt+Arrow keys, or a keyboard move mode, and delete with Delete.
 
 const NARROW_QUERY = '(max-width: 767px)';
 
@@ -76,30 +79,6 @@ export interface GraphLayerTreeViewProps {
   onToggleVisible: LayerRowProps['onToggleVisible'];
   onDuplicateLayer: LayerRowProps['onDuplicateLayer'];
   onRemoveLayer: LayerRowProps['onRemoveLayer'];
-  /** Present when the tree can be edited. Without it the tree is read-only. */
-  editing?: GraphLayerTreeEditing;
-}
-
-export interface GraphLayerTreeEditing {
-  index: GraphTreeEditIndex;
-  /** Id of the element describing the tree's edit keys. */
-  helpId: string;
-  /** The row being placed from the keyboard (`Move to…`), if any. */
-  movingNodeId: string | null;
-  /** Each returns the edited document, or null when the edit was blocked and announced. */
-  onMoveRow: (nodeId: string, targetId: string, position: TreeDropPosition) => CanvasDocument | null;
-  onStepRow: (nodeId: string, direction: 'up' | 'down') => CanvasDocument | null;
-  onDeleteRows: (nodeIds: string[]) => void;
-  onCancelMove: () => void;
-  /** Announces why an edit cannot happen. */
-  onBlocked: (reason: string) => void;
-  /** Opens tree actions for a graph-only node or a shared use. */
-  onOpenNodeContextMenuAt: (
-    nodeId: string,
-    position: { x: number; y: number },
-    returnFocusTarget: HTMLElement,
-    reference: boolean,
-  ) => void;
 }
 
 interface TreeDragState {
@@ -166,36 +145,6 @@ function folderAccessibleLabel(label: string, count: number) {
   return `${label}, ${count} ${count === 1 ? 'item' : 'items'}`;
 }
 
-/** The row's "•••" button: tree actions for a graph-only node or a shared use, also on touch. */
-function TreeRowActionsButton({
-  name,
-  onOpen,
-}: {
-  name: string;
-  onOpen?: (event: ReactMouseEvent<HTMLElement>) => void;
-}) {
-  if (!onOpen) return null;
-  return (
-    <EditorRowActions>
-      <div className="layer-row-actions">
-        <button
-          type="button"
-          className="layer-row-action"
-          tabIndex={-1}
-          aria-label={`Open actions for ${name}`}
-          title={`Open actions for ${name}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpen(event);
-          }}
-        >
-          •••
-        </button>
-      </div>
-    </EditorRowActions>
-  );
-}
-
 function GraphNodeTreeRow({
   row,
   placement,
@@ -241,7 +190,11 @@ function GraphNodeTreeRow({
         <span className="layer-tree-node-kind">{row.kind === 'merge' ? 'group' : meta?.label}</span>
         <LayerAreaChip areas={areas} />
       </EditorRowMetadata>
-      <TreeRowActionsButton name={row.name} onOpen={onContextMenu} />
+      {onContextMenu ? (
+        <EditorRowActions>
+          <RowActionsButton label={`Open actions for ${row.name}`} inTree onOpen={onContextMenu} />
+        </EditorRowActions>
+      ) : null}
     </EditorRowFrame>
   );
 }
@@ -280,7 +233,11 @@ function ReferenceTreeRow({
       <EditorRowMetadata className="layer-row-meta">
         <span className="layer-tree-node-kind">shared</span>
       </EditorRowMetadata>
-      <TreeRowActionsButton name={`shared ${row.name}`} onOpen={onContextMenu} />
+      {onContextMenu ? (
+        <EditorRowActions>
+          <RowActionsButton label={`Open actions for shared ${row.name}`} inTree onOpen={onContextMenu} />
+        </EditorRowActions>
+      ) : null}
     </EditorRowFrame>
   );
 }
@@ -351,8 +308,7 @@ function isTypeAheadKey(event: ReactKeyboardEvent) {
 }
 
 function pointerDropPosition(event: ReactDragEvent<HTMLElement>): TreeDropPosition {
-  const rect = event.currentTarget.getBoundingClientRect();
-  return event.clientY > rect.top + rect.height / 2 ? 'below' : 'above';
+  return isPointerInLowerHalf(event) ? 'below' : 'above';
 }
 
 /**
@@ -386,8 +342,8 @@ export function GraphLayerTreeView({
   onToggleVisible,
   onDuplicateLayer,
   onRemoveLayer,
-  editing,
 }: GraphLayerTreeViewProps) {
+  const editing = useContext(GraphLayerTreeEditingContext);
   const narrow = useNarrowLayout();
   const [collapse, setCollapse] = useState<GraphTreeCollapseState>(() => new Map());
   const [focusKey, setFocusKey] = useState<string | null>(null);
@@ -492,27 +448,27 @@ export function GraphLayerTreeView({
       const moving = editing.movingNodeId;
       if (moving && event.key === 'Escape') {
         event.preventDefault();
-        editing.onCancelMove();
+        editing.actions.cancelMove();
         return true;
       }
       if (moving && event.key === 'Enter') {
         event.preventDefault();
         const position = event.shiftKey ? 'below' : 'above';
         const check = checkTreeDrop(editing.index, moving, row, position);
-        if (!check.ok) editing.onBlocked(check.reason);
-        else revealAfterEdit(moving, editing.onMoveRow(moving, row.nodeId, position));
+        if (!check.ok) editing.actions.announceBlocked(check.reason);
+        else revealAfterEdit(moving, editing.actions.move(moving, row.nodeId, position));
         return true;
       }
       if (row.reference) return false;
       if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
         event.preventDefault();
         const direction = event.key === 'ArrowUp' ? 'up' : 'down';
-        revealAfterEdit(row.nodeId, editing.onStepRow(row.nodeId, direction));
+        revealAfterEdit(row.nodeId, editing.actions.step(row.nodeId, direction));
         return true;
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault();
-        editing.onDeleteRows(deleteIds(row.nodeId, selectedActionLayerIds));
+        editing.actions.deleteRows(deleteIds(row.nodeId, selectedActionLayerIds));
         return true;
       }
       return false;
@@ -563,7 +519,7 @@ export function GraphLayerTreeView({
       const check = checkTreeDrop(editing.index, drag.nodeId, target, position);
       if (!check.ok) {
         event.dataTransfer.dropEffect = 'none';
-        if (drag.blockedReason !== check.reason) editing.onBlocked(check.reason);
+        if (drag.blockedReason !== check.reason) editing.actions.announceBlocked(check.reason);
         updateDrag({ nodeId: drag.nodeId, target: null, blockedReason: check.reason });
         return;
       }
@@ -583,10 +539,10 @@ export function GraphLayerTreeView({
       const { target, position } = dropTargetFor(item, item.row, pointerDropPosition(event));
       const check = checkTreeDrop(editing.index, drag.nodeId, target, position);
       if (!check.ok) {
-        editing.onBlocked(check.reason);
+        editing.actions.announceBlocked(check.reason);
         return;
       }
-      revealAfterEdit(drag.nodeId, editing.onMoveRow(drag.nodeId, target.nodeId, position));
+      revealAfterEdit(drag.nodeId, editing.actions.move(drag.nodeId, target.nodeId, position));
     },
     [clearDrag, drag, editing, revealAfterEdit, rowItemFor],
   );
@@ -611,7 +567,7 @@ export function GraphLayerTreeView({
       if (!editing) return;
       event.preventDefault();
       const rowElement = event.currentTarget.closest<HTMLElement>('[role="treeitem"]') ?? event.currentTarget;
-      editing.onOpenNodeContextMenuAt(row.nodeId, { x: event.clientX, y: event.clientY }, rowElement, row.reference);
+      editing.actions.openNodeMenu(row.nodeId, { x: event.clientX, y: event.clientY }, rowElement, row.reference);
     },
     [editing],
   );
@@ -662,7 +618,7 @@ export function GraphLayerTreeView({
       }
       if (opensMenu && editing && item.type === 'row') {
         event.preventDefault();
-        editing.onOpenNodeContextMenuAt(item.row.nodeId, rowMenuPosition(target), target, item.row.reference);
+        editing.actions.openNodeMenu(item.row.nodeId, rowMenuPosition(target), target, item.row.reference);
         return;
       }
       if (isTypeAheadKey(event)) {
@@ -743,8 +699,10 @@ export function GraphLayerTreeView({
           label: rowAccessibleLabel(row, layer, merge),
           drag: rowDrag(item),
         };
-        const moving = editing?.movingNodeId === row.nodeId && !row.reference;
-        if (moving) rowPlacement.label = `${rowPlacement.label}, moving`;
+        if (editing?.movingNodeId === row.nodeId && !row.reference) {
+          rowPlacement.moving = true;
+          rowPlacement.label = `${rowPlacement.label}, moving`;
+        }
         if (row.reference) {
           return (
             <ReferenceTreeRow

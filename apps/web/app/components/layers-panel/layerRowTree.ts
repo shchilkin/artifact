@@ -29,6 +29,8 @@ export interface LayerRowTreePlacement {
   onToggleExpanded?: () => void;
   /** Present when the tree can be edited. */
   drag?: LayerRowTreeDrag;
+  /** The row is being placed from the keyboard (`Move to…`). */
+  moving?: boolean;
 }
 
 export function layerKindLabel(layer: Layer) {
@@ -51,6 +53,7 @@ export function layerTreeItemProps(tree: LayerRowTreePlacement, selected: boolea
     tabIndex: tree.focusable ? 0 : -1,
     'data-tree-key': tree.key,
     'data-area-rail': areaColor ? 'true' : undefined,
+    'data-tree-moving-row': tree.moving ? 'true' : undefined,
     style,
     ...treeDragProps(tree.drag),
   };
@@ -67,4 +70,10 @@ function treeDragProps(drag: LayerRowTreeDrag | undefined) {
     onDrop: drag.onDrop,
     onDragEnd: drag.onDragEnd,
   };
+}
+
+/** Whether a drag is over the lower half of the row under it. */
+export function isPointerInLowerHalf(event: ReactDragEvent<HTMLElement>) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  return event.clientY > rect.top + rect.height / 2;
 }

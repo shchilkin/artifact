@@ -108,14 +108,30 @@ moved to a gap the person can see.
   at the bottom of a stack.
 - **Gaps.** A row can move to the gap above or below any full entry. "Above" is
   the edge into the row's consumer on its original port; "below" is the edge into
-  the row's primary port. The top gap of a side-input stack, and the gap below a
-  row that does not continue a stack (a Scene 3D model the renderer only reads),
-  are not editable. A gap next to the row itself is a no-op.
+  the row's primary port. These gaps are not editable:
+  - the top gap of a side-input stack;
+  - the gap below a row that does not continue a stack (a Scene 3D model the
+    renderer only reads);
+  - the gap above the top of a stack outside Output when that row still feeds an
+    input the renderer ignores (a losing duplicate edge, or a port the consumer
+    does not read). A row placed there would make it feed two inputs, which is
+    creating a shared node, so the edit is blocked with a reason that points to
+    Nodes.
+
+  A gap next to the row itself is a no-op.
 - **Within a run versus between runs.** A move whose gap lies inside the row's
   own run (including its outer ends) is a reorder, allowed for any movable row,
   including merges and Scene 3D nodes with their inputs. Any other gap is a move
-  between runs, which also requires the row to have no nested inputs (`b`, mask,
-  pattern, or side inputs).
+  between runs.
+  - A row moves with its structural children: a merge with its `b` group, a mask
+    with its clip, a repeat with its pattern source. Only the row's primary edges
+    are spliced, so those stacks stay attached.
+  - A row with side inputs (Scene 3D model, material, or environment, or a
+    primitive material) only moves within its run. Those inputs are wiring that
+    belongs in Nodes.
+  - A row can't move into its own inputs: a move is blocked when the gap's
+    consumer is upstream of the row once the row has left its place (for example
+    a merge dropped into its own group), because that would make a cycle.
 - **Splicing.** Splice-out replaces the row's consumer edge with one from the
   row's primary source, in the same position in `graph.edges`. Splice-in replaces
   the gap's edge with one from the moved row and inserts the edge into the row
@@ -125,25 +141,45 @@ moved to a gap the person can see.
   order on its port.
 - **Delete.** Each image input the node fed (a primary, merge `b`, mask, or
   pattern port, or Output) now reads the node's primary source on the same port,
-  in the removed edge's place. Side inputs it fed (Scene 3D model, material, or
-  environment, a primitive material, a texture port) are dropped instead of
-  rewired, because wiring side inputs happens in Nodes. Edges from the node's own
-  non-primary sources are dropped, so those sources move to "Not in output". A
-  node that feeds more than one edge asks first through `EditorConfirmDialog`.
-  Locked layers are not deleted.
+  in the removed edge's place.
+  - Side inputs it fed are dropped instead of rewired, because wiring side inputs
+    happens in Nodes. Side inputs are the Scene 3D model, material, and
+    environment, a primitive material, and texture ports. A port counts by how
+    the renderer uses its consumer: a material read through a `material` port
+    treats `albedo` as a texture map, so it is a side input there, while a
+    standalone material's `albedo` is its stack.
+  - Edges from the node's own non-primary sources are dropped, so those sources
+    move to "Not in output".
+  - **Deleting a shared node shares its source.** Each place that used the node
+    now uses what was under it, so that source feeds all of them. The edit
+    creates a shared node, which is otherwise a Nodes edit, so it always asks
+    first through `EditorConfirmDialog`, and the dialog says the source becomes
+    shared. A shared node with nothing under it just leaves those inputs empty.
+  - Locked layers are not deleted.
 - **Add above.** With a tree row selected, Add Library places a new layer or
   Scene 3D node in the gap above that row and positions it between the row and
   its consumer in Nodes. With no selection, a side-input top selected, or a
   linear graph, Add works as before.
-- **Blocked edits** leave the document unchanged and say why in a status message
-  at the bottom of the panel, which is also a polite live region. Reasons name the
+- **Blocked edits** leave the document unchanged and say why. Reasons name the
   row and point to Nodes when the edit belongs there.
+- **Feedback.** Every outcome shows in the shared `InlineNotice` (through
+  `EditorWorkflowNotice`), as a status live region: `info` for a done edit,
+  `warning` for a blocked one. It is laid over the bottom of the panel so a message
+  never shifts the rows, it stays mounted while empty so screen readers register
+  the region first, and it clears after a few seconds.
+- **Shared code.** Order-preserving edge edits (`createGraphEdge`,
+  `splitGraphEdgeInPlace`, `rewireGraphEdgeSource`, `promoteGraphEdges`) and
+  `documentGraph` live in `utils/nodeGraph.ts`. New edges use the `e-from-to` id,
+  and a split edge uses `splitEdgeWithNode`'s `__before` and `__after` ids.
 
 ### Interaction
 
 - Drag a row onto the upper or lower half of another row. The drop line is an
-  inset shadow on the target row, so rows never shift while dragging. The lower
-  half of an open merge folder is the top of its group.
+  inset shadow on the target row (`data-tree-drop`), so rows never shift while
+  dragging. The lower half of an open merge folder is the top of its group. The
+  dragged row dims (`data-tree-dragging`), and a row being placed with Move to…
+  is outlined (`data-tree-moving-row`). `/docs/style-guide` section 04 shows each
+  state.
 - Rows that cannot move are not draggable: reference rows, shared nodes,
   side-input tops, and locked layers.
 - Keyboard, on a focused row: <kbd>Alt</kbd>+<kbd>Up</kbd> or
@@ -152,7 +188,8 @@ moved to a gap the person can see.
   <kbd>Shift</kbd>+<kbd>F10</kbd> opens row actions.
 - Row actions add Move up, Move down, Move to…, Edit in Nodes, and Delete for
   graph-only nodes. Graph-only and shared-use rows get the same "•••" actions
-  button as layer rows, so touch screens reach them too. A blocked action stays focusable and announces its reason.
+  button as layer rows, so touch screens reach them too. A blocked action stays
+  focusable and announces its reason.
   Move to… starts a keyboard move: arrow to a row, then <kbd>Enter</kbd> places
   the moving row above it and <kbd>Shift</kbd>+<kbd>Enter</kbd> below it;
   <kbd>Escape</kbd> cancels.

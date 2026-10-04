@@ -1,13 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import type { CanvasDocument, GraphArea, Layer } from '../../types/config';
 import { buildGraphLayerTree } from '../../utils/graphLayerTree';
 import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { EditorRowFrame, EditorRowPrimary } from '../editor-workflow/EditorRowFrame';
 import { GraphLayerTreeView } from './GraphLayerTreeView';
 import { type LayerPanelView, LayerPanelViewSwitch } from './LayerPanelViewSwitch';
+import { LayerTreeEditStatus } from './LayerTreeEditStatus';
+import { type LayerRowTreeDrag, type LayerRowTreePlacement, layerTreeItemProps } from './layerRowTree';
 
 // `/docs/style-guide` specimen for the Layers tree: a merge folder, a mask clip, a shared source shown
-// once with a reference row, an area rail, and a layer that does not reach Output. Lazy-loaded by the
-// style guide so the tree stays out of that route's initial bundle.
+// once with a reference row, an area rail, and a layer that does not reach Output; then the tree's edit
+// states (drop line above and below, dragging row, moving row, blocked-edit notice). Lazy-loaded by
+// the style guide so the tree stays out of that route's initial bundle.
 
 const MERGE_ID = 'style-tree-merge';
 
@@ -52,6 +56,64 @@ function specimenDocument(layers: Layer[], area: GraphArea): CanvasDocument {
 
 const noop = () => {};
 
+function specimenDrag(state: Partial<LayerRowTreeDrag>): LayerRowTreeDrag {
+  return {
+    draggable: true,
+    dragging: false,
+    dropPosition: null,
+    onDragStart: noop,
+    onDragOver: noop,
+    onDrop: noop,
+    onDragEnd: noop,
+    ...state,
+  };
+}
+
+const EDIT_STATES: Array<{ name: string; label: string; drag: Partial<LayerRowTreeDrag>; moving?: boolean }> = [
+  { name: 'Drop above', label: 'Drop line above a row', drag: { dropPosition: 'above' } },
+  { name: 'Drop below', label: 'Drop line below a row', drag: { dropPosition: 'below' } },
+  { name: 'Dragging', label: 'Row being dragged', drag: { dragging: true } },
+  { name: 'Moving', label: 'Row being placed from the keyboard', drag: {}, moving: true },
+];
+
+/** Static rows in each tree edit state, and the notice a blocked edit shows. */
+function LayerTreeEditStates() {
+  const helpId = useId();
+  return (
+    <div className="style-guide-layer-tree-edits">
+      <div role="tree" aria-label="Layers tree edit states" className="layer-tree">
+        {EDIT_STATES.map((state, index) => {
+          const placement: LayerRowTreePlacement = {
+            key: `style-tree-edit-${index}`,
+            level: 1,
+            setSize: EDIT_STATES.length,
+            posInSet: index + 1,
+            focusable: index === 0,
+            label: state.label,
+            drag: specimenDrag(state.drag),
+            moving: state.moving,
+          };
+          return (
+            <EditorRowFrame
+              key={placement.key}
+              {...layerTreeItemProps(placement, false)}
+              className="layer-row layer-row-tree layer-tree-node-row px-3 border-b border-border select-none"
+            >
+              <EditorRowPrimary>
+                <span className="layer-row-name text-dim">{state.name}</span>
+              </EditorRowPrimary>
+            </EditorRowFrame>
+          );
+        })}
+      </div>
+      <LayerTreeEditStatus
+        helpId={helpId}
+        status={{ message: 'Backdrop feeds more than one input. Rewire it in Nodes.', tone: 'blocked' }}
+      />
+    </div>
+  );
+}
+
 export default function LayerTreeSpecimen({ layers, area }: { layers: Layer[]; area: GraphArea }) {
   const doc = useMemo(() => specimenDocument(layers, area), [layers, area]);
   const tree = useMemo(() => buildGraphLayerTree(doc), [doc]);
@@ -77,6 +139,7 @@ export default function LayerTreeSpecimen({ layers, area }: { layers: Layer[]; a
         onDuplicateLayer={noop}
         onRemoveLayer={noop}
       />
+      <LayerTreeEditStates />
     </div>
   );
 }

@@ -32,12 +32,14 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { GraphLayerTreeView } from './GraphLayerTreeView';
+import { GraphLayerTreeEditingContext } from './graphLayerTreeEditing';
 import { graphTreeLayerOrder } from './graphTreeItems';
 import { LayerAddMenu } from './LayerAddMenu';
 import { LayerAreaFolder } from './LayerAreaFolder';
 import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu';
 import { type LayerPanelView, LayerPanelViewSwitch } from './LayerPanelViewSwitch';
 import { LayerRow, type LayerRowProps, LayerSelectionControl } from './LayerRow';
+import { LayerTreeEditStatus } from './LayerTreeEditStatus';
 import { buildLayerDisplayItems, type LayerDisplayItem } from './layerDisplayItems';
 import { useLayerDragReorder } from './useLayerDragReorder';
 import { useLayerSelection } from './useLayerSelection';
@@ -323,23 +325,24 @@ export function LayerPanel({
           onClearSelection={handleClearLayerSelection}
         />
         {graphTree ? (
-          <GraphLayerTreeView
-            doc={doc}
-            tree={graphTree}
-            selectedLayerId={selectedLayerId}
-            selectedActionLayerIds={selectedActionLayerIds}
-            editingId={editingId}
-            onSelectLayer={handleSelectRow}
-            onSelectNode={handleSelectTreeNode}
-            onOpenLayerContextMenu={handleOpenRowContextMenu}
-            onOpenLayerContextMenuAt={openLayerContextMenuAt}
-            onStartEditing={setEditingId}
-            onFinishRename={handleFinishRowRename}
-            onToggleVisible={onToggleVisible}
-            onDuplicateLayer={onDuplicateLayer}
-            onRemoveLayer={onRemoveLayer}
-            editing={treeEditing.editing}
-          />
+          <GraphLayerTreeEditingContext.Provider value={treeEditing.editing}>
+            <GraphLayerTreeView
+              doc={doc}
+              tree={graphTree}
+              selectedLayerId={selectedLayerId}
+              selectedActionLayerIds={selectedActionLayerIds}
+              editingId={editingId}
+              onSelectLayer={handleSelectRow}
+              onSelectNode={handleSelectTreeNode}
+              onOpenLayerContextMenu={handleOpenRowContextMenu}
+              onOpenLayerContextMenuAt={openLayerContextMenuAt}
+              onStartEditing={setEditingId}
+              onFinishRename={handleFinishRowRename}
+              onToggleVisible={onToggleVisible}
+              onDuplicateLayer={onDuplicateLayer}
+              onRemoveLayer={onRemoveLayer}
+            />
+          </GraphLayerTreeEditingContext.Provider>
         ) : (
           <Scene3DLayerRows doc={doc} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
         )}
@@ -391,47 +394,9 @@ export function LayerPanel({
         onSetLayersVisible={onSetLayersVisible}
         treeItems={treeEditing.menuItems(contextMenu)}
       />
-      <LayerTreeEditStatus
-        editing={Boolean(treeEditing.editing)}
-        helpId={treeEditing.helpId}
-        status={treeEditing.status}
-      />
+      {treeEditing.editing ? <LayerTreeEditStatus helpId={treeEditing.helpId} status={treeEditing.status} /> : null}
       {treeEditing.confirmDialog}
     </div>
-  );
-}
-
-/**
- * Announces tree edits and why a move is blocked. The message is also shown as an overlay at the
- * bottom of the panel, so it never shifts the rows.
- */
-function LayerTreeEditStatus({
-  editing,
-  helpId,
-  status,
-}: {
-  editing: boolean;
-  helpId: string;
-  status: { message: string; serial: number };
-}) {
-  if (!editing) return null;
-  return (
-    <>
-      <p id={helpId} className="sr-only">
-        Drag rows to move them. Alt+Up and Alt+Down move a row within its stack, and Delete removes it. Shift+F10 opens
-        row actions, including Move to and Edit in Nodes.
-      </p>
-      <p
-        role="status"
-        aria-live="polite"
-        className="layer-tree-edit-status"
-        data-visible={status.message ? 'true' : 'false'}
-      >
-        {status.message}
-        {/* Alternating trailing space so the same message is announced again. */}
-        {status.serial % 2 === 0 ? '' : '\u00a0'}
-      </p>
-    </>
   );
 }
 

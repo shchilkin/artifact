@@ -1,4 +1,5 @@
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../types/config';
+import { MATERIAL_TEXTURE_INPUT_PORTS } from '../types/config';
 import {
   type AddNodeAtDocumentResult,
   addLayerToDocument,
@@ -10,10 +11,21 @@ import {
 } from './documentCommands';
 import { canDeleteNodeFromDocument } from './editorGuardrails';
 import { buildGraphLayerTree, type GraphLayerTree, type GraphTreeRow } from './graphLayerTree';
-import { EXPORT_NODE_ID, inferLinearGraph, listGraphNodeIds, nextDropPosition } from './nodeGraph';
 import {
+  createGraphEdge,
+  documentGraph,
+  EXPORT_NODE_ID,
+  listGraphNodeIds,
+  nextDropPosition,
+  promoteGraphEdges,
+  rewireGraphEdgeSource,
+  splitGraphEdgeInPlace,
+} from './nodeGraph';
+import {
+  collectGraphRenderReachModes,
   findIncomingSource,
   type GraphInputPort,
+  type GraphReachMode,
   graphNodeInputRole,
   graphNodePrimaryPort,
 } from './render/graphInputs';
@@ -27,8 +39,12 @@ import {
 
 export type TreeDropPosition = 'above' | 'below';
 
-export type TreeEditCheck = { ok: true } | { ok: false; reason: string };
-export type TreeEditResult = { ok: true; doc: CanvasDocument } | { ok: false; reason: string };
+type Blocked = { ok: false; reason: string };
+export type TreeEditCheck = { ok: true } | Blocked;
+export type TreeEditResult = { ok: true; doc: CanvasDocument } | Blocked;
+
+const REFERENCE_MOVE_REASON = 'Shared uses can’t be moved. Move the full entry instead.';
+const REFERENCE_DROP_REASON = 'Rows can’t be dropped onto a shared use. Drop next to the full entry instead.';
 
 interface TreeStack {
   rows: GraphTreeRow[];
@@ -49,10 +65,6 @@ export interface GraphTreeEditIndex {
   doc: CanvasDocument;
   graph: CanvasGraph;
   places: Map<string, RowPlace>;
-}
-
-function documentGraph(doc: CanvasDocument): CanvasGraph {
-  return doc.graph ?? inferLinearGraph(doc.layers);
 }
 
 function collectStacks(tree: GraphLayerTree): TreeStack[] {
@@ -119,7 +131,7 @@ function nodeName(index: GraphTreeEditIndex, nodeId: string) {
   return index.places.get(nodeId)?.row.name ?? nodeId;
 }
 
-function block(reason: string): { ok: false; reason: string } {
+function blocked(reason: string): Blocked {
   return { ok: false, reason };
 }
 
@@ -131,27 +143,25 @@ function stackOwnerName(index: GraphTreeEditIndex, place: RowPlace) {
 /** Whether a row can be picked up at all, and why not. */
 export function checkTreeRowMovable(index: GraphTreeEditIndex, nodeId: string): TreeEditCheck {
   const place = index.places.get(nodeId);
-  if (!place) return block('Shared uses can’t be moved. Move the full entry instead.');
+  if (!place) return blocked(REFERENCE_MOVE_REASON);
   const { row } = place;
-  if (layerById(index.doc, nodeId)?.locked) return block(`${row.name} is locked. Unlock it to move it.`);
+  if (layerById(index.doc, nodeId)?.locked) return blocked(`${row.name} is locked. Unlock it to move it.`);
   if (place.stack.side && place.index === 0) {
-    return block(`${row.name} is an input of ${stackOwnerName(index, place)}. Change inputs in Nodes.`);
+    return blocked(`${row.name} is an input of ${stackOwnerName(index, place)}. Change inputs in Nodes.`);
   }
   if (consumerEdges(index.graph, nodeId).length > 1) {
-    return block(`${row.name} feeds more than one input. Rewire it in Nodes.`);
+    return blocked(`${row.name} feeds more than one input. Rewire it in Nodes.`);
   }
   return { ok: true };
 }
-
-const REFERENCE_DROP_REASON = 'Rows can’t be dropped onto a shared use. Drop next to the full entry instead.';
 
 /** A gap in a tree stack, named by the input it feeds, or by the row it sits above when nothing reads it. */
 type TreeSlot = { consumer: { nodeId: string; port: GraphInputPort } } | { above: string };
 
 interface ResolvedTarget {
   slot: TreeSlot;
-  /** The gap index in the target stack: row `i` sits between gaps `i` and `i + 1`. */
   stack: TreeStack;
+  /** The gap index in the target stack: row `i` sits between gaps `i` and `i + 1`. */
   gap: number;
 }
 
@@ -159,24 +169,34 @@ function resolveTarget(
   index: GraphTreeEditIndex,
   targetId: string,
   position: TreeDropPosition,
-): ResolvedTarget | { ok: false; reason: string } {
+): ResolvedTarget | Blocked {
   const place = index.places.get(targetId);
-  if (!place) return block(REFERENCE_DROP_REASON);
+  if (!place) return blocked(REFERENCE_DROP_REASON);
   const { row, stack } = place;
-  if (position === 'above') {
-    if (stack.side && place.index === 0) {
-      return block(`Inputs of ${stackOwnerName(index, place)} are wired in Nodes.`);
-    }
-    const slot: TreeSlot = row.consumer ? { consumer: row.consumer } : { above: row.nodeId };
-    return { slot, stack, gap: place.index };
+  if (position === 'below') {
+    if (!row.stackPort) return blocked(`Nothing can be placed below ${row.name}.`);
+    return { slot: { consumer: { nodeId: row.nodeId, port: row.stackPort } }, stack, gap: place.index + 1 };
   }
-  if (!row.stackPort) return block(`Nothing can be placed below ${row.name}.`);
-  return { slot: { consumer: { nodeId: row.nodeId, port: row.stackPort } }, stack, gap: place.index + 1 };
+  if (stack.side && place.index === 0) {
+    return blocked(`Inputs of ${stackOwnerName(index, place)} are wired in Nodes.`);
+  }
+  if (row.consumer) return { slot: { consumer: row.consumer }, stack, gap: place.index };
+  // The top of a stack outside Output. If that row still feeds an input the renderer ignores, a new
+  // row above it would make it feed two inputs, so that wiring stays in Nodes.
+  if (consumerEdges(index.graph, row.nodeId).length > 0) {
+    return blocked(`${row.name} feeds an input that is not drawn. Rewire it in Nodes.`);
+  }
+  return { slot: { above: row.nodeId }, stack, gap: place.index };
+}
+
+function hasSideInputs(row: GraphTreeRow) {
+  return row.groups.some((group) => group.kind === 'input');
 }
 
 /**
  * Whether `nodeId` can move to the gap above or below `targetId`. Within its run any movable row can
- * move; across runs (another stack, or past a shared node) only rows without nested inputs can.
+ * move. Across runs (another stack, or past a shared node) a row moves together with its group, mask,
+ * or pattern source, but not with Scene 3D, primitive, or material inputs, and never into its own inputs.
  */
 export function checkTreeMove(
   index: GraphTreeEditIndex,
@@ -190,11 +210,14 @@ export function checkTreeMove(
   if ('ok' in target) return target;
   const place = index.places.get(nodeId)!;
   if (isNoOpMove(place, target)) return { ok: true };
-  if (!withinRun(place, target) && place.row.groups.length > 0) {
-    return block(`${place.row.name} has its own inputs, so it only moves within its stack. Move it in Nodes.`);
+  if (!withinRun(place, target) && hasSideInputs(place.row)) {
+    return blocked(`${place.row.name} has 3D or material inputs, so it only moves within its stack. Move it in Nodes.`);
   }
   if (!graphNodePrimaryPort(index.doc, index.graph, nodeId) && slotHasSource(index.graph, target.slot)) {
-    return block(`${place.row.name} can’t sit above other rows.`);
+    return blocked(`${place.row.name} can’t sit above other rows.`);
+  }
+  if (feedsOwnInputs(index, nodeId, target.slot)) {
+    return blocked(`${place.row.name} can’t move into its own inputs.`);
   }
   return { ok: true };
 }
@@ -206,7 +229,7 @@ export function checkTreeDrop(
   target: Pick<GraphTreeRow, 'nodeId' | 'reference'>,
   position: TreeDropPosition,
 ): TreeEditCheck {
-  if (target.reference) return block(REFERENCE_DROP_REASON);
+  if (target.reference) return blocked(REFERENCE_DROP_REASON);
   return checkTreeMove(index, nodeId, target.nodeId, position);
 }
 
@@ -225,46 +248,37 @@ function slotHasSource(graph: CanvasGraph, slot: TreeSlot) {
   return Boolean(findIncomingSource(graph, slot.consumer.nodeId, slot.consumer.port));
 }
 
-// ---- Edge edits that keep port order ----
-
-function edgeId(edges: GraphEdge[], fromId: string, toId: string) {
-  const base = `e-${fromId}-${toId}`;
-  const ids = new Set(edges.map((edge) => edge.id));
-  if (!ids.has(base)) return base;
-  let suffix = 2;
-  while (ids.has(`${base}-${suffix}`)) suffix += 1;
-  return `${base}-${suffix}`;
-}
-
-function newEdge(
-  edges: GraphEdge[],
-  fromId: string,
-  fromPort: GraphEdge['fromPort'],
-  toId: string,
-  toPort: GraphInputPort,
-) {
-  return { id: edgeId(edges, fromId, toId), fromId, fromPort, toId, toPort };
-}
-
-function firstEdgeOnPort(edges: GraphEdge[], toId: string, toPort: GraphInputPort) {
-  return edges.find((edge) => edge.toId === toId && edge.toPort === toPort);
+/** Every node upstream of `nodeId` through any edge. */
+function upstreamNodeIds(edges: GraphEdge[], nodeId: string) {
+  const upstream = new Set<string>();
+  const queue = [nodeId];
+  for (let current = queue.pop(); current !== undefined; current = queue.pop()) {
+    for (const edge of edges) {
+      if (edge.toId !== current || upstream.has(edge.fromId)) continue;
+      upstream.add(edge.fromId);
+      queue.push(edge.fromId);
+    }
+  }
+  return upstream;
 }
 
 /**
- * The renderer reads the first edge on a port. Each edge in `wired` must win its port, so it moves up
- * to just before the first other edge on that port; every other edge keeps its relative order.
+ * Whether placing the node in the gap would make it feed one of its own inputs: the gap's consumer is
+ * upstream of the node once the node has left its stack (its group, mask, and pattern stay attached).
  */
-function promoteWiredEdges(edges: GraphEdge[], wired: Set<string>): GraphEdge[] {
-  let next = edges;
-  for (const id of wired) {
-    const at = next.findIndex((edge) => edge.id === id);
-    if (at === -1) continue;
-    const edge = next[at];
-    const first = next.findIndex((item) => item.toId === edge.toId && item.toPort === edge.toPort);
-    if (first >= at) continue;
-    next = [...next.slice(0, first), edge, ...next.slice(first, at), ...next.slice(at + 1)];
-  }
-  return next;
+function feedsOwnInputs(index: GraphTreeEditIndex, nodeId: string, slot: TreeSlot) {
+  if ('above' in slot) return false;
+  const consumerId = slot.consumer.nodeId;
+  return (
+    consumerId === nodeId || upstreamNodeIds(spliceOut(index.doc, index.graph.edges, nodeId), nodeId).has(consumerId)
+  );
+}
+
+// ---- Splicing ----
+
+function primaryInputEdge(doc: CanvasDocument, edges: GraphEdge[], nodeId: string) {
+  const port = graphNodePrimaryPort(doc, { ...documentGraph(doc), edges }, nodeId);
+  return port ? edges.find((edge) => edge.toId === nodeId && edge.toPort === port) : undefined;
 }
 
 /**
@@ -272,85 +286,77 @@ function promoteWiredEdges(edges: GraphEdge[], wired: Set<string>): GraphEdge[] 
  * through an edge in the old edge's place. The node keeps every other edge it has.
  */
 function spliceOut(doc: CanvasDocument, edges: GraphEdge[], nodeId: string): GraphEdge[] {
-  const graph = { ...documentGraph(doc), edges };
-  const port = graphNodePrimaryPort(doc, graph, nodeId);
-  const input = port ? firstEdgeOnPort(edges, nodeId, port) : undefined;
+  const input = primaryInputEdge(doc, edges, nodeId);
   const output = edges.find((edge) => edge.fromId === nodeId);
   let next = edges;
-  if (output && input) {
-    const bridge = newEdge(next, input.fromId, input.fromPort, output.toId, output.toPort);
-    next = next.map((edge) => (edge === output ? bridge : edge));
-  } else if (output) {
-    next = next.filter((edge) => edge !== output);
-  }
+  if (output && input) next = rewireGraphEdgeSource(next, output, input.fromId, input.fromPort);
+  else if (output) next = next.filter((edge) => edge !== output);
   return input ? next.filter((edge) => edge !== input) : next;
 }
 
-/** Places `nodeId` (which has no consumer and no primary source) into a gap. */
+/**
+ * Places `nodeId` (which has no consumer and no primary source) into a gap. Returns the edges and the
+ * ids of the edges it wired, each of which must win its port.
+ */
 function spliceIn(
   doc: CanvasDocument,
   edges: GraphEdge[],
   nodeId: string,
   slot: TreeSlot,
-  wired: Set<string>,
-): GraphEdge[] {
-  const graph = { ...documentGraph(doc), edges };
-  const port = graphNodePrimaryPort(doc, graph, nodeId);
+): { edges: GraphEdge[]; wiredEdgeIds: string[] } {
+  const port = graphNodePrimaryPort(doc, { ...documentGraph(doc), edges }, nodeId);
   if ('above' in slot) {
-    if (!port) return edges;
-    const input = newEdge(edges, slot.above, 'out', nodeId, port);
-    wired.add(input.id);
-    return [...edges, input];
+    if (!port) return { edges, wiredEdgeIds: [] };
+    const input = createGraphEdge(edges, slot.above, 'out', nodeId, port);
+    return { edges: [...edges, input], wiredEdgeIds: [input.id] };
   }
   const { nodeId: consumerId, port: consumerPort } = slot.consumer;
-  const current = firstEdgeOnPort(edges, consumerId, consumerPort);
-  const output = newEdge(edges, nodeId, 'out', consumerId, consumerPort);
-  wired.add(output.id);
-  if (!current) return [...edges, output];
-  const input = port ? newEdge([...edges, output], current.fromId, current.fromPort, nodeId, port) : null;
-  if (input) wired.add(input.id);
-  return edges.flatMap((edge) => (edge === current ? (input ? [input, output] : [output]) : [edge]));
+  const current = edges.find((edge) => edge.toId === consumerId && edge.toPort === consumerPort);
+  if (!current) {
+    const output = createGraphEdge(edges, nodeId, 'out', consumerId, consumerPort);
+    return { edges: [...edges, output], wiredEdgeIds: [output.id] };
+  }
+  const next = splitGraphEdgeInPlace(edges, current.id, nodeId, port);
+  return { edges: next, wiredEdgeIds: next.filter((edge) => !edges.includes(edge)).map((edge) => edge.id) };
 }
 
 function withEdges(doc: CanvasDocument, edges: GraphEdge[]): CanvasDocument {
   return { ...doc, graph: { ...documentGraph(doc), edges } };
 }
 
-function nodePosition(doc: CanvasDocument, nodeId: string) {
-  return documentGraph(doc).positions[nodeId];
-}
-
 // ---- doc.layers consistency ----
 
 const MAX_WALK = 10_000;
 
-function nearestLayerBelow(doc: CanvasDocument, nodeId: string, layerIds: Set<string>) {
-  const graph = documentGraph(doc);
-  const seen = new Set([nodeId]);
-  let current: string | null = nodeId;
-  for (let step = 0; current && step < MAX_WALK; step += 1) {
-    const port = graphNodePrimaryPort(doc, graph, current);
-    const source: string | null = port ? findIncomingSource(graph, current, port) : null;
-    if (!source || seen.has(source)) return null;
-    if (layerIds.has(source)) return source;
-    seen.add(source);
-    current = source;
-  }
-  return null;
+function primarySource(doc: CanvasDocument, graph: CanvasGraph, nodeId: string) {
+  const port = graphNodePrimaryPort(doc, graph, nodeId);
+  return port ? findIncomingSource(graph, nodeId, port) : null;
 }
 
-function nearestLayerAbove(doc: CanvasDocument, nodeId: string, layerIds: Set<string>) {
+function singleConsumer(graph: CanvasGraph, nodeId: string) {
+  const outputs = consumerEdges(graph, nodeId);
+  return outputs.length === 1 ? outputs[0].toId : null;
+}
+
+/**
+ * The nearest other layer along the node's stack: `below` follows primary inputs, `above` follows
+ * single consumers. Graph-only nodes are skipped; the walk stops at Output, a fork, or a cycle.
+ */
+function nearestLayerInStack(
+  doc: CanvasDocument,
+  nodeId: string,
+  layerIds: Set<string>,
+  direction: 'below' | 'above',
+): string | null {
   const graph = documentGraph(doc);
   const seen = new Set([nodeId]);
   let current = nodeId;
   for (let step = 0; step < MAX_WALK; step += 1) {
-    const outputs = consumerEdges(graph, current);
-    if (outputs.length !== 1) return null;
-    const consumer = outputs[0].toId;
-    if (consumer === EXPORT_NODE_ID || seen.has(consumer)) return null;
-    if (layerIds.has(consumer)) return consumer;
-    seen.add(consumer);
-    current = consumer;
+    const next = direction === 'below' ? primarySource(doc, graph, current) : singleConsumer(graph, current);
+    if (!next || next === EXPORT_NODE_ID || seen.has(next)) return null;
+    if (layerIds.has(next)) return next;
+    seen.add(next);
+    current = next;
   }
   return null;
 }
@@ -366,8 +372,8 @@ export function placeLayerForTreeEdit(doc: CanvasDocument, layerId: string): Can
   if (!layer) return doc;
   const rest = doc.layers.filter((item) => item.id !== layerId);
   const layerIds = new Set(rest.map((item) => item.id));
-  const below = nearestLayerBelow(doc, layerId, layerIds);
-  const above = below ? null : nearestLayerAbove(doc, layerId, layerIds);
+  const below = nearestLayerInStack(doc, layerId, layerIds, 'below');
+  const above = below ? null : nearestLayerInStack(doc, layerId, layerIds, 'above');
   const at = below
     ? rest.findIndex((item) => item.id === below) + 1
     : above
@@ -394,9 +400,9 @@ export function moveTreeRow(
   if (isNoOpMove(place, target)) return { ok: true, doc };
 
   // A gap that is not a no-op never names the moved node, so it stays valid after the splice-out.
-  const wired = new Set<string>();
   const spliced = spliceOut(doc, index.graph.edges, nodeId);
-  const edges = promoteWiredEdges(spliceIn(doc, spliced, nodeId, target.slot, wired), wired);
+  const placed = spliceIn(doc, spliced, nodeId, target.slot);
+  const edges = promoteGraphEdges(placed.edges, placed.wiredEdgeIds);
   return { ok: true, doc: placeLayerForTreeEdit(withEdges(doc, edges), nodeId) };
 }
 
@@ -405,14 +411,14 @@ export function treeRowStepTarget(
   index: GraphTreeEditIndex,
   nodeId: string,
   direction: 'up' | 'down',
-): { targetId: string; position: TreeDropPosition } | { ok: false; reason: string } {
+): { targetId: string; position: TreeDropPosition } | Blocked {
   const place = index.places.get(nodeId);
-  if (!place) return block('Shared uses can’t be moved. Move the full entry instead.');
+  if (!place) return blocked(REFERENCE_MOVE_REASON);
   const neighbor = place.stack.rows[place.index + (direction === 'up' ? -1 : 1)];
   if (!neighbor) {
-    return block(`${place.row.name} is already at the ${direction === 'up' ? 'top' : 'bottom'} of its stack.`);
+    return blocked(`${place.row.name} is already at the ${direction === 'up' ? 'top' : 'bottom'} of its stack.`);
   }
-  if (neighbor.reference) return block(`${place.row.name} can’t move past a shared use. Rewire it in Nodes.`);
+  if (neighbor.reference) return blocked(`${place.row.name} can’t move past a shared use. Rewire it in Nodes.`);
   return { targetId: neighbor.nodeId, position: direction === 'up' ? 'above' : 'below' };
 }
 
@@ -429,6 +435,14 @@ export function checkTreeInsertAbove(index: GraphTreeEditIndex, anchorId: string
   return 'ok' in target ? target : { ok: true };
 }
 
+function insertedNodePosition(graph: CanvasGraph, anchorId: string, slot: TreeSlot) {
+  const anchor = graph.positions[anchorId];
+  const consumer = 'consumer' in slot ? graph.positions[slot.consumer.nodeId] : undefined;
+  if (anchor && consumer) return { x: (anchor.x + consumer.x) / 2, y: (anchor.y + consumer.y) / 2 + 40 };
+  if (anchor) return { x: anchor.x + 220, y: anchor.y };
+  return nextDropPosition(graph);
+}
+
 /**
  * Wires a node that has no edges yet between `anchorId` and its consumer, on the consumer's original
  * port. The node's position lands between the two in Nodes.
@@ -437,47 +451,53 @@ export function insertNodeAboveTreeRow(doc: CanvasDocument, nodeId: string, anch
   const index = buildGraphTreeEditIndex(doc);
   const target = resolveTarget(index, anchorId, 'above');
   if ('ok' in target) return target;
-  if (!graphNodePrimaryPort(doc, index.graph, nodeId)) return block('This node can’t sit above other rows.');
-  const wired = new Set<string>();
-  const edges = promoteWiredEdges(spliceIn(doc, index.graph.edges, nodeId, target.slot, wired), wired);
-  const anchorPosition = nodePosition(doc, anchorId);
-  const consumerId = 'consumer' in target.slot ? target.slot.consumer.nodeId : null;
-  const consumerPosition = consumerId ? nodePosition(doc, consumerId) : undefined;
-  const position =
-    anchorPosition && consumerPosition
-      ? { x: (anchorPosition.x + consumerPosition.x) / 2, y: (anchorPosition.y + consumerPosition.y) / 2 + 40 }
-      : anchorPosition
-        ? { x: anchorPosition.x + 220, y: anchorPosition.y }
-        : nextDropPosition(index.graph);
-  const graph = { ...index.graph, edges, positions: { ...index.graph.positions, [nodeId]: position } };
+  if (!graphNodePrimaryPort(doc, index.graph, nodeId)) return blocked('This node can’t sit above other rows.');
+  const placed = spliceIn(doc, index.graph.edges, nodeId, target.slot);
+  const graph = {
+    ...index.graph,
+    edges: promoteGraphEdges(placed.edges, placed.wiredEdgeIds),
+    positions: { ...index.graph.positions, [nodeId]: insertedNodePosition(index.graph, anchorId, target.slot) },
+  };
   return { ok: true, doc: placeLayerForTreeEdit({ ...doc, graph }, nodeId) };
 }
 
-function reconnects(doc: CanvasDocument, graph: CanvasGraph, edge: GraphEdge) {
+const TEXTURE_PORTS = new Set<GraphInputPort>(MATERIAL_TEXTURE_INPUT_PORTS);
+
+/**
+ * Whether an edge feeds an image input of its consumer (a primary, merge `b`, mask, or pattern port, or
+ * Output) in every way the renderer uses that consumer. A material read through a Scene 3D or primitive
+ * `material` port treats `albedo` and the other texture ports as side inputs.
+ */
+function feedsImageInput(
+  doc: CanvasDocument,
+  graph: CanvasGraph,
+  reach: Map<string, Set<GraphReachMode>>,
+  edge: GraphEdge,
+) {
+  const modes = reach.get(edge.toId);
+  if (modes?.has('material') && TEXTURE_PORTS.has(edge.toPort)) return false;
+  if (modes && !modes.has('render')) return false;
   const role = graphNodeInputRole(doc, graph, edge.toId, edge.toPort);
   return role !== null && role !== 'side';
 }
 
 /**
- * Deletes a node from the tree: every image input it fed (a primary, merge `b`, mask, or pattern
- * port) now reads the node's primary source on the same port. Side inputs it fed (Scene 3D, material,
- * texture ports) and edges from its own non-primary sources are dropped.
+ * Deletes a node from the tree: every image input it fed now reads the node's primary source on the
+ * same port, in the removed edge's place. Side inputs it fed (Scene 3D, material, texture ports) and
+ * edges from its own non-primary sources are dropped. A shared node's source then feeds each of the
+ * node's consumers, so it becomes shared itself; that is why deleting a shared node asks first.
  */
 export function deleteTreeNode(doc: CanvasDocument, nodeId: string): TreeEditResult {
-  if (!canDeleteNodeFromDocument(doc, nodeId)) return block('Locked layers can’t be deleted. Unlock it first.');
+  if (!canDeleteNodeFromDocument(doc, nodeId)) return blocked('Locked layers can’t be deleted. Unlock it first.');
   const graph = documentGraph(doc);
-  const port = graphNodePrimaryPort(doc, graph, nodeId);
-  const input = port ? firstEdgeOnPort(graph.edges, nodeId, port) : undefined;
-  // Each bridge takes the deleted edge's place, so a port's first edge stays first.
-  const edges: GraphEdge[] = [];
-  for (const edge of graph.edges) {
-    if (edge.toId === nodeId) continue;
-    if (edge.fromId !== nodeId) {
-      edges.push(edge);
-      continue;
-    }
-    if (!input || !reconnects(doc, graph, edge)) continue;
-    edges.push(newEdge([...graph.edges, ...edges], input.fromId, input.fromPort, edge.toId, edge.toPort));
+  const reach = collectGraphRenderReachModes(doc, graph);
+  const input = primaryInputEdge(doc, graph.edges, nodeId);
+  let edges = graph.edges.filter((edge) => edge.toId !== nodeId);
+  for (const edge of graph.edges.filter((item) => item.fromId === nodeId)) {
+    edges =
+      input && feedsImageInput(doc, graph, reach, edge)
+        ? rewireGraphEdgeSource(edges, edge, input.fromId, input.fromPort)
+        : edges.filter((item) => item !== edge);
   }
   return { ok: true, doc: deleteNodesFromDocument({ ...doc, graph: { ...graph, edges } }, [nodeId]) };
 }
@@ -527,8 +547,7 @@ export function addNodeAboveTreeRow(
   const graph = documentGraph(doc);
   const before = new Set(listGraphNodeIds(graph, doc.layers));
   const added = addNodeAtDocument(doc, action, nextDropPosition(graph));
-  const addedGraph = documentGraph(added.doc);
-  const nodeId = listGraphNodeIds(addedGraph, added.doc.layers).find((id) => !before.has(id));
+  const nodeId = listGraphNodeIds(documentGraph(added.doc), added.doc.layers).find((id) => !before.has(id));
   if (!nodeId) return null;
   const result = insertNodeAboveTreeRow(added.doc, nodeId, anchorId);
   return result.ok ? { ...added, doc: result.doc } : null;
