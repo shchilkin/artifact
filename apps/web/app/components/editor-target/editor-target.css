@@ -15,15 +15,6 @@
   padding: 8px;
 }
 
-.editor-target-header--minimal {
-  gap: 8px;
-  margin: 10px 10px 6px;
-  padding: 12px;
-  border-color: color-mix(in oklch, var(--line-default) 78%, transparent);
-  background: color-mix(in oklch, var(--surface-panel-raised) 72%, var(--surface-panel));
-  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--text-primary) 4%, transparent);
-}
-
 .editor-target-header__topline,
 .editor-target-header__badges {
   display: flex;
@@ -62,44 +53,6 @@
 
 .editor-target-header--compact .editor-target-header__title {
   font-size: 11px;
-}
-
-.editor-target-header--minimal .editor-target-header__title {
-  color: var(--text-primary);
-  font-family: var(--body);
-  font-size: var(--type-layer-name);
-  font-weight: var(--weight-readable-strong);
-  letter-spacing: 0.01em;
-  line-height: 1.2;
-  text-transform: none;
-}
-
-.editor-target-header__compact-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-
-.editor-target-header__compact-identity {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.editor-target-header__compact-label {
-  width: fit-content;
-  max-width: 100%;
-  color: var(--accent-primary);
-  font-family: var(--font-mono);
-  font-size: var(--type-editor-meta);
-  font-weight: var(--weight-strong);
-  letter-spacing: var(--tracking-label);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
 }
 
 .editor-target-header__breadcrumbs {
@@ -141,14 +94,6 @@
 .editor-target-header__badges {
   justify-content: flex-start;
   flex-wrap: wrap;
-}
-
-.editor-target-header--minimal .editor-target-header__badges {
-  gap: 6px;
-}
-
-.editor-target-header--minimal .editor-target-badge {
-  background: color-mix(in oklch, var(--surface-panel) 78%, transparent);
 }
 
 .editor-target-header__notes {
@@ -217,4 +162,61 @@
 
 .editor-target-badge--muted {
   color: var(--text-secondary);
+}
+
+/* The selected target's identity header, framed in its role color. Layers and Nodes render the same overview. */
+.editor-target-overview {
+  --target-overview-accent: var(--accent-primary);
+  position: relative;
+  margin: var(--space-2);
+  border: 1px solid color-mix(in oklch, var(--target-overview-accent) 46%, var(--line-default));
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--surface-panel) 82%, var(--target-overview-accent) 7%);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--target-overview-accent) 16%, transparent);
+}
+
+.editor-target-overview::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: color-mix(in oklch, var(--target-overview-accent) 78%, transparent);
+  content: "";
+}
+
+.editor-target-overview-source {
+  --target-overview-accent: var(--state-success);
+}
+
+.editor-target-overview-effect {
+  --target-overview-accent: var(--accent-primary);
+}
+
+.editor-target-overview-utility {
+  --target-overview-accent: var(--node-kind-color, var(--text-secondary));
+}
+
+.editor-target-overview-output {
+  --target-overview-accent: var(--state-warning);
+}
+
+.editor-target-overview .editor-target-header {
+  margin: 0;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The target name reads in the layer-name face, as it does in the layer list. */
+.editor-target-overview .editor-target-header__title {
+  font-family: var(--body);
+  font-size: var(--type-layer-name);
+  font-weight: var(--weight-readable-strong);
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  text-transform: none;
+}
+
+.editor-target-overview .editor-target-badge {
+  background: color-mix(in oklch, var(--surface-panel) 80%, transparent);
 }

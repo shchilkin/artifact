@@ -42,7 +42,7 @@ export function PresetShaderInspector({
           open={shapeOpen}
           onToggle={() => setShapeOpen((open) => !open)}
         >
-          <div className="node-shader-flat-controls">
+          <div className="artifact-inspector-flat-list">
             {controls.shape.map((field) => (
               <ShapeControl key={field} field={field} shaderNode={shaderNode} onChange={onChange} />
             ))}
@@ -55,7 +55,7 @@ export function PresetShaderInspector({
         open={textureOpen}
         onToggle={() => setTextureOpen((open) => !open)}
       >
-        <div className="node-shader-flat-controls">
+        <div className="artifact-inspector-flat-list">
           <InspectorSlider
             label="Grain"
             value={shaderNode.grain}
@@ -79,7 +79,7 @@ export function PresetShaderInspector({
           open={placementOpen}
           onToggle={() => setPlacementOpen((open) => !open)}
         >
-          <div className="node-shader-flat-controls">
+          <div className="artifact-inspector-flat-list">
             {controls.placement.map((field) => (
               <PlacementControl key={field} field={field} shaderNode={shaderNode} onChange={onChange} />
             ))}

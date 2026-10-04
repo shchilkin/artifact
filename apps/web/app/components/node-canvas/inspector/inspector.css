@@ -89,7 +89,7 @@
 
 .artifact-inspector-effect-description {
   margin: 0;
-  padding: 0 10px;
+  padding: 0 var(--control-pad-x-compact);
   color: var(--node-text-dim);
   font-family: var(--body);
   font-size: var(--type-readable-md);
@@ -125,13 +125,6 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-}
-
-.artifact-inspector-value {
-  color: var(--node-text);
-  font-size: var(--type-editor-label);
-  font-weight: var(--weight-strong);
-  letter-spacing: var(--tracking-meta);
 }
 
 .artifact-inspector-note {
@@ -512,7 +505,7 @@
 .artifact-property-row.artifact-inspector-slider {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.7fr);
-  column-gap: 8px;
+  column-gap: var(--space-2);
   align-items: center;
   min-height: var(--touch);
 }
@@ -538,15 +531,15 @@
 
 .node-slider-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 64px;
+  grid-template-columns: minmax(0, 1fr) var(--editor-inspector-entry-w);
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .artifact-inspector-number {
   display: flex;
   min-width: 0;
-  height: 32px;
+  height: var(--control-h-compact);
   align-items: center;
   border: 1px solid var(--line-default);
   border-radius: var(--control-radius);
@@ -562,7 +555,7 @@
 }
 
 .artifact-inspector-number:focus-within {
-  outline: 2px solid var(--node-focus);
+  outline: var(--focus-ring);
   outline-offset: 1px;
 }
 
@@ -574,7 +567,7 @@
   flex: 1 1 auto;
   border: 0;
   background: transparent;
-  padding: 0 4px 0 6px;
+  padding: 0 var(--space-1);
   -moz-appearance: textfield;
   appearance: textfield;
 }
@@ -587,14 +580,14 @@
 
 .artifact-inspector-number__unit {
   flex: 0 0 auto;
-  padding-right: 6px;
+  padding-right: var(--space-1);
 }
 
 .artifact-inspector-info {
   position: relative;
   display: grid;
-  width: 20px;
-  height: 20px;
+  width: var(--space-6);
+  height: var(--space-6);
   flex: 0 0 auto;
   place-items: center;
   padding: 0;
@@ -604,14 +597,14 @@
   color: var(--node-text-dim);
   cursor: help;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-ui-xs);
   line-height: 1;
 }
 
-/* Keeps a 44px pointer target around the small mark. */
+/* The mark is small; this extends its pointer target to a full --touch square around it. */
 .artifact-inspector-info::before {
   position: absolute;
-  inset: -12px -4px;
+  inset: calc((100% - var(--touch)) / 2);
   content: "";
 }
 
@@ -622,8 +615,27 @@
 }
 
 .artifact-inspector-info:focus-visible {
-  outline: 2px solid var(--node-focus);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--space-1);
+}
+
+/* A bordered list of inspector rows with dividers, for authored control sets such as shader properties. */
+.artifact-inspector-flat-list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--line-default) 70%, transparent);
+  border-radius: var(--control-radius);
+  background: color-mix(in oklch, var(--surface-control) 58%, transparent);
+}
+
+.artifact-inspector-flat-list > * {
+  padding: var(--space-2);
+  border-bottom: 1px solid color-mix(in oklch, var(--line-default) 58%, transparent);
+}
+
+.artifact-inspector-flat-list > :last-child {
+  border-bottom: 0;
 }
 
 .artifact-inspector-control-disabled {

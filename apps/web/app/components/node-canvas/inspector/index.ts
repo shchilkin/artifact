@@ -2,7 +2,6 @@ export { ColorInspector } from './ColorInspector';
 export { EnvironmentInspector } from './EnvironmentInspector';
 export { ExportInspector } from './ExportInspector';
 export { GrimeShadowInspector } from './GrimeShadowInspector';
-export { LayerInspector } from './LayerInspector';
 export { MaskInspector } from './MaskInspector';
 export { MaterialInspector } from './MaterialInspector';
 export { MergeInspector } from './MergeInspector';

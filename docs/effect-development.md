@@ -38,9 +38,11 @@ update data, rendering, controls, docs, and tests in one slice.
 - If an effect uses seeded randomness, read `doc.global.seed + layer.seedOffset`
   in both Canvas 2D and GPU paths so one effect node can vary without
   re-rolling the whole document.
-- Every slider has numeric entry. If a slider needs creative values beyond the
-  common range, set `overrideMax` so numeric entry accepts them instead of
-  hiding the capability.
+- Every slider has numeric entry. It commits on Enter or blur, clamped to the
+  range and snapped to the slider step from `min`, so it stores the same values
+  the slider can. If a slider needs creative values beyond the common range,
+  set `overrideMax` so numeric entry accepts them instead of hiding the
+  capability.
 - Give a slider a `valueFormat`; it is read out through the slider's
   `aria-valuetext`, and `%`, `px`, and `deg` also show as a unit after the
   numeric entry.

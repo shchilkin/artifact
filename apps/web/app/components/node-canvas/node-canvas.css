@@ -2730,8 +2730,11 @@
   pointer-events: auto;
 }
 
+/* The inspector keeps its open width (inside the panel's left border) while the panel opens, so its rows slide in
+   instead of reflowing at every intermediate width. */
 .node-props-inner {
   width: 100%;
+  min-width: calc(var(--editor-inspector-w) - 1px);
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -2807,100 +2810,6 @@
 .node-props-body {
   flex: 1;
   min-height: 0;
-}
-
-.node-ai-generation-section {
-  display: grid;
-  gap: 8px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--line-default);
-  background: color-mix(in oklch, var(--surface-panel) 90%, var(--surface-panel-raised));
-}
-
-.node-ai-generation-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.node-ai-generation-heading span:last-child {
-  color: var(--text-secondary);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.08em;
-}
-
-.node-target-overview {
-  --target-overview-accent: var(--accent-primary);
-  position: relative;
-  margin: 10px;
-  border: 1px solid color-mix(in oklch, var(--target-overview-accent) 46%, var(--line-default));
-  border-radius: var(--radius-lg);
-  background: color-mix(in oklch, var(--surface-panel) 82%, var(--target-overview-accent) 7%);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in oklch, var(--target-overview-accent) 16%, transparent),
-    0 6px 8px color-mix(in oklch, var(--surface-app) 24%, transparent);
-}
-
-.node-target-overview::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 2px;
-  background: color-mix(in oklch, var(--target-overview-accent) 78%, transparent);
-}
-
-.node-target-overview-source {
-  --target-overview-accent: var(--state-success);
-}
-
-.node-target-overview-effect {
-  --target-overview-accent: var(--accent-primary);
-}
-
-.node-target-overview-utility {
-  --target-overview-accent: var(--node-kind-color, var(--node-text-dim));
-}
-
-.node-target-overview-output {
-  --target-overview-accent: var(--state-warning);
-}
-
-.node-props-body .node-target-overview .editor-target-header {
-  margin: 0;
-  padding: 14px 14px 10px;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.node-props-body .editor-target-header__topline {
-  font-size: 9px;
-  letter-spacing: 0.06em;
-}
-
-.node-props-body .editor-target-header__title {
-  font-size: 12px;
-  letter-spacing: 0.03em;
-}
-
-.node-props-body .editor-target-header__breadcrumbs {
-  letter-spacing: 0.03em;
-}
-
-.node-props-body .editor-target-header__badges {
-  gap: 5px;
-}
-
-.node-props-body .editor-target-badge {
-  background: color-mix(in oklch, var(--surface-panel) 80%, transparent);
 }
 
 .node-shader-role-status {
@@ -3008,41 +2917,11 @@
   border-color: color-mix(in oklch, var(--accent-primary) 42%, var(--line-default));
 }
 
-.node-shader-flat-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid color-mix(in oklch, var(--line-default) 70%, transparent);
-  border-radius: var(--control-radius);
-  background: color-mix(in oklch, var(--surface-control) 58%, transparent);
-}
-
-.node-props-body .node-shader-flat-controls .artifact-inspector-control {
-  gap: 7px;
-  padding: 9px 8px 10px;
-  border: 0;
-  border-bottom: 1px solid color-mix(in oklch, var(--line-default) 58%, transparent);
-  border-radius: 0;
-  background: transparent;
-}
-
-.node-props-body .node-shader-flat-controls .artifact-inspector-control:last-child {
-  border-bottom: 0;
-}
-
 .node-shader-property-control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 30px;
   align-items: center;
   border-bottom: 1px solid color-mix(in oklch, var(--line-default) 58%, transparent);
-}
-
-.node-shader-property-control
-  > div
-  > :is(.artifact-inspector-control, .artifact-inspector-row, .artifact-inspector-toggle) {
-  border: 0;
-  background: transparent;
 }
 
 .node-shader-property-remove {
@@ -3093,14 +2972,6 @@
   justify-content: space-between;
   gap: 8px;
   padding: 10px 8px 2px;
-}
-
-.node-props-body .node-shader-operation-controls .artifact-inspector-control {
-  gap: 7px;
-  padding: 8px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
 }
 
 .node-props-empty {
@@ -3169,6 +3040,10 @@
   .node-props-panel-open {
     flex-basis: auto;
     transform: translateY(0);
+  }
+
+  .node-props-inner {
+    min-width: 0;
   }
 
   .node-canvas-toolbar {

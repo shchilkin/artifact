@@ -6,6 +6,7 @@ import { PropertyRow } from '../../../inspector-system';
 import { stopNodeEvent } from '../../helpers';
 import { NoPan } from '../../nodes/NoPan';
 import { InspectorTargetContext } from './inspectorTargetContext';
+import { formatEntry, parseEntry } from './sliderEntry';
 
 /**
  * The slider shows every value at once and updates the document at most once per preview frame interval, so a drag
@@ -175,8 +176,9 @@ function SliderInputs({
 }
 
 /**
- * Numeric entry for a slider. A typed value inside the range applies as it is typed; a value outside it, or an
- * unfinished one such as `-`, waits until Enter or blur, where it is clamped or discarded.
+ * Numeric entry for a slider. Typing only edits the text; Enter or blur commits it once, clamped to the range and
+ * snapped to the step like a slider value, and Escape puts back the committed value. Text that is not a number is
+ * discarded.
  */
 function NumericEntry({
   label,
@@ -200,15 +202,12 @@ function NumericEntry({
   onCommit: () => void;
 }) {
   const [text, setText] = useState<string | null>(null);
-  const finish = () => {
-    if (text !== null) {
-      const typed = Number(text);
-      if (text.trim() !== '' && Number.isFinite(typed)) {
-        const clamped = Math.min(max, Math.max(min, typed));
-        if (clamped !== value) onChange(clamped);
-      }
-      setText(null);
-    }
+  const range = { min, max, step };
+  const commit = () => {
+    if (text === null) return;
+    const next = parseEntry(text, range);
+    if (next !== null && next !== value) onChange(next);
+    setText(null);
     onCommit();
   };
   return (
@@ -220,7 +219,7 @@ function NumericEntry({
         min={min}
         max={max}
         step={step}
-        value={text ?? value}
+        value={text ?? formatEntry(value, range)}
         disabled={disabled}
         aria-label={`${label} value`}
         title={max > min ? `${min} to ${max}` : undefined}
@@ -229,17 +228,16 @@ function NumericEntry({
         onClick={stopNodeEvent}
         onDoubleClick={stopNodeEvent}
         onWheel={stopNodeEvent}
-        onChange={(event) => {
-          const next = event.target.value;
-          setText(next);
-          const typed = Number(next);
-          if (next.trim() !== '' && Number.isFinite(typed) && typed >= min && typed <= max) onChange(typed);
-        }}
+        onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') finish();
-          if (event.key === 'Escape') setText(null);
+          if (event.key === 'Enter') commit();
+          if (event.key === 'Escape' && text !== null) {
+            // Keeps Escape from also closing or deselecting in the editor around the entry.
+            event.stopPropagation();
+            setText(null);
+          }
         }}
-        onBlur={finish}
+        onBlur={commit}
       />
       {unit ? (
         <span className="artifact-inspector-number__unit" aria-hidden="true">

@@ -17,14 +17,12 @@ export function LayerStateSection({ layer, onChange }: { layer: Layer; onChange:
       onToggle={() => setOpen((value) => !value)}
     >
       <InspectorToggle
-        ariaLabel="Toggle layer visibility"
         checked={layer.visible}
         label="Visible"
         locked={layer.locked}
         onChange={(visible) => onChange({ visible })}
       />
       <InspectorToggle
-        ariaLabel="Toggle layer delete and reorder lock"
         checked={layer.locked}
         label="Locked"
         locked={layer.locked}

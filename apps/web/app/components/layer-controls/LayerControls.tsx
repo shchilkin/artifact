@@ -108,7 +108,6 @@ const MATERIAL_PERCENT_FIELDS = [
 ] as const;
 
 type LayerControlSection = 'content' | 'placement' | 'style' | 'structure';
-type LayerControlsSurface = 'layers' | 'nodes';
 type SetOpenSection = Dispatch<SetStateAction<LayerControlSection>>;
 type SetScaleLocked = Dispatch<SetStateAction<boolean>>;
 type BasicLayerKind = 'text' | 'image' | 'fill' | 'emoji';
@@ -641,15 +640,8 @@ function EmojiLayerControls({
   );
 }
 
-function sourceSurfaceNote(surface: LayerControlsSurface, layer: SourceLayer): string | null {
-  return SOURCE_SURFACE_NOTES[`${surface}:${layer.kind}`] ?? SOURCE_SURFACE_NOTES[layer.kind] ?? null;
-}
-
-const SOURCE_SURFACE_NOTES: Partial<
-  Record<SourceLayer['kind'] | `${LayerControlsSurface}:${SourceLayer['kind']}`, string>
-> = {
-  'layers:primitive':
-    'Camera framing is node-owned. Switch to Nodes and drag the primitive preview to rotate, pan, or zoom. Spin and depth stay here.',
+const SOURCE_NOTES: Partial<Record<SourceLayer['kind'], string>> = {
+  primitive: 'Camera framing is set on the node preview in Nodes: drag rotates, wheel zooms. Spin and depth stay here.',
   noise: 'Noise fills the canvas. Placement controls are unavailable; tune the pattern here or branch it in Nodes.',
   lineField: 'Line Field fills the frame automatically. Tune density, spacing, stroke, and distortion in Pattern.',
   model: 'Model framing is node-owned. GLB rendering will use the source viewport path as this node matures.',
@@ -661,19 +653,17 @@ function sourceContentFallback(layer: SourceLayer): LayerControlSection {
 
 function SourceContentSection({
   layer,
-  surface,
   openSection,
   setOpenSection,
   onChange,
 }: {
   layer: SourceLayer;
-  surface: LayerControlsSurface;
   openSection: LayerControlSection;
   setOpenSection: SetOpenSection;
   onChange: (patch: Partial<Layer>) => void;
 }) {
   const colorLabels = sourceColorLabels(layer);
-  const note = sourceSurfaceNote(surface, layer);
+  const note = SOURCE_NOTES[layer.kind] ?? null;
   return (
     <InspectorSection
       title="Content"
@@ -755,11 +745,9 @@ function SourcePlacementSection({
 
 function PrimitiveStructureControls({
   layer,
-  surface,
   onChange,
 }: {
   layer: PrimitiveLayer;
-  surface: LayerControlsSurface;
   onChange: (patch: Partial<Layer>) => void;
 }) {
   return (
@@ -774,9 +762,6 @@ function PrimitiveStructureControls({
           } as Partial<SourceLayer>)
         }
       />
-      {surface === 'nodes' && (
-        <p className="artifact-inspector-note">Camera angle is controlled in the preview: drag rotates, wheel zooms.</p>
-      )}
       <InspectorSlider
         label="Spin"
         value={Math.round(layer.tiltZ)}
@@ -1118,19 +1103,17 @@ function ModelStructureControls({
 
 function SourceStructureControls({
   layer,
-  surface,
   onChange,
   modelFileInputRef,
   onLoadModelFile,
 }: {
   layer: SourceLayer;
-  surface: LayerControlsSurface;
   onChange: (patch: Partial<Layer>) => void;
   modelFileInputRef: RefObject<HTMLInputElement | null>;
   onLoadModelFile?: (file: File) => void;
 }) {
   if (layer.kind === 'primitive')
-    return <PrimitiveStructureControls layer={layer as PrimitiveLayer} surface={surface} onChange={onChange} />;
+    return <PrimitiveStructureControls layer={layer as PrimitiveLayer} onChange={onChange} />;
   if (layer.kind === 'noise') return <NoiseStructureControls layer={layer} onChange={onChange} />;
   if (layer.kind === 'lineField') return <LineFieldStructureControls layer={layer} onChange={onChange} />;
   if (layer.kind === 'model')
@@ -1145,7 +1128,6 @@ function SourceLayerControls({
   setOpenSection,
   scaleLocked,
   setScaleLocked,
-  surface,
   onChange,
   modelFileInputRef,
   onLoadModelFile,
@@ -1156,7 +1138,6 @@ function SourceLayerControls({
   setOpenSection: SetOpenSection;
   scaleLocked: boolean;
   setScaleLocked: SetScaleLocked;
-  surface: LayerControlsSurface;
   onChange: (patch: Partial<Layer>) => void;
   modelFileInputRef: RefObject<HTMLInputElement | null>;
   onLoadModelFile?: (file: File) => void;
@@ -1165,7 +1146,6 @@ function SourceLayerControls({
     <div className={sectionClassName}>
       <SourceContentSection
         layer={layer}
-        surface={surface}
         openSection={openSection}
         setOpenSection={setOpenSection}
         onChange={onChange}
@@ -1186,7 +1166,6 @@ function SourceLayerControls({
       >
         <SourceStructureControls
           layer={layer}
-          surface={surface}
           onChange={onChange}
           modelFileInputRef={modelFileInputRef}
           onLoadModelFile={onLoadModelFile}
@@ -1225,7 +1204,6 @@ export function LayerControls({
   dirty = false,
   detached = false,
   showAiGenerationProvenance = true,
-  surface = 'nodes',
   onLoadModelFile,
 }: {
   layer: Layer;
@@ -1233,7 +1211,6 @@ export function LayerControls({
   dirty?: boolean;
   detached?: boolean;
   showAiGenerationProvenance?: boolean;
-  surface?: LayerControlsSurface;
   onLoadModelFile?: (file: File) => void;
 }) {
   const [scaleLocked, setScaleLocked] = useState(true);
@@ -1259,7 +1236,6 @@ export function LayerControls({
     <SourceLayerControls
       {...renderProps}
       layer={layer as SourceLayer}
-      surface={surface}
       modelFileInputRef={modelFileInputRef}
       onLoadModelFile={onLoadModelFile}
     />
