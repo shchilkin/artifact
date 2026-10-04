@@ -1,7 +1,8 @@
 import { defineEffectCase, INPUT_FRAMES, MOTION_FRAMES } from '../../src/testing/effectCase.js';
 
 /**
- * Vortex at 50%. Over a 4 s loop one wave breathes the twist. The swirl centre follows the pointer through
+ * Vortex at 50%. Over a 4 s loop one wave breathes the twist (75% at t = 0.25, 25% at t = 0.75; t = 0 and t = 0.5
+ * sit at the authored 50%, so their goldens match). The swirl centre follows the pointer through
  * `uCenter`, and hovering twists harder, so the pointer frames hover at the centre and in the bottom-right corner.
  * With the pointer resting at the centre and no hover, the pointer bindings leave the authored still unchanged.
  */
