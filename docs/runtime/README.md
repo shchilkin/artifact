@@ -202,6 +202,22 @@ position and bakes a layer with another active effect between the two editor sta
 Canvas 2D effects, or a GPU filter up to `hueShift`), because the runtime draws both stages back to back. GPU time of
 both stages at 540px: 0.07 ms (Chrome, Apple M5 Max).
 
+Ripple (`ripple`, `packages/runtime/src/effects/ripple.ts`) ports the editor's CPU remap (`applyRipple` in
+`effectPixelTransform.ts`, among the Canvas 2D effects after split tone): each pixel is copied from
+`round(c + (dist + shift) × heading)`, clamped, where `c` is the frame centre, `dist` and `heading` the pixel's polar
+offset from it, `shift = sin(2π × dist × rippleFreq / maxDist) × rippleAmt × W / 540 × 0.5` and `maxDist` the half
+diagonal. `RIPPLE_FRAG` does the same with whole pixels, texel-centre samples and the render size from `inputClamp`,
+and takes the sine of the fractional ring count to keep float error small. Parity at 540px: at most 0.003% of pixels
+over 8 levels (single pixels on a rounding boundary), mean difference 0.006 or less, in Chromium, Firefox and WebKit
+on macOS; mirrored rings or truncated sampling fail it (the harness self-test).
+
+Two runtime-only fields leave the still unchanged at their defaults. `ripplePhase` (turns, default 0) moves the rings
+outward, one wavelength per turn, so a step track adding whole turns per loop closes it. `rippleClick` (bind the
+`click` impulse to it, unsmoothed) adds a ring packet around `uClickCenter` (bind `click.x/y`, default the centre):
+the shader reads the click's age from the impulse (`age = −0.5 s × ln click`, the pointer model's decay), puts the
+packet's front `1.5 × age` half diagonals from the click, and scales the authored peak shift by the impulse, so the
+ring travels out and fades. GPU time at 540px: 0.12 ms (Chromium, Apple M5 Max).
+
 ### Export
 
 `/dev/runtime` has a "Live package export" panel (development builds only): the sample cover or an opened
