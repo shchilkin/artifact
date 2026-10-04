@@ -1,5 +1,6 @@
 import type { EffectCase } from '../../src/testing/effectCase.js';
 import ca from './ca.js';
+import dataMosh from './dataMosh.js';
 import grain from './grain.js';
 import morph from './morph.js';
 import noiseWarp from './noiseWarp.js';
@@ -12,4 +13,5 @@ export const EFFECT_CASES: Readonly<Record<string, EffectCase>> = {
   grain,
   morph,
   ca,
+  dataMosh,
 };
