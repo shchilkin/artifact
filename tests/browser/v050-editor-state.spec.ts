@@ -447,7 +447,7 @@ test('Nodes shows progress while node previews render and clears when they settl
 
   // Record every change of the Nodes signal from the moment the bar mounts, plus any layout shift.
   await page.evaluate(() => {
-    const record = { values: [] as string[], shift: 0 };
+    const record = { values: [] as string[], shifts: [] as Array<{ time: number; value: number }>, editFrom: 0 };
     Object.defineProperty(window, '__nodeProgress', { value: record });
     new MutationObserver((mutations) => {
       for (const mutation of mutations) {
@@ -463,34 +463,46 @@ test('Nodes shows progress while node previews render and clears when they settl
   await expect(bar).toHaveAttribute('data-preview-pending', 'false', { timeout: 20_000 });
   await expect(bar).toHaveCSS('opacity', '0');
 
-  // An edit re-renders the affected node previews, Output included.
+  // Layout shift is summed per phase, including shifts that follow input (as in the editor UX baseline):
+  // selecting a node opens the inspector, then the edit renders previews under the progress bar.
+  await page.evaluate(() => {
+    const record = (window as unknown as { __nodeProgress: { shifts: Array<{ time: number; value: number }> } })
+      .__nodeProgress;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as Array<PerformanceEntry & { value: number }>)
+        record.shifts.push({ time: entry.startTime, value: entry.value });
+    }).observe({ type: 'layout-shift' });
+  });
+  // Two frames: the inspector takes its column in one layout step, then nothing moves.
+  const settleFrames = () =>
+    page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+
   await page.locator('.react-flow__node[data-id="progress-scanlines"]').click();
   const slider = page.locator('.node-props-panel input[type="range"]').first();
   await expect(slider).toBeVisible();
-  // Opening the properties panel animates its width; measure only the shift caused by the edit and its progress.
-  await expect
-    .poll(async () => {
-      const before = await page.locator('.node-props-panel').evaluate((panel) => panel.getBoundingClientRect().width);
-      await page.waitForTimeout(100);
-      const after = await page.locator('.node-props-panel').evaluate((panel) => panel.getBoundingClientRect().width);
-      return before === after;
-    })
-    .toBe(true);
+  await settleFrames();
+
+  // An edit re-renders the affected node previews, Output included.
   await page.evaluate(() => {
-    const record = (window as unknown as { __nodeProgress: { shift: number } }).__nodeProgress;
-    new PerformanceObserver((list) => {
-      for (const entry of list.getEntries() as Array<PerformanceEntry & { value: number }>) record.shift += entry.value;
-    }).observe({ type: 'layout-shift' });
+    (window as unknown as { __nodeProgress: { editFrom: number } }).__nodeProgress.editFrom = performance.now();
   });
   await slider.focus();
   await page.keyboard.press('ArrowRight');
   await expect(bar).toHaveAttribute('data-preview-pending', 'false', { timeout: 20_000 });
   await expect(bar).toHaveCSS('opacity', '0');
+  await settleFrames();
 
   const record = await page.evaluate(
-    () => (window as unknown as { __nodeProgress: { values: string[]; shift: number } }).__nodeProgress,
+    () =>
+      (
+        window as unknown as {
+          __nodeProgress: { values: string[]; shifts: Array<{ time: number; value: number }>; editFrom: number };
+        }
+      ).__nodeProgress,
   );
+  const sumShift = (shifts: Array<{ value: number }>) => shifts.reduce((total, shift) => total + shift.value, 0);
   expect(record.values.filter((value) => value === 'true').length).toBeGreaterThanOrEqual(2);
   expect(record.values.at(-1)).toBe('false');
-  expect(record.shift).toBeLessThanOrEqual(0.05);
+  expect(sumShift(record.shifts.filter((shift) => shift.time < record.editFrom))).toBeLessThanOrEqual(0.05);
+  expect(sumShift(record.shifts.filter((shift) => shift.time >= record.editFrom))).toBeLessThanOrEqual(0.05);
 });
