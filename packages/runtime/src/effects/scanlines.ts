@@ -17,7 +17,7 @@ export interface ScanlinesLayer {
  * - the gap below it is `max(1, round(scale))` pixels;
  * - the first line starts at the top row, so lines repeat every `line + gap` pixels from `y = 0`.
  *
- * The port computes the same line and gap in output pixels (`uOutputSize`, set by the chain) and covers each pixel
+ * The port computes the same line and gap in output pixels (the render size, read from `inputClamp`) and covers each pixel
  * row by the share of it the lines overlap. At rest every row lies wholly in a line or in a gap, so the rows are the
  * editor's. `uOffset` moves the lines down in line periods (line + gap). The default 0 keeps the editor's still, and
  * whole periods give the same frame, so a crawl that moves whole periods per loop closes. Fractional offsets cover
@@ -34,7 +34,6 @@ export interface ScanlinesLayer {
 export const SCANLINES_FRAG = `${HEADER}
 // Row coverage over a whole frame and byte rounding need more than mediump's 10-bit mantissa.
 precision highp float;
-uniform vec2 uOutputSize;
 uniform float uAlpha;
 uniform float uLineWidth;
 uniform float uOffset;
@@ -47,14 +46,16 @@ float lineRows(float y, float lineH, float period) {
 
 void main() {
   vec4 backdrop = texture2D(uSampler, vTextureCoord);
+  // The render size, from inputClamp, which the chain insets by half a texel (as Radial CA reads it).
+  vec2 size = floor(0.5 / inputClamp.xy + 0.5);
   // JavaScript's Math.round is floor(x + 0.5) for these positive values.
-  float scale = uOutputSize.x / 540.0;
+  float scale = size.x / 540.0;
   float lineH = max(1.0, floor(uLineWidth * scale + 0.5));
   float gap = max(1.0, floor(scale + 0.5));
   float period = lineH + gap;
 
   // This pixel's rows from the top, shifted back by the offset and wrapped into one period.
-  float top = vTextureCoord.y * uOutputSize.y - 0.5 - fract(uOffset) * period;
+  float top = vTextureCoord.y * size.y - 0.5 - fract(uOffset) * period;
   top -= floor(top / period) * period;
   float coverage = clamp(lineRows(top + 1.0, lineH, period) - lineRows(top, lineH, period), 0.0, 1.0);
 

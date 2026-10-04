@@ -64,9 +64,6 @@ Pixi conventions the chain matches:
   pass to the canvas flips. `UNPACK_FLIP_Y` would mirror every effect vertically against the editor.
 - `inputClamp` is the input's extent inset by half a texel, as Pixi sets it. With `(0, 0, 1, 1)`, about 1% of a 540px
   Noise Warp (hard edges) differs from the editor by more than 8 levels; with the inset the outputs match.
-- `uOutputSize` (`vec2`, pixels) is the render size, set on every pass that declares it. Ports of the editor's Canvas
-  2D effects that work in output pixels (`scale = W / 540`, as Scanlines does) read it, so they draw what the editor
-  draws at that size.
 
 `tests/browser/runtime-chain.spec.ts` imports the runtime source from the dev server (`/@fs/`), so no test route
 ships in the app.
@@ -171,16 +168,18 @@ one still plate in the exact split: Tear, Scanlines and Chrom. Ab. sit above the
 approximate split gives a base plate, a Noise Warp + Vortex chain and an image/text plate, with about 24% of pixels
 more than 8 levels off at rest, since the scanlines and colour fringes are warped instead of lying on top.
 These numbers predate Grain's registration (#338); Grain now runs live wherever it sits in a live run, as it does
-in the sample cover's chain. With Scanlines registered (#342) the exact split is still one still plate (Chrom. Ab. is
-on top). The approximate split moves Tear and Chrom. Ab. beneath the run and gives a base plate, a Grain + Noise Warp +
-Vortex + Scanlines chain and the image/text plate. The scanlines now lie on top of the warp as in the editor; the
-resting frame measures mean 0.28, std dev 0.14 and histogram distance 0.010 against the editor (statistics, as Grain
-is live), in Chromium on macOS.
+in the sample cover's chain.
 
 With Radial CA registered (#337) and Tear and Scanlines not yet, the exact split is a base plate (fill through
 Scanlines), a one-pass `ca` chain and the image/text plate; its resting frame matches the editor with 0.000% of pixels
 over 8 levels (mean 0.004). The approximate split runs Grain, Noise Warp, Vortex and CA live over a base plate with
 Glitch, Tear and Scanlines moved beneath them.
+
+With Scanlines registered as well (#342), the exact split is a base plate (fill through Tear), a Scanlines + CA chain
+and the image/text plate; its resting frame measures 0.000% of pixels over 8 levels (mean 0.03, worst channel 3) in
+Chromium on macOS. Tear is now the only barrier above the live Grain, Noise Warp and Vortex. The approximate split
+moves Tear beneath the run and plays Grain, Noise Warp, Vortex, Scanlines and CA live (statistics:
+mean 0.38, std dev 0.23, histogram distance 0.010).
 
 Radial CA is the editor colour pass's third step (sepia, infrared, CA, dither: `applyColorPass` in
 `render/workers/effectPixelTransform.ts`), which `EDITOR_EFFECT_ORDER` follows. Its port (`CA_FRAG` in

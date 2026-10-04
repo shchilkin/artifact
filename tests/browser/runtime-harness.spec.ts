@@ -26,7 +26,7 @@ const BROKEN_NOISE_WARP = { search: 'vec2(ox, oy)', replace: 'vec2(oy, ox)' };
 /** Grain at half the editor's strength: the same noise shape, too faint. */
 const FAINT_GRAIN = { search: 'uGrain * 3.0', replace: 'uGrain * 1.5' };
 /** Scanlines one row lower than the editor's, which start at the top row. */
-const SHIFTED_SCANLINES = { search: '* uOutputSize.y - 0.5 -', replace: '* uOutputSize.y - 1.5 -' };
+const SHIFTED_SCANLINES = { search: '* size.y - 0.5 -', replace: '* size.y - 1.5 -' };
 
 async function openHarness(page: Page) {
   await setupBrowserTestPage(page);

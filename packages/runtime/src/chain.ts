@@ -190,8 +190,6 @@ export function createCompositeRenderer(
         setUniform(gl, uniforms, 'uSampler', 0, true);
         setUniform(gl, uniforms, 'inputClamp', clamp);
         setUniform(gl, uniforms, 'uFlipY', output === null ? -1 : 1);
-        // The render size in pixels, for fragments that work in output pixels as the editor's Canvas 2D effects do.
-        setUniform(gl, uniforms, 'uOutputSize', [width, height]);
         if (step.kind === 'pass') {
           setUniforms(gl, uniforms, step.pass.uniforms);
           const override = overrides?.[index];
