@@ -1,3 +1,4 @@
+import type { PlateMotion } from './bindings.js';
 import { type CompositeRenderer, type CompositeStep, createCompositeRenderer } from './chain.js';
 import { effectRegistry as defaultRegistry } from './effects/index.js';
 import {
@@ -9,7 +10,14 @@ import {
   shouldAnimate,
   transition,
 } from './lifecycle.js';
-import { effectContext, type LivePackage, livePackageComposite, livePackagePasses } from './livePackage.js';
+import {
+  effectContext,
+  type LivePackage,
+  livePackageComposite,
+  livePackagePasses,
+  livePackagePlates,
+} from './livePackage.js';
+import { plateUniforms } from './plates.js';
 import type { EffectRegistry } from './registry.js';
 import { computeRenderSize, DEFAULT_MAX_DEVICE_PIXEL_RATIO, DEFAULT_MAX_RENDER_SIZE } from './sizing.js';
 import type { ArtworkSource, ChainPass, UniformValues } from './types.js';
@@ -80,6 +88,8 @@ export interface PackageArtworkOptions extends ArtworkCommonOptions {
   readonly chain?: readonly ChainPass[];
   /** Overrides indexed by package pass (see `livePackagePasses`). */
   readonly frameUniforms?: FrameUniforms;
+  /** Plate transforms (issue #394): which plates move, and their transforms per frame. */
+  readonly plateMotion?: PlateMotion;
 }
 
 export type ArtworkOptions = ChainArtworkOptions | PackageArtworkOptions;
@@ -156,14 +166,15 @@ export function createArtwork(options: ArtworkOptions): Artwork {
   const currentTime = () => (frameHandle === null ? elapsed : elapsed + (scheduler.now() - resumedAt) / 1000);
 
   const draw = (time: number) => {
-    const overrides = drawing.frameUniforms?.({
-      time,
-      clock: scheduler.now(),
-      frame: frames,
-      inputs,
-      reducedMotion: lifecycle.reducedMotion,
-    });
-    renderer.render(overrides && drawing.toSteps(overrides));
+    renderer.render(
+      drawing.overrides({
+        time,
+        clock: scheduler.now(),
+        frame: frames,
+        inputs,
+        reducedMotion: lifecycle.reducedMotion,
+      }),
+    );
     frames += 1;
   };
 
@@ -261,9 +272,8 @@ export function createArtwork(options: ArtworkOptions): Artwork {
 interface ArtworkDrawing {
   readonly plates: readonly ArtworkSource[];
   readonly steps: readonly CompositeStep[];
-  readonly frameUniforms?: FrameUniforms;
-  /** Maps per-pass overrides onto composite steps. */
-  toSteps(overrides: readonly (UniformValues | undefined)[]): readonly (UniformValues | undefined)[];
+  /** Per-step uniform overrides for a frame: bound passes and moving plates. */
+  overrides(frame: FrameState): readonly (UniformValues | undefined)[] | undefined;
 }
 
 function artworkDrawing(options: ArtworkOptions): ArtworkDrawing {
@@ -271,8 +281,7 @@ function artworkDrawing(options: ArtworkOptions): ArtworkDrawing {
     return {
       plates: [options.source],
       steps: options.chain.map((pass) => ({ kind: 'pass', pass })),
-      frameUniforms: options.frameUniforms,
-      toSteps: (overrides) => overrides,
+      overrides: (frame) => options.frameUniforms?.(frame),
     };
   }
   const { livePackage } = options;
@@ -288,16 +297,29 @@ function artworkDrawing(options: ArtworkOptions): ArtworkDrawing {
   if (chain.length !== passes.length) {
     throw new Error(`The package has ${passes.length} passes but the chain has ${chain.length}.`);
   }
-  const composite = livePackageComposite(livePackage, chain);
+  const motion = options.plateMotion;
+  const composite = livePackageComposite(livePackage, chain, motion?.moving);
+  const plates = livePackagePlates(livePackage.manifest);
+  const { width, height } = livePackage.manifest.size;
   return {
     plates: composite.plates,
     steps: composite.steps,
-    frameUniforms: options.frameUniforms,
-    toSteps(overrides) {
+    overrides(frame) {
+      const passes = options.frameUniforms?.(frame);
+      const transforms = motion?.transforms(frame);
+      if (!passes && !transforms) return undefined;
       const byStep: (UniformValues | undefined)[] = new Array(composite.steps.length);
-      composite.passSteps.forEach((step, pass) => {
-        byStep[step] = overrides[pass];
-      });
+      if (passes) {
+        composite.passSteps.forEach((step, pass) => {
+          byStep[step] = passes[pass];
+        });
+      }
+      if (transforms) {
+        composite.plateSteps.forEach((step, plate) => {
+          const transform = transforms[plate];
+          if (step >= 0 && transform) byStep[step] = plateUniforms(transform, plates[plate], width, height);
+        });
+      }
       return byStep;
     },
   };

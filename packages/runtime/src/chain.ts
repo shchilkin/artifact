@@ -1,4 +1,13 @@
-import { COPY_FRAGMENT, inputClamp, OVER_FRAGMENT, PASS_VERTEX, UNDER_FRAGMENT } from './shaders.js';
+import { NEUTRAL_PLATE_UNIFORMS } from './plates.js';
+import {
+  COPY_FRAGMENT,
+  inputClamp,
+  OVER_FRAGMENT,
+  PASS_VERTEX,
+  TRANSFORM_OVER_FRAGMENT,
+  TRANSFORM_PLACE_FRAGMENT,
+  UNDER_FRAGMENT,
+} from './shaders.js';
 import type { ArtworkSource, ChainPass, UniformValue, UniformValues } from './types.js';
 
 const POSITION_ATTRIBUTE = 0;
@@ -38,18 +47,22 @@ export interface ChainRenderer {
 /**
  * One draw of a composite (see `createCompositeRenderer`): an effect pass over the image so far, or a plate
  * composited over (`over`) or beneath (`under`) it with premultiplied alpha, as Canvas 2D `source-over` and
- * `destination-over` do.
+ * `destination-over` do. A `transform` plate step moves its plate (issue #394): it reads `uPlateMatrix`,
+ * `uPlateOffset` and `uPlateOpacity` from the step's overrides, neutral when there are none. `place` draws a moving
+ * bottom plate (plate 0) as the composite's first image.
  */
 export type CompositeStep =
   | { readonly kind: 'pass'; readonly pass: ChainPass }
-  | { readonly kind: 'over' | 'under'; readonly plate: number };
+  | { readonly kind: 'under'; readonly plate: number }
+  | { readonly kind: 'over'; readonly plate: number; readonly transform?: boolean }
+  | { readonly kind: 'place'; readonly plate: 0 };
 
 /** A chain renderer over several source images ("plates"); plate 0 is the image the first step reads. */
 export interface CompositeRenderer {
   setSize(width: number, height: number): void;
   /** Uploads plate `index`'s pixels. */
   setPlate(index: number, source: ArtworkSource): void;
-  /** Draws every step. `overrides[i]` is merged over step `i`'s resting uniforms (pass steps only). */
+  /** Draws every step. `overrides[i]` is merged over step `i`'s resting uniforms (passes and moving plates). */
   render(overrides?: readonly (UniformValues | undefined)[]): void;
   destroy(): void;
 }
@@ -81,11 +94,15 @@ export function createCompositeRenderer(
   plateCount: number,
 ): CompositeRenderer {
   if (!(plateCount >= 1)) throw new Error('A composite needs at least one plate.');
-  for (const step of steps) {
+  steps.forEach((step, index) => {
+    if (step.kind === 'place') {
+      if (index !== 0 || step.plate !== 0) throw new Error('Only the first step can place plate 0.');
+      return;
+    }
     if (step.kind !== 'pass' && !(Number.isInteger(step.plate) && step.plate >= 1 && step.plate < plateCount)) {
       throw new Error(`Composite step reads plate ${step.plate}; plates 1 to ${plateCount - 1} can be composited.`);
     }
-  }
+  });
   const created = {
     buffers: [] as WebGLBuffer[],
     vertexArrays: [] as WebGLVertexArrayObject[],
@@ -106,12 +123,10 @@ export function createCompositeRenderer(
   };
   const drawSteps: readonly CompositeStep[] =
     steps.length > 0 ? steps : [{ kind: 'pass', pass: { id: 'copy', fragment: COPY_FRAGMENT, uniforms: {} } }];
+  const moving = drawSteps.map((step) => step.kind === 'place' || (step.kind === 'over' && step.transform === true));
   // One draw per fragment: a pass with stages draws each of them in turn, with the pass's uniforms and override.
   const draws = drawSteps.flatMap((step, stepIndex) => {
-    const fragments =
-      step.kind === 'pass'
-        ? [step.pass.fragment, ...(step.pass.stages ?? [])]
-        : [step.kind === 'over' ? OVER_FRAGMENT : UNDER_FRAGMENT];
+    const fragments = step.kind === 'pass' ? [step.pass.fragment, ...(step.pass.stages ?? [])] : [stepFragment(step)];
     return fragments.map((fragment) => ({ step, stepIndex, compiled: programFor(fragment) }));
   });
 
@@ -195,11 +210,10 @@ export function createCompositeRenderer(
         setUniform(gl, uniforms, 'uSampler', 0, true);
         setUniform(gl, uniforms, 'inputClamp', clamp);
         setUniform(gl, uniforms, 'uFlipY', output === null ? -1 : 1);
-        if (step.kind === 'pass') {
-          setUniforms(gl, uniforms, step.pass.uniforms);
-          const override = overrides?.[stepIndex];
-          if (override) setUniforms(gl, uniforms, override);
-        }
+        if (step.kind === 'pass') setUniforms(gl, uniforms, step.pass.uniforms);
+        else if (moving[stepIndex]) setUniforms(gl, uniforms, NEUTRAL_PLATE_UNIFORMS);
+        const override = step.kind === 'pass' || moving[stepIndex] ? overrides?.[stepIndex] : undefined;
+        if (override) setUniforms(gl, uniforms, override);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       }
       gl.activeTexture(gl.TEXTURE0 + PLATE_UNIT);
@@ -227,6 +241,19 @@ export function createCompositeRenderer(
       programsBySource.clear();
     },
   };
+}
+
+function stepFragment(step: CompositeStep): string {
+  switch (step.kind) {
+    case 'pass':
+      return step.pass.fragment;
+    case 'place':
+      return TRANSFORM_PLACE_FRAGMENT;
+    case 'over':
+      return step.transform ? TRANSFORM_OVER_FRAGMENT : OVER_FRAGMENT;
+    case 'under':
+      return UNDER_FRAGMENT;
+  }
 }
 
 function createTexture(gl: WebGL2RenderingContext): WebGLTexture {

@@ -1,6 +1,7 @@
 import { BindingError, type BindingsDocument, compileLiveChain, type LivePass } from './bindings.js';
 import type { CompositeStep } from './chain.js';
 import { effectRegistry as defaultRegistry } from './effects/index.js';
+import { PLATE_EDGES, type PlateEdge, type PlateInfo, plateInfos } from './plates.js';
 import type { EffectContext, EffectRegistry } from './registry.js';
 import type { ArtworkSource, ChainPass } from './types.js';
 
@@ -29,6 +30,17 @@ export interface PlateItem {
   readonly file: string;
   /** The layers drawn into this plate, bottom first. */
   readonly layers: readonly LayerRef[];
+  /**
+   * How far the plate is from the back, for `parallax` bindings: 0 stays put, 1 takes the binding's full value.
+   * Default `(index + 1) / plates` by stack order, so top plates are nearer.
+   */
+  readonly depth?: number;
+  /**
+   * Sides of the frame the plate has pixels on (`top`, `right`, `bottom`, `left`). When the plate moves, the runtime
+   * scales it just enough to keep those sides beyond the frame, so its cut edge never shows. Default: every side; the
+   * exporter measures them, and writes `[]` for a plate with a transparent border, which moves freely.
+   */
+  readonly edges?: readonly PlateEdge[];
 }
 
 /** One runtime effect of a chain: an authored effect layer's values for one registered effect. */
@@ -178,6 +190,7 @@ export function parseLivePackage(value: unknown, options: ParseLivePackageOption
     try {
       compileLiveChain({
         passes,
+        plates: livePackagePlates(value as unknown as LivePackageManifest),
         context: effectContext(value as unknown as LivePackageManifest),
         bindings: value.bindings,
         registry,
@@ -193,8 +206,20 @@ export function parseLivePackage(value: unknown, options: ParseLivePackageOption
 }
 
 function checkPlate(item: Record<string, unknown>, path: string, fail: (path: string, message: string) => void) {
-  unknownKeys(item, ['type', 'file', 'layers'], `${path}.`, fail);
+  unknownKeys(item, ['type', 'file', 'layers', 'depth', 'edges'], `${path}.`, fail);
   checkPath(item.file, `${path}.file`, fail);
+  if (item.depth !== undefined && !(typeof item.depth === 'number' && Number.isFinite(item.depth) && item.depth >= 0)) {
+    fail(`${path}.depth`, `must be a number ≥ 0 (0 stays put, 1 is the nearest), got ${describe(item.depth)}`);
+  }
+  if (item.edges !== undefined) {
+    const edges = item.edges;
+    const valid =
+      Array.isArray(edges) &&
+      edges.every((edge) => (PLATE_EDGES as readonly unknown[]).includes(edge)) &&
+      new Set(edges).size === edges.length;
+    if (!valid)
+      fail(`${path}.edges`, `must list sides once each from ${PLATE_EDGES.join(', ')}, got ${describe(edges)}`);
+  }
   if (!Array.isArray(item.layers)) return fail(`${path}.layers`, 'must be an array of { "id", "name" }');
   item.layers.forEach((layer, index) => checkLayerRef(layer, `${path}.layers[${index}]`, fail));
 }
@@ -266,6 +291,11 @@ export function livePackagePasses(manifest: LivePackageManifest): PackagePass[] 
   return manifest.stack.flatMap((item) => (item.type === 'chain' ? item.passes : []));
 }
 
+/** Every plate, bottom first, with its parallax depth and edges (defaults filled in). Bindings index these. */
+export function livePackagePlates(manifest: LivePackageManifest): readonly PlateInfo[] {
+  return plateInfos(manifest.stack.flatMap((item) => (item.type === 'plate' ? [item] : [])));
+}
+
 /** Image paths the manifest reads: the plates in stack order, the background, and the still. */
 export function livePackageFiles(manifest: LivePackageManifest): string[] {
   const plates = manifest.stack.flatMap((item) => (item.type === 'plate' ? [item.file] : []));
@@ -279,16 +309,26 @@ export function effectContext(manifest: LivePackageManifest): EffectContext {
 
 /**
  * How the runtime draws a package: its plates as composite sources (plate 0 is the bottom), and one step per
- * pass or later plate. `passSteps[i]` is the step index of the package's pass `i`, for per-frame overrides.
+ * pass or later plate. `passSteps[i]` is the step index of the package's pass `i`, and `plateSteps[i]` the step of
+ * moving plate `i` (`-1` for a plate that does not move), for per-frame overrides.
  */
 export interface LivePackageComposite {
   readonly plates: readonly ArtworkSource[];
   readonly steps: readonly CompositeStep[];
   readonly passSteps: readonly number[];
+  readonly plateSteps: readonly number[];
 }
 
-/** Lays a package out for `createCompositeRenderer`. Pass steps carry the given resting passes, in package order. */
-export function livePackageComposite(pkg: LivePackage, passes: readonly ChainPass[]): LivePackageComposite {
+/**
+ * Lays a package out for `createCompositeRenderer`. Pass steps carry the given resting passes, in package order.
+ * `moving` lists the plates that get a transform step; a moving bottom plate is placed by the first step, so the
+ * chain above it runs on the moved plate.
+ */
+export function livePackageComposite(
+  pkg: LivePackage,
+  passes: readonly ChainPass[],
+  moving: readonly number[] = [],
+): LivePackageComposite {
   const { manifest, images } = pkg;
   const image = (file: string) => {
     const source = images[file];
@@ -298,10 +338,15 @@ export function livePackageComposite(pkg: LivePackage, passes: readonly ChainPas
   const plates: ArtworkSource[] = [];
   const steps: CompositeStep[] = [];
   const passSteps: number[] = [];
+  const plateSteps: number[] = [];
   for (const item of manifest.stack) {
     if (item.type === 'plate') {
+      const plate = plates.length;
       plates.push(image(item.file));
-      if (plates.length > 1) steps.push({ kind: 'over', plate: plates.length - 1 });
+      const transform = moving.includes(plate);
+      plateSteps.push(transform ? steps.length : -1);
+      if (plate === 0 && transform) steps.push({ kind: 'place', plate: 0 });
+      else if (plate > 0) steps.push({ kind: 'over', plate, ...(transform ? { transform } : {}) });
       continue;
     }
     for (let index = 0; index < item.passes.length; index += 1) {
@@ -315,7 +360,7 @@ export function livePackageComposite(pkg: LivePackage, passes: readonly ChainPas
     plates.push(image(manifest.background));
     steps.push({ kind: 'under', plate: plates.length - 1 });
   }
-  return { plates, steps, passSteps };
+  return { plates, steps, passSteps, plateSteps };
 }
 
 export interface LoadLivePackageOptions {

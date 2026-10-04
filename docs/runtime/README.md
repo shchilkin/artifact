@@ -213,6 +213,75 @@ round-trips it through the zip, and checks the resting frame against `renderDocu
 tolerance (statistics when a live pass is stochastic). `LIVE_PACKAGE_PROJECT=/path/to/cover.artifact` adds a
 manual run on a real project in both split modes.
 
+## Plate transforms and parallax (issue #394)
+
+Plates move as whole layers. A transform has `x` and `y` (fractions of the frame's width and height, positive right
+and down), `scale` (a factor about the frame's centre), `rotation` (degrees, clockwise on screen) and `opacity` (0–1,
+times the plate's alpha); neutral is `0, 0, 1, 0, 1`. Bindings drive them with two more targets:
+
+```json
+{
+  "version": 1,
+  "loop": { "durationSeconds": 4 },
+  "bindings": [
+    { "from": { "input": "pointer.x" }, "to": { "parallax": "x" }, "range": [-0.04, 0.04] },
+    { "from": { "input": "pointer.y" }, "to": { "parallax": "y" }, "range": [-0.04, 0.04] },
+    { "from": { "track": "wave", "phase": 0.75 }, "to": { "parallax": "scale" }, "range": [0, 0.02] },
+    { "from": { "input": "hover" }, "to": { "plate": 1, "transform": "opacity" }, "range": [1, 0.6] }
+  ]
+}
+```
+
+- `{ "plate": n, "transform": … }` drives one plate; `n` counts the package's plates bottom up (the background is not
+  one). Bindings on one plate apply in order with `set`/`add`, as for passes.
+- `{ "parallax": "x" | "y" | "scale" | "rotation" }` drives every plate at once: each plate gets the binding's value
+  times its `depth`, added after its own bindings (`scale` adds to the factor). One binding gives near plates more
+  movement than far ones.
+- `pointer.x/y` → offset, `scroll` → offset, and a wave → a subtle breathing scale. A wave with `phase: 0.75` starts
+  at its trough, so mapped onto `[0, b]` it is neutral at `t = 0` and the resting frame stays the still.
+- Plate and parallax targets are checked against the package's plates, with paths
+  (`bindings[0].to.plate: there is no plate 2; the package has 2 (0 is the bottom)`); a chain artwork without a
+  package has no plates and rejects them.
+
+Each plate in the manifest may say:
+
+- `depth` (≥ 0): 0 stays put, 1 takes a parallax binding's full value. The exporter writes `(index + 1) / plates` by
+  stack order, so the top plate is nearest (the Вайбер cover: base plate 0.5, images and text 1); the runtime uses
+  the same default when a package has none.
+- `edges`: the sides of the frame the plate has pixels on, measured by the exporter on the rendered plate (`[]` for a
+  plate with a transparent border). Default: all four.
+
+**Edges: dynamic scale-to-cover, not padding.** Padding would need the editor to render each plate beyond the frame,
+and layer positions, emoji scatter and effects are laid out for the frame, so a padded render would not match the
+still. Instead, each frame the runtime scales a moving plate about the frame's centre by the smallest factor that keeps
+its `edges` sides at or beyond the frame for the current offset and rotation (`coverScale` in `plates.ts`): `1 + 2|x|`
+for a plate with pixels on every side, less when the move takes those sides outward, nothing for a plate with a
+transparent border. A neutral transform needs no scaling, so the resting frame is untouched, and a breathing scale
+below 1 is clamped at the cover scale. Outside a plate the shaders return transparent rather than clamping, so a
+plate never smears its edge pixels.
+
+**GPU path.** Plates no binding moves are composited exactly as before. A moving plate draws with
+`TRANSFORM_OVER_FRAGMENT`, which samples the plate through the inverse transform (`uPlateMatrix`, `uPlateOffset`,
+`uPlateOpacity`, computed per frame by `plateUniforms`); a moving bottom plate is placed by a first
+`TRANSFORM_PLACE_FRAGMENT` step, so the chain above it runs on the moved plate. One extra draw at most, no readback.
+At rest the transform is the identity and the frame is byte-identical to the still in Chromium (`runtime-plates.spec.ts`).
+
+**Tests.** `packages/runtime/src/testing/plateCase.ts` builds a two-plate fixture package from the harness images:
+the photo (every edge) under a Noise Warp chain, the graphic as a card on a transparent plate, and a magenta
+background so an uncovered edge shows. `tests/browser/runtime-plates.spec.ts` checks:
+
+- the resting frame with parallax, breathing and tilt bindings against the still package (identical);
+- goldens for the pointer at the centre and each corner, and a breath at `t = 0, 0.25, 0.5, 0.75`, in
+  `runtime-plates.spec.ts-snapshots/plates/` (recorded as the effect goldens are);
+- no border pixel that is the background or not opaque, at every pointer corner at 8% strength, the top of a 3%
+  breath and a 4° tilt, with both plates at depth 1; and, as its self-test, that the same check fails when the
+  photo lists no edges.
+
+`runtime-live-package.spec.ts` exports the sample cover with parallax bindings and checks the depths and edges it
+writes and the resting frame against the editor; the `LIVE_PACKAGE_PROJECT` run also exports the project with
+parallax and attaches frames at rest, in two pointer corners and at the top of a breath. The catalogue's "Plate
+parallax" entry plays the fixture with strength, depth, breathing and tilt controls.
+
 ## Verification: one effect at a time
 
 Every effect issue lands with visual tests in the shared harness (issue: parity harness):

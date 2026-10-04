@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, type Page, type TestInfo, test } from '@playwright/test';
 import type { ParityComparison } from '../../packages/runtime/src/testing/parity';
+import { PLATE_CASE_LOOP_SECONDS, plateCaseBindings } from '../../packages/runtime/src/testing/plateCase';
 import { expectNoBrowserIssues, setupBrowserTestPage } from './helpers';
 import type * as LivePage from './runtime/livePackagePage';
 
@@ -70,6 +71,26 @@ test('the sample cover exports plates and a live chain that match the editor at 
   expect(result.comparison.pass, describeComparison(result.comparison)).toBe(true);
 });
 
+test('with parallax bindings, the sample cover writes plate depths and still matches the editor at rest', async ({
+  page,
+}, testInfo) => {
+  const result = await sampleCover(page, { size: 540, bindings: plateCaseBindings({ tilt: 2 }) });
+  await attach(testInfo, 'sample-parallax', result);
+  const plates = result.manifest.stack.flatMap((item) => (item.type === 'plate' ? [item] : []));
+  // By stack order, top plates nearer; the fill reaches every side of the frame, the image and title none.
+  expect(plates.map((plate) => plate.depth)).toEqual([0.5, 1]);
+  expect(plates.map((plate) => plate.edges)).toEqual([['top', 'right', 'bottom', 'left'], []]);
+  expect(result.comparison.pass, describeComparison(result.comparison)).toBe(true);
+});
+
+/** Frames recorded for a parallax run on a real cover: rest, the pointer in two corners, and the top of a breath. */
+const PARALLAX_FRAMES = [
+  { name: 'rest', seconds: 0 },
+  { name: 'pointer-top-left', seconds: 0, input: { 'pointer.x': 0, 'pointer.y': 0 } },
+  { name: 'pointer-bottom-right', seconds: 0, input: { 'pointer.x': 1, 'pointer.y': 1 } },
+  { name: 'breath-top', seconds: PLATE_CASE_LOOP_SECONDS / 2 },
+];
+
 test('an .artifact project from LIVE_PACKAGE_PROJECT exports and plays (manual check)', async ({ page }, testInfo) => {
   test.skip(!PROJECT, 'set LIVE_PACKAGE_PROJECT=/path/to/cover.artifact');
   test.setTimeout(120_000);
@@ -100,4 +121,26 @@ test('an .artifact project from LIVE_PACKAGE_PROJECT exports and plays (manual c
     );
     if (!approximate) expect(result.comparison.pass, describeComparison(result.comparison)).toBe(true);
   }
+
+  // Parallax: plates nearer the top of the stack (images, text) move more than the base plate.
+  const parallax = await page.evaluate(
+    async ([url, text, request]) =>
+      ((await import(/* @vite-ignore */ url)) as typeof LivePage).projectCover(text, request),
+    [PAGE_MODULE, text, { size: 540, bindings: plateCaseBindings(), frames: PARALLAX_FRAMES }] as const,
+  );
+  await attach(testInfo, 'project-parallax', parallax);
+  console.log(`[live package] project-parallax at rest: ${describeComparison(parallax.comparison)}`);
+  console.log(
+    JSON.stringify(
+      parallax.manifest.stack.flatMap((item) =>
+        item.type === 'plate' ? [{ plate: item.layers.map((l) => l.name), depth: item.depth, edges: item.edges }] : [],
+      ),
+    ),
+  );
+  for (const frame of parallax.frames) {
+    const path = testInfo.outputPath(`project-parallax-${frame.name}.png`);
+    writeFileSync(path, Buffer.from(frame.png.slice(frame.png.indexOf(',') + 1), 'base64'));
+    await testInfo.attach(`project-parallax-${frame.name}.png`, { path, contentType: 'image/png' });
+  }
+  expect(parallax.comparison.pass, describeComparison(parallax.comparison)).toBe(true);
 });

@@ -1,5 +1,6 @@
 import { createArtwork } from '../../../../../../packages/runtime/src/artwork';
 import { effectRegistry } from '../../../../../../packages/runtime/src/effects/index';
+import { createLiveArtwork } from '../../../../../../packages/runtime/src/liveArtwork';
 import { type LivePackage, livePackagePasses } from '../../../../../../packages/runtime/src/livePackage';
 import {
   compareParity,
@@ -17,6 +18,14 @@ export interface PackageParity {
   readonly runtime: RgbaImage;
 }
 
+export interface RestingOptions {
+  /**
+   * Draw through the package's bindings with motion allowed, at t = 0 with every input at rest, instead of as the
+   * reduced-motion still. Plates and passes the bindings move go through their moving steps.
+   */
+  readonly live?: boolean;
+}
+
 /**
  * Compares a package's resting frame with the editor's render of its document, at the package size, with the
  * harness tolerances: pixels, or statistics when a live pass is stochastic.
@@ -25,10 +34,11 @@ export async function measurePackageParity(
   doc: CanvasDocument,
   imageCache: Map<string, HTMLImageElement>,
   livePackage: LivePackage,
+  options: RestingOptions = {},
 ): Promise<PackageParity> {
   const { width, height } = livePackage.manifest.size;
   const editor = readPixels(await renderDocument(doc, width, height, imageCache), width, height);
-  const runtime = readPixels(renderResting(livePackage), width, height);
+  const runtime = readPixels(renderResting(livePackage, options), width, height);
   const stochastic = livePackagePasses(livePackage.manifest).some(
     (pass) => effectRegistry.get(pass.effect)?.stochastic,
   );
@@ -36,20 +46,22 @@ export async function measurePackageParity(
 }
 
 /** The package at rest, drawn once at its own size on a canvas that keeps its pixels. */
-export function renderResting(livePackage: LivePackage): HTMLCanvasElement {
+export function renderResting(livePackage: LivePackage, options: RestingOptions = {}): HTMLCanvasElement {
   const { width, height } = livePackage.manifest.size;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  const artwork = createArtwork({
+  const common = {
     canvas,
     livePackage,
-    reducedMotion: true,
     observeVisibility: null,
     devicePixelRatio: 1,
     maxRenderSize: Math.max(width, height),
     contextAttributes: { preserveDrawingBuffer: true },
-  });
+  };
+  const artwork = options.live
+    ? createLiveArtwork({ ...common, reducedMotion: false, pointer: false })
+    : createArtwork({ ...common, reducedMotion: true });
   const copy = document.createElement('canvas');
   copy.width = width;
   copy.height = height;
