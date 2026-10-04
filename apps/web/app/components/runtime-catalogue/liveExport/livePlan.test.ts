@@ -214,3 +214,42 @@ describe('planLivePackage', () => {
     );
   });
 });
+
+describe('separate plates', () => {
+  it('keeps the default grouping unless asked', () => {
+    const layers = [fill, emoji, warp, image, text];
+    expect(planLivePackage(doc(layers), registry, { separate: [] })).toEqual(planLivePackage(doc(layers), registry));
+  });
+
+  it('draws a chosen source layer into a plate of its own, by id or name, in stack order', () => {
+    const plan = planLivePackage(doc([fill, emoji, warp, image, text, makeFillLayer({ id: 'top' })]), registry, {
+      separate: ['Title', 'emoji'],
+    });
+    expect(shape(plan)).toEqual([
+      { plate: ['fill'] },
+      { plate: ['emoji'] },
+      { chain: ['noiseWarp@warp'] },
+      { plate: ['image'] },
+      { plate: ['text'] },
+      { plate: ['top'] },
+    ]);
+    expect(plan.unseparated).toBeUndefined();
+  });
+
+  it('keeps layers beneath an editor-rendered effect together, and says why', () => {
+    const plan = planLivePackage(doc([fill, emoji, glitch, image, warp, text]), registry, {
+      separate: ['Emojis', 'image', 'Nope', 'Noise Warp'],
+    });
+    expect(shape(plan)).toEqual([
+      { plate: ['fill', 'emoji', 'glitch'] },
+      { plate: ['image'] },
+      { chain: ['noiseWarp@warp'] },
+      { plate: ['text'] },
+    ]);
+    expect(plan.unseparated).toEqual([
+      { key: 'Emojis', reason: '"Glitch" above it is rendered by the editor and needs its pixels' },
+      { key: 'Nope', reason: 'no layer has this id or name' },
+      { key: 'Noise Warp', reason: 'an effect layer is not a plate' },
+    ]);
+  });
+});

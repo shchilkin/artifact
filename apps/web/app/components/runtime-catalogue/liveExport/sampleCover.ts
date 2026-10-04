@@ -1,3 +1,4 @@
+import type { BindingsDocument } from '../../../../../../packages/runtime/src/bindings';
 import {
   type CanvasDocument,
   DEFAULT_EXPORT,
@@ -46,5 +47,29 @@ export function sampleLiveCover(imageSrc: string): CanvasDocument {
       }),
     ],
     export: DEFAULT_EXPORT,
+  };
+}
+
+/** Loop length of `sampleLayerBindings`. */
+export const SAMPLE_LAYER_LOOP_SECONDS = 4;
+
+/**
+ * Bindings for the sample cover that address layers (issue #429), by name and by id: the pointer moves every plate by
+ * its depth and the Vortex centre; a wave sways Noise Warp's amount and breathes the Title's scale. Every binding is
+ * neutral at t = 0 with the pointer centred, so the resting frame is the still. The Title scale moves the Image too
+ * unless the export puts the Title on a plate of its own (`separate: ['Title']`).
+ */
+export function sampleLayerBindings(): BindingsDocument {
+  return {
+    version: 1,
+    loop: { durationSeconds: SAMPLE_LAYER_LOOP_SECONDS },
+    bindings: [
+      { from: { input: 'pointer.x' }, to: { parallax: 'x' }, range: [-0.04, 0.04] },
+      { from: { input: 'pointer.y' }, to: { parallax: 'y' }, range: [-0.04, 0.04] },
+      { from: { input: 'pointer.x' }, to: { layer: 'sample-vortex', uniform: 'uCenter', component: 0 } },
+      { from: { input: 'pointer.y' }, to: { layer: 'sample-vortex', uniform: 'uCenter', component: 1 } },
+      { from: { track: 'wave' }, to: { layer: 'Noise Warp', field: 'noiseWarp' }, range: [-60, 60], mode: 'add' },
+      { from: { track: 'wave', phase: 0.75 }, to: { layer: 'Title', transform: 'scale' }, range: [1, 1.06] },
+    ],
   };
 }

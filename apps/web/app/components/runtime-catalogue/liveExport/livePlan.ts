@@ -120,6 +120,8 @@ export interface LivePlan {
   readonly baked: readonly PlannedBake[];
   /** Set when the whole document is one still plate because it cannot be split. */
   readonly fallback?: string;
+  /** Layers `separate` asked for that could not get their own plate, with why. */
+  readonly unseparated?: readonly { readonly key: string; readonly reason: string }[];
 }
 
 export interface LivePlanOptions {
@@ -129,6 +131,13 @@ export interface LivePlanOptions {
    * layer says so in `baked`. Default `false`: the split is exact.
    */
   readonly approximate?: boolean;
+  /**
+   * Source layers (by id or name) to draw into plates of their own, so bindings can move them independently, for
+   * example the phone image apart from the title. Plates keep the stack order. A layer beneath an effect the editor
+   * renders stays in the bottom plate, since that effect needs its pixels (listed in `unseparated`). Default: none,
+   * every run of source layers is one plate.
+   */
+  readonly separate?: readonly string[];
 }
 
 type Classified =
@@ -174,21 +183,39 @@ export function planLivePackage(
     return stillPlan(order.layers, background, reason, baked);
   }
 
-  const stack: PlannedItem[] = [{ type: 'plate', layers: classified.slice(0, firstLive).map((item) => item.layer) }];
-  for (const item of classified.slice(firstLive)) {
+  // Separate plates: a chosen source layer is a plate of its own. Layers up to the last baked one stay together.
+  const keys = options.separate ?? [];
+  const separated = new Set(
+    order.layers.filter((layer) => keys.includes(layer.id) || keys.includes(layer.name)).map((layer) => layer.id),
+  );
+  const unseparated = keys.flatMap((key) => {
+    const layers = order.layers.filter((layer) => layer.id === key || layer.name === key);
+    if (layers.length === 0) return [{ key, reason: 'no layer has this id or name' }];
+    if (layers.some((layer) => layer.kind === 'effect')) return [{ key, reason: 'an effect layer is not a plate' }];
+    const fixed = classified.slice(0, lastBaked + 1).some((item) => layers.includes(item.layer));
+    return fixed && blocker
+      ? [{ key, reason: `"${blocker.name}" above it is rendered by the editor and needs its pixels` }]
+      : [];
+  });
+  const alone = (layer: Layer) => separated.has(layer.id);
+
+  const stack: PlannedItem[] = [
+    { type: 'plate', layers: classified.slice(0, lastBaked + 1).map((item) => item.layer) },
+  ];
+  for (const item of classified.slice(lastBaked + 1)) {
     const top = stack[stack.length - 1];
     if (item.kind === 'live') {
       const passes = livePasses(item.layer, item.effects, registry);
       if (top.type === 'chain')
         stack[stack.length - 1] = { ...top, layers: [...top.layers, item.layer], passes: [...top.passes, ...passes] };
       else stack.push({ type: 'chain', layers: [item.layer], passes });
-    } else if (top.type === 'plate') {
+    } else if (top.type === 'plate' && (top.layers.length === 0 || !(alone(item.layer) || alone(top.layers.at(-1)!)))) {
       stack[stack.length - 1] = { type: 'plate', layers: [...top.layers, item.layer] };
     } else {
       stack.push({ type: 'plate', layers: [item.layer] });
     }
   }
-  return { stack, background, baked };
+  return { stack, background, baked, ...(unseparated.length > 0 ? { unseparated } : {}) };
 }
 
 function stillPlan(

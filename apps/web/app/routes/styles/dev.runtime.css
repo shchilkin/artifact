@@ -187,3 +187,16 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.runtime-catalogue-layers {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--line-muted);
+  font-size: 13px;
+}
+
+.runtime-catalogue-layers > div > span:first-child {
+  min-width: 10ch;
+}

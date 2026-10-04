@@ -11,6 +11,9 @@ import type * as LivePage from './runtime/livePackagePage';
 test.skip(process.env.PLAYWRIGHT_WEB_SERVER_MODE === 'preview', 'needs the dev server to import the runtime source');
 
 const PAGE_MODULE = `/@fs${fileURLToPath(new URL('./runtime/livePackagePage.ts', import.meta.url))}`;
+/** As in runtime-harness.spec.ts: goldens are recorded in CI's Linux container. */
+const GOLDENS_ENABLED = process.platform === 'linux' || process.env.RUNTIME_GOLDENS === '1';
+const GOLDEN_OPTIONS = { threshold: 0.05, maxDiffPixelRatio: 0.002 };
 /** An `.artifact` project to check by hand, for example the Вайбер cover. */
 const PROJECT = process.env.LIVE_PACKAGE_PROJECT;
 
@@ -81,6 +84,82 @@ test('with parallax bindings, the sample cover writes plate depths and still mat
   expect(plates.map((plate) => plate.depth)).toEqual([0.5, 1]);
   expect(plates.map((plate) => plate.edges)).toEqual([['top', 'right', 'bottom', 'left'], []]);
   expect(result.comparison.pass, describeComparison(result.comparison)).toBe(true);
+});
+
+test('the exporter can put a chosen layer on a plate of its own and still match the editor at rest', async ({
+  page,
+}, testInfo) => {
+  const result = await sampleCover(page, { size: 540, separate: ['Title'] });
+  await attach(testInfo, 'sample-separate', result);
+  const plates = result.manifest.stack.flatMap((item) => (item.type === 'plate' ? [item] : []));
+  expect(result.manifest.stack.map((item) => item.type)).toEqual(['plate', 'chain', 'plate', 'plate']);
+  expect(plates.map((plate) => plate.layers.map((layer) => layer.name))).toEqual([
+    ['Fill', 'Emojis'],
+    ['Image'],
+    ['Title'],
+  ]);
+  // Depth stays by stack order: the Title on top is nearest.
+  expect(plates.map((plate) => plate.depth)).toEqual([1 / 3, 2 / 3, 1]);
+  expect(result.comparison.pass, describeComparison(result.comparison)).toBe(true);
+});
+
+const POINTER_CORNER = { 'pointer.x': 1, 'pointer.y': 1 };
+/** Rest first: every other frame is compared with it. Tracks peak a quarter loop in (1 s of 4). */
+const LAYER_FRAMES: LivePage.LayerFrame[] = [
+  { name: 'rest', seconds: 0 },
+  { name: 'pointer', seconds: 0, input: POINTER_CORNER },
+  {
+    name: 'pointer-title-not-interactive',
+    seconds: 0,
+    input: POINTER_CORNER,
+    layers: { layers: { Title: { interactive: false } } },
+  },
+  {
+    name: 'pointer-none-interactive',
+    seconds: 0,
+    input: POINTER_CORNER,
+    layers: { layerDefaults: { interactive: false } },
+  },
+  { name: 'quarter', seconds: 1 },
+  { name: 'quarter-title-not-animated', seconds: 1, layers: { layers: { Title: { animated: false } } } },
+  { name: 'quarter-none-animated', seconds: 1, layers: { layerDefaults: { animated: false } } },
+];
+
+test('layer options: a layer switched off rests while the others move', async ({ page }, testInfo) => {
+  const result = await page.evaluate(
+    async ([url, frames]) => ((await import(/* @vite-ignore */ url)) as typeof LivePage).layerFrames(frames),
+    [PAGE_MODULE, LAYER_FRAMES] as const,
+  );
+  testInfo.annotations.push({
+    type: 'layer frames',
+    description: result.frames
+      .map((frame) => `${frame.name}: ${frame.changedOnTitle} on Title, ${frame.changedElsewhere} elsewhere`)
+      .join('; '),
+  });
+  expect(result.comparison.pass, describeComparison(result.comparison)).toBe(true);
+  expect(result.titlePixels).toBeGreaterThan(1000);
+  const frame = (name: string) => result.frames.find((entry) => entry.name === name)!;
+  // Everything reacts to the pointer, the Title included.
+  expect(frame('pointer').changedOnTitle).toBeGreaterThan(0);
+  expect(frame('pointer').changedElsewhere).toBeGreaterThan(0);
+  // The Title not interactive: its pixels are the rest frame's, while the plates and Vortex beneath still follow.
+  expect(frame('pointer-title-not-interactive').changedOnTitle).toBe(0);
+  expect(frame('pointer-title-not-interactive').changedElsewhere).toBeGreaterThan(0);
+  expect(frame('pointer-none-interactive').changedOnTitle + frame('pointer-none-interactive').changedElsewhere).toBe(0);
+  // Time tracks: the Title breathes and Noise Warp sways; switched off, each rests at its authored values.
+  expect(frame('quarter').changedOnTitle).toBeGreaterThan(0);
+  expect(frame('quarter-title-not-animated').changedOnTitle).toBe(0);
+  expect(frame('quarter-title-not-animated').changedElsewhere).toBeGreaterThan(0);
+  expect(frame('quarter-none-animated').changedOnTitle + frame('quarter-none-animated').changedElsewhere).toBe(0);
+  // setLayerOptions redraws a stopped artwork at once and reaches a running one on its next frame.
+  expect(result.switched).toEqual({ stopped: 0, running: 0 });
+
+  // Goldens are recorded for Chromium in CI's Linux container (set RUNTIME_GOLDENS=1 to compare locally).
+  if (testInfo.project.name !== 'chromium' || !GOLDENS_ENABLED) return;
+  for (const entry of result.frames) {
+    const png = Buffer.from(entry.png.slice(entry.png.indexOf(',') + 1), 'base64');
+    expect.soft(png).toMatchSnapshot(['layers', `${entry.name}.png`], GOLDEN_OPTIONS);
+  }
 });
 
 /** Frames recorded for a parallax run on a real cover: rest, the pointer in two corners, and the top of a breath. */
