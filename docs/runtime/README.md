@@ -170,6 +170,16 @@ more than 8 levels off at rest, since the scanlines and colour fringes are warpe
 These numbers predate Grain's registration (#338); Grain now runs live wherever it sits in a live run, as it does
 in the sample cover's chain.
 
+With Radial CA registered (#337) and Tear and Scanlines not yet, the exact split is a base plate (fill through
+Scanlines), a one-pass `ca` chain and the image/text plate; its resting frame matches the editor with 0.000% of pixels
+over 8 levels (mean 0.004). The approximate split runs Grain, Noise Warp, Vortex and CA live over a base plate with
+Glitch, Tear and Scanlines moved beneath them.
+
+Radial CA is the editor colour pass's third step (sepia, infrared, CA, dither: `applyColorPass` in
+`render/workers/effectPixelTransform.ts`), which `EDITOR_EFFECT_ORDER` follows. Its port (`CA_FRAG` in
+`packages/runtime/src/effects/ca.ts`) reads whole pixels with the editor's rounding and edge clamping, scales the
+amount by the render width over 540 as the editor does, and gets the render size from `inputClamp`.
+
 ### Export
 
 `/dev/runtime` has a "Live package export" panel (development builds only): the sample cover or an opened
