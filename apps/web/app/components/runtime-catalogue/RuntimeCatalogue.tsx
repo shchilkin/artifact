@@ -21,6 +21,7 @@ import { SegmentedControl, SegmentedControlTrigger } from '../ui/SegmentedContro
 import { LiveExportPanel } from './liveExport/LiveExportPanel';
 import { PlateParallaxEntry } from './PlateParallaxEntry';
 import {
+  CATALOGUE_CONTEXT_ATTRIBUTES,
   catalogueBindings,
   catalogueControls,
   catalogueLayer,
@@ -136,10 +137,7 @@ function EffectEntry({
           observeVisibility: null,
           maxRenderSize: PARITY_SIZE,
           devicePixelRatio: PARITY_SIZE / CSS_SIZE,
-          // Catalogue frames are mostly single still draws (a control change, a pointer move). WebKit on Linux
-          // composites a swapped WebGL buffer only when the canvas presents again in a later rendering update, so a
-          // lone still frame stayed hidden until the next change. A preserved buffer is updated in place and shows.
-          contextAttributes: { preserveDrawingBuffer: true },
+          contextAttributes: CATALOGUE_CONTEXT_ATTRIBUTES,
         });
         artworkRef.current = artwork;
         if (animateRef.current) artwork.start();

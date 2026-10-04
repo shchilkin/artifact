@@ -3,6 +3,14 @@ import type { EffectCase } from '../../../../../packages/runtime/src/testing/eff
 import { EFFECT_PRESETS, type EffectLayer, type EffectPreset, makeEffectPresetLayer } from '../../types/config';
 import { EFFECT_SECTION_DEFINITIONS, type EffectControl } from '../node-canvas/inspector/EffectControlSections';
 
+/**
+ * GL context attributes for every catalogue canvas. Catalogue frames are mostly lone still draws (a control change, a
+ * pointer move). WebKit on Linux composites a swapped WebGL buffer only when the canvas presents again in a later
+ * rendering update, so with the default `preserveDrawingBuffer: false` a still frame showed one change late (#404).
+ * A preserved buffer shows each draw.
+ */
+export const CATALOGUE_CONTEXT_ATTRIBUTES: WebGLContextAttributes = { preserveDrawingBuffer: true };
+
 function isEffectPreset(effect: string): effect is EffectPreset {
   return Object.hasOwn(EFFECT_PRESETS, effect);
 }

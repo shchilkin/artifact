@@ -139,7 +139,7 @@ for (const [effect, effectCase] of Object.entries(EFFECT_CASES)) {
       if (ENFORCE_GPU_BUDGET) {
         expect(
           ms,
-          'RUNTIME_GPU_BUDGET=1 needs EXT_disjoint_timer_query_webgl2 (headed Chromium on a GPU)',
+          'no GPU time: RUNTIME_GPU_BUDGET=1 needs timer queries (headed Chromium on a GPU); rerun if a disjoint event voided the samples',
         ).not.toBeNull();
         expect(ms!, `${effect} GPU time at 540px`).toBeLessThanOrEqual(GPU_BUDGET_MS);
       }

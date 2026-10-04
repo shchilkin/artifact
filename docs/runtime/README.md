@@ -438,14 +438,16 @@ no timer queries, and there is no GPU runner. The budget is enforced by hand, on
   ```
 
   Headed Chromium on macOS exposes `EXT_disjoint_timer_query_webgl2`. With `RUNTIME_GPU_BUDGET=1` every
-  `GPU time at 540px` test fails when an effect is over budget, and also when the browser cannot time queries, so a
-  headless run cannot pass by measuring nothing. Paste the logged `[runtime] <effect> GPU time` lines into the PR.
+  `GPU time at 540px` test fails when an effect is over budget, and also when there is no measurement (no timer
+  queries, or a disjoint event such as a GPU switch voided every sample; rerun then), so a headless run cannot pass
+  by measuring nothing. Medians move by about 0.1 ms between runs on a busy machine, far inside the budget. Paste the logged `[runtime] <effect> GPU time` lines into the PR.
   Firefox and Safari do not expose timer queries to pages, so only Chromium is measured.
 - **Catalogue, by eye.** `/dev/runtime` in desktop Chrome shows each entry's measured time and a Budget line:
   "within 2 ms" (green), "over 2 ms" (red), or "not measured" where the browser has no timer queries.
 
-Last measured (Playwright 1.60 Chromium, headed, M5 Max, `RUNTIME_GPU_BUDGET=1`): Noise Warp 0.21 ms, Vortex 0.10 ms, Grain
-0.20 ms, Morph 0.09 ms, Chrom. Ab. 0.07 ms, Data Mosh 0.12 ms, Scanlines 0.07 ms.
+Last measured (Playwright 1.60 Chromium, headed, M5 Max, `RUNTIME_GPU_BUDGET=1`): Noise Warp 0.22 ms, Vortex 0.08 ms,
+Grain 0.11 ms, Morph 0.08 ms, Chrom. Ab. 0.11 ms, Data Mosh 0.11 ms, Scanlines 0.07 ms, Tear 0.06 ms, Glitch
+0.39 ms.
 
 ## Order of work
 

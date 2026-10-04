@@ -19,6 +19,8 @@ test('the runtime catalogue shows Noise Warp with working controls and a GPU tim
   await expect(entry.getByText('wave track, pointer.x, pointer.y, pointer.speed')).toBeVisible();
   // A measured time where the context has timer queries, "n/a" where it has none; never stuck measuring.
   await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+  // The budget line judges a measured time against 2 ms; without timer queries there is nothing to judge.
+  await expect(entry.getByTestId('runtime-gpu-budget')).toHaveText(/^(within 2 ms|not measured)$/);
 
   const canvas = entry.locator('canvas');
   const before = await canvas.screenshot();
@@ -157,7 +159,7 @@ test('the runtime catalogue shows Data Mosh with a working amount control', asyn
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });
 
-test('the runtime catalogue shows Tear, with a click spiking the tear', async ({ page, browserName }) => {
+test('the runtime catalogue shows Tear, with a click spiking the tear', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -171,8 +173,6 @@ test('the runtime catalogue shows Tear, with a click spiking the tear', async ({
   const canvas = entry.locator('canvas');
   // The entry sits below the fold, and the mouse works in viewport coordinates.
   await canvas.scrollIntoViewIfNeeded();
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   const box = await canvas.boundingBox();
   if (!box) throw new Error('catalogue canvas has no box');
   // Hover first so the resting frame is taken with the pointer on the canvas; only the press changes the tear.
@@ -185,7 +185,7 @@ test('the runtime catalogue shows Tear, with a click spiking the tear', async ({
   await page.mouse.move(0, 0);
 });
 
-test('the runtime catalogue shows Glitch with a working VHS Streaks control', async ({ page, browserName }) => {
+test('the runtime catalogue shows Glitch with a working VHS Streaks control', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -206,12 +206,10 @@ test('the runtime catalogue shows Glitch with a working VHS Streaks control', as
   await amount.press('End');
   // The editor's slider runs to 24 streaks.
   await expect(amount).toHaveValue('24');
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });
 
-test('the runtime catalogue shows plate parallax, with depth and strength controls', async ({ page, browserName }) => {
+test('the runtime catalogue shows plate parallax, with depth and strength controls', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -225,12 +223,11 @@ test('the runtime catalogue shows plate parallax, with depth and strength contro
   await expect(strength).toHaveValue('4');
   await expect(topDepth).toHaveValue('100');
 
-  // Below the fold: bring it into view so every engine composites the canvas (see Liquid Morph above).
+  // Below the fold: bring it into view so every engine composites the canvas.
   await entry.scrollIntoViewIfNeeded();
   await topDepth.focus();
   await topDepth.press('Home');
   await expect(entry.getByText('card (depth 0%)')).toBeVisible();
-  if (browserName === 'webkit' && process.platform === 'linux') return;
 
   const canvas = entry.locator('canvas');
   await expect.poll(async () => (await canvas.boundingBox())?.width ?? 0).toBeGreaterThan(0);
