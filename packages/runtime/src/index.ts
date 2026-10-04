@@ -41,6 +41,8 @@ export {
   createCompositeRenderer,
 } from './chain.js';
 export {
+  type BarrelLayer,
+  barrel,
   CA_FRAG,
   type CaLayer,
   ca,

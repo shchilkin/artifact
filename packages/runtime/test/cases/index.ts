@@ -1,4 +1,5 @@
 import type { EffectCase } from '../../src/testing/effectCase.js';
+import barrel from './barrel.js';
 import ca from './ca.js';
 import dataMosh from './dataMosh.js';
 import glitch from './glitch.js';
@@ -30,4 +31,5 @@ export const EFFECT_CASES: Readonly<Record<string, EffectCase>> = {
   pixelate,
   vignette,
   interlace,
+  barrel,
 };

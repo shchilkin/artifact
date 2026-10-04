@@ -1,4 +1,5 @@
 import { createEffectRegistry } from '../registry.js';
+import { barrel } from './barrel.js';
 import { ca } from './ca.js';
 import { dataMosh } from './dataMosh.js';
 import { glitch } from './glitch.js';
@@ -14,6 +15,7 @@ import { tear } from './tear.js';
 import { vignette } from './vignette.js';
 import { vortex } from './vortex.js';
 
+export { type BarrelLayer, barrel } from './barrel.js';
 export { CA_FRAG, type CaLayer, ca } from './ca.js';
 export { type DataMoshLayer, dataMosh } from './dataMosh.js';
 export {
@@ -66,6 +68,7 @@ export const EFFECTS = [
   pixelate,
   vignette,
   interlace,
+  barrel,
 ] as const;
 
 export const effectRegistry = createEffectRegistry(EFFECTS);

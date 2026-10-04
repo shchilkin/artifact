@@ -1,4 +1,5 @@
 import {
+  BARREL_FRAG,
   DATAMOSH_FRAG,
   HEADER,
   INTERLACE_FRAG,
@@ -22,17 +23,6 @@ function hexToVec3(hex: string): [number, number, number] {
     parseInt(hex.slice(5, 7), 16) / 255,
   ];
 }
-
-const BARREL_FRAG = `${HEADER}
-uniform float uK;
-
-void main() {
-  ${NORM_UV}
-  vec2  c  = norm - 0.5;
-  float r2 = dot(c, c);
-  vec2 warped = clamp((c * (1.0 + uK * r2)) + 0.5, 0.0, 1.0);
-  gl_FragColor = ${SAMPLE('warped')};
-}`;
 
 const HUE_FRAG = `${HEADER}
 uniform float uAngle;
@@ -250,7 +240,7 @@ function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 
     }),
   );
   addFilter(filters, cfg.vortex, () => f(VORTEX_FRAG, { uIntensity: cfg.vortex * 0.03, uCenter: [0.5, 0.5] }));
-  addFilter(filters, cfg.barrel, () => f(BARREL_FRAG, { uK: cfg.barrel * 0.04 }));
+  addFilter(filters, cfg.barrel, () => f(BARREL_FRAG, { uK: cfg.barrel * 0.04, uCenter: [0.5, 0.5] }));
   addFilter(filters, cfg.tearAmt, () =>
     f(TEAR_FRAG, {
       uIntensity: cfg.tearAmt * 0.007,
