@@ -4,8 +4,8 @@ import type { BrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import type { ProjectCloudSyncState } from '../hooks/useProjects';
 import type { SavedProject } from '../utils/projectLibrary';
 import { formatBytes, projectSizeBytes } from '../utils/storageStatus';
+import { EditorConfirmDialog } from './editor-workflow/EditorConfirmDialog';
 import { type WorkspaceStatusRow, workspaceStatusRows, workspaceWarnings } from './StorageWorkspaceStatusModel';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { EmptyState } from './ui/EmptyState';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
@@ -771,24 +771,18 @@ function ProjectDeleteDialog({
   project: SavedProject;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="project-delete-dialog">
-        <DialogTitle className="project-delete-dialog__title">Delete project?</DialogTitle>
-        <DialogDescription className="project-delete-dialog__copy">
-          {project.name} will be removed from this browser.
-        </DialogDescription>
-        <div className="project-delete-dialog__actions">
-          <DialogClose asChild>
-            <Button variant="quiet">CANCEL</Button>
-          </DialogClose>
-          <DialogClose asChild>
-            <Button variant="danger" onClick={onConfirmDelete}>
-              DELETE
-            </Button>
-          </DialogClose>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <EditorConfirmDialog
+      open={open}
+      tone="danger"
+      title="Delete project?"
+      description={`${project.name} will be removed from this browser.`}
+      confirmLabel="Delete"
+      onCancel={() => onOpenChange(false)}
+      onConfirm={() => {
+        onOpenChange(false);
+        onConfirmDelete();
+      }}
+    />
   );
 }
 

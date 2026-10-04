@@ -43,6 +43,7 @@
   /* Reusable editor controls. */
   --control-h-compact: 38px;
   --control-h-default: 44px;
+  --progress-hairline: 2px;
   --control-h-large: 52px;
   --control-pad-x-compact: 10px;
   --control-pad-x-default: 16px;

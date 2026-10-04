@@ -652,3 +652,24 @@ async function getCanvasCenterRgb(page: Page) {
     return { r: pixel[0] ?? 0, g: pixel[1] ?? 0, b: pixel[2] ?? 0 };
   });
 }
+
+test('style guide dialogs loop focus for Tab and Option+Tab', async ({ page, browserName }) => {
+  await page.goto('/docs/style-guide');
+  // WebKit, like Safari, moves between buttons only with Option+Tab, which Radix alone does not loop.
+  for (const forward of [browserName === 'webkit' ? 'Alt+Tab' : 'Tab']) {
+    const backward = forward.replace('Tab', 'Shift+Tab');
+    await page.getByRole('button', { name: 'Open confirmation specimen' }).click();
+    const dialog = page.getByRole('alertdialog', { name: 'Delete project?' });
+    const cancel = dialog.getByRole('button', { name: 'Cancel' });
+    const remove = dialog.getByRole('button', { name: 'Delete' });
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press(forward);
+    await expect(remove).toBeFocused();
+    await page.keyboard.press(forward);
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press(backward);
+    await expect(remove).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  }
+});

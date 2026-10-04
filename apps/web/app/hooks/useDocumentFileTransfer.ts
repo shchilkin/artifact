@@ -1,4 +1,5 @@
 import { type MutableRefObject, useCallback, useRef, useState } from 'react';
+import type { EditorConfirmRequest } from '../components/editor-workflow/EditorConfirmDialog';
 import type { CanvasDocument } from '../types/config';
 import { preparePortableDocument, storePortableDocumentAssets } from '../utils/documentAssets';
 import {
@@ -113,6 +114,7 @@ async function readPendingDocumentImport(
 export function useDocumentFileTransfer(
   docRef: MutableRefObject<CanvasDocument>,
   onLoadDocument: (doc: CanvasDocument) => void,
+  confirm: (request: EditorConfirmRequest) => Promise<boolean>,
 ) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const documentPickerReturnFocusRef = useRef<HTMLElement>(null);
@@ -136,12 +138,15 @@ export function useDocumentFileTransfer(
   }, [docRef, showDocumentFileError]);
 
   const handleSaveProjectPackage = useCallback(
-    (fontEmbeddingMode: ProjectPackageFontEmbeddingMode = 'license-aware') => {
+    async (fontEmbeddingMode: ProjectPackageFontEmbeddingMode = 'license-aware') => {
       if (
         fontEmbeddingMode === 'explicit-font-files' &&
-        !window.confirm(
-          'PKG+FONTS embeds imported local font files in the project package. Continue only if you have the right to distribute those font files.',
-        )
+        !(await confirm({
+          title: 'Include font files?',
+          description:
+            'The project package embeds your imported local font files. Continue only if you have the right to distribute those font files.',
+          confirmLabel: 'Download with fonts',
+        }))
       ) {
         return;
       }
@@ -158,7 +163,7 @@ export function useDocumentFileTransfer(
           showDocumentFileError('Could not prepare project package.');
         });
     },
-    [docRef, showDocumentFileError],
+    [confirm, docRef, showDocumentFileError],
   );
 
   const handleOpenDocumentPicker = useCallback((event?: { currentTarget: EventTarget | null }) => {

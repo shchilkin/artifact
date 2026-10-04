@@ -484,6 +484,11 @@
   border-left: 1px solid color-mix(in oklch, var(--line-default) 82%, transparent);
 }
 
+.layer-row-meta-state-not-in-output {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .layer-row-meta-state-hidden {
   color: var(--state-warning);
 }
@@ -638,6 +643,13 @@
   isolation: isolate;
 }
 
+/* Opaque from the first frame: no fade over the canvas while the surface opens or closes. */
+.add-library-surface,
+.add-library-surface[data-state] {
+  opacity: 1;
+  animation: none;
+}
+
 .add-library-surface [data-add-color-kind="fill"] {
   --add-kind-color: var(--node-kind-fill, oklch(72% 0.18 48));
 }
@@ -751,28 +763,17 @@
   outline: none;
 }
 
-.add-library-intents,
-.add-library-browse {
+.add-library-intents {
   display: flex;
   flex-shrink: 0;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--line-default);
-  overscroll-behavior-x: contain;
-}
-
-.add-library-intents {
   padding: 8px;
+  border-bottom: 1px solid var(--line-default);
   background: color-mix(in oklch, var(--surface-panel) 78%, var(--surface-card));
 }
 
-.add-library-browse {
-  padding: 6px 8px;
-  background: color-mix(in oklch, var(--surface-card) 72%, var(--surface-panel));
-}
-
-.add-library-intent,
-.add-library-browse-item {
+.add-library-intent {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -797,8 +798,7 @@
   font-size: 9px;
 }
 
-.add-library-intent[data-add-color-kind]::before,
-.add-library-browse-item[data-add-kind]::before {
+.add-library-intent[data-add-color-kind]::before {
   width: 6px;
   height: 6px;
   flex-shrink: 0;
@@ -807,8 +807,6 @@
   content: "";
 }
 
-.add-library-browse-item.artifact-toolbar-button,
-.add-library-recipe.artifact-toolbar-button,
 .add-library-intent.artifact-toolbar-button {
   border-width: 1px;
   font-size: 9px;
@@ -816,55 +814,16 @@
 }
 
 .add-library-intent:hover,
-.add-library-intent:focus-visible,
-.add-library-browse-item:hover,
-.add-library-browse-item:focus-visible {
+.add-library-intent:focus-visible {
   border-color: var(--line-default);
   color: var(--text-primary);
   outline: none;
 }
 
-.add-library-intent-active,
-.add-library-browse-item-active {
+.add-library-intent-active {
   border-color: color-mix(in oklch, var(--add-kind-color) 72%, var(--line-default));
   background: color-mix(in oklch, var(--add-kind-color) 10%, transparent);
   color: var(--add-kind-color);
-}
-
-.add-library-recipes {
-  display: flex;
-  flex-shrink: 0;
-  gap: 6px;
-  overflow-x: auto;
-  padding: 8px;
-  border-bottom: 1px solid var(--line-default);
-  background: color-mix(in oklch, var(--surface-panel) 72%, var(--surface-card));
-  overscroll-behavior-x: contain;
-}
-
-.add-library-recipe {
-  min-height: 30px;
-  flex-shrink: 0;
-  padding: 0 9px;
-  border: 1px solid var(--line-default);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.add-library-recipe:hover,
-.add-library-recipe-active {
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-}
-
-.add-library-recipe-active {
-  background: color-mix(in oklch, var(--accent-primary) 10%, transparent);
 }
 
 .add-library-list {
@@ -1316,9 +1275,7 @@
     display: none;
   }
 
-  .add-library-intent,
-  .add-library-browse-item,
-  .add-library-recipe {
+  .add-library-intent {
     min-width: var(--touch);
     height: var(--touch);
     min-height: var(--touch);
