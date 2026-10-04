@@ -323,7 +323,8 @@ describe('binding validation', () => {
 
   it('formats the issues into a readable message', () => {
     expect(() => parseBindings({ version: 1, bindings: [{ from: { input: 'hover' } }] })).toThrow(
-      'Invalid bindings:\n- bindings[0].to: must be { "pass": n, "field" | "uniform": … }, { "plate": n, "transform": … } or { "parallax": … }',
+      'Invalid bindings:\n- bindings[0].to: must be { "pass": n, "field" | "uniform": … }, { "plate": n, "transform": … }, { "parallax": … } or ' +
+        '{ "layer": "id or name", "field" | "uniform" | "transform": … }',
     );
   });
 });

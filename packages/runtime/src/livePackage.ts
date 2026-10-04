@@ -1,6 +1,7 @@
 import { BindingError, type BindingsDocument, compileLiveChain, type LivePass } from './bindings.js';
 import type { CompositeStep } from './chain.js';
 import { effectRegistry as defaultRegistry } from './effects/index.js';
+import { type LayerRef, uniqueLayers } from './layers.js';
 import { PLATE_EDGES, type PlateEdge, type PlateInfo, plateInfos } from './plates.js';
 import type { EffectContext, EffectRegistry } from './registry.js';
 import type { ArtworkSource, ChainPass } from './types.js';
@@ -14,11 +15,7 @@ export const LIVE_PACKAGE_VERSION = 1;
 /** File name of the manifest inside a package folder or zip. */
 export const LIVE_PACKAGE_MANIFEST = 'manifest.json';
 
-/** A document layer a package item came from, for diagnostics. */
-export interface LayerRef {
-  readonly id: string;
-  readonly name: string;
-}
+export type { LayerRef } from './layers.js';
 
 /**
  * Pixels the editor rendered at export time (text, images, emoji, 3D, effects the runtime does not run), with alpha.
@@ -252,7 +249,7 @@ function checkChain(
       return;
     }
     if (!layerOk) return;
-    const live = { effect: pass.effect, layer: pass.layer as LivePass['layer'] };
+    const live = { effect: pass.effect, layer: pass.layer as LivePass['layer'], source: pass.source as LayerRef };
     const context = { seed: typeof seed === 'number' ? seed : 0, width: size?.width ?? 1, height: size?.height ?? 1 };
     if (!registry.pass(live.effect, live.layer, context)) {
       fail(`${passPath}.layer`, `${pass.effect} is off for these values; the exporter only writes effects that are on`);
@@ -291,9 +288,22 @@ export function livePackagePasses(manifest: LivePackageManifest): PackagePass[] 
   return manifest.stack.flatMap((item) => (item.type === 'chain' ? item.passes : []));
 }
 
-/** Every plate, bottom first, with its parallax depth and edges (defaults filled in). Bindings index these. */
+/**
+ * Every plate, bottom first, with its parallax depth and edges (defaults filled in) and its layers. Bindings index
+ * these.
+ */
 export function livePackagePlates(manifest: LivePackageManifest): readonly PlateInfo[] {
   return plateInfos(manifest.stack.flatMap((item) => (item.type === 'plate' ? [item] : [])));
+}
+
+/**
+ * Every layer the package names, bottom first in stack order (plate layers, then pass sources), once each: the layers
+ * `layer` targets and layer options address.
+ */
+export function livePackageLayers(manifest: LivePackageManifest): LayerRef[] {
+  return uniqueLayers(
+    manifest.stack.flatMap((item) => (item.type === 'plate' ? item.layers : item.passes.map((pass) => pass.source))),
+  );
 }
 
 /** Image paths the manifest reads: the plates in stack order, the background, and the still. */

@@ -1,3 +1,4 @@
+import type { LayerRef } from './layers.js';
 import type { UniformValues } from './types.js';
 
 /**
@@ -34,6 +35,8 @@ export interface PlateInfo {
    * rotation (no scaling while the transform is neutral, or when the move takes those sides outward).
    */
   readonly edges: readonly PlateEdge[];
+  /** The document layers drawn into the plate, when known (a package's plates list them). */
+  readonly layers?: readonly LayerRef[];
 }
 
 /**
@@ -46,11 +49,16 @@ export function defaultPlateDepth(index: number, count: number): number {
 
 /** Bottom-to-top plates with resolved depth and edges (every side when a package does not say). */
 export function plateInfos(
-  plates: readonly { readonly depth?: number; readonly edges?: readonly PlateEdge[] }[],
+  plates: readonly {
+    readonly depth?: number;
+    readonly edges?: readonly PlateEdge[];
+    readonly layers?: readonly LayerRef[];
+  }[],
 ): readonly PlateInfo[] {
   return plates.map((plate, index) => ({
     depth: plate.depth ?? defaultPlateDepth(index, plates.length),
     edges: plate.edges ?? PLATE_EDGES,
+    ...(plate.layers ? { layers: plate.layers } : {}),
   }));
 }
 
