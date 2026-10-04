@@ -164,20 +164,15 @@ graph with merges, other node kinds, or extra inputs (materials, environments) i
   and says so in `baked`. The resting frame then differs where the moved effects do not commute with the chain.
 
 The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text): with
-Grain, Noise Warp, Vortex, Tear (#340), Scanlines (#342) and Radial CA (#337) registered, only Glitch is baked, and it
-sits below the run. The exact split is a base plate (Fill, Emojis, Glitch), one live chain (Grain → Noise Warp →
-Vortex → Tear → Scanlines → CA) and the image/text plate; the approximate split is the same. Grain makes the resting
-frame a statistics comparison: mean 0.15 and std dev 0.09 levels, histogram distance 0.009 at 540px in Chromium on
-macOS.
+Glitch (#339), Grain, Noise Warp, Vortex, Tear (#340), Scanlines (#342) and Radial CA (#337) registered, nothing is
+baked. The exact split is a base plate (Fill, Emojis), one live chain (Glitch → Grain → Noise Warp → Vortex → Tear →
+Scanlines → CA) and the image/text plate; the approximate split is the same. Grain makes the resting frame a
+statistics comparison: mean 0.15 and std dev 0.09 levels, histogram distance 0.009 at 540px in Chromium on macOS.
 
 Radial CA is the editor colour pass's third step (sepia, infrared, CA, dither: `applyColorPass` in
 `render/workers/effectPixelTransform.ts`), which `EDITOR_EFFECT_ORDER` follows. Its port (`CA_FRAG` in
 `packages/runtime/src/effects/ca.ts`) reads whole pixels with the editor's rounding and edge clamping, scales the
 amount by the render width over 540 as the editor does, and gets the render size from `inputClamp`.
-
-With Glitch registered (#339) the exact split is unchanged (Glitch sits beneath Tear and Scanlines): 0.000% of pixels
-over 8 levels, mean 0.004. The approximate split runs Glitch, Grain, Noise Warp, Vortex and CA live over a base plate
-with Tear and Scanlines moved beneath them, and the sample cover's whole effect run is live.
 
 Glitch (VHS streaks, `GLITCH_FRAG` in `packages/runtime/src/effects/glitch.ts`) is seeded but not stochastic in the
 harness sense: the editor draws one `fillRect` band per unit of `glitch` (its slider runs to 24; the runtime caps at
