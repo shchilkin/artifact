@@ -17,6 +17,7 @@ npm run test:browser:mobile            # focused mobile Chromium/WebKit layout s
 npm run test:browser:release           # full browser gate split across fresh local dev servers
 npm run test:browser:ui-conformance    # both Product Themes: Foundation Matrix plus composed specimens
 npm run test:browser:install           # install Chromium, Firefox, and WebKit for Playwright
+npm run test:runtime:harness           # experimental runtime: parity, goldens, catalogue (docs/runtime/README.md)
 npm run perf:node-editor               # opt-in node editor performance benchmark
 npm run ux:gate                        # editor layout-stability and edit-latency budgets on the production build
 npm run test:editor-ux                 # editor UX contract and checker tests (part of check)

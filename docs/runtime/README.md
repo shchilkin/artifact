@@ -126,6 +126,111 @@ Every effect issue lands with visual tests in the shared harness (issue: parity 
 5. **Catalogue**: the effect appears in the runtime catalogue (`/dev/runtime`) with live controls, so it can be
    judged by eye.
 
+## Harness (issue #331)
+
+### Adding an effect
+
+An effect issue adds one case file and one line in `packages/runtime/test/cases/index.ts`:
+
+```ts
+// packages/runtime/test/cases/noiseWarp.ts
+export default defineEffectCase({
+  effect: 'noiseWarp', // registry id, also the editor preset id
+  layer: { noiseWarp: 90 }, // authored values over makeEffectPresetLayer(effect)
+  frames: [...MOTION_FRAMES, ...INPUT_FRAMES], // omit for a static effect
+  bindings: {
+    // bindings JSON (see Bindings above) for a one-pass chain: targets use pass 0
+    version: 1,
+    loop: { durationSeconds: 4 },
+    bindings: [
+      { from: { track: 'wave', cycles: 1 }, to: { pass: 0, field: 'seedOffset' }, range: [-200, 200], mode: 'add' },
+      { from: { input: 'pointer.speed' }, to: { pass: 0, field: 'noiseWarp' }, range: [0, 60], mode: 'add' },
+    ],
+  },
+});
+```
+
+Optional fields: `seed` (default 11), `fixtures` (default all three), `goldenFixture` (default `graphic`),
+`bindings`. Static parity uses the authored layer alone; goldens, GPU timing and the catalogue run the case through
+`createLiveArtwork` with its bindings.
+
+From that one declaration:
+
+- `tests/browser/runtime-harness.spec.ts` runs static parity on each fixture, the goldens, and a GPU timing. It
+  fails when a registered effect has no case.
+- `/dev/runtime` (development builds only) lists the effect with the editor's inspector controls for its authored
+  fields, its bindings, a still/animate toggle, pointer input on the canvas, and the last measured GPU time.
+
+Run it with `npm run test:runtime:harness -- --project=chromium` (add `--project=firefox --project=webkit` for parity
+in all engines). CI runs it in `.github/workflows/runtime-experiment.yml` for pushes to and PRs into
+`experiment/runtime`, with the runtime unit tests and typechecks.
+
+### Fixtures
+
+`packages/runtime/test/fixtures`: `photo.webp` (continuous tones and grain), `graphic.png` (flat colour, hard
+edges) and `text.png` (a text-heavy cover), all 540px. `generate.mjs` made them; the committed files are the source
+of truth.
+
+### Static parity
+
+The editor side is `renderDocument` on a document with the fixture as an image layer and the effect layer above it
+(stack mode, 540px). The runtime side is the resting chain for the same layer, without frame uniforms. Comparison code
+and tolerances live in `packages/runtime/src/testing/parity.ts`.
+
+| Effect | Measure | Tolerance |
+| --- | --- | --- |
+| Deterministic | pixels with any RGB channel off by more than 8 levels | at most 0.1% of pixels |
+| Deterministic | mean absolute RGB difference | at most 0.25 levels |
+| Stochastic | per-channel mean | within 2 levels |
+| Stochastic | per-channel standard deviation (square root of the variance) | within 3 levels |
+| Stochastic | per-channel histogram, 32 bins, total-variation distance | at most 0.05 |
+
+Why these numbers:
+
+- The runtime runs the editor's own fragment, so deterministic effects should agree to rounding. Noise Warp measures
+  0 pixels over 8 levels, a mean difference of 0.0001 and a worst channel of 1 level on all three fixtures in
+  Chromium, Firefox and WebKit. The limits leave room for driver rounding without hiding a wrong port: swapping the
+  warp axes (the spec's self-test) puts 28% of pixels over the threshold with a mean difference of 41 levels.
+- Stochastic effects use GPU noise that differs from the editor's CPU noise by design, so only the distribution has
+  to match. The spec's second self-test shows the split: Noise Warp with a far-off seed fails pixel parity and passes
+  the statistics on the text fixture. The statistical limits are a first estimate; the first stochastic port should
+  confirm them against its own measurements and record any change here.
+
+Every parity test attaches `<effect>-<fixture>-editor-runtime-diff.png` (editor | runtime | diff) to the report. In
+the diff panel, red marks pixels over the threshold (brighter is larger), amber marks smaller non-zero differences,
+and grey is the dimmed editor image.
+
+### Goldens
+
+Each frame of a case is drawn through `createLiveArtwork` with the case's bindings (pointer tracking off): its inputs
+are set with `setInput`, then the artwork seeks to loop position `t` (`t × loop.durationSeconds`, or `t` seconds
+without a loop), at 270px (half the parity size, to keep the PNGs
+small) on the case's golden fixture. `MOTION_FRAMES` samples `t = 0, 0.25, 0.5, 0.75`. `INPUT_FRAMES` samples the
+pointer at the centre, at the bottom-right corner (`pointer.x = pointer.y = 1`, measured from the top left), and a
+full-speed pointer.
+
+Goldens live in `tests/browser/runtime-harness.spec.ts-snapshots/<effect>/<frame>-chromium-linux.png`. They are
+recorded for Chromium in the CI Linux container (`mcr.microsoft.com/playwright:v1.60.0-noble`, SwiftShader) and
+compared with `threshold: 0.05` and `maxDiffPixelRatio: 0.002`: the same container renders the same pixels, and the
+allowance only absorbs a stray rounding change. Other platforms skip the comparison. `RUNTIME_GOLDENS=1` compares
+against platform-suffixed local goldens instead; do not commit those.
+
+To record or update goldens, use either:
+
+- **Docker**, from a copy of the checkout without `node_modules` (`npm ci` installs Linux binaries):
+  `docker run --rm --platform linux/amd64 -v "$PWD":/repo -w /repo mcr.microsoft.com/playwright:v1.60.0-noble bash -c "npm ci && HOME=/root CI=1 npm run test:runtime:harness -- --project=chromium --update-snapshots"`.
+  Copy the changed files under `tests/browser/runtime-harness.spec.ts-snapshots/` back, check them by eye, and
+  commit.
+- **CI**: when a golden is missing or differs, the `runtime-harness-chromium` artifact holds each frame's
+  `*-actual.png` under `test-results/`. Rename each to its golden path above, check it by eye, and commit.
+
+### GPU timing
+
+`measureGpuTime` (`packages/runtime/src/gpuTiming.ts`) wraps renders in `EXT_disjoint_timer_query_webgl2` queries
+and reports the median in milliseconds, or `null` when the context has no timer queries. Headless Chromium, Firefox
+and WebKit report `n/a`, so the spec records the value as a `gpu-time` annotation without a budget check. The
+catalogue shows the last measurement on the machine it runs on, which is where the 2 ms budget is judged.
+
 ## Order of work
 
 1. Foundation: package and GPU chain → parity harness and catalogue → bindings → live-package export → embeds.

@@ -1,0 +1,118 @@
+.runtime-catalogue-page {
+  min-height: 100vh;
+  padding: var(--space-8) var(--space-6);
+  background: var(--surface-app);
+  color: var(--text-primary);
+}
+
+.runtime-catalogue {
+  display: grid;
+  gap: var(--space-6);
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.runtime-catalogue-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line-default);
+}
+
+.runtime-catalogue-eyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.runtime-catalogue-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+.runtime-catalogue-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.runtime-catalogue-grid {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.runtime-catalogue-entry {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line-muted);
+  background: var(--surface-panel);
+}
+
+.runtime-catalogue-canvas {
+  display: block;
+  background: var(--surface-workspace);
+  touch-action: none;
+}
+
+.runtime-catalogue-details {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.runtime-catalogue-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+}
+
+.runtime-catalogue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.runtime-catalogue-meta dt {
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.runtime-catalogue-meta dd {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.runtime-catalogue-controls {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 420px;
+}
+
+.runtime-catalogue-error {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--state-danger);
+}
+
+@media (max-width: 640px) {
+  .runtime-catalogue-entry {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
