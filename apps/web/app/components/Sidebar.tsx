@@ -32,7 +32,7 @@ import {
   updateScene3DNodeInDocument,
 } from '../utils/documentCommands';
 import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
-import { graphUtilityNodeCollections, graphUtilityNodeKind } from '../utils/nodeGraph';
+import { findGraphUtilityNode } from '../utils/nodeGraph';
 import { getScene3DTarget, getSceneEnvironmentNode, getSceneModelLayer } from '../utils/scene3DInputs';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetHeader } from './editor-target/EditorTargetHeader';
@@ -566,20 +566,15 @@ function InspectorEmptyState() {
 /** A graph-only node selected from the Layers tree; its settings are edited in Nodes. */
 function selectedGraphOnlyNode(doc: CanvasDocument, id: string | null) {
   if (!id || !doc.graph) return null;
-  const kind = graphUtilityNodeKind(doc.graph, id);
-  if (!kind || kind === 'scene3d') return null;
-  return (
-    graphUtilityNodeCollections(doc.graph)
-      .flat()
-      .find((node) => node.id === id) ?? null
-  );
+  const found = findGraphUtilityNode(doc.graph, id);
+  return found && found.kind !== 'scene3d' ? found.node : null;
 }
 
 function GraphNodeInspectorNotice({ node }: { node: { name: string } | null }) {
   if (!node) return null;
   return (
     <>
-      <h2 className="sr-only">Layer settings</h2>
+      <h2 className="sr-only">Node settings</h2>
       <EmptyState
         className="layer-inspector-empty-state"
         title={node.name}
@@ -686,7 +681,8 @@ export function Sidebar({
         aria-label="Layer settings"
       >
         {!hasInspectorContent && <InspectorEmptyState />}
-        <GraphNodeInspectorNotice node={selectedGraphNode} />
+        {/* The notice stands in for the empty state; an open AI panel is the relevant content instead. */}
+        <GraphNodeInspectorNotice node={showAiGeneration ? null : selectedGraphNode} />
         <AiImageSection
           aspect={doc.global.aspect ?? '1:1'}
           show={showAiGeneration}

@@ -115,12 +115,15 @@ Graph mode renders from `CanvasDocument.graph`. Nodes can be:
 - export node
 
 `renderGraphTarget` recursively renders upstream dependencies and composes the result.
-Which input ports it follows for each node kind, and the port lookup order
-(the first edge in `graph.edges` wins when several feed one port), live in
-`apps/web/app/utils/render/graphInputs.ts`. The Layers tree
-(`buildGraphLayerTree`) reads the graph through the same helpers, and
-`graphLayerTree.test.ts` checks the tree against the nodes the renderer
-actually reaches.
+The port lookup (the first edge in `graph.edges` wins when several feed one
+port) lives in `apps/web/app/utils/render/graphInputs.ts` and the renderer
+imports it from there. The same module restates, per node kind, which inputs
+each `GRAPH_NODE_RENDERERS` entry reads; the renderer still dispatches through
+its own functions, so that table is a second description, not shared code.
+`graphLayerTree.test.ts` renders a fixture for every branch of the table and
+fails when the Layers tree and the nodes the renderer actually reaches
+disagree. When a renderer starts or stops reading a port, update the table in
+the same change.
 Within one graph render call it caches node results by node id. Thumbnail
 rendering can also pass an external cache so sibling thumbnails reuse shared
 upstream branch results. That cache stores canvases/promises outside

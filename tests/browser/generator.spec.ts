@@ -4571,10 +4571,10 @@ async function getVisibleNoiseNodeBox(page: Page) {
 
 /** Custom graphs open Layers in Structure; area folders live in the Areas view. */
 async function showLayerAreasView(page: Page) {
-  const areasTab = page.getByRole('tab', { name: 'Areas', exact: true });
-  await expect(areasTab).toBeVisible({ timeout: 15_000 });
-  await areasTab.click();
-  await expect(areasTab).toHaveAttribute('aria-selected', 'true');
+  const areasView = page.getByRole('group', { name: 'Layers view' }).getByRole('button', { name: 'Areas' });
+  await expect(areasView).toBeVisible({ timeout: 15_000 });
+  await areasView.click();
+  await expect(areasView).toHaveAttribute('aria-pressed', 'true');
 }
 
 async function dragLayerRowOverText(page: Page, sourceText: string, targetText: string, targetYRatio = 0.75) {

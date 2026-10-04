@@ -1,8 +1,9 @@
 import type { CanvasDocument, CanvasGraph } from '../types/config';
-import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
+import { EXPORT_NODE_ID, findGraphUtilityNode, graphUtilityNodeCollections, inferLinearGraph } from './nodeGraph';
 import {
   collectGraphRenderReach,
   type GraphInputPort,
+  type GraphInputRole,
   type GraphReachMode,
   type GraphRenderInput,
   type GraphRenderNodeKind,
@@ -64,10 +65,13 @@ const INPUT_LABELS: Partial<Record<GraphInputPort, string>> = {
   alpha: 'Alpha',
 };
 
-const GROUP_FOR_ROLE: Record<
-  Exclude<GraphRenderInput['role'], 'primary'>,
-  { kind: GraphTreeGroupKind; label: string }
-> = {
+type NestedInput = GraphRenderInput & { role: Exclude<GraphInputRole, 'primary'> };
+
+function isNestedInput(input: GraphRenderInput): input is NestedInput {
+  return input.role !== 'primary';
+}
+
+const GROUP_FOR_ROLE: Record<NestedInput['role'], { kind: GraphTreeGroupKind; label: string }> = {
   overlay: { kind: 'group', label: 'Group' },
   mask: { kind: 'mask', label: 'Mask' },
   pattern: { kind: 'pattern', label: 'Pattern source' },
@@ -75,7 +79,11 @@ const GROUP_FOR_ROLE: Record<
 };
 
 const MODE_ORDER: GraphReachMode[] = ['render', 'material', 'read'];
-const UNREACHED_MODES: GraphReachMode[] = ['render', 'material'];
+
+/** Nodes outside Output are shown as if rendered; a material also shows its texture maps. */
+function unreachedModes(context: TreeContext, nodeId: string): GraphReachMode[] {
+  return treeNodeKind(context, nodeId) === 'material' ? ['render', 'material'] : ['render'];
+}
 
 interface TreeContext {
   doc: CanvasDocument;
@@ -86,20 +94,9 @@ interface TreeContext {
 }
 
 function nodeName(doc: CanvasDocument, graph: CanvasGraph, nodeId: string, kind: GraphTreeNodeKind): string {
-  if (kind === 'layer') return doc.layers.find((layer) => layer.id === nodeId)?.name ?? nodeId;
-  const collections: Record<Exclude<GraphTreeNodeKind, 'layer'>, Array<{ id: string; name: string }> | undefined> = {
-    merge: graph.mergeNodes,
-    color: graph.colorNodes,
-    repeat: graph.repeatNodes,
-    material: graph.materialNodes,
-    mask: graph.maskNodes,
-    transform: graph.transformNodes,
-    grimeShadow: graph.grimeShadowNodes,
-    shader: graph.shaderNodes,
-    environment: graph.environmentNodes,
-    scene3d: graph.scene3dNodes,
-  };
-  return (collections[kind] ?? []).find((node) => node.id === nodeId)?.name ?? nodeId;
+  const node =
+    kind === 'layer' ? doc.layers.find((layer) => layer.id === nodeId) : findGraphUtilityNode(graph, nodeId)?.node;
+  return node?.name ?? nodeId;
 }
 
 function treeNodeKind(context: TreeContext, nodeId: string): GraphTreeNodeKind | null {
@@ -120,13 +117,12 @@ function dedupeInputs(inputs: GraphRenderInput[]) {
 /**
  * Inputs to show under a row: those the renderer follows for every way the node is used. Only
  * `render` use has a primary stack, and it is listed first, so de-duplication keeps it primary.
- * Nodes outside Output are shown as if they were rendered, so their structure stays visible.
  */
 function rowInputs(context: TreeContext, nodeId: string): GraphRenderInput[] {
   const cached = context.inputsCache.get(nodeId);
   if (cached) return cached;
   const reached = context.reach.get(nodeId);
-  const modes = reached ? MODE_ORDER.filter((mode) => reached.has(mode)) : UNREACHED_MODES;
+  const modes = reached ? MODE_ORDER.filter((mode) => reached.has(mode)) : unreachedModes(context, nodeId);
   const inputs = dedupeInputs(modes.flatMap((mode) => graphNodeRenderInputs(context.doc, context.graph, nodeId, mode)));
   context.inputsCache.set(nodeId, inputs);
   return inputs;
@@ -143,8 +139,8 @@ function referenceRow(context: TreeContext, nodeId: string, kind: GraphTreeNodeK
   };
 }
 
-function groupFor(ownerId: string, input: GraphRenderInput, rows: GraphTreeRow[]): GraphTreeGroup {
-  const { kind, label } = GROUP_FOR_ROLE[input.role as Exclude<GraphRenderInput['role'], 'primary'>];
+function groupFor(ownerId: string, input: NestedInput, rows: GraphTreeRow[]): GraphTreeGroup {
+  const { kind, label } = GROUP_FOR_ROLE[input.role];
   const suffix = kind === 'input' ? `:${input.port}` : '';
   return {
     key: `${ownerId}:${kind}${suffix}`,
@@ -171,7 +167,7 @@ function buildStack(context: TreeContext, nodeId: string | null, path: string): 
   const primary = inputs.find((input) => input.role === 'primary') ?? null;
   const below = buildStack(context, primary?.sourceId ?? null, `${nodeId}:${primary?.port ?? ''}`);
   const groups = inputs
-    .filter((input) => input !== primary)
+    .filter(isNestedInput)
     .map((input) => groupFor(nodeId, input, buildStack(context, input.sourceId, `${nodeId}:${input.port}`)))
     .filter((group) => group.rows.length > 0);
 
@@ -189,18 +185,7 @@ function buildStack(context: TreeContext, nodeId: string | null, path: string): 
 function graphNodeIds(doc: CanvasDocument, graph: CanvasGraph): string[] {
   // Top-first, matching the Layers list: layers from the top of the stack, then graph-only nodes.
   const layerIds = [...doc.layers].reverse().map((layer) => layer.id);
-  const utilityIds = [
-    graph.mergeNodes,
-    graph.colorNodes,
-    graph.repeatNodes,
-    graph.materialNodes,
-    graph.maskNodes,
-    graph.transformNodes,
-    graph.grimeShadowNodes,
-    graph.shaderNodes,
-    graph.environmentNodes,
-    graph.scene3dNodes,
-  ].flatMap((nodes) => (nodes ?? []).map((node) => node.id));
+  const utilityIds = graphUtilityNodeCollections(graph).flatMap((nodes) => nodes.map((node) => node.id));
   return [...new Set([...layerIds, ...utilityIds])];
 }
 

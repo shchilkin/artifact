@@ -22,7 +22,7 @@ export interface LayerRowProps {
   layer: Layer;
   areas: GraphArea[];
   selected: boolean;
-  dragOverPosition: LayerDropPosition | null;
+  dragOverPosition?: LayerDropPosition | null;
   editing: boolean;
   nested?: boolean;
   /** Stack order is owned by a custom node graph, so rows cannot be dragged. */
@@ -32,10 +32,11 @@ export interface LayerRowProps {
   onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLElement>) => void;
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
-  onDragStart: (id: string) => void;
-  onDragOverLayer: (id: string, position: LayerDropPosition) => void;
-  onDropLayer: (id: string, position: LayerDropPosition) => void;
-  onDragEnd: () => void;
+  /** Drag handlers are omitted where rows cannot be reordered, such as the graph-derived tree. */
+  onDragStart?: (id: string) => void;
+  onDragOverLayer?: (id: string, position: LayerDropPosition) => void;
+  onDropLayer?: (id: string, position: LayerDropPosition) => void;
+  onDragEnd?: () => void;
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRemoveLayer: (id: string) => void;
@@ -84,7 +85,7 @@ function selectedClassName(selected: boolean) {
   return selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50';
 }
 
-function dropTargetClassName(position: LayerDropPosition | null) {
+function dropTargetClassName(position: LayerDropPosition | null | undefined) {
   return position ? `layer-row-drop-target layer-row-drop-${position}` : '';
 }
 
@@ -129,16 +130,16 @@ function shouldCancelLayerRowDrag(target: EventTarget) {
   );
 }
 
-function startLayerDrag(event: ReactDragEvent<HTMLElement>, layer: Layer, onDragStart: (id: string) => void) {
+function startLayerDrag(event: ReactDragEvent<HTMLElement>, layer: Layer, onDragStart?: (id: string) => void) {
   event.dataTransfer.effectAllowed = 'move';
   event.dataTransfer.setData('text/plain', layer.id);
-  onDragStart(layer.id);
+  onDragStart?.(layer.id);
 }
 
 function handleLayerRowDragStart(
   event: ReactDragEvent<HTMLElement>,
   layer: Layer,
-  onDragStart: (id: string) => void,
+  onDragStart: ((id: string) => void) | undefined,
   reorderDisabled: boolean,
 ) {
   if (layer.locked || reorderDisabled || shouldCancelLayerRowDrag(event.target)) {
@@ -300,7 +301,7 @@ function LayerAiBadges({ layer }: Pick<LayerRowProps, 'layer'>) {
   );
 }
 
-function LayerAreaChip({ areas, nested }: Pick<LayerRowProps, 'areas' | 'nested'>) {
+export function LayerAreaChip({ areas, nested }: Pick<LayerRowProps, 'areas' | 'nested'>) {
   if (areas.length === 0 || nested) return null;
   const areaNames = areas.map((area) => area.name).join(', ');
   return (
@@ -355,12 +356,16 @@ function LayerRowActions({
   );
 }
 
+/**
+ * Expand/collapse affordance for tree rows. It is not focusable: a click lands focus on its row, and
+ * the keyboard uses the tree's arrow keys.
+ */
 export function LayerTreeCaret({ expanded, onToggle }: { expanded?: boolean; onToggle?: () => void }) {
   if (expanded === undefined) return <span className="layer-tree-caret layer-tree-caret-leaf" aria-hidden="true" />;
   return (
-    <button
-      type="button"
-      tabIndex={-1}
+    // biome-ignore lint/a11y/noStaticElementInteractions: pointer shortcut; the treeitem owns keyboard expand/collapse.
+    // biome-ignore lint/a11y/useKeyWithClickEvents: ArrowLeft/ArrowRight on the treeitem expand and collapse.
+    <span
       aria-hidden="true"
       className="layer-tree-caret"
       data-expanded={expanded ? 'true' : 'false'}
@@ -370,7 +375,7 @@ export function LayerTreeCaret({ expanded, onToggle }: { expanded?: boolean; onT
       }}
     >
       ▸
-    </button>
+    </span>
   );
 }
 
@@ -433,11 +438,11 @@ export const LayerRow = memo(function LayerRow({
       onDragStart={(event) => handleLayerRowDragStart(event, layer, onDragStart, reorderDisabled)}
       onDragOver={(event) => {
         event.preventDefault();
-        onDragOverLayer(layer.id, getDropPosition(event));
+        onDragOverLayer?.(layer.id, getDropPosition(event));
       }}
       onDrop={(event) => {
         event.preventDefault();
-        onDropLayer(layer.id, getDropPosition(event));
+        onDropLayer?.(layer.id, getDropPosition(event));
       }}
       onDragEnd={onDragEnd}
       onClick={(event) => onSelect(layer.id, event)}

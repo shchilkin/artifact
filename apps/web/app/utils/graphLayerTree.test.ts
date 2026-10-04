@@ -273,6 +273,133 @@ describe('buildGraphLayerTree', () => {
     expectTreeMatchesRenderer(doc, tree, await rendererReach(doc));
   });
 
+  it('continues an effect-role shader through bg', async () => {
+    const layers = [fill('backdrop')];
+    const graph = graphOf({
+      shaderNodes: [makeGraphShaderNode({ id: 'wash', role: 'effect' })],
+      edges: [edge('backdrop', 'wash', 'bg'), edge('wash', EXPORT_NODE_ID, 'in')],
+    });
+    const doc = documentOf(layers, graph);
+    const tree = buildGraphLayerTree(doc);
+
+    expect(summarize(tree.output)).toEqual(['wash', 'backdrop']);
+    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc));
+  });
+
+  it('nests a primitive layer material and its texture maps as inputs', async () => {
+    const primitive = makeSourceLayer('primitive', { id: 'ball', name: 'ball', primitiveShape: 'sphere' });
+    const layers = [fill('backdrop'), fill('rough', '#777777'), primitive];
+    const graph = graphOf({
+      materialNodes: [makeGraphMaterialNode({ id: 'chrome' })],
+      edges: [
+        edge('backdrop', 'ball', 'bg'),
+        edge('chrome', 'ball', 'material'),
+        edge('rough', 'chrome', 'roughness'),
+        edge('ball', EXPORT_NODE_ID, 'in'),
+      ],
+    });
+    const doc = documentOf(layers, graph);
+    const tree = buildGraphLayerTree(doc);
+
+    expect(summarize(tree.output)).toEqual([
+      { ball: { Material: [{ chrome: { Roughness: ['rough'] } }] } },
+      'backdrop',
+    ]);
+    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc, ['chrome']));
+  });
+
+  it('continues a standalone material through albedo and leaves its other maps out', async () => {
+    const layers = [fill('base'), fill('rough', '#777777')];
+    const graph = graphOf({
+      materialNodes: [makeGraphMaterialNode({ id: 'chrome' })],
+      edges: [
+        edge('base', 'chrome', 'albedo'),
+        edge('rough', 'chrome', 'roughness'),
+        edge('chrome', EXPORT_NODE_ID, 'in'),
+      ],
+    });
+    const doc = documentOf(layers, graph);
+    const tree = buildGraphLayerTree(doc);
+
+    expect(summarize(tree.output)).toEqual(['chrome', 'base']);
+    expect(tree.notInOutput.map(summarize)).toEqual([['rough']]);
+    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc));
+  });
+
+  it('reads an environment node without a source but does not render it', async () => {
+    const layers = [fill('backdrop')];
+    const graph = graphOf({
+      scene3dNodes: [makeGraphScene3DNode({ id: 'scene', transparent: true })],
+      environmentNodes: [makeGraphEnvironmentNode({ id: 'env' })],
+      edges: [edge('backdrop', 'scene', 'bg'), edge('env', 'scene', 'env'), edge('scene', EXPORT_NODE_ID, 'in')],
+    });
+    const doc = documentOf(layers, graph);
+    const tree = buildGraphLayerTree(doc);
+
+    expect(summarize(tree.output)).toEqual([{ scene: { Environment: ['env'] } }, 'backdrop']);
+    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc, ['env']));
+  });
+
+  it('renders a shader on a material port as the material', async () => {
+    const layers = [fill('backdrop'), fill('ignored-backdrop', '#00ff00')];
+    const graph = graphOf({
+      scene3dNodes: [makeGraphScene3DNode({ id: 'scene', transparent: true })],
+      shaderNodes: [makeGraphShaderNode({ id: 'gradient', role: 'fill' })],
+      edges: [
+        edge('backdrop', 'scene', 'bg'),
+        edge('gradient', 'scene', 'material'),
+        edge('ignored-backdrop', 'gradient', 'bg'),
+        edge('scene', EXPORT_NODE_ID, 'in'),
+      ],
+    });
+    const doc = documentOf(layers, graph);
+    const tree = buildGraphLayerTree(doc);
+
+    expect(summarize(tree.output)).toEqual([{ scene: { Material: ['gradient'] } }, 'backdrop']);
+    expect(tree.notInOutput.map(summarize)).toEqual([['ignored-backdrop']]);
+    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc));
+  });
+
+  it('leaves a node that is not a 3D source on a model port out of the output', async () => {
+    const layers = [fill('backdrop'), fill('not-a-model', '#ff0000')];
+    const graph = graphOf({
+      scene3dNodes: [makeGraphScene3DNode({ id: 'scene', transparent: true })],
+      edges: [
+        edge('backdrop', 'scene', 'bg'),
+        edge('not-a-model', 'scene', 'model'),
+        edge('scene', EXPORT_NODE_ID, 'in'),
+      ],
+    });
+    const doc = documentOf(layers, graph);
+    const tree = buildGraphLayerTree(doc);
+
+    expect(summarize(tree.output)).toEqual(['scene', 'backdrop']);
+    expect(tree.notInOutput.map(summarize)).toEqual([['not-a-model']]);
+    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc));
+  });
+
+  it('leaves a node that is not a material on a material port out, but keeps the texture maps it carries', async () => {
+    const layers = [fill('backdrop'), fill('graded', '#ff0000'), fill('rough', '#777777')];
+    const graph = graphOf({
+      scene3dNodes: [makeGraphScene3DNode({ id: 'scene', transparent: true })],
+      colorNodes: [makeGraphColorNode({ id: 'grade' })],
+      edges: [
+        edge('backdrop', 'scene', 'bg'),
+        edge('grade', 'scene', 'material'),
+        edge('graded', 'grade', 'in'),
+        edge('rough', 'grade', 'roughness'),
+        edge('scene', EXPORT_NODE_ID, 'in'),
+      ],
+    });
+    const doc = documentOf(layers, graph);
+    const tree = buildGraphLayerTree(doc);
+
+    // The renderer neither renders nor reads `grade`, but still renders what feeds its texture ports.
+    expect(summarize(tree.output)).toEqual([{ scene: { Roughness: ['rough'] } }, 'backdrop']);
+    expect(tree.notInOutput.map(summarize)).toEqual([['grade', 'graded']]);
+    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc));
+  });
+
   it('tolerates cycles and edges from deleted nodes', () => {
     const layers = [fill('a'), fill('b'), fill('c'), fill('d'), fill('e')];
     const graph = graphOf({

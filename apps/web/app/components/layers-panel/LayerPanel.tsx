@@ -28,13 +28,13 @@ import {
   EditorRowPrimary,
 } from '../editor-workflow/EditorRowFrame';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { GraphLayerTreeView } from './GraphLayerTreeView';
 import { graphTreeLayerOrder } from './graphTreeItems';
 import { LayerAddMenu } from './LayerAddMenu';
 import { LayerAreaFolder } from './LayerAreaFolder';
 import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu';
+import { type LayerPanelView, LayerPanelViewSwitch } from './LayerPanelViewSwitch';
 import { LayerRow, type LayerRowProps, LayerSelectionControl } from './LayerRow';
 import { buildLayerDisplayItems, type LayerDisplayItem } from './layerDisplayItems';
 import { useLayerDragReorder } from './useLayerDragReorder';
@@ -77,9 +77,6 @@ const ASPECT_OPTIONS: Array<{ ratio: AspectRatio; label: string; size: string }>
 function graphAreasForDocument(doc: CanvasDocument) {
   return doc.graph?.areas ?? [];
 }
-
-/** Custom graphs show either the graph-derived structure or today's area folders. */
-type LayerPanelView = 'structure' | 'areas';
 
 function graphTreeDisplayLayers(tree: GraphLayerTree | null, layers: Layer[]): Layer[] | null {
   if (!tree) return null;
@@ -163,16 +160,26 @@ export function LayerPanel({
 
   const closeLayerContextMenu = useCallback(() => setContextMenu(null), []);
 
+  const openLayerContextMenuAt = useCallback(
+    (id: string, position: { x: number; y: number }, returnFocusTarget: HTMLElement) => {
+      const activeIds = selectedActionLayerIds.includes(id) ? selectedActionLayerIds : [id];
+      setSelectedLayerIds(new Set(activeIds));
+      onSelectLayer(id);
+      setContextMenu({ ...position, ids: activeIds, returnFocusTarget });
+    },
+    [onSelectLayer, selectedActionLayerIds, setSelectedLayerIds],
+  );
+
   const handleOpenLayerContextMenu = useCallback(
     (id: string, event: ReactMouseEvent<HTMLElement>) => {
       event.preventDefault();
-      const activeIds = selectedActionLayerIds.includes(id) ? selectedActionLayerIds : [id];
-      const returnFocusTarget = contextMenuReturnFocusTarget(event.currentTarget);
-      setSelectedLayerIds(new Set(activeIds));
-      onSelectLayer(id);
-      setContextMenu({ x: event.clientX, y: event.clientY, ids: activeIds, returnFocusTarget });
+      openLayerContextMenuAt(
+        id,
+        { x: event.clientX, y: event.clientY },
+        contextMenuReturnFocusTarget(event.currentTarget),
+      );
     },
-    [onSelectLayer, selectedActionLayerIds, setSelectedLayerIds],
+    [openLayerContextMenuAt],
   );
 
   const handleFinishRename = useCallback(
@@ -305,6 +312,7 @@ export function LayerPanel({
             onSelectLayer={handleSelectRow}
             onSelectNode={handleSelectGraphNode}
             onOpenLayerContextMenu={handleOpenRowContextMenu}
+            onOpenLayerContextMenuAt={openLayerContextMenuAt}
             onStartEditing={setEditingId}
             onFinishRename={handleFinishRowRename}
             onToggleVisible={onToggleVisible}
@@ -440,27 +448,6 @@ function LayerPanelHeader({
         />
       </div>
     </div>
-  );
-}
-
-function LayerPanelViewSwitch({
-  value,
-  onChange,
-}: {
-  value: LayerPanelView;
-  onChange: (view: LayerPanelView) => void;
-}) {
-  return (
-    <Tabs value={value} onValueChange={(next) => onChange(next as LayerPanelView)} className="layer-panel-view-switch">
-      <TabsList aria-label="Layers view">
-        <TabsTrigger value="structure" title="Show how layers and nodes reach Output">
-          Structure
-        </TabsTrigger>
-        <TabsTrigger value="areas" title="Show layers grouped by area">
-          Areas
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
   );
 }
 

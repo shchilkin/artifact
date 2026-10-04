@@ -38,6 +38,6 @@ test('mobile layers tree starts with nested folders collapsed and expands on tap
     };
   });
   expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewportWidth + 1);
-  // Level 4 rows are indented no deeper than the level-3 cap.
-  expect(layout.maxIndent).toBeLessThanOrEqual(12 + 2 * 10 + 1);
+  // Level 4 rows are indented no deeper than the level-3 cap: --space-3 plus two --space-2 steps.
+  expect(layout.maxIndent).toBeLessThanOrEqual(12 + 2 * 8 + 1);
 });

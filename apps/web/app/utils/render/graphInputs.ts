@@ -1,9 +1,11 @@
-import type { CanvasDocument, CanvasGraph, GraphEdge, Layer, MaterialTextureInputPort } from '../../types/config';
+import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../../types/config';
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../types/config';
-import { EXPORT_NODE_ID } from '../nodeGraph';
+import { EXPORT_NODE_ID, type GraphUtilityNodeKind, graphUtilityNodeKind } from '../nodeGraph';
 
-// Pure description of which inputs the graph renderer follows. `graph.ts` and the Layers tree
-// (`utils/graphLayerTree.ts`) both read the graph through these helpers so they cannot drift apart.
+// Pure description of which inputs the graph renderer follows. The renderer (`graph.ts`) shares the
+// port lookup below; the per-kind input tables restate what each `GRAPH_NODE_RENDERERS` entry reads,
+// and `graphLayerTree.test.ts` renders fixtures for every branch so the two cannot drift apart
+// unnoticed. When a renderer starts or stops reading a port, update the table in the same change.
 
 export type GraphInputPort = GraphEdge['toPort'];
 
@@ -18,45 +20,20 @@ export function graphLayerInputPort(layer: Layer): 'in' | 'bg' {
   return layer.kind === 'effect' ? 'in' : 'bg';
 }
 
-export type GraphRenderNodeKind =
-  | 'export'
-  | 'merge'
-  | 'color'
-  | 'repeat'
-  | 'material'
-  | 'mask'
-  | 'transform'
-  | 'grimeShadow'
-  | 'shader'
-  | 'environment'
-  | 'scene3d'
-  | 'layer'
-  | 'missing';
-
-function hasNode(nodes: Array<{ id: string }> | undefined, nodeId: string) {
-  return (nodes ?? []).some((node) => node.id === nodeId);
-}
+export type GraphRenderNodeKind = 'export' | GraphUtilityNodeKind | 'layer' | 'missing';
 
 /** Classifies a node id in the same order the renderer dispatches it (`GRAPH_NODE_RENDERERS`). */
 export function graphRenderNodeKind(doc: CanvasDocument, graph: CanvasGraph, nodeId: string): GraphRenderNodeKind {
   if (nodeId === EXPORT_NODE_ID) return 'export';
-  if (hasNode(graph.mergeNodes, nodeId)) return 'merge';
-  if (hasNode(graph.colorNodes, nodeId)) return 'color';
-  if (hasNode(graph.repeatNodes, nodeId)) return 'repeat';
-  if (hasNode(graph.materialNodes, nodeId)) return 'material';
-  if (hasNode(graph.maskNodes, nodeId)) return 'mask';
-  if (hasNode(graph.transformNodes, nodeId)) return 'transform';
-  if (hasNode(graph.grimeShadowNodes, nodeId)) return 'grimeShadow';
-  if (hasNode(graph.shaderNodes, nodeId)) return 'shader';
-  if (hasNode(graph.environmentNodes, nodeId)) return 'environment';
-  if (hasNode(graph.scene3dNodes, nodeId)) return 'scene3d';
-  return hasNode(doc.layers, nodeId) ? 'layer' : 'missing';
+  const utilityKind = graphUtilityNodeKind(graph, nodeId);
+  if (utilityKind) return utilityKind;
+  return doc.layers.some((layer) => layer.id === nodeId) ? 'layer' : 'missing';
 }
 
 /**
  * How the renderer uses a node:
  * - `render`: the node's pixels are rendered, so its own render inputs are followed;
- * - `material`: the node feeds a `material` port, so its texture ports are rendered instead;
+ * - `material`: a material node on a `material` port: its settings are read and its texture ports rendered;
  * - `read`: the renderer reads the node's settings without rendering it (a Scene 3D model, or an
  *   environment node without a source), so none of its inputs are followed.
  */
@@ -81,11 +58,6 @@ export interface GraphRenderInput {
 
 type InputCandidate = { port: GraphInputPort; role: GraphInputRole; mode: GraphReachMode };
 
-function materialPortMode(doc: CanvasDocument, graph: CanvasGraph, sourceId: string): GraphReachMode {
-  // A shader on a material port is rendered as the albedo texture; anything else contributes its texture ports.
-  return graphRenderNodeKind(doc, graph, sourceId) === 'shader' ? 'render' : 'material';
-}
-
 function environmentPortMode(doc: CanvasDocument, graph: CanvasGraph, sourceId: string): GraphReachMode {
   if (graphRenderNodeKind(doc, graph, sourceId) !== 'environment') return 'render';
   return findIncomingSource(graph, sourceId, 'in') ? 'render' : 'read';
@@ -103,9 +75,11 @@ function shaderFollowsBackdrop(graph: CanvasGraph, nodeId: string) {
   return shader.role !== 'fill';
 }
 
-function textureCandidates(role: (port: MaterialTextureInputPort) => GraphInputRole): InputCandidate[] {
-  return MATERIAL_TEXTURE_INPUT_PORTS.map((port) => ({ port, role: role(port), mode: 'render' as const }));
-}
+const TEXTURE_CANDIDATES: InputCandidate[] = MATERIAL_TEXTURE_INPUT_PORTS.map((port) => ({
+  port,
+  role: 'side',
+  mode: 'render',
+}));
 
 const SINGLE_INPUT: InputCandidate[] = [{ port: 'in', role: 'primary', mode: 'render' }];
 
@@ -144,7 +118,8 @@ function renderModeCandidates(doc: CanvasDocument, graph: CanvasGraph, nodeId: s
         { port: 'env', role: 'side', mode: 'render' },
       ];
     case 'layer': {
-      const layer = doc.layers.find((item) => item.id === nodeId)!;
+      const layer = doc.layers.find((item) => item.id === nodeId);
+      if (!layer) return [];
       const primary: InputCandidate = { port: graphLayerInputPort(layer), role: 'primary', mode: 'render' };
       return layer.kind === 'primitive' ? [primary, { port: 'material', role: 'side', mode: 'material' }] : [primary];
     }
@@ -155,20 +130,44 @@ function renderModeCandidates(doc: CanvasDocument, graph: CanvasGraph, nodeId: s
 
 function modeCandidates(doc: CanvasDocument, graph: CanvasGraph, nodeId: string, mode: GraphReachMode) {
   if (mode === 'read') return [];
-  if (mode === 'material') return textureCandidates(() => 'side');
+  if (mode === 'material') return TEXTURE_CANDIDATES;
   return renderModeCandidates(doc, graph, nodeId);
 }
 
-function resolveCandidateMode(
+function textureInputs(graph: CanvasGraph, nodeId: string): GraphRenderInput[] {
+  return TEXTURE_CANDIDATES.flatMap((candidate) => {
+    const sourceId = findIncomingSource(graph, nodeId, candidate.port);
+    return sourceId ? [{ ...candidate, sourceId }] : [];
+  });
+}
+
+/**
+ * What a `material` port contributes, mirroring `resolveMaterialTextureCanvases` and the material
+ * config lookups: a shader is rendered as the albedo; a material node's settings are read and its
+ * texture ports rendered; any other node is neither rendered nor read, but whatever feeds its texture
+ * ports still renders, so those sources count as the consumer's own inputs.
+ */
+function materialPortInputs(doc: CanvasDocument, graph: CanvasGraph, sourceId: string): GraphRenderInput[] {
+  const kind = graphRenderNodeKind(doc, graph, sourceId);
+  if (kind === 'shader') return [{ port: 'material', sourceId, role: 'side', mode: 'render' }];
+  if (kind === 'material') return [{ port: 'material', sourceId, role: 'side', mode: 'material' }];
+  return textureInputs(graph, sourceId);
+}
+
+function candidateInputs(
   doc: CanvasDocument,
   graph: CanvasGraph,
   candidate: InputCandidate,
   sourceId: string,
-): GraphReachMode | null {
-  if (candidate.port === 'material') return materialPortMode(doc, graph, sourceId);
-  if (candidate.port === 'env') return environmentPortMode(doc, graph, sourceId);
-  if (candidate.port === 'model') return modelPortMode(doc, sourceId);
-  return candidate.mode;
+): GraphRenderInput[] {
+  if (candidate.port === 'material') return materialPortInputs(doc, graph, sourceId);
+  const mode =
+    candidate.port === 'env'
+      ? environmentPortMode(doc, graph, sourceId)
+      : candidate.port === 'model'
+        ? modelPortMode(doc, sourceId)
+        : candidate.mode;
+  return mode ? [{ port: candidate.port, sourceId, role: candidate.role, mode }] : [];
 }
 
 /**
@@ -181,14 +180,10 @@ export function graphNodeRenderInputs(
   nodeId: string,
   mode: GraphReachMode,
 ): GraphRenderInput[] {
-  const inputs: GraphRenderInput[] = [];
-  for (const candidate of modeCandidates(doc, graph, nodeId, mode)) {
+  return modeCandidates(doc, graph, nodeId, mode).flatMap((candidate) => {
     const sourceId = findIncomingSource(graph, nodeId, candidate.port);
-    if (!sourceId) continue;
-    const sourceMode = resolveCandidateMode(doc, graph, candidate, sourceId);
-    if (sourceMode) inputs.push({ port: candidate.port, sourceId, role: candidate.role, mode: sourceMode });
-  }
-  return inputs;
+    return sourceId ? candidateInputs(doc, graph, candidate, sourceId) : [];
+  });
 }
 
 /**
@@ -202,8 +197,8 @@ export function collectGraphRenderReach(
 ): Map<string, Set<GraphReachMode>> {
   const reach = new Map<string, Set<GraphReachMode>>();
   const queue: Array<{ id: string; mode: GraphReachMode }> = [{ id: targetId, mode: 'render' }];
-  while (queue.length > 0) {
-    const { id, mode } = queue.pop()!;
+  for (let next = queue.pop(); next; next = queue.pop()) {
+    const { id, mode } = next;
     const modes = reach.get(id) ?? new Set<GraphReachMode>();
     if (modes.has(mode)) continue;
     modes.add(mode);

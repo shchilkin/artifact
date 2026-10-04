@@ -22,7 +22,7 @@ import {
   graphTreeAncestorFolders,
   visibleGraphTreeItems,
 } from './graphTreeItems';
-import { LayerRow, type LayerRowProps, LayerTreeCaret } from './LayerRow';
+import { LayerAreaChip, LayerRow, type LayerRowProps, LayerTreeCaret } from './LayerRow';
 import { GRAPH_HELPER_META } from './layerDisplayItems';
 import { type LayerRowTreePlacement, layerKindLabel, layerTreeItemProps } from './layerRowTree';
 
@@ -54,6 +54,8 @@ export interface GraphLayerTreeViewProps {
   /** Selects a graph-only node, or the full entry of a reference row. */
   onSelectNode: (id: string) => void;
   onOpenLayerContextMenu: LayerRowProps['onOpenContextMenu'];
+  /** Opens layer actions from the keyboard, anchored to the row. */
+  onOpenLayerContextMenuAt: (id: string, position: { x: number; y: number }, returnFocusTarget: HTMLElement) => void;
   onStartEditing: (id: string) => void;
   onFinishRename: LayerRowProps['onFinishRename'];
   onToggleVisible: LayerRowProps['onToggleVisible'];
@@ -109,18 +111,6 @@ function folderAccessibleLabel(label: string, count: number) {
   return `${label}, ${count} ${count === 1 ? 'item' : 'items'}`;
 }
 
-function TreeAreaChip({ areas }: { areas: GraphArea[] }) {
-  if (areas.length === 0) return null;
-  const names = areas.map((area) => area.name).join(', ');
-  return (
-    <span className="layer-area-chip" title={names} aria-label={`Graph area: ${names}`}>
-      <span className="layer-area-dot" style={{ background: areas[0].color }} aria-hidden="true" />
-      <span className="layer-area-name">{areas[0].name}</span>
-      {areas.length > 1 && <span className="layer-area-more">+{areas.length - 1}</span>}
-    </span>
-  );
-}
-
 function GraphNodeTreeRow({
   row,
   placement,
@@ -161,7 +151,7 @@ function GraphNodeTreeRow({
       <EditorRowMetadata className="layer-row-meta">
         {summary ? <span className="layer-tree-merge-summary">{summary}</span> : null}
         <span className="layer-tree-node-kind">{row.kind === 'merge' ? 'group' : meta?.label}</span>
-        <TreeAreaChip areas={areas} />
+        <LayerAreaChip areas={areas} />
       </EditorRowMetadata>
     </EditorRowFrame>
   );
@@ -244,16 +234,27 @@ function nextFocusKey(items: GraphTreeItem[], index: number, key: string): strin
   }
 }
 
-function openRowContextMenu(element: HTMLElement) {
+function rowMenuPosition(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
-  element.dispatchEvent(
-    new MouseEvent('contextmenu', {
-      bubbles: true,
-      cancelable: true,
-      clientX: rect.left + Math.min(rect.width / 2, 160),
-      clientY: rect.top + rect.height / 2,
-    }),
-  );
+  return { x: rect.left + Math.min(rect.width / 2, 160), y: rect.top + rect.height / 2 };
+}
+
+function itemLabel(item: GraphTreeItem) {
+  return item.type === 'folder' ? item.label : item.row.name;
+}
+
+/** Type-ahead: the next visible item after `index` whose name starts with `character`, wrapping around. */
+function typeAheadKey(items: GraphTreeItem[], index: number, character: string): string | null {
+  const needle = character.toLocaleLowerCase();
+  for (let offset = 1; offset <= items.length; offset += 1) {
+    const candidate = items[(index + offset) % items.length];
+    if (itemLabel(candidate).toLocaleLowerCase().startsWith(needle)) return candidate.key;
+  }
+  return null;
+}
+
+function isTypeAheadKey(event: ReactKeyboardEvent) {
+  return event.key.length === 1 && event.key !== ' ' && !event.ctrlKey && !event.metaKey && !event.altKey;
 }
 
 export function GraphLayerTreeView({
@@ -265,6 +266,7 @@ export function GraphLayerTreeView({
   onSelectLayer,
   onSelectNode,
   onOpenLayerContextMenu,
+  onOpenLayerContextMenuAt,
   onStartEditing,
   onFinishRename,
   onToggleVisible,
@@ -387,10 +389,17 @@ export function GraphLayerTreeView({
       }
       if ((event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) && isLayerRow) {
         event.preventDefault();
-        openRowContextMenu(target);
+        onOpenLayerContextMenuAt(item.row.nodeId, rowMenuPosition(target), target);
+        return;
+      }
+      if (isTypeAheadKey(event)) {
+        const match = typeAheadKey(items, index, event.key);
+        if (!match) return;
+        event.preventDefault();
+        focusItem(match);
       }
     },
-    [activateItem, focusItem, items, layersById, onStartEditing, toggleFolder],
+    [activateItem, focusItem, items, layersById, onOpenLayerContextMenuAt, onStartEditing, toggleFolder],
   );
 
   const handleFinishRename = useCallback(
@@ -415,6 +424,7 @@ export function GraphLayerTreeView({
       ref={containerRef}
       role="tree"
       aria-label="Layer tree"
+      aria-multiselectable="true"
       className="layer-tree"
       onKeyDown={handleKeyDown}
       onFocus={handleFocus}
@@ -462,7 +472,6 @@ export function GraphLayerTreeView({
               layer={layer}
               areas={areas}
               selected={selectedActionLayerIds.includes(layer.id)}
-              dragOverPosition={null}
               editing={editingId === layer.id}
               reorderDisabled
               tree={rowPlacement}
@@ -470,10 +479,6 @@ export function GraphLayerTreeView({
               onOpenContextMenu={onOpenLayerContextMenu}
               onStartEditing={onStartEditing}
               onFinishRename={handleFinishRename}
-              onDragStart={noop}
-              onDragOverLayer={noop}
-              onDropLayer={noop}
-              onDragEnd={noop}
               onToggleVisible={onToggleVisible}
               onDuplicateLayer={onDuplicateLayer}
               onRemoveLayer={onRemoveLayer}
@@ -495,5 +500,3 @@ export function GraphLayerTreeView({
     </div>
   );
 }
-
-function noop() {}

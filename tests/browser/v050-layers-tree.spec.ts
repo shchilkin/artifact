@@ -41,7 +41,9 @@ test('custom graphs show the graph-derived tree with merge folders, nested input
 }) => {
   await openTree(page);
 
-  await expect(page.getByRole('tab', { name: 'Structure' })).toHaveAttribute('aria-selected', 'true');
+  const viewSwitch = page.getByRole('group', { name: 'Layers view' });
+  await expect(viewSwitch.getByRole('button', { name: 'Structure' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(layerTree(page)).toHaveAttribute('aria-multiselectable', 'true');
   expect(await treeOutline(page)).toEqual([
     '1 Headline, text layer',
     '1 Glow, merge group, screen · 70%',
@@ -62,10 +64,11 @@ test('custom graphs show the graph-derived tree with merge folders, nested input
   await expect(treeItem(page, 'Headline, text layer')).toHaveAttribute('data-area-rail', 'true');
   await expect(page.locator('.layer-row-drag-handle:visible')).toHaveCount(0);
 
-  await page.getByRole('tab', { name: 'Areas' }).click();
+  await viewSwitch.getByRole('button', { name: 'Areas' }).click();
+  await expect(viewSwitch.getByRole('button', { name: 'Areas' })).toHaveAttribute('aria-pressed', 'true');
   await expect(layerTree(page)).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Layer stack' })).toContainText('Type');
-  await page.getByRole('tab', { name: 'Structure' }).click();
+  await viewSwitch.getByRole('button', { name: 'Structure' }).click();
   await expect(layerTree(page)).toBeVisible();
 });
 
@@ -109,6 +112,22 @@ test('the tree supports keyboard navigation, expand and collapse, selection, and
 
   await page.keyboard.press('Home');
   await expect(headline).toBeFocused();
+
+  // Type-ahead jumps to the next visible row whose name starts with the typed character.
+  await page.keyboard.press('b');
+  await expect(treeItem(page, 'Badge, fill layer')).toBeFocused();
+  await page.keyboard.press('b');
+  await expect(treeItem(page, 'Backdrop, shared fill layer, go to its full entry')).toBeFocused();
+});
+
+test('collapsing a folder from its caret keeps focus in the tree', async ({ page }) => {
+  await openTree(page);
+  const matte = treeItem(page, 'Matte, text layer');
+  await matte.focus();
+
+  await treeItem(page, 'Glow, merge group, screen · 70%').locator('.layer-tree-caret').click();
+  await expect(matte).toHaveCount(0);
+  await expect(treeItem(page, 'Glow, merge group, screen · 70%')).toBeFocused();
 });
 
 test('tree rows keep visibility and the inspector working, and graph-only nodes point to Nodes', async ({ page }) => {
