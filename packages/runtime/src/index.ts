@@ -42,6 +42,8 @@ export {
   effectRegistry,
   type NoiseWarpLayer,
   noiseWarp,
+  type TearLayer,
+  tear,
   type VortexLayer,
   vortex,
 } from './effects/index.js';

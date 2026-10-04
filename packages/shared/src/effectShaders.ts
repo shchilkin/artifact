@@ -74,3 +74,26 @@ void main() {
   vec2 warped = clamp(uCenter + dist * vec2(cos(angle), sin(angle)), 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
+
+/**
+ * Chunk Tear: splits the frame into horizontal bands `uChunkH` tall (normalised) and shifts about 30% of them
+ * sideways, wrapping around, by up to `uIntensity` of the width. Which bands move, and how far, is a hash of the band
+ * index and `uSeed`, so a new seed tears different bands. Uniforms: `uIntensity`, `uChunkH`, `uSeed`.
+ */
+export const TEAR_FRAG = `${HEADER}
+uniform float uIntensity;
+uniform float uChunkH;
+uniform float uSeed;
+
+float hash(float n) {
+  return fract(sin(n * 127.1 + uSeed * 0.01) * 43758.5453);
+}
+
+void main() {
+  ${NORM_UV}
+  float chunkId    = floor(norm.y / uChunkH);
+  float active     = step(0.7, hash(chunkId));
+  float offsetNorm = (hash(chunkId + 57.3) - 0.5) * 2.0 * uIntensity * active;
+  vec2 warped      = vec2(fract(norm.x + offsetNorm), norm.y);
+  gl_FragColor     = ${SAMPLE('warped')};
+}`;

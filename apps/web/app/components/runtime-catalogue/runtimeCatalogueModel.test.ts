@@ -50,4 +50,14 @@ describe('runtime catalogue model', () => {
     expect(catalogueLayer('vortex', EFFECT_CASES.vortex)).toMatchObject({ preset: 'vortex', vortex: 50 });
     expect(catalogueBindings(EFFECT_CASES.vortex)).toEqual(['wave track', 'pointer.x', 'pointer.y', 'hover']);
   });
+
+  it('lists Tear with its amount and size sliders, the step track and click', () => {
+    expect(catalogueTitle('tear')).toBe('Tear');
+    expect(catalogueControls('tear')).toEqual([
+      expect.objectContaining({ type: 'slider', field: 'tearAmt' }),
+      expect.objectContaining({ type: 'slider', field: 'tearSize' }),
+    ]);
+    expect(catalogueLayer('tear', EFFECT_CASES.tear)).toMatchObject({ preset: 'tear', tearAmt: 10, tearSize: 6 });
+    expect(catalogueBindings(EFFECT_CASES.tear)).toEqual(['step track', 'click']);
+  });
 });

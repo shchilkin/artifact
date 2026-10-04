@@ -55,7 +55,7 @@ not its render loop.
   `setInput` fills `inputs`.
 
 Shader reuse: shared fragments live in `@artifact/shared/effect-shaders` (`HEADER`, `NORM_UV`, `SAMPLE`,
-`NOISE_FRAG`, `VORTEX_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
+`NOISE_FRAG`, `VORTEX_FRAG`, `TEAR_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
 byte-identical. Port further editor fragments the same way: move the string, import it in both places.
 
 Pixi conventions the chain matches:
@@ -164,9 +164,9 @@ graph with merges, other node kinds, or extra inputs (materials, environments) i
   and says so in `baked`. The resting frame then differs where the moved effects do not commute with the chain.
 
 The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text) is
-one still plate in the exact split: Tear, Scanlines and Chrom. Ab. sit above the live Noise Warp and Vortex. The
-approximate split gives a base plate, a Noise Warp + Vortex chain and an image/text plate, with about 24% of pixels
-more than 8 levels off at rest, since the scanlines and colour fringes are warped instead of lying on top.
+one still plate in the exact split: Scanlines and Chrom. Ab. sit above the live Noise Warp, Vortex and Tear. The
+approximate split gives a base plate, a Noise Warp + Vortex + Tear chain and an image/text plate, with about 24% of
+pixels more than 8 levels off at rest, since the scanlines and colour fringes are warped instead of lying on top.
 
 ### Export
 
@@ -221,7 +221,7 @@ export default defineEffectCase({
 ```
 
 Optional fields: `seed` (default 11), `fixtures` (default all three), `goldenFixture` (default `graphic`),
-`bindings`. Static parity uses the authored layer alone; goldens, GPU timing and the catalogue run the case through
+`bindings`, `pixelTolerance` (widens the pixel tolerance for a measured, explained rounding difference). Static parity uses the authored layer alone; goldens, GPU timing and the catalogue run the case through
 `createLiveArtwork` with its bindings.
 
 From that one declaration:
@@ -265,6 +265,10 @@ Why these numbers:
   to match. The spec's second self-test shows the split: Noise Warp with a far-off seed fails pixel parity and passes
   the statistics on the text fixture. The statistical limits are a first estimate; the first stochastic port should
   confirm them against its own measurements and record any change here.
+- Chunk Tear allows 0.2% of pixels (one column) instead of 0.1%. Its fragment wraps with `fract(norm.x + offset)`,
+  and at the last column's pixel centre `norm.x` is exactly 1 in exact arithmetic: Pixi's power-of-two filter texture
+  gives exactly 1.0 in Chromium, so the editor's untorn rows wrap the left edge into the last column, while the
+  runtime's texture lands just under 1.0. Every other pixel matches; on the photo fixture that column is 0.105%.
 
 Every parity test attaches `<effect>-<fixture>-editor-runtime-diff.png` (editor | runtime | diff) to the report. In
 the diff panel, red marks pixels over the threshold (brighter is larger), amber marks smaller non-zero differences,

@@ -82,3 +82,21 @@ test('the catalogue exports the sample cover as a live package and plays it', as
   await panel.getByRole('button', { name: 'Download .zip' }).click();
   expect((await download).suggestedFilename()).toBe('Sample cover-live-540.zip');
 });
+
+test('the runtime catalogue shows Tear, with a click spiking the tear', async ({ page }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const entry = page.locator('article[data-effect="tear"]');
+  await expect(entry.getByRole('heading', { name: 'Tear' })).toBeVisible();
+  await expect(entry.getByText('step track, click')).toBeVisible();
+  await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+
+  const canvas = entry.locator('canvas');
+  const resting = await canvas.screenshot();
+  await canvas.click();
+  await expect.poll(async () => (await canvas.screenshot()).equals(resting)).toBe(false);
+  await page.mouse.move(0, 0);
+});

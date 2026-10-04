@@ -1,4 +1,4 @@
-import { HEADER, NOISE_FRAG, NORM_UV, SAMPLE, VORTEX_FRAG } from '@artifact/shared/effect-shaders';
+import { HEADER, NOISE_FRAG, NORM_UV, SAMPLE, TEAR_FRAG, VORTEX_FRAG } from '@artifact/shared/effect-shaders';
 import { BlurFilter, Filter } from 'pixi.js';
 import type { EffectLayer } from '../types/config';
 
@@ -23,24 +23,6 @@ void main() {
   float wy = cos(norm.x * f + t * 2.3) * sin(norm.y * f * 0.8 + t * 0.8);
   vec2 warped = clamp(norm + vec2(wx, wy) * uIntensity, 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
-}`;
-
-const TEAR_FRAG = `${HEADER}
-uniform float uIntensity;
-uniform float uChunkH;
-uniform float uSeed;
-
-float hash(float n) {
-  return fract(sin(n * 127.1 + uSeed * 0.01) * 43758.5453);
-}
-
-void main() {
-  ${NORM_UV}
-  float chunkId    = floor(norm.y / uChunkH);
-  float active     = step(0.7, hash(chunkId));
-  float offsetNorm = (hash(chunkId + 57.3) - 0.5) * 2.0 * uIntensity * active;
-  vec2 warped      = vec2(fract(norm.x + offsetNorm), norm.y);
-  gl_FragColor     = ${SAMPLE('warped')};
 }`;
 
 const BARREL_FRAG = `${HEADER}

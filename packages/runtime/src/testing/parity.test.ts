@@ -97,6 +97,14 @@ describe('statistical parity', () => {
     expect(compareParity(gradient, gradient, false).mode).toBe('pixels');
     expect(compareParity(gradient, gradient, true).mode).toBe('statistics');
   });
+
+  it("passes a case's widened pixel tolerance through to the pixel comparison", () => {
+    // 11 of 10,000 pixels off by 40 levels: over the default 0.1%, within a widened 0.2%.
+    const spotted = image(100, 100, (x, y) => (y === 0 && x < 11 ? [x * 2 + 40, 0, 128] : [x * 2, y * 2, 128]));
+    expect(compareParity(gradient, spotted, false).pass).toBe(false);
+    const widened = compareParity(gradient, spotted, false, { ...PIXEL_TOLERANCE, maxDifferentRatio: 0.002 });
+    expect(widened).toMatchObject({ mode: 'pixels', pass: true, tolerance: { maxDifferentRatio: 0.002 } });
+  });
 });
 
 describe('review images', () => {
