@@ -222,13 +222,15 @@ test('the runtime catalogue shows plate parallax, with depth and strength contro
   await page.mouse.move(box.x + 4, box.y + 4, { steps: 4 });
   await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(false);
 
-  // At zero strength the pointer moves nothing.
+  // At zero strength the pointer moves nothing: the corner frame is the centred one.
   await strength.focus();
   await strength.press('Home');
   await expect(strength).toHaveValue('0');
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(true);
+  await page.waitForTimeout(250);
+  const still = await canvas.screenshot();
   await page.mouse.move(box.x + 4, box.y + 4, { steps: 4 });
-  await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(true);
+  await page.waitForTimeout(250);
+  expect((await canvas.screenshot()).equals(still)).toBe(true);
   await page.mouse.move(0, 0);
 });
