@@ -13,5 +13,7 @@ export default [
   route('docs/reference', 'routes/docs.reference.tsx'),
   route('docs/reference/:nodeId', 'routes/docs.reference-detail.tsx'),
   route('docs/style-guide', 'routes/docs.style-guide.tsx'),
+  // Development-only tools. They are left out of production builds.
+  ...(process.env.NODE_ENV === 'production' ? [] : [route('dev/runtime', 'routes/dev.runtime.tsx')]),
   route('*', 'routes/not-found.tsx'),
 ] satisfies RouteConfig;
