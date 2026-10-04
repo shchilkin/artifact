@@ -73,7 +73,7 @@ function imageSourcesForMaterialNode(node: GraphMaterialNode) {
   );
 }
 
-function collectDocumentImageSources(doc: CanvasDocument): string[] {
+export function collectDocumentImageSources(doc: CanvasDocument): string[] {
   return [
     ...doc.layers.flatMap((layer) => (layer.kind === 'image' ? imageSourcesForLayer(layer) : [])),
     ...(doc.graph?.materialNodes ?? []).flatMap(imageSourcesForMaterialNode),

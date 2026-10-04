@@ -46,8 +46,8 @@ not its render loop.
   observeVisibility?, scheduler? })` → `start`, `pause`, `seek(t)`, `resize(w?, h?)`, `setInput(name, value)`,
   `destroy`, and a `state` snapshot (`status`, `time`, `frames`, `width`, `height`). It draws one resting frame on
   creation; reduced motion keeps that still frame and never requests animation frames. Defaults: DPR cap 2,
-  `maxRenderSize` 1080. Until the live package exists, `createArtwork` takes the resolved `chain` instead of
-  `livePackage`.
+  `maxRenderSize` 1080. It also takes `{ canvas, livePackage }` instead of `source` and `chain` (see Live package
+  below); `createLiveArtwork` does the same, with the package's own bindings.
 - `effectRegistry.pass(id, layer, { seed, width, height })` → a `ChainPass` (`id`, `fragment`, `uniforms`) from an
   authored `EffectLayer`, or `null` when the effect's amount is zero. Each `EffectDefinition` declares `id`,
   `fragment`, `amount`, `uniforms`, `centered` (reads `uCenter`, default `0.5, 0.5`) and `stochastic`.
@@ -108,6 +108,76 @@ with its path (`bindings[2].to.field: noiseWarp has no field "noisewarp"; bindab
 - A stopped artwork redraws once when an input changes; a running one picks inputs up on its next frame.
 - **Reduced motion** turns every binding off and the artwork shows the authored still, also when the preference
   switches on while playing.
+
+## Live package (issue #333)
+
+A live package is a folder (or a zip of one) with `manifest.json` and PNGs:
+
+```json
+{
+  "format": "artifact-live-package",
+  "version": 1,
+  "size": { "width": 540, "height": 540 },
+  "maxRenderSize": 540,
+  "seed": 4242,
+  "still": "still.png",
+  "background": "background.png",
+  "stack": [
+    { "type": "plate", "file": "plates/0.png", "layers": [{ "id": "fill", "name": "Fill" }, { "id": "glitch", "name": "Glitch" }] },
+    { "type": "chain", "passes": [
+      { "effect": "noiseWarp", "layer": { "noiseWarp": 100, "seedOffset": 0 }, "source": { "id": "warp", "name": "Noise Warp" } },
+      { "effect": "vortex", "layer": { "vortex": 20 }, "source": { "id": "vortex", "name": "Vortex" } }
+    ] },
+    { "type": "plate", "file": "plates/2.png", "layers": [{ "id": "title", "name": "Title" }] }
+  ],
+  "bindings": { "version": 1, "bindings": [] },
+  "baked": [{ "id": "glitch", "name": "Glitch", "effects": ["glitch"], "reason": "glitch does not run in the runtime yet" }]
+}
+```
+
+- **Stack**, bottom first (its order is the depth): the bottom plate is the editor's render of everything beneath the
+  first chain, from a transparent canvas; each chain runs on the composite beneath it; each later plate is drawn over
+  it (`source-over`). `background` (stack documents with a background colour) goes beneath the final composite, as
+  the editor's stack export draws `doc.global.bg` under the rendered layers. Graph documents have none.
+- **Passes** hold the authored fields the registered effect reads (`EffectDefinition.fields`); the runtime maps them
+  to uniforms with `seed` and `size`. Bindings target passes counted bottom up across every chain.
+- **`baked`** lists effect layers the editor rendered into plates, with the reason. **`fallback`** says why a package
+  has no chain at all; its only plate is the still.
+- `parseLivePackage` validates a manifest (paths stay inside the package, effects are registered and on at rest,
+  bindings fit the passes) and throws `LivePackageError` listing every problem with its path, as `BindingError` does.
+  `loadLivePackage(url)` fetches the manifest and decodes its images relative to it.
+
+### Splitting a document
+
+`planLivePackage` (`apps/web/app/components/runtime-catalogue/liveExport/livePlan.ts`) reads the layers in render
+order: `doc.layers` for stack documents, the single line of layer nodes into the export node for graph documents. A
+graph with merges, other node kinds, or extra inputs (materials, environments) is one still plate with a `fallback`.
+
+- An effect layer is **live** when every effect it applies is in the runtime registry (the editor preset id is the
+  registry id), and it is visible, unmasked and blended normally. Within a layer, passes follow the editor's order:
+  Canvas 2D effects, then GPU filters. A newly registered effect moves into chains with no exporter change.
+- Source layers (fill, emoji, text, images, 3D) with normal blending are drawn into plates, so fonts and assets are
+  pixels.
+- Anything else is a barrier: everything up to the last barrier is the bottom plate, because a baked layer above a
+  chain would need the chain's pixels. Live layers beneath a barrier are baked with that reason.
+- `approximate: true` moves unsupported effect layers beneath the live run they sit on (never across a source layer)
+  and says so in `baked`. The resting frame then differs where the moved effects do not commute with the chain.
+
+The Вайбер cover (fill, emoji, Glitch, Grain, Noise Warp, Vortex, Tear, Scanlines, Chrom. Ab., images, text) is
+one still plate in the exact split: Tear, Scanlines and Chrom. Ab. sit above the live Noise Warp and Vortex. The
+approximate split gives a base plate, a Noise Warp + Vortex chain and an image/text plate, with about 24% of pixels
+more than 8 levels off at rest, since the scanlines and colour fringes are warped instead of lying on top.
+
+### Export
+
+`/dev/runtime` has a "Live package export" panel (development builds only): the sample cover or an opened
+`.artifact`, 540 or 1080px plates, the approximate switch and optional bindings JSON. It plays the package next to the
+editor still, reports the resting-frame parity, and downloads a zip.
+
+`tests/browser/runtime-live-package.spec.ts` exports the sample cover (the Вайбер structure with a fixture image),
+round-trips it through the zip, and checks the resting frame against `renderDocument` at 540px with the harness
+tolerance (statistics when a live pass is stochastic). `LIVE_PACKAGE_PROJECT=/path/to/cover.artifact` adds a
+manual run on a real project in both split modes.
 
 ## Verification: one effect at a time
 
