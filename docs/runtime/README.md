@@ -58,7 +58,7 @@ not its render loop.
   `setInput` fills `inputs`.
 
 Shader reuse: shared fragments live in `@artifact/shared/effect-shaders` (`HEADER`, `NORM_UV`, `SAMPLE`,
-`NOISE_FRAG`, `VORTEX_FRAG`, `BARREL_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`, `RGB_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
+`NOISE_FRAG`, `VORTEX_FRAG`, `BARREL_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`, `RGB_FRAG`, `VIGNETTE_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
 byte-identical. Port further editor fragments the same way: move the string, import it in both places.
 
 Pixi conventions the chain matches:
@@ -243,6 +243,14 @@ and text, in Chromium on macOS. The harness case eases the block size from 36px 
 loop, binds `pointer.x/y` to `uCenter` and `hover` to `pixelateRadius`; the self-test rejects corner sampling and a
 reveal at radius 0. GPU time at 540px: 0.07 ms (Chromium, Apple M5 Max).
 
+Vignette (`vignette`, `packages/runtime/src/effects/vignette.ts`) runs the editor's `VIGNETTE_FRAG` from
+`@artifact/shared/effect-shaders`, with `uIntensity = vignette × 0.01`. The fragment darkens around `uCenter` instead
+of a fixed centre; the editor passes `0.5, 0.5`, and its `renderDocument` output is byte-identical to before the move
+(SHA-256 of 3 fixtures × 4 amounts, in Chromium, Firefox and WebKit). The harness case is a torch in the dark: two
+fast, low waves flicker the amount (13 cycles of ±5 and 37 of ±3 over 4 s), `pointer.x/y` move the light spot through
+`uCenter`, and hover deepens the dark by up to 30. Parity at 540px: 0.000% of pixels over 8 levels, worst channel
+1 level, in all three engines on macOS. GPU time at 540px: 0.06 ms (Chromium, headed, Apple silicon).
+
 ### Export
 
 `/dev/runtime` has a "Live package export" panel (development builds only): the sample cover or an opened
@@ -394,6 +402,11 @@ in all engines). CI runs it in `.github/workflows/runtime-experiment.yml` for pu
   next change; a second draw in the same frame or the next one did not help, a draw two frames later did. The catalogue
   creates its artworks with `contextAttributes: { preserveDrawingBuffer: true }`, which shows every still draw in all
   three engines. Hosts that draw stills on demand and must look right in WebKitGTK/WPE can pass the same attribute.
+- **Catalogue entries hold a WebGL context only near the viewport.** WebKit allows 16 live contexts per page and
+  loses the oldest beyond that. With 13 effect entries, the plate entry and the live export (Pixi, the parity artwork,
+  the player) the page asked for 18. An effect entry builds its artwork only within half a viewport of the screen, and
+  when it scrolls away it releases its context (`WEBGL_lose_context`) and later redraws on a fresh canvas. A catalogue
+  test scrolls its entry into view before it waits for the GPU time.
 
 ### Fixtures
 
@@ -511,7 +524,7 @@ no timer queries, and there is no GPU runner. The budget is enforced by hand, on
 
 Last measured (Playwright 1.60 Chromium, headed, M5 Max, `RUNTIME_GPU_BUDGET=1`): Noise Warp 0.28 ms, Vortex 0.10 ms,
 Grain 0.11 ms, Morph 0.20 ms, Chrom. Ab. 0.07 ms, Data Mosh 0.15 ms, Scanlines 0.17 ms, Tear 0.10 ms, Glitch
-0.67 ms, RGB Split 0.07 ms, Ripple 0.06 ms, Barrel 0.11 ms.
+0.67 ms, RGB Split 0.07 ms, Ripple 0.06 ms, Vignette 0.06 ms, Barrel 0.11 ms.
 
 ## Order of work
 

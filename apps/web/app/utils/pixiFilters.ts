@@ -9,6 +9,7 @@ import {
   RGB_FRAG,
   SAMPLE,
   TEAR_FRAG,
+  VIGNETTE_FRAG,
   VORTEX_FRAG,
 } from '@artifact/shared/effect-shaders';
 import { BlurFilter, Filter } from 'pixi.js';
@@ -37,19 +38,6 @@ void main() {
     (1.0-cosA)*k - sinA*s,    (1.0-cosA)*k + sinA*s, cosA + (1.0-cosA)*k
   );
   col.rgb = clamp(m * col.rgb, 0.0, 1.0);
-  gl_FragColor = col;
-}`;
-
-const VIGNETTE_FRAG = `${HEADER}
-uniform float uIntensity;
-
-void main() {
-  vec4  col  = texture2D(uSampler, vTextureCoord);
-  ${NORM_UV}
-  vec2  c    = norm - 0.5;
-  float dist = length(c) * 1.6;
-  float vig  = 1.0 - uIntensity * (dist * dist);
-  col.rgb   *= clamp(vig, 0.0, 1.0);
   gl_FragColor = col;
 }`;
 
@@ -325,7 +313,7 @@ function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 
       uMix: cfg.gradMix / 100,
     }),
   );
-  addFilter(filters, cfg.vignette, () => f(VIGNETTE_FRAG, { uIntensity: cfg.vignette * 0.01 }));
+  addFilter(filters, cfg.vignette, () => f(VIGNETTE_FRAG, { uIntensity: cfg.vignette * 0.01, uCenter: [0.5, 0.5] }));
   addFilter(filters, cfg.filmBurn, () => f(FILMBURN_FRAG, { uIntensity: cfg.filmBurn / 100, uSeed: seed }));
 
   return filters.length > 0 ? filters : null;
