@@ -1,49 +1,31 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { createFakeTimerClock } from '../test-fixtures/fakeTimerClock';
 import { createPreviewRenderScheduler } from './previewRenderScheduler';
 
 type Done = (options?: { cooldown?: boolean }) => void;
 
-function setup(cooldownRatio = 2) {
-  let clock = 0;
+function setup(cooldownRatio = 2, minIntervalMs = 0) {
   const microtasks: Array<() => void> = [];
-  const timers: Array<{ at: number; callback: () => void; cleared: boolean }> = [];
   const finishers: Done[] = [];
   const run = vi.fn((done: Done) => {
     finishers.push(done);
   });
   const onSupersede = vi.fn();
+  const flushMicrotasks = () => {
+    while (microtasks.length) microtasks.shift()?.();
+  };
+  const { clock, advanceTo: advanceClockTo } = createFakeTimerClock({ afterTimer: flushMicrotasks });
   const scheduler = createPreviewRenderScheduler({
     run,
     onSupersede,
     cooldownRatio,
-    now: () => clock,
-    setTimer: (callback, ms) => {
-      const timer = { at: clock + ms, callback, cleared: false };
-      timers.push(timer);
-      return timer;
-    },
-    clearTimer: (handle) => {
-      const timer = timers.find((item) => item === handle);
-      if (timer) timer.cleared = true;
-    },
+    minIntervalMs,
+    clock,
     queueMicrotask: (callback) => microtasks.push(callback),
   });
-
-  const flushMicrotasks = () => {
-    while (microtasks.length) microtasks.shift()?.();
-  };
-  /** Moves the clock to `time`, firing due timers in order. */
   const advanceTo = (time: number) => {
-    while (true) {
-      const due = timers.filter((item) => !item.cleared && item.at <= time).sort((a, b) => a.at - b.at)[0];
-      if (!due) break;
-      clock = Math.max(clock, due.at);
-      due.cleared = true;
-      due.callback();
-      flushMicrotasks();
-    }
-    clock = time;
+    advanceClockTo(time);
     flushMicrotasks();
   };
 
@@ -109,6 +91,19 @@ describe('createPreviewRenderScheduler', () => {
     expect(run).toHaveBeenCalledTimes(1);
 
     requestEvery(128, 128, 16);
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it('spaces cheap renders by the minimum interval while input keeps arriving', () => {
+    const { run, requestEvery, finishRenderAt } = setup(2, 66);
+
+    requestEvery(0, 8, 4);
+    // A 10 ms render would allow the next start at 30 ms; the minimum interval holds it until 66 ms.
+    finishRenderAt(10);
+    requestEvery(16, 64, 16);
+    expect(run).toHaveBeenCalledTimes(1);
+
+    requestEvery(80, 80, 16);
     expect(run).toHaveBeenCalledTimes(2);
   });
 
@@ -187,7 +182,7 @@ describe('createPreviewRenderScheduler', () => {
     const scheduler = createPreviewRenderScheduler({
       run,
       cooldownRatio: 0,
-      now: () => 0,
+      clock: createFakeTimerClock().clock,
       queueMicrotask: (callback) => microtasks.push(callback),
     });
 

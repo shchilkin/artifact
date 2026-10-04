@@ -23,6 +23,22 @@ const sliderDocument = editorDocumentFixture([
   },
 ]);
 
+const twoScanlinesDocument = editorDocumentFixture([
+  fillLayerFixture({ id: 'v050-base', name: 'Base plate', color: '#243b66' }),
+  ...['v050-lines-a', 'v050-lines-b'].map((id, index) => ({
+    id,
+    name: index === 0 ? 'Lines A' : 'Lines B',
+    kind: 'effect',
+    visible: true,
+    locked: false,
+    opacity: 100,
+    blendMode: 'normal',
+    preset: 'scanlines',
+    scanlines: 24,
+    scanlineWidth: 2,
+  })),
+]);
+
 const storedLayer = (page: Page, id: string) =>
   page.evaluate((layerId) => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
@@ -63,8 +79,45 @@ test('a continuous slider drag commits its last value as one undo entry', async 
 
   const undo = page.getByRole('button', { name: 'Undo' });
   await expect(undo).toBeEnabled();
+  // A keypress after a pause is its own undo entry, separate from the drag.
+  await page.waitForTimeout(600);
+  await slider.focus();
+  await slider.press('ArrowRight');
+  const keyValue = await slider.inputValue();
+  expect(keyValue).not.toBe(draggedValue);
+  await page.waitForTimeout(600);
+
+  await undo.click();
+  await expect(slider).toHaveValue(draggedValue);
   await undo.click();
   await expect(slider).toHaveValue(startValue);
   await expect.poll(() => storedLayer(page, 'v050-scanlines'), { timeout: 15_000 }).toBe(before);
   await expect(undo).toBeDisabled();
+});
+
+test('a slider value still waiting when the selection changes goes to the layer it was made on', async ({ page }) => {
+  await gotoDocument(page, twoScanlinesDocument);
+  await page.locator('.layer-row[data-layer-id="v050-lines-a"] .layer-row-name-button').click();
+  const slider = page.locator('.layer-inspector-drawer input[type="range"]').first();
+  await expect(slider).toHaveValue('24');
+  const layerB = await storedLayer(page, 'v050-lines-b');
+
+  // Two steps and a selection change in one task: the second step is still waiting when B is selected.
+  await slider.evaluate((input: HTMLInputElement) => {
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    for (const value of ['30', '31']) {
+      setValue.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    document
+      .querySelector<HTMLButtonElement>('.layer-row[data-layer-id="v050-lines-b"] .layer-row-name-button')!
+      .click();
+  });
+
+  await expect(slider).toHaveValue('24');
+  await expect
+    .poll(async () => JSON.parse(await storedLayer(page, 'v050-lines-a')).scanlines, { timeout: 15_000 })
+    .toBe(31);
+  await page.waitForTimeout(300);
+  expect(await storedLayer(page, 'v050-lines-b')).toBe(layerB);
 });

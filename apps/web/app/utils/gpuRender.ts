@@ -1,5 +1,6 @@
 import type { Filter } from 'pixi.js';
 import { Container, FORMATS, Renderer, RenderTexture, Sprite, Texture } from 'pixi.js';
+import { recordGpuPass } from './gpuPassCost';
 
 type GpuReadback = 'async' | 'sync';
 
@@ -10,6 +11,8 @@ interface GpuRenderOptions {
   filters: Filter[];
   /** `sync` reads the result back with the blocking `extract.canvas`; the default follows `setGpuReadback`. */
   readback?: GpuReadback;
+  /** Adds the pass to the device's GPU cost estimate (`gpuPassCost.ts`); the layer preview's passes only. */
+  recordCost?: boolean;
 }
 
 let defaultReadback: GpuReadback = 'async';
@@ -27,6 +30,12 @@ const GPU_QUEUE_WAIT_MEASURE = 'artifact:gpu-queue-wait';
 const GPU_UPLOAD_MEASURE = 'artifact:gpu-upload';
 const GPU_BLIT_MEASURE = 'artifact:gpu-blit';
 const GPU_FILTER_EXTRACT_MEASURE = 'artifact:gpu-filter-extract';
+/** Inside filter-extract: the GPU running the queued upload, blit, filters and pixel readback, timed by its fence. */
+const GPU_FENCE_WAIT_MEASURE = 'artifact:gpu-fence-wait';
+/** Inside filter-extract: copying the read-back pixels out of the GPU buffer and unpremultiplying them. */
+const GPU_READBACK_MEASURE = 'artifact:gpu-readback';
+/** Inside filter-extract: writing the read-back pixels into the output canvas. */
+const GPU_TO_CANVAS_MEASURE = 'artifact:gpu-to-canvas';
 
 /**
  * One renderer per browser tab. Creating a Renderer = creating a WebGL context;
@@ -157,6 +166,10 @@ interface StagePixels {
 }
 
 const SYNC_POLL_TIMEOUT_MS = 2000;
+/** Fence polls back to back for this long, which is all a hardware GPU usually needs. */
+const FENCE_SPIN_MS = 2;
+/** Interval between fence polls after that, while a slow GPU (such as software WebGL) is still working. */
+const FENCE_BACKOFF_MS = 1;
 
 let pollChannel: MessageChannel | null = null;
 const pollWaiters: Array<() => void> = [];
@@ -178,15 +191,28 @@ function nextTask() {
   });
 }
 
-/** Resolves once the GPU has executed every command issued before the fence, without blocking the main thread. */
+/**
+ * Resolves after about `ms` with the main thread idle in between. The timer is set from a message-channel task, so
+ * nested waits are not clamped to 4 ms.
+ */
+function idleWait(ms: number) {
+  return nextTask().then(() => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+}
+
+/**
+ * Resolves once the GPU has executed every command issued before the fence, without blocking the main thread.
+ * Polling on back-to-back tasks keeps the main thread busy for as long as the GPU works, so after a short spin the
+ * polls are spaced out and the main thread stays free for input.
+ */
 async function waitForFence(gl: WebGL2RenderingContext, sync: WebGLSync) {
   gl.flush();
   const startedAt = now();
   while (true) {
     const status = gl.clientWaitSync(sync, 0, 0);
     if (status === gl.ALREADY_SIGNALED || status === gl.CONDITION_SATISFIED) return true;
-    if (status === gl.WAIT_FAILED || now() - startedAt > SYNC_POLL_TIMEOUT_MS) return false;
-    await nextTask();
+    const elapsed = now() - startedAt;
+    if (status === gl.WAIT_FAILED || elapsed > SYNC_POLL_TIMEOUT_MS) return false;
+    await (elapsed < FENCE_SPIN_MS ? nextTask() : idleWait(FENCE_BACKOFF_MS));
   }
 }
 
@@ -241,13 +267,17 @@ async function readStagePixelsAsync(renderer: Renderer, stage: Container): Promi
   }
 
   try {
-    if (!sync || !(await waitForFence(gl, sync)) || gl.isContextLost()) return null;
-    const pixels = new Uint8Array(byteLength);
-    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
-    gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, pixels);
-    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
-    if (premultipliedAlpha) unpremultiplyAlpha(pixels);
-    return { pixels, width, height };
+    if (!sync || !(await measureGpuPhase(GPU_FENCE_WAIT_MEASURE, () => waitForFence(gl, sync))) || gl.isContextLost()) {
+      return null;
+    }
+    return measureGpuPhaseSync(GPU_READBACK_MEASURE, () => {
+      const pixels = new Uint8Array(byteLength);
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
+      gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, pixels);
+      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+      if (premultipliedAlpha) unpremultiplyAlpha(pixels);
+      return { pixels, width, height };
+    });
   } finally {
     if (sync) gl.deleteSync(sync);
     gl.deleteBuffer(buffer);
@@ -313,7 +343,7 @@ async function renderWithRenderer(
 
     return await measureGpuPhase(GPU_FILTER_EXTRACT_MEASURE, async () => {
       const asyncPixels = readback === 'async' ? await readStagePixelsAsync(renderer, stage) : null;
-      if (asyncPixels) return pixelsToCanvas(asyncPixels, W, H);
+      if (asyncPixels) return measureGpuPhaseSync(GPU_TO_CANVAS_MEASURE, () => pixelsToCanvas(asyncPixels, W, H));
 
       // Yield to the event loop so the GPU commands are flushed
       await new Promise<void>((r) => setTimeout(r, 0));
@@ -346,13 +376,17 @@ export async function gpuRenderToCanvas({
   source,
   filters,
   readback = defaultReadback,
+  recordCost = false,
 }: GpuRenderOptions): Promise<HTMLCanvasElement> {
   return enqueueRender(async () => {
     return await measureGpuPhase(GPU_RENDER_MEASURE, async () => {
       const shared = getSharedRenderer(W, H);
       if (shared) {
         try {
-          return await renderWithRenderer(shared, W, H, source, filters, readback);
+          const startedAt = now();
+          const output = await renderWithRenderer(shared, W, H, source, filters, readback);
+          if (recordCost) recordGpuPass(now() - startedAt, W, H);
+          return output;
         } catch {
           disposeShared();
         }

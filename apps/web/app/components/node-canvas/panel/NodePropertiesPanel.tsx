@@ -34,7 +34,7 @@ import {
   ShaderInspector,
   TransformInspector,
 } from '../inspector';
-import { InspectorToggle } from '../inspector/fields';
+import { InspectorTargetContext, InspectorToggle } from '../inspector/fields';
 import type { NodeCanvasProps } from '../types';
 
 interface NodePropertiesPanelProps
@@ -927,29 +927,31 @@ export function NodePropertiesPanel({
       onClick={(event) => event.stopPropagation()}
     >
       {open && (
-        <NodePropertiesPanelContent
-          target={target}
-          targetSummary={targetSummary}
-          doc={doc}
-          exportBusy={exportBusy}
-          onUpdateLayer={onUpdateLayer}
-          onUpdateMergeNode={onUpdateMergeNode}
-          onUpdateColorNode={onUpdateColorNode}
-          onUpdateRepeatNode={onUpdateRepeatNode}
-          onUpdateMaterialNode={onUpdateMaterialNode}
-          onUpdateMaskNode={onUpdateMaskNode}
-          onUpdateTransformNode={onUpdateTransformNode}
-          onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
-          onUpdateScene3DNode={onUpdateScene3DNode}
-          onUpdateEnvironmentNode={onUpdateEnvironmentNode}
-          onUpdateShaderNode={onUpdateShaderNode}
-          onReplaceModelLayerFile={onReplaceModelLayerFile}
-          onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
-          onUpdateExportConfig={onUpdateExportConfig}
-          onUpdateAspectRatio={onUpdateAspectRatio}
-          onExport={onExport}
-          onClose={onClose}
-        />
+        <InspectorTargetContext.Provider value={selectedNodeId}>
+          <NodePropertiesPanelContent
+            target={target}
+            targetSummary={targetSummary}
+            doc={doc}
+            exportBusy={exportBusy}
+            onUpdateLayer={onUpdateLayer}
+            onUpdateMergeNode={onUpdateMergeNode}
+            onUpdateColorNode={onUpdateColorNode}
+            onUpdateRepeatNode={onUpdateRepeatNode}
+            onUpdateMaterialNode={onUpdateMaterialNode}
+            onUpdateMaskNode={onUpdateMaskNode}
+            onUpdateTransformNode={onUpdateTransformNode}
+            onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
+            onUpdateScene3DNode={onUpdateScene3DNode}
+            onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+            onUpdateShaderNode={onUpdateShaderNode}
+            onReplaceModelLayerFile={onReplaceModelLayerFile}
+            onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
+            onUpdateExportConfig={onUpdateExportConfig}
+            onUpdateAspectRatio={onUpdateAspectRatio}
+            onExport={onExport}
+            onClose={onClose}
+          />
+        </InspectorTargetContext.Provider>
       )}
     </div>
   );

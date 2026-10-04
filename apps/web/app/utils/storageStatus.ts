@@ -5,7 +5,6 @@ export type StoragePressure = 'unknown' | 'ok' | 'watch' | 'full';
 
 export interface DocumentSaveStatus {
   ok: boolean;
-  savedAt: string | null;
 }
 
 export type ProjectSaveState = 'saved' | 'unsaved' | 'untracked';
