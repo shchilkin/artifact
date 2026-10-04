@@ -22,14 +22,18 @@ export interface FrameScheduler {
 /** Starts watching whether `target` is on screen; returns a function that stops watching. */
 export type VisibilityObserver = (target: Element, onChange: (visible: boolean) => void) => () => void;
 
-/** What a frame is drawn from. Issue #332 extends this with tracks and pointer inputs. */
+/** What a frame is drawn from. */
 export interface FrameState {
-  /** Seconds since the artwork's time origin. */
+  /** Seconds since the artwork's time origin. Stops while the artwork is stopped; `seek` moves it. */
   readonly time: number;
+  /** Scheduler clock in milliseconds when the frame is drawn. Keeps running while stopped, for input smoothing. */
+  readonly clock: number;
   /** Frames drawn so far, before this one. */
   readonly frame: number;
   /** Values set through `setInput`. */
   readonly inputs: Readonly<Record<string, number>>;
+  /** `prefers-reduced-motion` applies: hooks return the authored still (no overrides). */
+  readonly reducedMotion: boolean;
 }
 
 /** Per-frame uniform overrides: entry `i` is merged over pass `i`'s resting uniforms. */
@@ -73,8 +77,13 @@ export interface Artwork {
   seek(time: number): void;
   /** Resizes to a CSS size; without arguments, reads the canvas's displayed size. */
   resize(cssWidth?: number, cssHeight?: number): void;
-  /** Sets a named input for the following frames (see `FrameState.inputs`). */
+  /**
+   * Sets a named input for the following frames (see `FrameState.inputs`). A stopped artwork redraws once so the
+   * change shows; under reduced motion the still frame stays.
+   */
   setInput(name: string, value: number): void;
+  /** Redraws the current frame if the artwork is stopped and motion is allowed. Input trackers call this. */
+  redraw(): void;
   /** Stops the loop, stops observers, and deletes every GL object the artwork created. */
   destroy(): void;
   readonly state: ArtworkState;
@@ -120,7 +129,13 @@ export function createArtwork(options: ArtworkOptions): Artwork {
   const currentTime = () => (frameHandle === null ? elapsed : elapsed + (scheduler.now() - resumedAt) / 1000);
 
   const draw = (time: number) => {
-    const overrides = frameUniforms?.({ time, frame: frames, inputs });
+    const overrides = frameUniforms?.({
+      time,
+      clock: scheduler.now(),
+      frame: frames,
+      inputs,
+      reducedMotion: lifecycle.reducedMotion,
+    });
     renderer.render(overrides);
     frames += 1;
   };
@@ -132,6 +147,7 @@ export function createArtwork(options: ArtworkOptions): Artwork {
 
   const dispatch = (event: LifecycleEvent) => {
     const wasAnimating = frameHandle !== null;
+    const previous = lifecycle;
     lifecycle = transition(lifecycle, event);
     const animate = shouldAnimate(lifecycle);
     if (animate && !wasAnimating) {
@@ -142,6 +158,13 @@ export function createArtwork(options: ArtworkOptions): Artwork {
       scheduler.cancelFrame(frameHandle);
       frameHandle = null;
     }
+    // Reduced motion switched on: replace whatever moving frame is showing with the authored still.
+    if (lifecycle.reducedMotion && !previous.reducedMotion) draw(currentTime());
+  };
+
+  const redraw = () => {
+    if (lifecycle.destroyed || lifecycle.reducedMotion || frameHandle !== null) return;
+    draw(currentTime());
   };
 
   const resize = (cssWidth?: number, cssHeight?: number) => {
@@ -190,9 +213,11 @@ export function createArtwork(options: ArtworkOptions): Artwork {
       if (resize(cssWidth, cssHeight) && frameHandle === null) draw(currentTime());
     },
     setInput(name, value) {
-      if (lifecycle.destroyed) return;
+      if (lifecycle.destroyed || inputs[name] === value) return;
       inputs[name] = value;
+      redraw();
     },
+    redraw,
     destroy() {
       if (lifecycle.destroyed) return;
       dispatch({ type: 'destroy' });
