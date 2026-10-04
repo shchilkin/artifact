@@ -93,9 +93,21 @@ Rules:
 - Graph edits should be undoable.
 - Layers actions may rebuild the graph only while it is a layer stack graph
   (`isLayerStackGraph`: no utility nodes and exactly the linear layer chain to
-  export). For any custom graph, adding a layer from Layers inserts it before
-  export without touching other edges or positions, and layer-stack reorder is
-  disabled; composition order is edited in Nodes.
+  export). For any custom graph, the flat Areas list cannot reorder, and the
+  Structure tree edits runs through `utils/graphTreeEdits.ts`
+  ([`layers-graph-tree.md`](./layers-graph-tree.md), "Editing in the tree"):
+  reorder within a run, move between runs, add above the selected row, and
+  delete with reconnection. Each tree edit is one `snapshot` update through
+  `useEditorDocument` `applyTreeEdit` (adds go through the add commands with a
+  placement), and only rewrites the primary edges it splices. Adding with no
+  tree row selected inserts the layer before export without touching other edges
+  or positions.
+- `doc.layers` follows tree edits by one rule: a moved or added layer sits
+  directly above the nearest layer below it in its new stack, else directly
+  below the nearest layer above it, else on top; every other layer keeps its
+  order. This keeps a layer chain bottom-to-top, so a graph edited back into a
+  plain chain is the layer stack again and stack-mode rendering matches it.
+  Edits in Nodes do not reorder `doc.layers`.
 - Graph traversal for preview/export must go through `renderGraphTarget`.
 - Graph edits should not be hidden in UI-only state.
 - Graph-only merge, color, repeat, and output nodes do not have a durable lock
@@ -121,6 +133,8 @@ Includes:
 - open gallery node
 - Layers tree folder collapse state and the Structure/Areas switch
   (`GraphLayerTreeView`, `LayerPanel`), keyed by node id
+- Layers tree edit state: the drag target, the row being placed by the keyboard
+  Move to… action, and the edit status message (`useLayerTreeEditing`)
 
 Editor confirmation state is also overlay state. `useEditorConfirm`
 (`components/editor-workflow/useEditorConfirm.tsx`) holds one pending

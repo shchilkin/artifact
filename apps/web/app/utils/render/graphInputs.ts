@@ -131,6 +131,25 @@ function renderModeCandidates(doc: GraphDocument, graph: CanvasGraph, nodeId: st
   }
 }
 
+/**
+ * The port a node continues its stack through when it is rendered (`in`, `bg`, merge `a`, material
+ * `albedo`), or null when it does not composite over an input (a fill-role shader, Output).
+ */
+export function graphNodePrimaryPort(doc: GraphDocument, graph: CanvasGraph, nodeId: string): GraphInputPort | null {
+  if (nodeId === EXPORT_NODE_ID) return null;
+  return renderModeCandidates(doc, graph, nodeId).find((candidate) => candidate.role === 'primary')?.port ?? null;
+}
+
+/** What `port` means to `nodeId` when the node is rendered, or null when the renderer ignores that port. */
+export function graphNodeInputRole(
+  doc: GraphDocument,
+  graph: CanvasGraph,
+  nodeId: string,
+  port: GraphInputPort,
+): GraphInputRole | null {
+  return renderModeCandidates(doc, graph, nodeId).find((candidate) => candidate.port === port)?.role ?? null;
+}
+
 function modeCandidates(doc: GraphDocument, graph: CanvasGraph, nodeId: string, mode: GraphReachMode) {
   if (mode === 'read') return [];
   if (mode === 'material') return TEXTURE_CANDIDATES;

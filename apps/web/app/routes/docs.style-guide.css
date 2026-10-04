@@ -413,6 +413,12 @@
   background: var(--surface-panel);
 }
 
+.style-guide-layer-tree-edits {
+  /* The edit notice is an overlay in the panel; here it sits under the specimen rows. */
+  position: relative;
+  padding-bottom: calc(var(--space-12) + var(--space-4));
+}
+
 .style-guide-workflow-state-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));

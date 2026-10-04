@@ -1,7 +1,10 @@
 import {
+  type DragEvent as ReactDragEvent,
   type FocusEvent as ReactFocusEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -9,25 +12,40 @@ import {
   useState,
 } from 'react';
 import type { CanvasDocument, GraphArea, GraphMergeNode, Layer } from '../../types/config';
-import type { GraphLayerTree, GraphTreeNodeKind, GraphTreeRow } from '../../utils/graphLayerTree';
 import {
+  buildGraphLayerTree,
+  type GraphLayerTree,
+  type GraphTreeNodeKind,
+  type GraphTreeRow,
+} from '../../utils/graphLayerTree';
+import { checkTreeDrop, checkTreeRowMovable, type TreeDropPosition } from '../../utils/graphTreeEdits';
+import {
+  EditorRowActions,
   EditorRowFrame,
   EditorRowLeading,
   EditorRowMetadata,
   EditorRowPrimary,
 } from '../editor-workflow/EditorRowFrame';
+import { GraphLayerTreeEditingContext } from './graphLayerTreeEditing';
 import {
   type GraphTreeCollapseState,
   type GraphTreeItem,
   graphTreeAncestorFolders,
   visibleGraphTreeItems,
 } from './graphTreeItems';
-import { LayerAreaChip, LayerRow, type LayerRowProps, LayerTreeCaret } from './LayerRow';
+import { LayerAreaChip, LayerRow, type LayerRowProps, LayerTreeCaret, RowActionsButton } from './LayerRow';
 import { GRAPH_HELPER_META } from './layerDisplayItems';
-import { type LayerRowTreePlacement, layerKindLabel, layerTreeItemProps } from './layerRowTree';
+import {
+  isPointerInLowerHalf,
+  type LayerRowTreeDrag,
+  type LayerRowTreePlacement,
+  layerKindLabel,
+  layerTreeItemProps,
+} from './layerRowTree';
 
-// Read-only graph-derived Layers tree for custom graphs (docs/layers-graph-tree.md).
+// Graph-derived Layers tree for custom graphs (docs/layers-graph-tree.md).
 // Rows form one flat ARIA tree with roving focus; collapse state is UI state keyed by node id.
+// Inside `GraphLayerTreeEditingContext`, rows move by drag and drop, Alt+Arrow keys, or a keyboard move mode, and delete with Delete.
 
 const NARROW_QUERY = '(max-width: 767px)';
 
@@ -61,6 +79,22 @@ export interface GraphLayerTreeViewProps {
   onToggleVisible: LayerRowProps['onToggleVisible'];
   onDuplicateLayer: LayerRowProps['onDuplicateLayer'];
   onRemoveLayer: LayerRowProps['onRemoveLayer'];
+}
+
+interface TreeDragState {
+  nodeId: string;
+  target: { key: string; position: TreeDropPosition } | null;
+  /** Why the row under the pointer refuses the drop; announced once per change. */
+  blockedReason: string | null;
+}
+
+function sameDragState(a: TreeDragState | null, b: TreeDragState) {
+  return (
+    a?.nodeId === b.nodeId &&
+    a.target?.key === b.target?.key &&
+    a.target?.position === b.target?.position &&
+    a.blockedReason === b.blockedReason
+  );
 }
 
 function useNarrowLayout() {
@@ -118,6 +152,7 @@ function GraphNodeTreeRow({
   areas,
   merge,
   onSelectNode,
+  onContextMenu,
 }: {
   row: GraphTreeRow;
   placement: LayerRowTreePlacement;
@@ -125,6 +160,7 @@ function GraphNodeTreeRow({
   areas: GraphArea[];
   merge: GraphMergeNode | undefined;
   onSelectNode: (id: string) => void;
+  onContextMenu?: (event: ReactMouseEvent<HTMLElement>) => void;
 }) {
   const meta = row.kind === 'layer' ? null : NODE_META[row.kind];
   const summary = mergeSummary(merge);
@@ -138,6 +174,7 @@ function GraphNodeTreeRow({
         selected ? 'layer-row-selected' : ''
       }`}
       onClick={() => onSelectNode(row.nodeId)}
+      onContextMenu={onContextMenu}
     >
       <EditorRowLeading>
         <LayerTreeCaret expanded={placement.expanded} onToggle={placement.onToggleExpanded} />
@@ -153,6 +190,11 @@ function GraphNodeTreeRow({
         <span className="layer-tree-node-kind">{row.kind === 'merge' ? 'group' : meta?.label}</span>
         <LayerAreaChip areas={areas} />
       </EditorRowMetadata>
+      {onContextMenu ? (
+        <EditorRowActions>
+          <RowActionsButton label={`Open actions for ${row.name}`} inTree onOpen={onContextMenu} />
+        </EditorRowActions>
+      ) : null}
     </EditorRowFrame>
   );
 }
@@ -162,11 +204,13 @@ function ReferenceTreeRow({
   placement,
   areas,
   onActivate,
+  onContextMenu,
 }: {
   row: GraphTreeRow;
   placement: LayerRowTreePlacement;
   areas: GraphArea[];
   onActivate: (nodeId: string) => void;
+  onContextMenu?: (event: ReactMouseEvent<HTMLElement>) => void;
 }) {
   return (
     <EditorRowFrame
@@ -175,6 +219,7 @@ function ReferenceTreeRow({
       title={`Shared — go to ${row.name}`}
       className="layer-row layer-row-tree layer-tree-reference-row px-3 cursor-pointer border-b border-border select-none"
       onClick={() => onActivate(row.nodeId)}
+      onContextMenu={onContextMenu}
     >
       <EditorRowLeading>
         <LayerTreeCaret />
@@ -188,6 +233,11 @@ function ReferenceTreeRow({
       <EditorRowMetadata className="layer-row-meta">
         <span className="layer-tree-node-kind">shared</span>
       </EditorRowMetadata>
+      {onContextMenu ? (
+        <EditorRowActions>
+          <RowActionsButton label={`Open actions for shared ${row.name}`} inTree onOpen={onContextMenu} />
+        </EditorRowActions>
+      ) : null}
     </EditorRowFrame>
   );
 }
@@ -257,6 +307,26 @@ function isTypeAheadKey(event: ReactKeyboardEvent) {
   return event.key.length === 1 && event.key !== ' ' && !event.ctrlKey && !event.metaKey && !event.altKey;
 }
 
+function pointerDropPosition(event: ReactDragEvent<HTMLElement>): TreeDropPosition {
+  return isPointerInLowerHalf(event) ? 'below' : 'above';
+}
+
+/**
+ * What a pointer position on a row means. The lower half of an open merge folder is the top of its
+ * group, which is the row drawn right under it; everywhere else it is the gap below the row.
+ */
+function dropTargetFor(item: GraphTreeItem, row: GraphTreeRow, pointer: TreeDropPosition) {
+  const group = row.groups.find((candidate) => candidate.kind === 'group');
+  const first = group?.rows[0];
+  if (pointer === 'below' && item.expanded && first) return { target: first, position: 'above' as const };
+  return { target: row, position: pointer };
+}
+
+/** The ids a Delete key press acts on: the selection when the row is part of it, else the row. */
+function deleteIds(nodeId: string, selectedIds: string[]) {
+  return selectedIds.includes(nodeId) ? selectedIds : [nodeId];
+}
+
 export function GraphLayerTreeView({
   doc,
   tree,
@@ -273,11 +343,15 @@ export function GraphLayerTreeView({
   onDuplicateLayer,
   onRemoveLayer,
 }: GraphLayerTreeViewProps) {
+  const editing = useContext(GraphLayerTreeEditingContext);
   const narrow = useNarrowLayout();
   const [collapse, setCollapse] = useState<GraphTreeCollapseState>(() => new Map());
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [drag, setDrag] = useState<TreeDragState | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const pendingFocusRef = useRef<string | null>(null);
+  // Focus requests are state, so handlers stay ref-free; the effect remembers which one it served.
+  const [focusRequest, setFocusRequest] = useState<{ key: string; serial: number } | null>(null);
+  const servedFocusRef = useRef(0);
 
   const items = useMemo(() => visibleGraphTreeItems(tree, collapse, narrow), [collapse, narrow, tree]);
   const ancestors = useMemo(() => graphTreeAncestorFolders(tree), [tree]);
@@ -295,17 +369,16 @@ export function GraphLayerTreeView({
   }, [focusKey, items, selectedLayerId]);
 
   useLayoutEffect(() => {
-    const key = pendingFocusRef.current;
-    if (!key) return;
-    const element = treeItemElement(containerRef.current, key);
+    if (!focusRequest || servedFocusRef.current === focusRequest.serial) return;
+    const element = treeItemElement(containerRef.current, focusRequest.key);
     if (!element) return;
-    pendingFocusRef.current = null;
+    servedFocusRef.current = focusRequest.serial;
     element.focus();
     element.scrollIntoView?.({ block: 'nearest' });
   });
 
   const focusItem = useCallback((key: string) => {
-    pendingFocusRef.current = key;
+    setFocusRequest((previous) => ({ key, serial: (previous?.serial ?? 0) + 1 }));
     setFocusKey(key);
   }, []);
 
@@ -325,6 +398,23 @@ export function GraphLayerTreeView({
       setFolderCollapsed(item.folderKey, Boolean(item.expanded));
     },
     [setFolderCollapsed],
+  );
+
+  /** Focuses a moved row in the edited document's tree, opening the folders around it. */
+  const revealAfterEdit = useCallback(
+    (nodeId: string, edited: CanvasDocument | null) => {
+      if (!edited) return;
+      const folders = graphTreeAncestorFolders(buildGraphLayerTree(edited)).get(nodeId) ?? [];
+      if (folders.length > 0) {
+        setCollapse((previous) => {
+          const next = new Map(previous);
+          for (const folderKey of folders) next.set(folderKey, false);
+          return next;
+        });
+      }
+      focusItem(nodeId);
+    },
+    [focusItem],
   );
 
   const activateReference = useCallback(
@@ -350,6 +440,138 @@ export function GraphLayerTreeView({
     [activateReference, layersById, onSelectLayer, onSelectNode, toggleFolder],
   );
 
+  /** Tree edit keys. Returns true when the key was handled. */
+  const handleEditKey = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>, item: GraphTreeItem): boolean => {
+      if (!editing || item.type !== 'row') return false;
+      const { row } = item;
+      const moving = editing.movingNodeId;
+      if (moving && event.key === 'Escape') {
+        event.preventDefault();
+        editing.actions.cancelMove();
+        return true;
+      }
+      if (moving && event.key === 'Enter') {
+        event.preventDefault();
+        const position = event.shiftKey ? 'below' : 'above';
+        const check = checkTreeDrop(editing.index, moving, row, position);
+        if (!check.ok) editing.actions.announceBlocked(check.reason);
+        else revealAfterEdit(moving, editing.actions.move(moving, row.nodeId, position));
+        return true;
+      }
+      if (row.reference) return false;
+      if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+        event.preventDefault();
+        const direction = event.key === 'ArrowUp' ? 'up' : 'down';
+        revealAfterEdit(row.nodeId, editing.actions.step(row.nodeId, direction));
+        return true;
+      }
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+        editing.actions.deleteRows(deleteIds(row.nodeId, selectedActionLayerIds));
+        return true;
+      }
+      return false;
+    },
+    [editing, revealAfterEdit, selectedActionLayerIds],
+  );
+
+  const clearDrag = useCallback(() => setDrag(null), []);
+
+  const updateDrag = useCallback(
+    (next: TreeDragState) => setDrag((current) => (sameDragState(current, next) ? current : next)),
+    [],
+  );
+
+  const rowItemFor = useCallback(
+    (event: ReactDragEvent<HTMLElement>) => {
+      const key = event.currentTarget.dataset.treeKey;
+      const item = items.find((candidate) => candidate.key === key);
+      return item?.type === 'row' ? item : null;
+    },
+    [items],
+  );
+
+  const handleRowDragStart = useCallback(
+    (event: ReactDragEvent<HTMLElement>) => {
+      event.stopPropagation();
+      const item = rowItemFor(event);
+      const movable = Boolean(
+        editing && item && !item.row.reference && checkTreeRowMovable(editing.index, item.row.nodeId).ok,
+      );
+      if (!item || !movable) {
+        event.preventDefault();
+        return;
+      }
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', item.row.nodeId);
+      updateDrag({ nodeId: item.row.nodeId, target: null, blockedReason: null });
+    },
+    [editing, rowItemFor, updateDrag],
+  );
+
+  const handleRowDragOver = useCallback(
+    (event: ReactDragEvent<HTMLElement>) => {
+      const item = rowItemFor(event);
+      if (!editing || !drag || !item) return;
+      const pointer = pointerDropPosition(event);
+      const { target, position } = dropTargetFor(item, item.row, pointer);
+      const check = checkTreeDrop(editing.index, drag.nodeId, target, position);
+      if (!check.ok) {
+        event.dataTransfer.dropEffect = 'none';
+        if (drag.blockedReason !== check.reason) editing.actions.announceBlocked(check.reason);
+        updateDrag({ nodeId: drag.nodeId, target: null, blockedReason: check.reason });
+        return;
+      }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      updateDrag({ nodeId: drag.nodeId, target: { key: item.key, position: pointer }, blockedReason: null });
+    },
+    [drag, editing, rowItemFor, updateDrag],
+  );
+
+  const handleRowDrop = useCallback(
+    (event: ReactDragEvent<HTMLElement>) => {
+      event.preventDefault();
+      clearDrag();
+      const item = rowItemFor(event);
+      if (!editing || !drag || !item) return;
+      const { target, position } = dropTargetFor(item, item.row, pointerDropPosition(event));
+      const check = checkTreeDrop(editing.index, drag.nodeId, target, position);
+      if (!check.ok) {
+        editing.actions.announceBlocked(check.reason);
+        return;
+      }
+      revealAfterEdit(drag.nodeId, editing.actions.move(drag.nodeId, target.nodeId, position));
+    },
+    [clearDrag, drag, editing, revealAfterEdit, rowItemFor],
+  );
+
+  /** Drag state for one row. The handlers are shared and find their row from `data-tree-key`. */
+  const rowDrag = (item: GraphTreeItem & { type: 'row' }): LayerRowTreeDrag | undefined => {
+    if (!editing) return undefined;
+    const { row } = item;
+    return {
+      draggable: !row.reference && checkTreeRowMovable(editing.index, row.nodeId).ok,
+      dragging: !row.reference && drag?.nodeId === row.nodeId,
+      dropPosition: drag?.target?.key === item.key ? drag.target.position : null,
+      onDragStart: handleRowDragStart,
+      onDragOver: handleRowDragOver,
+      onDrop: handleRowDrop,
+      onDragEnd: clearDrag,
+    };
+  };
+
+  const openNodeMenu = useCallback(
+    (row: GraphTreeRow, event: ReactMouseEvent<HTMLElement>) => {
+      if (!editing) return;
+      event.preventDefault();
+      const rowElement = event.currentTarget.closest<HTMLElement>('[role="treeitem"]') ?? event.currentTarget;
+      editing.actions.openNodeMenu(row.nodeId, { x: event.clientX, y: event.clientY }, rowElement, row.reference);
+    },
+    [editing],
+  );
+
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
       const target = event.target as HTMLElement;
@@ -357,6 +579,7 @@ export function GraphLayerTreeView({
       const index = items.findIndex((item) => item.key === target.dataset.treeKey);
       const item = items[index];
       if (!item) return;
+      if (editing && handleEditKey(event, item)) return;
 
       const moveTo = nextFocusKey(items, index, event.key);
       if (moveTo) {
@@ -387,9 +610,15 @@ export function GraphLayerTreeView({
         onStartEditing(item.row.nodeId);
         return;
       }
-      if ((event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) && isLayerRow) {
+      const opensMenu = event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey);
+      if (opensMenu && isLayerRow) {
         event.preventDefault();
         onOpenLayerContextMenuAt(item.row.nodeId, rowMenuPosition(target), target);
+        return;
+      }
+      if (opensMenu && editing && item.type === 'row') {
+        event.preventDefault();
+        editing.actions.openNodeMenu(item.row.nodeId, rowMenuPosition(target), target, item.row.reference);
         return;
       }
       if (isTypeAheadKey(event)) {
@@ -399,7 +628,17 @@ export function GraphLayerTreeView({
         focusItem(match);
       }
     },
-    [activateItem, focusItem, items, layersById, onOpenLayerContextMenuAt, onStartEditing, toggleFolder],
+    [
+      activateItem,
+      editing,
+      focusItem,
+      handleEditKey,
+      items,
+      layersById,
+      onOpenLayerContextMenuAt,
+      onStartEditing,
+      toggleFolder,
+    ],
   );
 
   const handleFinishRename = useCallback(
@@ -425,6 +664,8 @@ export function GraphLayerTreeView({
       role="tree"
       aria-label="Layer tree"
       aria-multiselectable="true"
+      aria-describedby={editing?.helpId}
+      data-tree-moving={editing?.movingNodeId ? 'true' : undefined}
       className="layer-tree"
       onKeyDown={handleKeyDown}
       onFocus={handleFocus}
@@ -453,7 +694,15 @@ export function GraphLayerTreeView({
         const layer = layersById.get(row.nodeId);
         const merge = mergesById.get(row.nodeId);
         const areas = areasByNodeId.get(row.nodeId) ?? [];
-        const rowPlacement = { ...placement, label: rowAccessibleLabel(row, layer, merge) };
+        const rowPlacement: LayerRowTreePlacement = {
+          ...placement,
+          label: rowAccessibleLabel(row, layer, merge),
+          drag: rowDrag(item),
+        };
+        if (editing?.movingNodeId === row.nodeId && !row.reference) {
+          rowPlacement.moving = true;
+          rowPlacement.label = `${rowPlacement.label}, moving`;
+        }
         if (row.reference) {
           return (
             <ReferenceTreeRow
@@ -462,6 +711,7 @@ export function GraphLayerTreeView({
               placement={rowPlacement}
               areas={areas}
               onActivate={activateReference}
+              onContextMenu={editing ? (event) => openNodeMenu(row, event) : undefined}
             />
           );
         }
@@ -474,7 +724,7 @@ export function GraphLayerTreeView({
               selected={selectedActionLayerIds.includes(layer.id)}
               editing={editingId === layer.id}
               reachesOutput={tree.reachedNodeIds.has(layer.id)}
-              reorderDisabled
+              reorderDisabled={!rowPlacement.drag?.draggable}
               tree={rowPlacement}
               onSelect={onSelectLayer}
               onOpenContextMenu={onOpenLayerContextMenu}
@@ -495,6 +745,7 @@ export function GraphLayerTreeView({
             areas={areas}
             merge={merge}
             onSelectNode={onSelectNode}
+            onContextMenu={editing ? (event) => openNodeMenu(row, event) : undefined}
           />
         );
       })}

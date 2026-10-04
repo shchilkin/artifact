@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { GRAPH_REACH_FIXTURES, renderedNodeIds } from '../test-fixtures/render/graphReachFixtures';
+import { GRAPH_REACH_FIXTURES } from '../test-fixtures/render/graphReachFixtures';
+import { allNodeIds, expectTreeMatchesRenderer, rendererReach } from '../test-fixtures/render/graphTreeOracle';
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../types/config';
 import {
   makeFillLayer,
@@ -15,7 +16,7 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
-import { buildGraphLayerTree, flattenGraphLayerTree, type GraphLayerTree, type GraphTreeRow } from './graphLayerTree';
+import { buildGraphLayerTree, flattenGraphLayerTree, type GraphTreeRow } from './graphLayerTree';
 import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
 import { collectGraphRenderReach } from './renderer';
 
@@ -44,56 +45,6 @@ function documentOf(layers: Layer[], graph: CanvasGraph): CanvasDocument {
     graph,
     export: { format: 'png', scale: 1, target: 'cover' },
   };
-}
-
-function allNodeIds(doc: CanvasDocument): Set<string> {
-  const graph = doc.graph!;
-  return new Set([
-    ...doc.layers.map((layer) => layer.id),
-    ...[
-      graph.mergeNodes,
-      graph.colorNodes,
-      graph.repeatNodes,
-      graph.materialNodes,
-      graph.maskNodes,
-      graph.transformNodes,
-      graph.grimeShadowNodes,
-      graph.shaderNodes,
-      graph.environmentNodes,
-      graph.scene3dNodes,
-    ].flatMap((nodes) => (nodes ?? []).map((node) => node.id)),
-  ]);
-}
-
-/**
- * Oracle: the nodes the real renderer touches when it renders Output, from the shared renderer-backed
- * fixture helpers. `readOnly` lists nodes the renderer reads without rendering (Scene 3D models, material
- * settings), which each fixture states by hand so the oracle stays independent of the tree.
- */
-async function rendererReach(doc: CanvasDocument, readOnly: string[] = []): Promise<Set<string>> {
-  const existing = allNodeIds(doc);
-  const rendered = await renderedNodeIds(doc, doc.graph ?? inferLinearGraph(doc.layers));
-  return new Set([...rendered, ...readOnly].filter((id) => existing.has(id)));
-}
-
-function fullEntries(rows: GraphTreeRow[]) {
-  return flattenGraphLayerTree(rows).filter((row) => !row.reference);
-}
-
-function idsOf(rows: GraphTreeRow[]) {
-  return fullEntries(rows).map((row) => row.nodeId);
-}
-
-function expectTreeMatchesRenderer(doc: CanvasDocument, tree: GraphLayerTree, reached: Set<string>) {
-  const outputIds = idsOf(tree.output);
-  const detachedIds = tree.notInOutput.flatMap((stack) => idsOf(stack));
-  const allIds = [...outputIds, ...detachedIds];
-
-  expect(new Set(outputIds)).toEqual(reached);
-  expect(tree.reachedNodeIds).toEqual(reached);
-  expect(new Set(detachedIds)).toEqual(new Set([...allNodeIds(doc)].filter((id) => !reached.has(id))));
-  // Every node has exactly one full entry.
-  expect(allIds.length).toBe(new Set(allIds).size);
 }
 
 function summarize(rows: GraphTreeRow[]): unknown[] {

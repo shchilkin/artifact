@@ -2786,20 +2786,20 @@ test('layer drag reorder uses the final drop row even after stale dragover state
   await expectVisibleLayerRowIds(page, ['reorder-middle', 'reorder-top', 'reorder-bottom']);
 });
 
-test('layer drag reorder keeps a custom graph and points to Nodes', async ({ page }) => {
+test('layer drag reorder keeps a custom graph and points to Structure and Nodes', async ({ page }) => {
   await gotoDocument(page, customGraphLayerReorderDocument);
   await expectLayerCanvasToHavePixels(page);
 
   await expectStoredGraphEdges(page, ['custom-bottom-fill->__export__']);
-  await expect(page.getByText('Layer order follows the node graph. Reorder in Nodes.')).toBeVisible();
 
-  // Structure (the default for custom graphs) shows the graph-derived tree; its rows cannot be dragged.
+  // Structure (the default for custom graphs) shows the graph-derived tree, where safe moves are allowed.
   const treeRow = page.getByRole('treeitem', { name: 'Custom top, fill layer', exact: true });
   await expect(treeRow).toBeVisible({ timeout: 15_000 });
-  await expect(treeRow).toHaveAttribute('draggable', 'false');
+  await expect(treeRow).toHaveAttribute('draggable', 'true');
 
   // Areas shows the flat list, where the drag handle is disabled.
   await showLayerAreasView(page);
+  await expect(page.getByText('Layer order follows the node graph. Reorder in Structure or in Nodes.')).toBeVisible();
   const source = page.locator('.layer-row').filter({ hasText: 'Custom top' }).first();
   await expect(source).toBeVisible({ timeout: 15_000 });
   await expect(source).toHaveAttribute('draggable', 'false');

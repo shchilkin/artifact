@@ -1,5 +1,5 @@
 import type { CanvasDocument, CanvasGraph } from '../types/config';
-import { EXPORT_NODE_ID, findGraphUtilityNode, graphUtilityNodeCollections, inferLinearGraph } from './nodeGraph';
+import { documentGraph, EXPORT_NODE_ID, findGraphUtilityNode, graphUtilityNodeCollections } from './nodeGraph';
 import {
   collectGraphRenderReachModes,
   type GraphInputPort,
@@ -7,6 +7,7 @@ import {
   type GraphReachMode,
   type GraphRenderInput,
   type GraphRenderNodeKind,
+  graphNodePrimaryPort,
   graphNodeRenderInputs,
   graphRenderNodeKind,
 } from './render/graphInputs';
@@ -34,6 +35,12 @@ export interface GraphTreeGroup {
   rows: GraphTreeRow[];
 }
 
+/** The input a row feeds in the tree: the row above it, or the node that owns its stack. */
+export interface GraphTreeConsumer {
+  nodeId: string;
+  port: GraphInputPort;
+}
+
 export interface GraphTreeRow {
   /** Unique within the tree: the node id for the full entry, a path-derived key for references. */
   key: string;
@@ -42,6 +49,13 @@ export interface GraphTreeRow {
   name: string;
   /** A use of a node whose full entry appears elsewhere; it has no children. */
   reference: boolean;
+  /** Null for the top row of a stack outside Output. */
+  consumer: GraphTreeConsumer | null;
+  /**
+   * The port the stack continues through below this row, or null when the row ends its stack (a fill
+   * shader, or a node the renderer only reads, such as a Scene 3D model). Full entries only.
+   */
+  stackPort: GraphInputPort | null;
   groups: GraphTreeGroup[];
 }
 
@@ -118,23 +132,35 @@ function dedupeInputs(inputs: GraphRenderInput[]) {
  * Inputs to show under a row: those the renderer follows for every way the node is used. Only
  * `render` use has a primary stack, and it is listed first, so de-duplication keeps it primary.
  */
+function rowModes(context: TreeContext, nodeId: string): GraphReachMode[] {
+  const reached = context.reach.get(nodeId);
+  return reached ? MODE_ORDER.filter((mode) => reached.has(mode)) : unreachedModes(context, nodeId);
+}
+
 function rowInputs(context: TreeContext, nodeId: string): GraphRenderInput[] {
   const cached = context.inputsCache.get(nodeId);
   if (cached) return cached;
-  const reached = context.reach.get(nodeId);
-  const modes = reached ? MODE_ORDER.filter((mode) => reached.has(mode)) : unreachedModes(context, nodeId);
+  const modes = rowModes(context, nodeId);
   const inputs = dedupeInputs(modes.flatMap((mode) => graphNodeRenderInputs(context.doc, context.graph, nodeId, mode)));
   context.inputsCache.set(nodeId, inputs);
   return inputs;
 }
 
-function referenceRow(context: TreeContext, nodeId: string, kind: GraphTreeNodeKind, path: string): GraphTreeRow {
+function referenceRow(
+  context: TreeContext,
+  nodeId: string,
+  kind: GraphTreeNodeKind,
+  path: string,
+  consumer: GraphTreeConsumer | null,
+): GraphTreeRow {
   return {
     key: `ref:${path}:${nodeId}`,
     nodeId,
     kind,
     name: nodeName(context.doc, context.graph, nodeId, kind),
     reference: true,
+    consumer,
+    stackPort: null,
     groups: [],
   };
 }
@@ -156,19 +182,38 @@ function groupFor(ownerId: string, input: NestedInput, rows: GraphTreeRow[]): Gr
  * continuation is placed before this row's nested groups, so a shared node's full entry lands
  * where the walk first reaches it and every later use becomes a reference row.
  */
-function buildStack(context: TreeContext, nodeId: string | null, path: string): GraphTreeRow[] {
+function buildStack(
+  context: TreeContext,
+  nodeId: string | null,
+  path: string,
+  consumer: GraphTreeConsumer | null,
+): GraphTreeRow[] {
   if (!nodeId) return [];
   const kind = treeNodeKind(context, nodeId);
   if (!kind) return [];
-  if (context.placed.has(nodeId)) return [referenceRow(context, nodeId, kind, path)];
+  if (context.placed.has(nodeId)) return [referenceRow(context, nodeId, kind, path, consumer)];
   context.placed.add(nodeId);
 
   const inputs = rowInputs(context, nodeId);
   const primary = inputs.find((input) => input.role === 'primary') ?? null;
-  const below = buildStack(context, primary?.sourceId ?? null, `${nodeId}:${primary?.port ?? ''}`);
+  const stackPort = rowModes(context, nodeId).includes('render')
+    ? graphNodePrimaryPort(context.doc, context.graph, nodeId)
+    : null;
+  const below = buildStack(
+    context,
+    primary?.sourceId ?? null,
+    `${nodeId}:${primary?.port ?? ''}`,
+    primary ? { nodeId, port: primary.port } : null,
+  );
   const groups = inputs
     .filter(isNestedInput)
-    .map((input) => groupFor(nodeId, input, buildStack(context, input.sourceId, `${nodeId}:${input.port}`)))
+    .map((input) =>
+      groupFor(
+        nodeId,
+        input,
+        buildStack(context, input.sourceId, `${nodeId}:${input.port}`, { nodeId, port: input.port }),
+      ),
+    )
     .filter((group) => group.rows.length > 0);
 
   const row: GraphTreeRow = {
@@ -177,6 +222,8 @@ function buildStack(context: TreeContext, nodeId: string | null, path: string): 
     kind,
     name: nodeName(context.doc, context.graph, nodeId, kind),
     reference: false,
+    consumer,
+    stackPort,
     groups,
   };
   return [row, ...below];
@@ -202,14 +249,9 @@ function buildNotInOutput(context: TreeContext, unreached: string[]): GraphTreeR
   const starts = [...unreached.filter((id) => !consumed.has(id)), ...unreached];
   for (const nodeId of starts) {
     if (context.placed.has(nodeId)) continue;
-    stacks.push(buildStack(context, nodeId, 'detached'));
+    stacks.push(buildStack(context, nodeId, 'detached', null));
   }
   return stacks;
-}
-
-/** The graph a document renders through: its own graph, or the stack wired straight to Output. */
-function documentGraph(doc: CanvasDocument): CanvasGraph {
-  return doc.graph ?? inferLinearGraph(doc.layers);
 }
 
 /**
@@ -221,7 +263,7 @@ export function buildGraphLayerTree(doc: CanvasDocument): GraphLayerTree {
   const graph = documentGraph(doc);
   const reach = collectGraphRenderReachModes(doc, graph, EXPORT_NODE_ID);
   const context: TreeContext = { doc, graph, reach, placed: new Set(), inputsCache: new Map() };
-  const output = buildStack(context, exportSource(context), EXPORT_NODE_ID);
+  const output = buildStack(context, exportSource(context), EXPORT_NODE_ID, { nodeId: EXPORT_NODE_ID, port: 'in' });
   const reachedNodeIds = new Set(context.placed);
   const unreached = graphNodeIds(doc, graph).filter((id) => !context.placed.has(id));
   return { output, notInOutput: buildNotInOutput(context, unreached), reachedNodeIds };

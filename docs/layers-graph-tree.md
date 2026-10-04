@@ -74,7 +74,8 @@ section.
 ## Editing in the tree
 
 A **run** is the longest chain of nodes joined through primary ports where each
-node has exactly one consumer. Every edit below is one undoable document update.
+node has exactly one consumer. Every edit below is one undoable document update
+(one `snapshot` history entry).
 
 | Operation | Graph edit | Where |
 | --- | --- | --- |
@@ -87,6 +88,135 @@ node has exactly one consumer. Every edit below is one undoable document update.
 | Wiring side inputs, creating shared nodes, swapping `a`/`b`, repeat item versus backdrop, edits across reference rows | Arbitrary edge edits | Nodes, reached through an "Edit in Nodes" row action |
 
 Dropping onto a reference row is not allowed.
+
+### Implementation (v0.50 U7)
+
+The commands are pure functions in `apps/web/app/utils/graphTreeEdits.ts`. They
+read the same tree as the view (`buildGraphLayerTree`), so a row can only be
+moved to a gap the person can see.
+
+- **Runs.** Within one tree stack, a row is in a run unless it is a reference
+  row, it feeds more than one edge (shared), or it is the top row of a side-input
+  stack (Scene 3D model, material, environment, or a texture map). Those rows
+  end a run; a shared node below a run is the run's lower outer end and stays
+  attached to whatever ends up at the bottom.
+- **Primary port.** Each node's primary port comes from the renderer's own input
+  table (`graphNodePrimaryPort` in `render/graphInputs.ts`): `in` for effects and
+  single-input utilities, `bg` for other layers, repeat, Scene 3D, and shaders,
+  `a` for merges, and `albedo` for a standalone material. For layers this is the
+  `inferLinearGraph` rule. A node without one (a fill-role shader) can only sit
+  at the bottom of a stack.
+- **Gaps.** A row can move to the gap above or below any full entry. "Above" is
+  the edge into the row's consumer on its original port; "below" is the edge into
+  the row's primary port. These gaps are not editable:
+  - the top gap of a side-input stack;
+  - the gap below a row that does not continue a stack (a Scene 3D model the
+    renderer only reads);
+  - the gap above the top of a stack outside Output when that row still feeds an
+    input the renderer ignores (a losing duplicate edge, or a port the consumer
+    does not read). A row placed there would make it feed two inputs, which is
+    creating a shared node, so the edit is blocked with a reason that points to
+    Nodes.
+
+  A gap next to the row itself is a no-op.
+- **Within a run versus between runs.** A move whose gap lies inside the row's
+  own run (including its outer ends) is a reorder, allowed for any movable row,
+  including merges and Scene 3D nodes with their inputs. Any other gap is a move
+  between runs.
+  - A row moves with its structural children: a merge with its `b` group, a mask
+    with its clip, a repeat with its pattern source. Only the row's primary edges
+    are spliced, so those stacks stay attached.
+  - A row with side inputs (Scene 3D model, material, or environment, or a
+    primitive material) only moves within its run. Those inputs are wiring that
+    belongs in Nodes.
+  - A row can't move into its own inputs: a move is blocked when the gap's
+    consumer is upstream of the row once the row has left its place (for example
+    a merge dropped into its own group), because that would make a cycle.
+- **Splicing.** Splice-out replaces the row's consumer edge with one from the
+  row's primary source, in the same position in `graph.edges`. Splice-in replaces
+  the gap's edge with one from the moved row and inserts the edge into the row
+  just before it. The renderer reads the first edge on a port, so every edge the
+  edit wires is moved ahead of any other edge on its port, and bridges take the
+  removed edge's place. Every edge outside the splice keeps its endpoints and its
+  order on its port.
+- **Delete.** Each image input the node fed (a primary, merge `b`, mask, or
+  pattern port, or Output) now reads the node's primary source on the same port,
+  in the removed edge's place.
+  - Side inputs it fed are dropped instead of rewired, because wiring side inputs
+    happens in Nodes. Side inputs are the Scene 3D model, material, and
+    environment, a primitive material, and texture ports. A port counts by how
+    the renderer uses its consumer: a material read through a `material` port
+    treats `albedo` as a texture map, so it is a side input there, while a
+    standalone material's `albedo` is its stack.
+  - Edges from the node's own non-primary sources are dropped, so those sources
+    move to "Not in output".
+  - **Deleting a shared node shares its source.** Each place that used the node
+    now uses what was under it, so that source feeds all of them. The edit
+    creates a shared node, which is otherwise a Nodes edit, so it always asks
+    first through `EditorConfirmDialog`, and the dialog says the source becomes
+    shared. A shared node with nothing under it just leaves those inputs empty.
+  - Locked layers are not deleted.
+- **Add above.** With a tree row selected, Add Library places a new layer or
+  Scene 3D node in the gap above that row and positions it between the row and
+  its consumer in Nodes. With no selection, a side-input top selected, or a
+  linear graph, Add works as before.
+- **Blocked edits** leave the document unchanged and say why. Reasons name the
+  row and point to Nodes when the edit belongs there.
+- **Feedback.** Every outcome shows in the shared `InlineNotice` (through
+  `EditorWorkflowNotice`), as a status live region: `info` for a done edit,
+  `warning` for a blocked one. It is laid over the bottom of the panel so a message
+  never shifts the rows, it stays mounted while empty so screen readers register
+  the region first, and it clears after a few seconds.
+- **Shared code.** Order-preserving edge edits (`createGraphEdge`,
+  `splitGraphEdgeInPlace`, `rewireGraphEdgeSource`, `promoteGraphEdges`) and
+  `documentGraph` live in `utils/nodeGraph.ts`. New edges use the `e-from-to` id,
+  and a split edge uses `splitEdgeWithNode`'s `__before` and `__after` ids.
+
+### Interaction
+
+- Drag a row onto the upper or lower half of another row. The drop line is an
+  inset shadow on the target row (`data-tree-drop`), so rows never shift while
+  dragging. The lower half of an open merge folder is the top of its group. The
+  dragged row dims (`data-tree-dragging`), and a row being placed with Move to…
+  is outlined (`data-tree-moving-row`). `/docs/style-guide` section 04 shows each
+  state.
+- Rows that cannot move are not draggable: reference rows, shared nodes,
+  side-input tops, and locked layers.
+- Keyboard, on a focused row: <kbd>Alt</kbd>+<kbd>Up</kbd> or
+  <kbd>Alt</kbd>+<kbd>Down</kbd> moves it within its stack; <kbd>Delete</kbd> or
+  <kbd>Backspace</kbd> deletes it (or the selection it belongs to);
+  <kbd>Shift</kbd>+<kbd>F10</kbd> opens row actions.
+- Row actions add Move up, Move down, Move to…, Edit in Nodes, and Delete for
+  graph-only nodes. Graph-only and shared-use rows get the same "•••" actions
+  button as layer rows, so touch screens reach them too. A blocked action stays
+  focusable and announces its reason.
+  Move to… starts a keyboard move: arrow to a row, then <kbd>Enter</kbd> places
+  the moving row above it and <kbd>Shift</kbd>+<kbd>Enter</kbd> below it;
+  <kbd>Escape</kbd> cancels.
+- After a move the row keeps focus in its new place, and folders around it open.
+- Edit in Nodes switches to Nodes with the node selected. Reference rows offer it
+  too.
+
+### `doc.layers` consistency
+
+In graph mode `doc.layers` order has no render effect, but it is still the stack
+that stack-mode rendering draws, that packages store, and that
+`isLayerStackGraph` compares the graph against. The rule for tree edits
+(`placeLayerForTreeEdit`):
+
+- A layer that moves, or is added above a row, is placed in `doc.layers` directly
+  above the nearest layer below it in its new stack (following primary inputs
+  through graph-only nodes). If there is none, it goes directly below the nearest
+  layer above it (following single consumers). If there is neither, it goes on top.
+- Every other layer keeps its order. Deleting a layer removes its entry. Moving or
+  deleting a graph-only node leaves `doc.layers` alone.
+
+So a chain of layers keeps its bottom-to-top order in `doc.layers`, and a graph
+that tree edits turn back into a plain layer chain is recognized as the layer
+stack again (Layers switches back to the flat list, and stack-mode rendering
+draws the same order as the graph). Packages need no change: they serialize
+`doc.layers` and `graph` as they are, and a tree edit round-trips through a
+project package unchanged. `graphTreeEdits.test.ts` covers both.
 
 ## Areas
 
@@ -102,9 +232,9 @@ several branches, so both cannot be folders at once.
 
 ## Open risks
 
-- `doc.layers` order has no render effect in graph mode. Tree edits must keep
-  `doc.layers` consistent enough for packages and stack-mode rendering; the
-  exact rule belongs to the first editing issue.
+- `doc.layers` order has no render effect in graph mode. Tree edits keep it
+  consistent by the rule in "`doc.layers` consistency" above; edits made in
+  Nodes do not reorder `doc.layers`.
 - Deep nesting on narrow screens needs an indentation cap and collapse defaults.
 - Folder-row thumbnails (`renderGraphTarget(mergeId)`) must respect thumbnail
   invalidation rules in [`rendering.md`](./rendering.md).
