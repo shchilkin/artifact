@@ -38,6 +38,15 @@ describe('runtime catalogue model', () => {
     expect(catalogueBindings({ effect: 'x', layer: {} })).toEqual([]);
   });
 
+  it('shows Grain with its inspector slider and the step track that boils it', () => {
+    expect(catalogueTitle('grain')).toBe('Grain');
+    expect(catalogueControls('grain')).toEqual([
+      expect.objectContaining({ type: 'slider', field: 'grain', min: 0, max: 50 }),
+    ]);
+    expect(catalogueLayer('grain', EFFECT_CASES.grain)).toMatchObject({ preset: 'grain', grain: 40, seedOffset: 0 });
+    expect(catalogueBindings(EFFECT_CASES.grain)).toEqual(['step track']);
+  });
+
   it('formats GPU time', () => {
     expect(formatGpuTime(undefined)).toBe('measuring');
     expect(formatGpuTime(null)).toBe('n/a');

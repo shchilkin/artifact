@@ -1,6 +1,6 @@
 import { HEADER, NOISE_FRAG } from '@artifact/shared/effect-shaders';
 import { describe, expect, it } from 'vitest';
-import { EFFECTS, effectRegistry, noiseWarp } from './effects/index.js';
+import { EFFECTS, effectRegistry, GRAIN_FRAG, grain, noiseWarp } from './effects/index.js';
 import { createEffectRegistry, DEFAULT_CENTER, defineEffect } from './registry.js';
 import type { UniformValues } from './types.js';
 
@@ -28,6 +28,21 @@ describe('effect registry', () => {
 
   it('skips an effect whose amount is zero, as the editor filter builder does', () => {
     expect(effectRegistry.pass('noiseWarp', { noiseWarp: 0 }, context)).toBeNull();
+  });
+
+  it('registers Grain as a stochastic port that boils on its seed', () => {
+    expect(effectRegistry.get('grain')).toBe(grain);
+    expect(grain.fragment).toBe(GRAIN_FRAG);
+    expect(grain.fragment.startsWith(HEADER)).toBe(true);
+    expect(grain.stochastic).toBe(true);
+    expect(grain.centered).toBe(false);
+    expect(grain.fields).toEqual(['grain', 'seedOffset']);
+  });
+
+  it('maps authored Grain fields to the amount and the layer seed', () => {
+    const pass = effectRegistry.pass('grain', { grain: 26, seedOffset: 3 }, context);
+    expect(pass).toEqual({ id: 'grain', fragment: GRAIN_FRAG, uniforms: { uGrain: 26, uSeed: 45 } });
+    expect(effectRegistry.pass('grain', { grain: 0 }, context)).toBeNull();
   });
 
   it('rejects unknown ids and duplicate registrations', () => {
