@@ -86,7 +86,7 @@ test('the catalogue exports the sample cover as a live package and plays it', as
   expect((await download).suggestedFilename()).toBe('Sample cover-live-540.zip');
 });
 
-test('the runtime catalogue shows Liquid Morph with a working frequency control', async ({ page, browserName }) => {
+test('the runtime catalogue shows Liquid Morph with a working frequency control', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -106,15 +106,11 @@ test('the runtime catalogue shows Liquid Morph with a working frequency control'
   await frequency.focus();
   await frequency.press('End');
   await expect(frequency).toHaveValue('20');
-  // WebKit on Linux (CI) presents a recreated catalogue canvas that started below the fold one update late; Vortex's
-  // entry shows the same lag, so the pixel check runs in the other engines and in WebKit on macOS.
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });
 
 test('the runtime catalogue shows radial chromatic aberration, with the fringe centre following the pointer', async ({
   page,
-  browserName,
 }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
@@ -128,8 +124,6 @@ test('the runtime catalogue shows radial chromatic aberration, with the fringe c
 
   // The entry sits below the fold; bring it into view before capturing, so WebKit composites the canvas.
   await entry.scrollIntoViewIfNeeded();
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   const canvas = entry.locator('canvas');
   const box = await canvas.boundingBox();
   if (!box) throw new Error('catalogue canvas has no box');
@@ -140,7 +134,7 @@ test('the runtime catalogue shows radial chromatic aberration, with the fringe c
   await page.mouse.move(0, 0);
 });
 
-test('the runtime catalogue shows Data Mosh with a working amount control', async ({ page, browserName }) => {
+test('the runtime catalogue shows Data Mosh with a working amount control', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -160,7 +154,5 @@ test('the runtime catalogue shows Data Mosh with a working amount control', asyn
   await amount.focus();
   await amount.press('End');
   await expect(amount).toHaveValue('100');
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });

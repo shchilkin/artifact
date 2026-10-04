@@ -24,7 +24,9 @@ import {
   catalogueControls,
   catalogueLayer,
   catalogueTitle,
+  formatGpuBudget,
   formatGpuTime,
+  gpuBudgetStatus,
 } from './runtimeCatalogueModel';
 
 const FIXTURE_URLS: Record<FixtureName, string> = { photo: photoUrl, graphic: graphicUrl, text: textUrl };
@@ -105,6 +107,7 @@ function EffectEntry({
   const controls = catalogueControls(effect);
   const bindings = catalogueBindings(effectCase);
   const seed = effectCase?.seed ?? DEFAULT_CASE_SEED;
+  const budget = gpuBudgetStatus(gpuMs);
 
   // Rebuild the artwork when the source or an authored value changes; playback follows `animate` below.
   useEffect(() => {
@@ -129,6 +132,10 @@ function EffectEntry({
           observeVisibility: null,
           maxRenderSize: PARITY_SIZE,
           devicePixelRatio: PARITY_SIZE / CSS_SIZE,
+          // Catalogue frames are mostly single still draws (a control change, a pointer move). WebKit on Linux
+          // composites a swapped WebGL buffer only when the canvas presents again in a later rendering update, so a
+          // lone still frame stayed hidden until the next change. A preserved buffer is updated in place and shows.
+          contextAttributes: { preserveDrawingBuffer: true },
         });
         artworkRef.current = artwork;
         if (animateRef.current) artwork.start();
@@ -179,6 +186,12 @@ function EffectEntry({
           <div>
             <dt>GPU 540px</dt>
             <dd data-testid="runtime-gpu-time">{formatGpuTime(gpuMs)}</dd>
+          </div>
+          <div>
+            <dt>Budget</dt>
+            <dd className="runtime-catalogue-budget" data-budget={budget} data-testid="runtime-gpu-budget">
+              {formatGpuBudget(budget)}
+            </dd>
           </div>
           <div>
             <dt>Bindings</dt>
