@@ -81,6 +81,7 @@ export function createLiveArtwork(options: LiveArtworkOptions): Artwork {
     get state() {
       return artwork.state;
     },
+    ready: artwork.ready,
   };
 }
 

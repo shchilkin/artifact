@@ -197,6 +197,9 @@ test('under reduced motion the artwork draws one still frame and requests no ani
       devicePixelRatio: 1,
       contextAttributes: { preserveDrawingBuffer: true },
     });
+    // Until the shaders are ready the runtime polls them once a frame (issue #419); after that, nothing.
+    await artwork.ready;
+    runtimeFrames.length = 0;
     artwork.start();
     await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -212,6 +215,8 @@ test('under reduced motion the artwork draws one still frame and requests no ani
 
     // Control: the same artwork with motion allowed does request frames, so the counter can see them.
     const moving = createArtwork({ canvas, source, chain: [pass], reducedMotion: false, devicePixelRatio: 1 });
+    await moving.ready;
+    runtimeFrames.length = 0;
     moving.start();
     await new Promise((resolve) => setTimeout(resolve, 200));
     const movingFrames = runtimeFrames.length;
@@ -291,7 +296,7 @@ test("runtime Noise Warp matches the editor's Pixi output, the right way up", as
       return over / (a.length / 4);
     };
 
-    const render = (chain: Parameters<typeof createArtwork>[0]['chain']) => {
+    const render = async (chain: Parameters<typeof createArtwork>[0]['chain']) => {
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
@@ -304,13 +309,14 @@ test("runtime Noise Warp matches the editor's Pixi output, the right way up", as
         maxRenderSize: size,
         contextAttributes: { preserveDrawingBuffer: true },
       });
+      await artwork.ready;
       const data = pixels(canvas);
       artwork.destroy();
       return data;
     };
 
     const sourcePixels = pixels(source);
-    const copied = render([]);
+    const copied = await render([]);
 
     const layer = { ...makeEffectPresetLayer('noiseWarp'), noiseWarp: 90, seedOffset: 0 };
     const filters = buildFiltersFromEffectLayer(layer, seed, size, size);
@@ -318,7 +324,7 @@ test("runtime Noise Warp matches the editor's Pixi output, the right way up", as
     const editor = pixels(await gpuRenderToCanvas({ width: size, height: size, source, filters }));
     const pass = effectRegistry.pass('noiseWarp', layer, { seed, width: size, height: size });
     if (!pass) throw new Error('Noise Warp pass missing');
-    const runtime = render([pass]);
+    const runtime = await render([pass]);
 
     return {
       copyDiff: meanDiff(copied, sourcePixels),

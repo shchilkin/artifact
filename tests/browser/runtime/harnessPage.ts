@@ -146,7 +146,9 @@ const RUNTIME_OPTIONS = {
   contextAttributes: { preserveDrawingBuffer: true },
 } as const;
 
-function runtimeRender(canvas: HTMLCanvasElement, artwork: Artwork): RuntimeRender {
+/** Waits for the shaders (issue #419): the resting frame is drawn once they are ready. */
+async function runtimeRender(canvas: HTMLCanvasElement, artwork: Artwork): Promise<RuntimeRender> {
+  await artwork.ready;
   return { canvas, gl: canvas.getContext('webgl2') as WebGL2RenderingContext, artwork };
 }
 
@@ -158,7 +160,7 @@ function sizedCanvas(size: number): HTMLCanvasElement {
 }
 
 /** The resting chain for parity: one pass, no bindings, as the editor renders the authored layer. */
-function createRestingRuntime(source: TexImageSource, size: number, pass: ChainPass): RuntimeRender {
+function createRestingRuntime(source: TexImageSource, size: number, pass: ChainPass): Promise<RuntimeRender> {
   const canvas = sizedCanvas(size);
   const artwork = createArtwork({
     ...RUNTIME_OPTIONS,
@@ -176,7 +178,7 @@ function createRestingRuntime(source: TexImageSource, size: number, pass: ChainP
  * nothing starts the loop: frames come from `setInput` and `seek` only. Pointer tracking is off; inputs come from the
  * frame declarations.
  */
-function createLiveRuntime(effectCase: EffectCase, source: TexImageSource, size: number): RuntimeRender {
+function createLiveRuntime(effectCase: EffectCase, source: TexImageSource, size: number): Promise<RuntimeRender> {
   const canvas = sizedCanvas(size);
   const artwork = createLiveArtwork({
     ...RUNTIME_OPTIONS,
@@ -201,7 +203,7 @@ export async function parity(effect: string, fixture: FixtureName, options: Pari
   const seed = options.runtimeSeed ?? effectCase.seed ?? DEFAULT_CASE_SEED;
   const pass = runtimePass(effectCase, PARITY_SIZE, seed, options.fragmentPatch);
   // The resting frame, without the case's bindings: the authored values, as the editor renders them.
-  const runtime = createRestingRuntime(image, PARITY_SIZE, pass);
+  const runtime = await createRestingRuntime(image, PARITY_SIZE, pass);
   const actual = readPixels(runtime.canvas, PARITY_SIZE);
   runtime.artwork.destroy();
   const inset = effectCase.parityInset ?? 0;
@@ -232,7 +234,7 @@ export async function goldens(effect: string): Promise<GoldenFrame[]> {
   const image = await loadImage(fixtureUrl(effectCase.goldenFixture ?? 'graphic'));
   const frames: GoldenFrame[] = [];
   for (const frame of effectCase.frames ?? []) {
-    const runtime = createLiveRuntime(effectCase, image, GOLDEN_SIZE);
+    const runtime = await createLiveRuntime(effectCase, image, GOLDEN_SIZE);
     for (const [name, value] of Object.entries(frame.input ?? {})) runtime.artwork.setInput(name, value);
     runtime.artwork.seek(caseFrameTime(effectCase, frame.t));
     frames.push({ name: frame.name, png: toPng(readPixels(runtime.canvas, GOLDEN_SIZE)) });
@@ -245,7 +247,7 @@ export async function goldens(effect: string): Promise<GoldenFrame[]> {
 export async function gpuTime(effect: string): Promise<number | null> {
   const effectCase = caseFor(effect);
   const image = await loadImage(fixtureUrl('photo'));
-  const runtime = createLiveRuntime(effectCase, image, PARITY_SIZE);
+  const runtime = await createLiveRuntime(effectCase, image, PARITY_SIZE);
   try {
     const timing = await measureGpuTime(runtime.gl, () => runtime.artwork.seek(0));
     return timing?.medianMs ?? null;

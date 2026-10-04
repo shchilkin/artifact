@@ -121,6 +121,14 @@ export interface Artwork {
   /** Stops the loop, stops observers, and deletes every GL object the artwork created. */
   destroy(): void;
   readonly state: ArtworkState;
+  /**
+   * Settles when the shaders are ready and the first frame is drawn (issue #419). Until then `state.status` is
+   * `'loading'`, nothing is drawn (the host keeps showing its still), and `start`, `seek` and `setInput` take effect
+   * on that first frame. Rejects if a shader fails to compile or link (`state.status` is then `'failed'`) or if the
+   * artwork is destroyed first. Without `KHR_parallel_shader_compile` the shaders compile during creation and it is
+   * already settled.
+   */
+  readonly ready: Promise<void>;
 }
 
 const DEFAULT_CONTEXT_ATTRIBUTES: WebGLContextAttributes = {
@@ -147,10 +155,17 @@ export function createArtwork(options: ArtworkOptions): Artwork {
   const motionQuery = options.reducedMotion === undefined ? reducedMotionQuery() : null;
   let lifecycle: LifecycleState = initialLifecycle({
     reducedMotion: options.reducedMotion ?? motionQuery?.matches ?? false,
+    loading: true,
   });
 
+  // Shaders compile in the background where the driver allows it (issue #419); see `pollReady`.
   const renderer: CompositeRenderer = createCompositeRenderer(gl, drawing.steps, drawing.plates.length);
   drawing.plates.forEach((plate, index) => renderer.setPlate(index, plate));
+  let settle: { resolve: () => void; reject: (error: unknown) => void } | null = null;
+  const ready = new Promise<void>((resolve, reject) => {
+    settle = { resolve, reject };
+  });
+  let pollHandle: number | null = null;
   const maxRenderSize =
     options.maxRenderSize ?? ('livePackage' in options ? options.livePackage.manifest.maxRenderSize : undefined);
 
@@ -166,6 +181,7 @@ export function createArtwork(options: ArtworkOptions): Artwork {
   const currentTime = () => (frameHandle === null ? elapsed : elapsed + (scheduler.now() - resumedAt) / 1000);
 
   const draw = (time: number) => {
+    if (lifecycle.loading || lifecycle.failed) return;
     renderer.render(
       drawing.overrides({
         time,
@@ -198,6 +214,28 @@ export function createArtwork(options: ArtworkOptions): Artwork {
     }
     // Reduced motion switched on: replace whatever moving frame is showing with the authored still.
     if (lifecycle.reducedMotion && !previous.reducedMotion) draw(currentTime());
+    // Shaders ready: the resting frame at the current time, the first the canvas shows.
+    if (previous.loading && !lifecycle.loading && !lifecycle.failed) draw(currentTime());
+  };
+
+  /** Asks whether the shaders are ready; `true` once they are, or once they failed. */
+  const checkReady = () => {
+    try {
+      if (!renderer.pollReady()) return false;
+    } catch (error) {
+      dispatch({ type: 'fail' });
+      settle?.reject(error);
+      return true;
+    }
+    dispatch({ type: 'ready' });
+    settle?.resolve();
+    return true;
+  };
+
+  const pollShaders = () => {
+    pollHandle = null;
+    if (lifecycle.destroyed || checkReady()) return;
+    pollHandle = scheduler.requestFrame(pollShaders);
   };
 
   const redraw = () => {
@@ -225,8 +263,16 @@ export function createArtwork(options: ArtworkOptions): Artwork {
   };
 
   resize();
-  // The resting frame, drawn once so the canvas is never blank and reduced motion has its still image.
-  draw(0);
+  // Without KHR_parallel_shader_compile this waits for the driver and draws the resting frame now, so the canvas is
+  // never blank and reduced motion has its still image. With it, the frame is drawn once the shaders are ready.
+  try {
+    if (!renderer.pollReady()) pollHandle = scheduler.requestFrame(pollShaders);
+  } catch (error) {
+    // A compile or link error during creation throws, as before; nothing the artwork created is left behind.
+    renderer.destroy();
+    throw error;
+  }
+  if (pollHandle === null) checkReady();
 
   const onMotionChange = (event: MediaQueryListEvent) =>
     dispatch({ type: 'reducedMotion', reducedMotion: event.matches });
@@ -258,7 +304,15 @@ export function createArtwork(options: ArtworkOptions): Artwork {
     redraw,
     destroy() {
       if (lifecycle.destroyed) return;
+      const wasLoading = lifecycle.loading;
       dispatch({ type: 'destroy' });
+      if (pollHandle !== null) scheduler.cancelFrame(pollHandle);
+      pollHandle = null;
+      if (wasLoading) {
+        // Hosts that never awaited `ready` should not see an unhandled rejection for an artwork they removed.
+        ready.catch(() => {});
+        settle?.reject(new Error('The artwork was destroyed before its shaders were ready.'));
+      }
       stopObserving?.();
       motionQuery?.removeEventListener('change', onMotionChange);
       renderer.destroy();
@@ -266,6 +320,7 @@ export function createArtwork(options: ArtworkOptions): Artwork {
     get state() {
       return { status: lifecycleStatus(lifecycle), time: currentTime(), frames, width, height };
     },
+    ready,
   };
 }
 
