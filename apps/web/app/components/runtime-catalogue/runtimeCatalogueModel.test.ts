@@ -5,7 +5,9 @@ import {
   catalogueControls,
   catalogueLayer,
   catalogueTitle,
+  formatGpuBudget,
   formatGpuTime,
+  gpuBudgetStatus,
 } from './runtimeCatalogueModel';
 
 describe('runtime catalogue model', () => {
@@ -65,6 +67,17 @@ describe('runtime catalogue model', () => {
     expect(formatGpuTime(undefined)).toBe('measuring');
     expect(formatGpuTime(null)).toBe('n/a');
     expect(formatGpuTime(0.1834)).toBe('0.18 ms');
+  });
+
+  it('judges a GPU time against the 2 ms budget, and only a measured one', () => {
+    expect(gpuBudgetStatus(undefined)).toBe('unknown');
+    expect(gpuBudgetStatus(null)).toBe('unknown');
+    expect(gpuBudgetStatus(0.4)).toBe('within');
+    expect(gpuBudgetStatus(2)).toBe('within');
+    expect(gpuBudgetStatus(2.01)).toBe('over');
+    expect(formatGpuBudget('within')).toBe('within 2 ms');
+    expect(formatGpuBudget('over')).toBe('over 2 ms');
+    expect(formatGpuBudget('unknown')).toBe('not measured');
   });
 
   it('lists Vortex with its amount slider and the pointer bindings', () => {

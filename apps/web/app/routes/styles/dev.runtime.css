@@ -98,6 +98,18 @@
   color: var(--text-primary);
 }
 
+.runtime-catalogue-meta .runtime-catalogue-budget[data-budget="unknown"] {
+  color: var(--text-muted);
+}
+
+.runtime-catalogue-meta .runtime-catalogue-budget[data-budget="within"] {
+  color: var(--state-success);
+}
+
+.runtime-catalogue-meta .runtime-catalogue-budget[data-budget="over"] {
+  color: var(--state-danger);
+}
+
 .runtime-catalogue-controls {
   display: grid;
   gap: var(--space-2);

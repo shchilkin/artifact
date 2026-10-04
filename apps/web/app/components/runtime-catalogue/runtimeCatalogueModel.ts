@@ -1,3 +1,4 @@
+import { GPU_BUDGET_MS } from '../../../../../packages/runtime/src/gpuTiming';
 import type { EffectCase } from '../../../../../packages/runtime/src/testing/effectCase';
 import { EFFECT_PRESETS, type EffectLayer, type EffectPreset, makeEffectPresetLayer } from '../../types/config';
 import { EFFECT_SECTION_DEFINITIONS, type EffectControl } from '../node-canvas/inspector/EffectControlSections';
@@ -43,4 +44,18 @@ export function formatGpuTime(ms: number | null | undefined): string {
   if (ms === undefined) return 'measuring';
   if (ms === null) return 'n/a';
   return `${ms.toFixed(2)} ms`;
+}
+
+export type GpuBudgetStatus = 'within' | 'over' | 'unknown';
+
+/** Where a measurement stands against the 2 ms per-effect budget; `unknown` while measuring or without timer queries. */
+export function gpuBudgetStatus(ms: number | null | undefined): GpuBudgetStatus {
+  if (ms === undefined || ms === null) return 'unknown';
+  return ms > GPU_BUDGET_MS ? 'over' : 'within';
+}
+
+export function formatGpuBudget(status: GpuBudgetStatus): string {
+  if (status === 'within') return `within ${GPU_BUDGET_MS} ms`;
+  if (status === 'over') return `over ${GPU_BUDGET_MS} ms`;
+  return 'not measured';
 }

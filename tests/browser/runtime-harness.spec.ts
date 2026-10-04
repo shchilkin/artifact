@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { expect, type Page, type TestInfo, test } from '@playwright/test';
+import { GPU_BUDGET_MS } from '../../packages/runtime/src/gpuTiming';
 import { FIXTURES } from '../../packages/runtime/src/testing/effectCase';
 import type { ParityComparison } from '../../packages/runtime/src/testing/parity';
 import { EFFECT_CASES } from '../../packages/runtime/test/cases/index';
@@ -18,6 +19,8 @@ const HARNESS_MODULE = `/@fs${fileURLToPath(new URL('./runtime/harnessPage.ts', 
  * Goldens are recorded in CI's Linux Playwright container (Chromium, SwiftShader). Other platforms rasterise
  * differently, so they skip golden comparison unless `RUNTIME_GOLDENS=1` asks for platform-suffixed local goldens.
  */
+/** Asserts the per-effect GPU budget; set on the reference machine (docs/runtime/README.md, "GPU budget"). */
+const ENFORCE_GPU_BUDGET = process.env.RUNTIME_GPU_BUDGET === '1';
 const GOLDENS_ENABLED = process.platform === 'linux' || process.env.RUNTIME_GOLDENS === '1';
 /** Same container, same GPU path: frames should match exactly. The allowance absorbs a stray rounding change. */
 const GOLDEN_OPTIONS = { threshold: 0.05, maxDiffPixelRatio: 0.002 };
@@ -132,6 +135,14 @@ for (const [effect, effectCase] of Object.entries(EFFECT_CASES)) {
       testInfo.annotations.push({ type: 'gpu-time', description });
       console.log(`[runtime] ${effect} GPU time at 540px (${testInfo.project.name}): ${description}`);
       if (ms !== null) expect(ms).toBeGreaterThan(0);
+      // The budget check needs timer queries, which CI's headless browsers lack; see "GPU budget" in the README.
+      if (ENFORCE_GPU_BUDGET) {
+        expect(
+          ms,
+          'RUNTIME_GPU_BUDGET=1 needs EXT_disjoint_timer_query_webgl2 (headed Chromium on a GPU)',
+        ).not.toBeNull();
+        expect(ms!, `${effect} GPU time at 540px`).toBeLessThanOrEqual(GPU_BUDGET_MS);
+      }
     });
   });
 }
