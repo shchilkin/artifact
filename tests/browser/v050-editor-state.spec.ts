@@ -463,16 +463,25 @@ test('Nodes shows progress while node previews render and clears when they settl
   await expect(bar).toHaveAttribute('data-preview-pending', 'false', { timeout: 20_000 });
   await expect(bar).toHaveCSS('opacity', '0');
 
+  // An edit re-renders the affected node previews, Output included.
+  await page.locator('.react-flow__node[data-id="progress-scanlines"]').click();
+  const slider = page.locator('.node-props-panel input[type="range"]').first();
+  await expect(slider).toBeVisible();
+  // Opening the properties panel animates its width; measure only the shift caused by the edit and its progress.
+  await expect
+    .poll(async () => {
+      const before = await page.locator('.node-props-panel').evaluate((panel) => panel.getBoundingClientRect().width);
+      await page.waitForTimeout(100);
+      const after = await page.locator('.node-props-panel').evaluate((panel) => panel.getBoundingClientRect().width);
+      return before === after;
+    })
+    .toBe(true);
   await page.evaluate(() => {
     const record = (window as unknown as { __nodeProgress: { shift: number } }).__nodeProgress;
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries() as Array<PerformanceEntry & { value: number }>) record.shift += entry.value;
     }).observe({ type: 'layout-shift' });
   });
-  // An edit re-renders the affected node previews, Output included.
-  await page.locator('.react-flow__node[data-id="progress-scanlines"]').click();
-  const slider = page.locator('.node-props-panel input[type="range"]').first();
-  await expect(slider).toBeVisible();
   await slider.focus();
   await page.keyboard.press('ArrowRight');
   await expect(bar).toHaveAttribute('data-preview-pending', 'false', { timeout: 20_000 });
