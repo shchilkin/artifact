@@ -122,7 +122,7 @@ export function CodeShaderInspector({
         open={uniformsOpen}
         onToggle={() => setUniformsOpen((open) => !open)}
       >
-        <div className="node-shader-flat-controls">
+        <div className="artifact-inspector-flat-list">
           {uniformControls.includes('strength') && (
             <InspectorSlider
               label="Strength"

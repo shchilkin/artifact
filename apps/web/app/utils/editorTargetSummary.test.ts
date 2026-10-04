@@ -87,10 +87,27 @@ describe('editor target summaries', () => {
     const summary = buildLayerTargetSummary(layer, { surface: 'layers', graph, layers: [layer] });
 
     expect(summary.breadcrumbs).toEqual(['Layers', 'Layer 1/1', 'Area: Print Stack', 'Off output path']);
-    expect(summary.notes).toContainEqual({
-      text: 'This layer is also grouped in the "Print Stack" graph area.',
-      tone: 'muted',
+  });
+
+  it('builds the same header for a target in Layers and Nodes apart from the mode name', () => {
+    const layer = makeFillLayer({ id: 'orphan', name: 'orphan fill' });
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-other-export', fromId: 'other', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      mergeNodes: [],
+      colorNodes: [],
+      areas: [{ id: 'area-a', name: 'Print Stack', color: '#ff735f', nodeIds: ['orphan'] }],
+    };
+    const layers = buildLayerTargetSummary(layer, { surface: 'layers', graph, layers: [layer] });
+    const nodes = buildLayerTargetSummary(layer, { surface: 'nodes', graph, layers: [layer] });
+
+    expect({ ...layers, eyebrow: '', breadcrumbs: layers.breadcrumbs.slice(1) }).toEqual({
+      ...nodes,
+      eyebrow: '',
+      breadcrumbs: nodes.breadcrumbs.slice(1),
     });
+    expect(layers.badges).toContainEqual({ label: 'Not in output', tone: 'warning' });
+    expect([layers.eyebrow, nodes.eyebrow]).toEqual(['Layers / Source', 'Nodes / Source']);
   });
 
   it('explains that layer-backed locks protect delete and layer-stack reorder', () => {

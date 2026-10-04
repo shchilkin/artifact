@@ -1664,8 +1664,8 @@ test('layer properties show the active editing target and hidden state', async (
   const targetHeader = page.locator('.layer-inspector-drawer .editor-target-header').first();
   await expect(targetHeader).toContainText('Top fill');
   await expect(targetHeader).toContainText('Hidden');
-  await expect(targetHeader).not.toContainText('Layers / Source');
-  await expect(targetHeader).not.toContainText('Layer 2/2');
+  await expect(targetHeader).toContainText('Layers / Source');
+  await expect(targetHeader).toContainText('Layer 2/2');
   await expect(targetHeader).not.toContainText('Visible');
 });
 
@@ -1675,7 +1675,7 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
   const topFillRow = await getVisibleLayerRow(page, 'Top fill');
   await topFillRow.click();
 
-  const lockToggle = page.getByLabel('Toggle layer delete and reorder lock');
+  const lockToggle = page.getByRole('checkbox', { name: 'Locked', exact: true });
   await expect(lockToggle).toBeVisible();
   await expect(lockToggle).toBeEnabled();
   await lockToggle.check();
@@ -1684,7 +1684,7 @@ test('locked layer surfaces status and blocks row deletion', async ({ page }) =>
   await expect(topFillRow.locator('.layer-lock-badge')).toContainText('lock');
   const targetHeader = page.locator('.layer-inspector-drawer .editor-target-header').first();
   await expect(targetHeader).toContainText('Locked');
-  await expect(targetHeader).not.toContainText('Layer 2/2');
+  await expect(targetHeader).toContainText('Layer 2/2');
 
   const actionsMenu = await openLayerRowActions(page, topFillRow);
   await expect(actionsMenu.getByRole('menuitem', { name: 'Delete locked' })).toBeDisabled();
@@ -1924,7 +1924,9 @@ test('layers can add Pixelate with formatted creative controls', async ({ page }
   await expect(pixelateRow).toBeVisible({ timeout: 15_000 });
   await pixelateRow.click();
   await expect(page.locator('.layer-inspector-drawer')).toContainText('Block Size');
-  await expect(page.locator('.layer-inspector-drawer .artifact-inspector-value')).toContainText('6px');
+  await expect(
+    page.locator('.layer-inspector-drawer').getByRole('slider', { name: 'Block Size', exact: true }),
+  ).toHaveAttribute('aria-valuetext', '6px');
   await expectLayerCanvasToHavePixels(page);
 });
 
@@ -2252,7 +2254,7 @@ test('missing imported image shows a clear replacement state', async ({ page }) 
 
   await expect(page.getByText('Image unavailable')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Replace the source to restore this layer.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Replace image' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Choose image file', exact: true })).toBeVisible();
 });
 
 test('missing imported font keeps fallback text visible', async ({ page }) => {
@@ -2268,9 +2270,9 @@ test('effect node inspector exposes and persists local seed offsets', async ({ p
   await expect(effectNode).toBeVisible({ timeout: 15_000 });
   await effectNode.locator('.node-shell-frame').click();
 
-  await page.locator('.node-props-panel-open button').filter({ hasText: /^Node/ }).first().click();
-  const seedControl = page.locator('.node-props-panel-open .artifact-inspector-control').filter({ hasText: /^Seed/ });
-  const seedSlider = seedControl.locator('input[type="range"]').first();
+  const nodeInspector = page.locator('.node-props-panel-open');
+  await nodeInspector.getByRole('button', { name: 'Node', exact: true }).click();
+  const seedSlider = nodeInspector.getByRole('slider', { name: 'Seed', exact: true });
   await expect(seedSlider).toBeVisible({ timeout: 15_000 });
   await seedSlider.evaluate((input) => {
     const slider = input as HTMLInputElement;
@@ -2336,10 +2338,10 @@ test('layer preview follows graph output when unconnected layers exist', async (
 test('node properties show whether the selected target feeds output', async ({ page }) => {
   await selectUnconnectedTopFillNode(page);
   const nodePropsPanel = page.locator('.node-props-panel-open');
-  const targetOverview = nodePropsPanel.locator('.node-target-overview').first();
+  const targetOverview = nodePropsPanel.locator('.editor-target-overview').first();
   const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
-  await expect(targetOverview).toHaveClass(/node-target-overview-source/);
-  await expect(targetOverview.getByLabel('Toggle node delete lock')).toBeVisible();
+  await expect(targetOverview).toHaveClass(/editor-target-overview-source/);
+  await expect(nodePropsPanel.getByRole('checkbox', { name: 'Locked', exact: true })).toBeVisible();
   await expect(targetHeader).toContainText('Nodes / Source');
   await expect(targetHeader).toContainText('Unconnected top fill');
   await expect(targetHeader).toContainText('Layer 2/2');
@@ -2359,7 +2361,7 @@ test('node properties show whether the selected target feeds output', async ({ p
       panel: read(panel),
       section: read(panel.querySelector('.artifact-inspector-section-open')),
       control: read(
-        panel.querySelector('.artifact-inspector-control, .artifact-inspector-row, .artifact-inspector-toggle'),
+        panel.querySelector('.artifact-inspector-slider, .artifact-inspector-row, .artifact-inspector-toggle'),
       ),
       summary: read(panel.querySelector('.artifact-inspector-section-summary')),
     };
@@ -2374,7 +2376,7 @@ test('locked node target stays in the graph when delete is pressed', async ({ pa
   const orphanNode = await selectUnconnectedTopFillNode(page);
   const nodePropsPanel = page.locator('.node-props-panel-open');
   await expect(nodePropsPanel).toBeVisible();
-  await nodePropsPanel.getByLabel('Toggle node delete lock').check();
+  await nodePropsPanel.getByRole('checkbox', { name: 'Locked', exact: true }).check();
 
   const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
   await expect(targetHeader).toContainText('Locked');
@@ -2411,14 +2413,14 @@ test('graph-only utility properties show area and output context without lock co
 
   const nodePropsPanel = page.locator('.node-props-panel-open');
   const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
-  await expect(nodePropsPanel.locator('.node-target-overview').first()).toHaveClass(/node-target-overview-utility/);
+  await expect(nodePropsPanel.locator('.editor-target-overview').first()).toHaveClass(/editor-target-overview-utility/);
   await expect(targetHeader).toContainText('Nodes / Utility');
   await expect(targetHeader).toContainText('Area: Area 1');
   await expect(targetHeader).toContainText('Output path');
   await expect(targetHeader).toContainText(
     'Graph-only utility nodes can be deleted or moved; durable locking is reserved for layer-backed targets in v0.28.',
   );
-  await expect(nodePropsPanel.getByLabel('Toggle node delete lock')).toHaveCount(0);
+  await expect(nodePropsPanel.getByRole('checkbox', { name: 'Locked', exact: true })).toHaveCount(0);
 });
 
 test('layers added after graph bootstrap connect into the export path', async ({ page }) => {
@@ -2470,7 +2472,7 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
     .locator('.add-library-row')
     .filter({ has: page.locator('.add-library-row-label', { hasText: /^Primitive$/ }) })
     .click();
-  await expect(page.getByText('Camera framing is node-owned')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Camera framing is set on the node preview in Nodes')).toBeVisible({ timeout: 15_000 });
 
   await switchToNodeView(page);
   const primitiveNode = page.locator('.node-shell-kind-primitive').first();
@@ -2972,7 +2974,9 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
 
   await expectPixelateNode(page);
   await expect(page.locator('.node-props-panel')).toContainText('Block Size');
-  await expect(page.locator('.node-props-panel .artifact-inspector-value')).toContainText('6px');
+  await expect(
+    page.locator('.node-props-panel').getByRole('slider', { name: 'Block Size', exact: true }),
+  ).toHaveAttribute('aria-valuetext', '6px');
   await switchToLayerView(page);
   await expectLayerCanvasToHavePixels(page);
 });

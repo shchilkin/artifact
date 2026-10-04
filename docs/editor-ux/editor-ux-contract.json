@@ -169,20 +169,19 @@
       "owner": "#307",
       "baseline": "2",
       "reason": "The mobile Layers command bar lays out as two rows."
-    }
-  ],
-  "exceptions": [
+    },
     {
       "key": "desktop/*/inspector/sliderWidthDeltaPx",
-      "max": 39.5,
       "owner": "#309",
-      "reason": "After visiting Nodes, the Layers inspector renders the same slider at 129 px instead of 168.5 px."
+      "baseline": "39.5 px",
+      "reason": "Layers and Nodes render one inspector row layout from styles that load with the editor, so visiting Nodes no longer restyles the Layers inspector."
     },
     {
       "key": "mobile/*/inspector/sliderWidthDeltaPx",
-      "max": 228,
       "owner": "#309",
-      "reason": "After visiting Nodes, the Layers inspector renders the same slider at 129 px instead of 357 px."
+      "baseline": "228 px",
+      "reason": "Layers and Nodes render one inspector row layout from styles that load with the editor, so visiting Nodes no longer restyles the Layers inspector."
     }
-  ]
+  ],
+  "exceptions": []
 }

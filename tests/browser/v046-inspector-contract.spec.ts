@@ -177,7 +177,7 @@ test('layer and node property surfaces consume the runtime inspector contract', 
   await expect(layerInspector.locator('[data-inspector-property-row="true"]')).not.toHaveCount(0);
   await expect(layerInspector.locator('[data-inspector-field="true"]')).not.toHaveCount(0);
 
-  await layerInspector.getByLabel('Toggle layer delete and reorder lock').check();
+  await layerInspector.getByRole('checkbox', { name: 'Locked', exact: true }).check();
   const lockedLayerSection = layerInspector.locator('[data-inspector-section][data-inspector-locked="true"]').first();
   await expect(lockedLayerSection).toBeVisible();
   await expect(layerInspector.getByLabel('Color')).toBeEnabled();
@@ -194,7 +194,7 @@ test('layer and node property surfaces consume the runtime inspector contract', 
   await expect(nodeInspector).toBeVisible();
   await expect(nodeInspector.locator('[data-inspector-section="true"]')).not.toHaveCount(0);
   await expect(nodeInspector.locator('[data-inspector-property-row="true"]')).not.toHaveCount(0);
-  await expect(nodeInspector.getByLabel('Toggle node delete lock')).toBeEnabled();
+  await expect(nodeInspector.getByRole('checkbox', { name: 'Locked', exact: true })).toBeEnabled();
 });
 
 test('Code Shader inspector associates accepted, unavailable, dirty, and invalid authoring states', async ({

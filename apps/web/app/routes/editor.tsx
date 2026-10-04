@@ -669,6 +669,8 @@ export default function Editor() {
             showAiGeneration={showAiGeneration}
             onGeneratedImageSource={handleGeneratedImageSource}
             mobileActionBar={<BottomBar {...bottomBarProps} />}
+            onReplaceModelLayerFile={handleReplaceModelLayerFile}
+            onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
           />
         )}
 

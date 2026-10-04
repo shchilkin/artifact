@@ -18,7 +18,7 @@ export function ShaderCompositeSection({
       open={open}
       onToggle={() => setOpen((value) => !value)}
     >
-      <div className="node-shader-flat-controls">
+      <div className="artifact-inspector-flat-list">
         <InspectorSelect
           label="Blend"
           value={shaderNode.blendMode}
