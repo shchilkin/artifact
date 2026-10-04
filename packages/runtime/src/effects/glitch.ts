@@ -24,42 +24,67 @@ export function glitchLcg(seed: number): () => number {
   };
 }
 
-export interface GlitchBands {
-  /** Bands drawn, `ceil(glitch)` capped at `GLITCH_MAX_BANDS`. */
-  readonly count: number;
-  /**
-   * Four floats per band: left and top as fractions of the width and height, right as a fraction of the width, and
-   * the height in reference pixels (`1 + 3u`, multiplied by `W / 540` in the shader). Padded to `GLITCH_MAX_BANDS`.
-   */
-  readonly rects: readonly number[];
-  /** One opacity per band, packed four to a `vec4`. Padded to `GLITCH_MAX_BANDS`. */
-  readonly opacities: readonly number[];
+/** Bands per group in the shader: a fragment skips whole groups that end above it and stops at one below it. */
+const GROUP = 10;
+
+/** One band as the editor draws it, with positions as fractions of the render size. */
+export interface GlitchBand {
+  /** Left and right edges as fractions of the width. */
+  readonly left: number;
+  readonly right: number;
+  /** Top edge as a fraction of the height. */
+  readonly top: number;
+  /** Height in reference pixels (`1 + 3u`); the editor multiplies it by `W / 540`. */
+  readonly height: number;
+  /** The fill colour's alpha. */
+  readonly opacity: number;
+  /** Odd bands are magenta `rgb(255, 0, 200)`, even bands cyan `rgb(0, 210, 255)`. */
+  readonly magenta: boolean;
 }
 
 /**
- * The bands the editor draws for a glitch amount and effect seed (`doc.global.seed + seedOffset`): the same LCG,
- * seeded as `applyEffectLayerCanvas2DEffects` seeds the layer's Canvas 2D stream (`effectSeed ^ 0x1a2b3c`), with the
- * same five draws per band in the same order. Glitch is the first Canvas 2D effect to read that stream when the layer
- * has no light rays, which is the only way a glitch layer runs live (rays are not registered).
+ * The bands the editor draws for a glitch amount and effect seed (`doc.global.seed + seedOffset`), in its drawing
+ * order: the same LCG, seeded as `applyEffectLayerCanvas2DEffects` seeds the layer's Canvas 2D stream
+ * (`effectSeed ^ 0x1a2b3c`), with the same five draws per band in the same order, `ceil(glitch)` bands as its loop
+ * draws, capped at `GLITCH_MAX_BANDS`. Glitch is the first Canvas 2D effect to read that stream when the layer has no
+ * light rays, which is the only way a glitch layer runs live (rays are not registered).
  */
-export function glitchBands(glitch: number, effectSeed: number): GlitchBands {
+export function glitchBands(glitch: number, effectSeed: number): GlitchBand[] {
   const count = glitch > 0 ? Math.min(GLITCH_MAX_BANDS, Math.ceil(glitch)) : 0;
-  const rects = new Array<number>(GLITCH_MAX_BANDS * 4).fill(0);
-  const opacities = new Array<number>(GLITCH_MAX_BANDS).fill(0);
   const rng = glitchLcg(effectSeed ^ 0x1a2b3c);
+  const bands: GlitchBand[] = [];
   for (let i = 0; i < count; i += 1) {
     // Editor: y = u·H; h = (1 + 3u)·scale; x = u·W·0.3; w = W·(0.3 + 0.7u); opacity = 0.12 + 0.25u.
-    const y = rng();
-    const h = 1 + rng() * 3;
-    const x = rng() * 0.3;
-    const w = 0.3 + rng() * 0.7;
-    rects[i * 4] = x;
-    rects[i * 4 + 1] = y;
-    rects[i * 4 + 2] = x + w;
-    rects[i * 4 + 3] = h;
-    opacities[i] = 0.12 + rng() * 0.25;
+    const top = rng();
+    const height = 1 + rng() * 3;
+    const left = rng() * 0.3;
+    const right = left + 0.3 + rng() * 0.7;
+    const opacity = 0.12 + rng() * 0.25;
+    bands.push({ left, right, top, height, opacity, magenta: i % 2 === 1 });
   }
-  return { count, rects, opacities };
+  return bands;
+}
+
+/**
+ * The bands as the shader reads them, sorted by top edge: `uBands` holds `left, top, right, height` per band and
+ * `uOpacity` the opacity plus 1 for magenta bands, four to a `vec4`. Unused slots sit below the image (top 2), so
+ * the shader stops before them. Sorting is exact because the premultiplied screen blend is `1 − (1 − s)(1 − d)`,
+ * which does not depend on the order the bands are drawn in, beyond the byte rounding between bands.
+ */
+export function glitchUniforms(bands: readonly GlitchBand[]): { uBands: number[]; uOpacity: number[] } {
+  const uBands = new Array<number>(GLITCH_MAX_BANDS * 4).fill(0);
+  const uOpacity = new Array<number>(GLITCH_MAX_BANDS).fill(0);
+  const sorted = [...bands].sort((a, b) => a.top - b.top);
+  for (let i = 0; i < GLITCH_MAX_BANDS; i += 1) {
+    const band = sorted[i];
+    if (!band) {
+      uBands[i * 4 + 1] = 2;
+      continue;
+    }
+    uBands.splice(i * 4, 4, band.left, band.top, band.right, band.height);
+    uOpacity[i] = band.opacity + (band.magenta ? 1 : 0);
+  }
+  return { uBands, uOpacity };
 }
 
 /**
@@ -70,16 +95,16 @@ export function glitchBands(glitch: number, effectSeed: number): GlitchBands {
  *
  * Only a hundred bands at most, so the CPU runs the editor's LCG per seed (`glitchBands`) and the shader gets the
  * rectangles as uniforms: the bands land exactly where the editor's do, at any seed. Per fragment the shader takes
- * each band's analytic pixel coverage, as the canvas anti-aliases a fractional rectangle, and composites it in order
- * with the premultiplied screen blend (`s + d − s·d`, which also covers transparent backdrops), rounding to bytes
- * after each band as the canvas stores them. The render size comes from `inputClamp`.
+ * each band's analytic pixel coverage, as the canvas anti-aliases a fractional rectangle, and composites it with the
+ * premultiplied screen blend (`s + d − s·d`, which also covers transparent backdrops), rounding to bytes after each
+ * band as the canvas stores them. The bands are sorted by top edge in groups of ten, so a fragment only walks the
+ * groups around its row. The render size comes from `inputClamp`.
  *
- * Uniforms: `uCount`, `uBands` (`vec4[100]`), `uOpacity` (`vec4[25]`).
+ * Uniforms: `uBands` (`vec4[100]`), `uOpacity` (`vec4[25]`), from `glitchUniforms`.
  */
 export const GLITCH_FRAG = `${HEADER}
 // Pixel coordinates and coverage at 1080px need more than mediump's 10-bit mantissa.
 precision highp float;
-uniform float uCount;
 uniform vec4 uBands[${GLITCH_MAX_BANDS}];
 uniform vec4 uOpacity[${GLITCH_MAX_BANDS / 4}];
 
@@ -88,31 +113,36 @@ void main() {
   vec2 pixel = floor(vTextureCoord * size);
   vec4 colour = texture2D(uSampler, (pixel + 0.5) / size);
   float scale = size.x / ${REF.toFixed(1)};
-  for (int i = 0; i < ${GLITCH_MAX_BANDS}; i++) {
-    if (float(i) >= uCount) break;
-    vec4 band = uBands[i];
-    vec2 lo = vec2(band.x * size.x, band.y * size.y);
-    vec2 hi = vec2(band.z * size.x, lo.y + band.w * scale);
-    vec2 overlap = clamp(min(pixel + 1.0, hi) - max(pixel, lo), 0.0, 1.0);
-    float coverage = overlap.x * overlap.y;
-    if (coverage <= 0.0) continue;
-    // GLSL ES 1.00 indexes uniform arrays only by loop symbols and constants, so the lane is picked with a mask.
-    int lane = i - (i / 4) * 4;
-    vec4 mask = vec4(equal(ivec4(lane), ivec4(0, 1, 2, 3)));
-    float opacity = dot(uOpacity[i / 4], mask);
-    // The fill colour's alpha is a byte, as the canvas stores the parsed rgba().
-    float alpha = floor(opacity * 255.0 + 0.5) / 255.0 * coverage;
-    vec3 tint = lane == 0 || lane == 2 ? vec3(0.0, 210.0, 255.0) / 255.0 : vec3(255.0, 0.0, 200.0) / 255.0;
-    vec4 source = vec4(tint * alpha, alpha);
-    colour = source + colour - source * colour;
-    colour = floor(colour * 255.0 + 0.5) / 255.0;
+  // GLSL ES 1.00 indexes uniform arrays only by loop symbols and constants, hence the nested loops.
+  for (int g = 0; g < ${GLITCH_MAX_BANDS / GROUP}; g++) {
+    // Sorted by top: a group that starts below this row ends the walk; one whose last band ends above it is skipped.
+    if (uBands[g * ${GROUP}].y * size.y >= pixel.y + 1.0) break;
+    if (uBands[g * ${GROUP} + ${GROUP - 1}].y * size.y + 4.0 * scale <= pixel.y) continue;
+    for (int j = 0; j < ${GROUP}; j++) {
+      vec4 band = uBands[g * ${GROUP} + j];
+      vec2 lo = vec2(band.x * size.x, band.y * size.y);
+      if (lo.y >= pixel.y + 1.0) break;
+      vec2 hi = vec2(band.z * size.x, lo.y + band.w * scale);
+      vec2 overlap = clamp(min(pixel + 1.0, hi) - max(pixel, lo), 0.0, 1.0);
+      float coverage = overlap.x * overlap.y;
+      if (coverage <= 0.0) continue;
+      int i = g * ${GROUP} + j;
+      vec4 lane = vec4(equal(ivec4(i - (i / 4) * 4), ivec4(0, 1, 2, 3)));
+      float coded = dot(uOpacity[(g * ${GROUP} + j) / 4], lane);
+      float magenta = step(1.0, coded);
+      // The fill colour's alpha is a byte, as the canvas stores the parsed rgba().
+      float alpha = floor((coded - magenta) * 255.0 + 0.5) / 255.0 * coverage;
+      vec3 tint = mix(vec3(0.0, 210.0, 255.0), vec3(255.0, 0.0, 200.0), magenta) / 255.0;
+      vec4 source = vec4(tint * alpha, alpha);
+      colour = source + colour - source * colour;
+      colour = floor(colour * 255.0 + 0.5) / 255.0;
+    }
   }
   gl_FragColor = colour;
 }`;
 
 function bandUniforms(layer: GlitchLayer, context: EffectContext) {
-  const bands = glitchBands(layer.glitch, effectLayerSeed(context, layer));
-  return { uCount: bands.count, uBands: bands.rects, uOpacity: bands.opacities };
+  return glitchUniforms(glitchBands(layer.glitch, effectLayerSeed(context, layer)));
 }
 
 /** VHS streaks, the editor's seeded Canvas 2D bands drawn in GLSL from band uniforms computed by the editor's LCG. */

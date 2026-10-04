@@ -12,11 +12,12 @@ export { type DataMoshLayer, dataMosh } from './dataMosh.js';
 export {
   GLITCH_FRAG,
   GLITCH_MAX_BANDS,
-  type GlitchBands,
+  type GlitchBand,
   type GlitchLayer,
   glitch,
   glitchBands,
   glitchLcg,
+  glitchUniforms,
 } from './glitch.js';
 export { GRAIN_FRAG, type GrainLayer, grain } from './grain.js';
 export { type MorphLayer, morph } from './morph.js';
