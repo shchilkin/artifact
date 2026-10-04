@@ -180,6 +180,17 @@ Radial CA is the editor colour pass's third step (sepia, infrared, CA, dither: `
 `packages/runtime/src/effects/ca.ts`) reads whole pixels with the editor's rounding and edge clamping, scales the
 amount by the render width over 540 as the editor does, and gets the render size from `inputClamp`.
 
+With Glitch registered (#339) the exact split is unchanged (Glitch sits beneath Tear and Scanlines): 0.000% of pixels
+over 8 levels, mean 0.004. The approximate split runs Glitch, Grain, Noise Warp, Vortex and CA live over a base plate
+with Tear and Scanlines moved beneath them, and the sample cover's whole effect run is live.
+
+Glitch (VHS streaks, `GLITCH_FRAG` in `packages/runtime/src/effects/glitch.ts`) is seeded but not stochastic in the
+harness sense: the editor draws one `fillRect` band per unit of `glitch` (its slider runs to 24; the runtime caps at
+100) from five LCG draws each, so the runtime runs the same LCG on the CPU per seed (`glitchBands`) and passes the bands as `vec4` uniform arrays. The shader takes each
+band's analytic pixel coverage and composites it with the premultiplied screen blend, rounding to bytes after each
+band; that blend is order-independent, so the bands are sorted by top edge and walked in groups of ten around each
+row. Parity is by pixels (worst channel 1 level on every fixture and engine).
+
 ### Export
 
 `/dev/runtime` has a "Live package export" panel (development builds only): the sample cover or an opened
@@ -197,7 +208,7 @@ Every effect issue lands with visual tests in the shared harness (issue: parity 
 
 1. **Static parity**: runtime output at rest equals the editor's `renderDocument` for the effect's fixture
    documents at 540px, within the harness tolerance. Deterministic effects compare pixels. Stochastic effects
-   (seeded grain, glitch, dither, tear) compare statistics (per-channel mean and variance, histogram distance),
+   (seeded grain, dither, tear) compare statistics (per-channel mean and variance, histogram distance),
    because the GPU noise differs from the CPU LCG by design.
 2. **Motion goldens**: frames at `t = 0, 0.25, 0.5, 0.75` for the effect's time binding, recorded in the Linux
    Playwright container used by CI.
