@@ -52,4 +52,11 @@ describe('runtime catalogue model', () => {
     expect(formatGpuTime(null)).toBe('n/a');
     expect(formatGpuTime(0.1834)).toBe('0.18 ms');
   });
+
+  it('lists Vortex with its amount slider and the pointer bindings', () => {
+    expect(catalogueTitle('vortex')).toBe('Vortex');
+    expect(catalogueControls('vortex')).toEqual([expect.objectContaining({ type: 'slider', field: 'vortex' })]);
+    expect(catalogueLayer('vortex', EFFECT_CASES.vortex)).toMatchObject({ preset: 'vortex', vortex: 50 });
+    expect(catalogueBindings(EFFECT_CASES.vortex)).toEqual(['wave track', 'pointer.x', 'pointer.y', 'hover']);
+  });
 });

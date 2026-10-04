@@ -1,9 +1,7 @@
-import { HEADER } from '@artifact/shared/effect-shaders';
 import { describe, expect, it } from 'vitest';
 import type { FrameState } from './artwork.js';
 import { BindingError, compileLiveChain, type LivePass, parseBindings } from './bindings.js';
-import { EFFECTS } from './effects/index.js';
-import { createEffectRegistry, defineEffect } from './registry.js';
+import { effectRegistry } from './effects/index.js';
 import type { UniformValues } from './types.js';
 
 const context = { seed: 5, width: 540, height: 540 };
@@ -19,17 +17,8 @@ const frame = (overrides: Partial<FrameState> = {}): FrameState => ({
 });
 const uniformsOf = (overrides: readonly (UniformValues | undefined)[] | undefined, index = 0) => overrides?.[index];
 
-// A centred stand-in with Vortex's shape: an amount field mapped to a uniform, and uCenter.
-const vortex = defineEffect<{ vortex: number; seedOffset?: number }>({
-  id: 'vortex',
-  fragment: `${HEADER}\nuniform vec2 uCenter;\nuniform float uAngle;\nvoid main() { gl_FragColor = texture2D(uSampler, vTextureCoord + uCenter * uAngle); }`,
-  fields: ['vortex'],
-  amount: (layer) => layer.vortex,
-  uniforms: (layer) => ({ uAngle: layer.vortex * 0.01 }),
-  centered: true,
-  stochastic: false,
-});
-const registry = createEffectRegistry([...EFFECTS, vortex]);
+// Vortex is the registered centred effect: an amount field mapped to uIntensity (× 0.03), and uCenter.
+const registry = effectRegistry;
 
 describe('bindings resolve into per-pass uniforms', () => {
   it('drives Noise Warp with a wave track through its own uniform mapping, and the loop closes', () => {
@@ -121,16 +110,16 @@ describe('bindings resolve into per-pass uniforms', () => {
       context,
       bindings: JSON.parse(JSON.stringify(document)),
     });
-    expect(live.chain[0].uniforms).toEqual({ uCenter: [0.5, 0.5], uAngle: 0.2 });
-    expect(uniformsOf(live.frameUniforms(frame()))).toEqual({ uCenter: [0.5, 0.5], uAngle: 0.2 });
+    expect(live.chain[0].uniforms).toEqual({ uCenter: [0.5, 0.5], uIntensity: 0.6 });
+    expect(uniformsOf(live.frameUniforms(frame()))).toEqual({ uCenter: [0.5, 0.5], uIntensity: 0.6 });
     const hovering = uniformsOf(
       live.frameUniforms(frame({ inputs: { 'pointer.x': 0.2, 'pointer.y': 0.9, hover: 0.5 } })),
     );
     expect(hovering?.uCenter).toEqual([0.2, 0.9]);
     // easeOut(0.5) = 0.75 → 20 + 60 × 0.75 = 65.
-    expect(hovering?.uAngle).toBeCloseTo(0.65);
+    expect(hovering?.uIntensity).toBeCloseTo(65 * 0.03);
     // The resting pass uniforms are not mutated.
-    expect(live.chain[0].uniforms).toEqual({ uCenter: [0.5, 0.5], uAngle: 0.2 });
+    expect(live.chain[0].uniforms).toEqual({ uCenter: [0.5, 0.5], uIntensity: 0.6 });
   });
 
   it('applies easing, clamp and direction domains', () => {
@@ -147,11 +136,11 @@ describe('bindings resolve into per-pass uniforms', () => {
       },
     });
     const angle = (inputs: Record<string, number>) =>
-      uniformsOf(live.frameUniforms(frame({ inputs })))?.uAngle as number;
+      uniformsOf(live.frameUniforms(frame({ inputs })))?.uIntensity as number;
     // dirX 0 is the middle of [-1, 1]: easeIn(0.5) = 0.25.
-    expect(angle({ 'pointer.dirX': 0 })).toBeCloseTo(0.25);
-    expect(angle({ 'pointer.dirX': 1, click: 0.1 })).toBeCloseTo(1.1);
-    expect(angle({ 'pointer.dirX': 1, click: 1 })).toBeCloseTo(1.2);
+    expect(angle({ 'pointer.dirX': 0 })).toBeCloseTo(25 * 0.03);
+    expect(angle({ 'pointer.dirX': 1, click: 0.1 })).toBeCloseTo(110 * 0.03);
+    expect(angle({ 'pointer.dirX': 1, click: 1 })).toBeCloseTo(120 * 0.03);
   });
 
   it('smooths a binding on the scheduler clock', () => {
@@ -312,7 +301,7 @@ describe('binding validation', () => {
             { from: { input: 'hover' }, to: { pass: 0, uniform: 'uStrength' } },
             { from: { input: 'pointer.x' }, to: { pass: 1, uniform: 'uCenter' } },
             { from: { input: 'pointer.x' }, to: { pass: 1, uniform: 'uCenter', component: 2 } },
-            { from: { input: 'hover' }, to: { pass: 1, uniform: 'uAngle', component: 0 } },
+            { from: { input: 'hover' }, to: { pass: 1, uniform: 'uIntensity', component: 0 } },
             { from: { input: 'hover' }, to: { pass: 2, field: 'vortex' } },
           ],
         },
@@ -324,11 +313,11 @@ describe('binding validation', () => {
       'bindings[2].to.uniform: noiseWarp has no uniform "uStrength"; uniforms: uIntensity, uSeed',
       'bindings[3].to.component: uCenter is a vec2; say which component (0–1)',
       'bindings[4].to.component: uCenter is a vec2; component 2 is out of range',
-      'bindings[5].to.component: uAngle is a scalar; remove "component"',
+      'bindings[5].to.component: uIntensity is a scalar; remove "component"',
       'bindings[6].to.pass: there is no pass 2; the chain has 2',
     ]);
-    expect(issuesOf(() => compileLiveChain({ passes: [{ effect: 'vortex', layer: {} }], context }))).toEqual([
-      `passes[0].effect: unknown effect "vortex"; known: ${EFFECTS.map((effect) => effect.id).join(', ')}`,
+    expect(issuesOf(() => compileLiveChain({ passes: [{ effect: 'nope', layer: {} }], context }))).toEqual([
+      expect.stringMatching(/^passes\[0\]\.effect: unknown effect "nope"; known: .*\bnoiseWarp\b/),
     ]);
   });
 

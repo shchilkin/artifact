@@ -56,3 +56,21 @@ void main() {
   vec2 warped = clamp(norm + vec2(ox, oy) * uIntensity, 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
+
+/**
+ * Vortex: rotates the sample coordinate around `uCenter`, strongest at the centre and fading out by a radius of
+ * 1 / 2.2. Uniforms: `uIntensity`, `uCenter` (the editor passes `0.5, 0.5`).
+ */
+export const VORTEX_FRAG = `${HEADER}
+uniform float uIntensity;
+uniform vec2 uCenter;
+
+void main() {
+  ${NORM_UV}
+  vec2  c    = norm - uCenter;
+  float dist = length(c);
+  float angle = atan(c.y, c.x);
+  angle += uIntensity * max(0.0, 1.0 - dist * 2.2);
+  vec2 warped = clamp(uCenter + dist * vec2(cos(angle), sin(angle)), 0.0, 1.0);
+  gl_FragColor = ${SAMPLE('warped')};
+}`;

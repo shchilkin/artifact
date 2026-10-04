@@ -36,6 +36,8 @@ export {
   grain,
   type NoiseWarpLayer,
   noiseWarp,
+  type VortexLayer,
+  vortex,
 } from './effects/index.js';
 export {
   createPointerModel,
