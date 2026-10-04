@@ -10,7 +10,9 @@ import {
   type ComponentProps,
   type CSSProperties,
   type KeyboardEvent,
+  lazy,
   type ReactNode,
+  Suspense,
   useEffect,
   useRef,
   useState,
@@ -30,9 +32,7 @@ import { EditorRowFrame } from '../components/editor-workflow/EditorRowFrame';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
 import { InspectorPatternSpecimens } from '../components/inspector-system';
 import { LogoGlyph } from '../components/LogoGlyph';
-import { GraphLayerTreeView } from '../components/layers-panel/GraphLayerTreeView';
 import { LayerAreaFolder } from '../components/layers-panel/LayerAreaFolder';
-import { LayerPanelViewSwitch } from '../components/layers-panel/LayerPanelViewSwitch';
 import { LayerRow } from '../components/layers-panel/LayerRow';
 import {
   BlendModeNote,
@@ -96,7 +96,6 @@ import {
   type TextFontRef,
 } from '../types/config';
 import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
-import { buildGraphLayerTree } from '../utils/graphLayerTree';
 import { EXPORT_NODE_ID } from '../utils/nodeGraph';
 import './docs.style-guide.css';
 
@@ -178,65 +177,8 @@ const styleArea: GraphArea = {
   nodeIds: ['style-layer-selected'],
 };
 
-// Custom graph for the Layers tree specimen: a merge folder, a mask clip, a shared source shown once
-// with a reference row, an area rail, and a layer that does not reach Output.
-const styleTreeDocument: CanvasDocument = {
-  global: { bg: '#101018', seed: 1, aspect: '1:1' },
-  layers,
-  graph: {
-    edges: [
-      { id: 'style-tree-a', fromId: 'style-layer-locked', fromPort: 'out', toId: 'style-tree-merge', toPort: 'a' },
-      { id: 'style-tree-in', fromId: 'style-layer-selected', fromPort: 'out', toId: 'style-tree-mask', toPort: 'in' },
-      { id: 'style-tree-mask', fromId: 'style-layer-locked', fromPort: 'out', toId: 'style-tree-mask', toPort: 'mask' },
-      { id: 'style-tree-b', fromId: 'style-tree-mask', fromPort: 'out', toId: 'style-tree-merge', toPort: 'b' },
-      { id: 'style-tree-out', fromId: 'style-tree-merge', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-    ],
-    positions: {},
-    mergeNodes: [{ id: 'style-tree-merge', name: 'Print glow', blendMode: 'screen', opacity: 70 }],
-    colorNodes: [],
-    maskNodes: [
-      {
-        id: 'style-tree-mask',
-        name: 'Type cutout',
-        mode: 'alpha',
-        invert: false,
-        threshold: 50,
-        feather: 0,
-        expand: 0,
-        opacity: 100,
-      },
-    ],
-    areas: [styleArea],
-  },
-  export: { format: 'png', scale: 1, target: 'cover' },
-};
-const styleTree = buildGraphLayerTree(styleTreeDocument);
-
-function LayerTreeSpecimen() {
-  const [view, setView] = useState<'structure' | 'areas'>('structure');
-  const [selectedId, setSelectedId] = useState<string | null>('style-tree-merge');
-  return (
-    <div className="style-guide-layer-tree" aria-label="Layers tree specimen">
-      <LayerPanelViewSwitch value={view} onChange={setView} />
-      <GraphLayerTreeView
-        doc={styleTreeDocument}
-        tree={styleTree}
-        selectedLayerId={selectedId}
-        selectedActionLayerIds={selectedId && layers.some((layer) => layer.id === selectedId) ? [selectedId] : []}
-        editingId={null}
-        onSelectLayer={(id) => setSelectedId(id)}
-        onSelectNode={setSelectedId}
-        onOpenLayerContextMenu={() => {}}
-        onOpenLayerContextMenuAt={() => {}}
-        onStartEditing={() => {}}
-        onFinishRename={() => {}}
-        onToggleVisible={() => {}}
-        onDuplicateLayer={() => {}}
-        onRemoveLayer={() => {}}
-      />
-    </div>
-  );
-}
+// Loaded after first render so the tree, its builder, and graph reachability stay out of the route's initial bundle.
+const LayerTreeSpecimen = lazy(() => import('../components/layers-panel/LayerTreeSpecimen'));
 
 const styleGuideAddLibraryItem = ADD_LIBRARY_ITEMS.find((item) => item.id === 'layer:fill')!;
 const STYLE_GUIDE_READY_PREVIEW =
@@ -652,7 +594,9 @@ export default function DocsStyleGuide() {
               onRemoveNodesFromArea={noop}
             />
           </div>
-          <LayerTreeSpecimen />
+          <Suspense fallback={<div className="style-guide-layer-tree" aria-label="Layers tree specimen" />}>
+            <LayerTreeSpecimen layers={layers} area={styleArea} />
+          </Suspense>
           <div className="style-guide-workflow-state-grid" aria-label="Editor row and organization contract states">
             <EditorRowFrame
               className="style-guide-workflow-contract-state"
