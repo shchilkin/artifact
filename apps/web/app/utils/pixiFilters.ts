@@ -5,6 +5,7 @@ import {
   NOISE_FRAG,
   NORM_UV,
   SAMPLE,
+  TEAR_FRAG,
   VORTEX_FRAG,
 } from '@artifact/shared/effect-shaders';
 import { BlurFilter, Filter } from 'pixi.js';
@@ -17,24 +18,6 @@ function hexToVec3(hex: string): [number, number, number] {
     parseInt(hex.slice(5, 7), 16) / 255,
   ];
 }
-
-const TEAR_FRAG = `${HEADER}
-uniform float uIntensity;
-uniform float uChunkH;
-uniform float uSeed;
-
-float hash(float n) {
-  return fract(sin(n * 127.1 + uSeed * 0.01) * 43758.5453);
-}
-
-void main() {
-  ${NORM_UV}
-  float chunkId    = floor(norm.y / uChunkH);
-  float active     = step(0.7, hash(chunkId));
-  float offsetNorm = (hash(chunkId + 57.3) - 0.5) * 2.0 * uIntensity * active;
-  vec2 warped      = vec2(fract(norm.x + offsetNorm), norm.y);
-  gl_FragColor     = ${SAMPLE('warped')};
-}`;
 
 const BARREL_FRAG = `${HEADER}
 uniform float uK;

@@ -18,6 +18,7 @@ import {
   compareParity,
   diffImage,
   type ParityComparison,
+  PIXEL_TOLERANCE,
   type RgbaImage,
   sideBySide,
 } from '../../../packages/runtime/src/testing/parity';
@@ -196,7 +197,10 @@ export async function parity(effect: string, fixture: FixtureName, options: Pari
   const runtime = createRestingRuntime(image, PARITY_SIZE, pass);
   const actual = readPixels(runtime.canvas, PARITY_SIZE);
   runtime.artwork.destroy();
-  const comparison = compareParity(editor, actual, options.stochastic ?? definition.stochastic);
+  const comparison = compareParity(editor, actual, options.stochastic ?? definition.stochastic, {
+    ...PIXEL_TOLERANCE,
+    ...effectCase.pixelTolerance,
+  });
   return {
     comparison,
     reviewPng: toPng(sideBySide([editor, actual, diffImage(editor, actual)])),
