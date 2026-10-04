@@ -20,6 +20,17 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.50.0 is the Editor UX release candidate with its local release gate
+  complete: a stable editor frame with zero measured layout shift for selection,
+  mode switches, and Add Library; slider input-to-preview and drag main-thread
+  latency within the `npm run ux:gate` budgets with no exceptions; one inspector
+  layout for Layers and Nodes; in-app confirmation, progress, and output status;
+  and a graph-derived, editable Layers tree for custom graphs. Delivery issues
+  #306-#313 and #324 are closed by the release PR; exact-SHA staging,
+  production promotion, and publication evidence follow. See
+  [`version-plans/v0.50.md`](./version-plans/v0.50.md),
+  [`layers-graph-tree.md`](./layers-graph-tree.md), and
+  [`releases/v0.50.0.md`](./releases/v0.50.0.md).
 - v0.49.0 was released on 2026-10-01 as the Application Shell And Loading
   Boundaries release: production route ownership, minimal React Router shells,
   route-owned CSS, a hydration fallback with static public prerendering,
@@ -121,17 +132,11 @@ Current planning status:
   [`editor-design-system.md`](./editor-design-system.md),
   [`version-plans/v0.42.md`](./version-plans/v0.42.md), and
   [`releases/v0.42.0.md`](./releases/v0.42.0.md).
-- v0.50 is the next Web release, Editor UX: a stable editor layout with a
-  layout-shift budget, measured input-to-preview latency, one inspector layout
-  for Layers and Nodes, explicit render and destructive-action states, and a
-  graph-derived Layers tree that represents custom node graphs. See
-  [`version-plans/v0.50.md`](./version-plans/v0.50.md) and
-  [`layers-graph-tree.md`](./layers-graph-tree.md).
 - v0.51 is the rescheduled AI-Assisted Creation release: authenticated
   full-screen Chat, editable Creative Directions and Compositions, durable Runs,
   revision-bound Change Sets, adaptive image generation, and an explicitly
-  invoked Context Assistant for Layers and Nodes. AI feature work remains
-  paused until the v0.50 Editor UX gate closes. See
+  invoked Context Assistant for Layers and Nodes. It is the next Web release
+  once v0.50.0 is published. See
   [`version-plans/v0.51.md`](./version-plans/v0.51.md) and
   [`ai-assisted-creation.md`](./ai-assisted-creation.md).
 - The native macOS client (epic #260, draft PRs #283–#293) is paused as of
@@ -1419,14 +1424,13 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-Use the released application-shell and loading boundaries as the base for the
-Editor UX release before starting a new candidate track.
+Publish the completed Editor UX candidate before starting a new candidate
+track.
 
 Recommended order:
 
-1. Make the editor stable, responsive, and honest in v0.50, including a
-   graph-derived Layers tree.
-2. Resume new AI-assisted creation in v0.51 only after the v0.50 gate.
+1. Publish the completed v0.50 Editor UX candidate (#313).
+2. Resume new AI-assisted creation in v0.51 on top of the v0.50 editor.
 
 ## Non-goals for now
 
