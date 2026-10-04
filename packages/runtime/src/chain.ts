@@ -19,8 +19,8 @@ interface Target {
 }
 
 /**
- * Runs a list of passes over a source texture: one draw per pass, ping-ponging between two framebuffer textures,
- * with the last pass drawing to the canvas. Nothing is read back to the CPU.
+ * Runs a list of passes over a source texture: one draw per pass (per stage, for a pass with stages), ping-ponging
+ * between two framebuffer textures, with the last draw to the canvas. Nothing is read back to the CPU.
  */
 export interface ChainRenderer {
   /** Sets the drawing-buffer size and reallocates the intermediate targets when it changes. */
@@ -106,9 +106,14 @@ export function createCompositeRenderer(
   };
   const drawSteps: readonly CompositeStep[] =
     steps.length > 0 ? steps : [{ kind: 'pass', pass: { id: 'copy', fragment: COPY_FRAGMENT, uniforms: {} } }];
-  const stepPrograms = drawSteps.map((step) =>
-    programFor(step.kind === 'pass' ? step.pass.fragment : step.kind === 'over' ? OVER_FRAGMENT : UNDER_FRAGMENT),
-  );
+  // One draw per fragment: a pass with stages draws each of them in turn, with the pass's uniforms and override.
+  const draws = drawSteps.flatMap((step, stepIndex) => {
+    const fragments =
+      step.kind === 'pass'
+        ? [step.pass.fragment, ...(step.pass.stages ?? [])]
+        : [step.kind === 'over' ? OVER_FRAGMENT : UNDER_FRAGMENT];
+    return fragments.map((fragment) => ({ step, stepIndex, compiled: programFor(fragment) }));
+  });
 
   const vertexArray = gl.createVertexArray();
   const quad = gl.createBuffer();
@@ -122,8 +127,8 @@ export function createCompositeRenderer(
   gl.bindVertexArray(null);
 
   const plateTextures = Array.from({ length: plateCount }, () => createTexture(gl));
-  // Two targets are enough for any number of steps; a single step draws straight from plate 0 to the canvas.
-  const targetCount = Math.min(drawSteps.length - 1, 2);
+  // Two targets are enough for any number of draws; a single draw goes straight from plate 0 to the canvas.
+  const targetCount = Math.min(draws.length - 1, 2);
   const targets: Target[] = [];
   let width = 0;
   let height = 0;
@@ -172,12 +177,12 @@ export function createCompositeRenderer(
       gl.disable(gl.DEPTH_TEST);
       gl.bindVertexArray(vertexArray);
       gl.viewport(0, 0, width, height);
-      const last = drawSteps.length - 1;
+      const last = draws.length - 1;
       for (let index = 0; index <= last; index += 1) {
-        const step = drawSteps[index];
+        const { step, stepIndex, compiled } = draws[index];
         const input = index === 0 ? plateTextures[0] : targets[(index - 1) % 2].texture;
         const output = index === last ? null : targets[index % 2].framebuffer;
-        const { program, uniforms } = stepPrograms[index];
+        const { program, uniforms } = compiled;
         gl.bindFramebuffer(gl.FRAMEBUFFER, output);
         gl.useProgram(program);
         if (step.kind !== 'pass') {
@@ -192,7 +197,7 @@ export function createCompositeRenderer(
         setUniform(gl, uniforms, 'uFlipY', output === null ? -1 : 1);
         if (step.kind === 'pass') {
           setUniforms(gl, uniforms, step.pass.uniforms);
-          const override = overrides?.[index];
+          const override = overrides?.[stepIndex];
           if (override) setUniforms(gl, uniforms, override);
         }
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

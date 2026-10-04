@@ -28,7 +28,7 @@ import { EFFECT_CASES } from '../../../packages/runtime/test/cases/index';
 type ConfigModule = typeof import('../../../apps/web/app/types/config');
 type RendererModule = typeof import('../../../apps/web/app/utils/renderer');
 
-/** Swaps part of the fragment, to prove that a broken port fails parity. */
+/** Swaps part of the fragment (or of a later stage, see `ChainPass.stages`), to prove that a broken port fails parity. */
 export interface FragmentPatch {
   readonly search: string;
   readonly replace: string;
@@ -123,8 +123,14 @@ function runtimePass(effectCase: EffectCase, size: number, seed: number, patch?:
   );
   if (!pass) throw new Error(`"${effectCase.effect}" is off for the case's layer values.`);
   if (!patch) return pass;
-  if (!pass.fragment.includes(patch.search)) throw new Error(`Fragment patch "${patch.search}" does not apply.`);
-  return { ...pass, fragment: pass.fragment.replace(patch.search, patch.replace) };
+  if (pass.fragment.includes(patch.search)) {
+    return { ...pass, fragment: pass.fragment.replace(patch.search, patch.replace) };
+  }
+  const stage = (pass.stages ?? []).findIndex((fragment) => fragment.includes(patch.search));
+  if (stage < 0) throw new Error(`Fragment patch "${patch.search}" does not apply.`);
+  const stages = [...(pass.stages ?? [])];
+  stages[stage] = stages[stage].replace(patch.search, patch.replace);
+  return { ...pass, stages };
 }
 
 interface RuntimeRender {

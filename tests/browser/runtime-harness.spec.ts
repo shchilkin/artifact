@@ -27,6 +27,10 @@ const BROKEN_NOISE_WARP = { search: 'vec2(ox, oy)', replace: 'vec2(oy, ox)' };
 const FAINT_GRAIN = { search: 'uGrain * 3.0', replace: 'uGrain * 1.5' };
 /** Scanlines one row lower than the editor's, which start at the top row. */
 const SHIFTED_SCANLINES = { search: '* size.y - 0.5 -', replace: '* size.y - 1.5 -' };
+/** Chromatic split without its first (Canvas 2D) stage: only the editor's GPU filter runs. */
+const RGB_SPLIT_GPU_ONLY = { search: 'floor(uRgbSplit * size.x / 540.0 + 0.5)', replace: '0.0' };
+/** Chromatic split without the GPU filter's red shift (a patch on the second stage, the editor's `RGB_FRAG`). */
+const RGB_SPLIT_NO_GPU_RED = { search: 'clamp(uv + uDir,', replace: 'clamp(uv,' };
 
 async function openHarness(page: Page) {
   await setupBrowserTestPage(page);
@@ -185,6 +189,14 @@ test.describe('the harness itself', () => {
       const result = await runParity(page, 'grain', fixture, { fragmentPatch: FAINT_GRAIN });
       expect(result.patched).toBe(true);
       expect(result.comparison.pass, `${fixture}: ${describeComparison(result.comparison)}`).toBe(false);
+    }
+  });
+
+  test('pixels reject Chromatic split with either editor stage missing', async ({ page }) => {
+    for (const patch of [RGB_SPLIT_GPU_ONLY, RGB_SPLIT_NO_GPU_RED]) {
+      const result = await runParity(page, 'rgbSplit', 'graphic', { fragmentPatch: patch });
+      expect(result.patched).toBe(true);
+      expect(result.comparison.pass, `${patch.search}: ${describeComparison(result.comparison)}`).toBe(false);
     }
   });
 
