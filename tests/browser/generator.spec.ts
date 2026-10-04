@@ -1833,8 +1833,8 @@ test('layer add library supports search keyboard add and recent items', async ({
   await expect(menu.locator('.add-library-section').filter({ hasText: 'Favorites' })).toContainText('Pixelate');
   await expect(menu.locator('.add-library-tags')).toContainText('low-res');
 
-  await menu.getByRole('button', { name: 'Tone', exact: true }).click();
-  await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Tone' })).toBeVisible();
+  await menu.getByRole('group', { name: 'Filter library' }).getByRole('button', { name: 'Color', exact: true }).click();
+  await expect(menu.locator('.add-library-section-header').filter({ hasText: 'Color' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: 'Pixelate' })).toBeVisible();
   await expect(menu.locator('.add-library-row').filter({ hasText: /^Fill/ })).toHaveCount(0);
 });
@@ -1894,7 +1894,10 @@ test('layer add library shows source previews and can add source presets', async
   await textRow.hover();
   await expect(menu.getByAltText('Text preview')).toBeVisible({ timeout: 15_000 });
 
-  await menu.getByLabel('Browse exact library groups').getByRole('button', { name: 'Sources', exact: true }).click();
+  await menu
+    .getByRole('group', { name: 'Filter library' })
+    .getByRole('button', { name: 'Sources', exact: true })
+    .click();
   const aiRow = menu.locator('.add-library-row').filter({
     has: page.locator('.add-library-row-label', { hasText: /^AI Image$/ }),
   });
@@ -2092,17 +2095,12 @@ function expectLicenseAwareProjectPackage(projectPackage: DownloadedProjectPacka
 }
 
 async function expectExplicitFontProjectPackage(page: Page) {
-  const explicitDialogPromise = new Promise<string>((resolve) => {
-    page.once('dialog', async (dialog) => {
-      const message = dialog.message();
-      await dialog.accept();
-      resolve(message);
-    });
-  });
   const explicitDownloadPromise = page.waitForEvent('download');
   await clickShareMenuAction(page, 'Download package + assets + fonts');
+  const fontConfirm = page.getByRole('alertdialog', { name: 'Include font files?' });
+  await expect(fontConfirm).toContainText('embeds your imported local font files');
+  await fontConfirm.getByRole('button', { name: 'Download with fonts' }).click();
   const explicitDownload = await explicitDownloadPromise;
-  await expect(explicitDialogPromise).resolves.toContain('PKG+FONTS embeds imported local font files');
   const explicitArtifactPath = await explicitDownload.path();
   expect(explicitArtifactPath).toBeTruthy();
   if (!explicitArtifactPath) return;
@@ -2630,7 +2628,7 @@ test('dropped artifact files stage a confirmed import and save current work as r
       ?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
   }, droppedDocument);
 
-  const dialog = page.getByRole('dialog', { name: 'Open artifact file' });
+  const dialog = page.getByRole('alertdialog', { name: 'Open artifact file' });
   await expect(dialog).toBeVisible({ timeout: 15_000 });
   await expect(dialog).toContainText('dropped-cover.artifact.json');
   await expect(dialog).toContainText('4:5');
@@ -2808,11 +2806,10 @@ test('new blank canvas action confirms before replacing current work', async ({ 
   await gotoDocument(page, lightDocument);
   await expectLayerCanvasToHavePixels(page);
 
-  page.once('dialog', async (dialog) => {
-    expect(dialog.message()).toContain('recovery copy');
-    await dialog.accept();
-  });
   await page.getByRole('button', { name: 'Create new project' }).click();
+  const confirm = page.getByRole('alertdialog', { name: 'Create a new project?' });
+  await expect(confirm).toContainText('recovery copy');
+  await confirm.getByRole('button', { name: 'Create new project' }).click();
 
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expectCanvasCenterAlpha(page, 0);
@@ -2912,7 +2909,6 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await switchToNodeView(page);
   await clickEditorControl(page.getByRole('button', { name: 'Add node' }));
   const intentRail = page.locator('.add-library-intents');
-  const recipeRail = page.locator('.add-library-recipes');
   const nodeAddRowByLabel = (label: RegExp) =>
     page.locator('.nadd-row').filter({ has: page.locator('.nadd-row-label', { hasText: label }) });
 
@@ -2921,9 +2917,7 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await expect(intentRail.getByRole('button', { name: 'Structure' })).toBeVisible();
   await expect(intentRail.getByRole('button', { name: 'Color' })).toBeVisible();
   await expect(intentRail.getByRole('button', { name: '3D' })).toBeVisible();
-  await expect(recipeRail.getByRole('button', { name: 'Photo + Type' })).toBeVisible();
-  await expect(recipeRail.getByRole('button', { name: 'Texture Type' })).toBeVisible();
-  await expect(recipeRail.getByRole('button', { name: 'Print Damage' })).toBeVisible();
+  await expect(intentRail.getByRole('button', { name: 'Recipes' })).toBeVisible();
 
   await expect(nodeAddRowByLabel(/^Fill$/)).toHaveAttribute('data-add-color-kind', 'fill');
   await expect(nodeAddRowByLabel(/^Text$/)).toHaveAttribute('data-add-color-kind', 'text');
@@ -2950,15 +2944,14 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await expect(nodeAddRowByLabel(/^Fill$/)).toHaveCount(0);
   await clickEditorControl(intentRail.getByRole('button', { name: /^All$/ }));
 
-  await clickEditorControl(page.getByRole('button', { name: /^Tone$/ }));
-  await expect(nodeAddRowByLabel(/^Pixelate$/)).toBeVisible();
-  await expect(nodeAddRowByLabel(/^Fill$/)).toHaveCount(0);
-  await clickEditorControl(page.getByRole('button', { name: /^All$/ }));
-
-  await clickEditorControl(recipeRail.getByRole('button', { name: 'Print Damage' }));
-  await expect(nodeAddRowByLabel(/^Halftone$/)).toBeVisible();
-  await expect(nodeAddRowByLabel(/^Tear$/)).toBeVisible();
-  await expect(nodeAddRowByLabel(/^Paper$/)).toBeVisible();
+  await clickEditorControl(intentRail.getByRole('button', { name: 'Recipes' }));
+  await expect(page.getByRole('group', { name: 'Photo + Type' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Texture Type' })).toBeVisible();
+  const printDamage = page.getByRole('group', { name: 'Print Damage' });
+  await expect(printDamage).toBeVisible();
+  for (const label of ['Halftone', 'Tear', 'Paper']) {
+    await expect(printDamage.getByRole('option', { name: new RegExp(label) })).toBeVisible();
+  }
 
   await page.getByLabel('Search nodes and effects').fill('photo type');
   await expect(page.getByRole('option', { name: /^◧ Image/ })).toBeVisible();
@@ -4472,7 +4465,10 @@ async function openDocumentFileFromBuffer(page: Page, file: { name: string; mime
   await page.getByRole('button', { name: 'Open document file' }).click();
   const chooser = await chooserPromise;
   await chooser.setFiles(file);
-  await page.getByRole('dialog', { name: 'Open artifact file' }).getByRole('button', { name: 'OPEN FILE' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Open artifact file' })
+    .getByRole('button', { name: 'OPEN FILE' })
+    .click();
 }
 
 async function expectStoredAiImageLayerState(page: Page, layerId: string, expected: Record<string, unknown>) {

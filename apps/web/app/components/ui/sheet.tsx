@@ -4,6 +4,8 @@ import { forwardRef } from 'react';
 
 import { cn } from '@/lib/utils';
 
+import { loopOptionTabFocus } from './dialogFocusLoop';
+
 import './sheet.css';
 
 const Sheet = SheetPrimitive.Root;
@@ -22,7 +24,7 @@ interface SheetContentProps extends React.ComponentProps<typeof SheetPrimitive.C
 }
 
 const SheetContent = forwardRef<HTMLDivElement, SheetContentProps>(function SheetContent(
-  { className, children, side = 'right', ...props },
+  { className, children, side = 'right', onKeyDown, ...props },
   ref,
 ) {
   return (
@@ -31,6 +33,10 @@ const SheetContent = forwardRef<HTMLDivElement, SheetContentProps>(function Shee
       <SheetPrimitive.Content
         ref={ref}
         className={cn('artifact-sheet-content', `artifact-sheet-content-${side}`, className)}
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+          loopOptionTabFocus(event);
+        }}
         {...props}
       >
         {children}

@@ -1127,6 +1127,105 @@ async function renderGraphNode(
   return renderPromise;
 }
 
+interface GraphNodeRenderInputs {
+  /** Sources the node renders through `renderDependency`. */
+  rendered: Array<string | null>;
+  /** Nodes whose settings the node reads without rendering them, such as a Scene 3D model or material. */
+  read: Array<string | null>;
+}
+
+function materialRenderInputs(graph: CanvasGraph, materialId: string | null): GraphNodeRenderInputs {
+  if (!materialId) return { rendered: [], read: [] };
+  // Mirrors `resolveMaterialTextureCanvases` and the material config lookups beside it.
+  if (findShaderNode(graph, materialId)) return { rendered: [materialId], read: [] };
+  return {
+    rendered: MATERIAL_TEXTURE_INPUT_PORTS.map((port) => findIncomingSource(graph, materialId, port)),
+    read: findMaterialNode(graph, materialId) ? [materialId] : [],
+  };
+}
+
+function scene3DRenderInputs(doc: CanvasDocument, graph: CanvasGraph, nodeId: string): GraphNodeRenderInputs {
+  const modelId = findIncomingSource(graph, nodeId, 'model');
+  const environmentId = findIncomingSource(graph, nodeId, 'env');
+  const environmentNode = environmentId ? findEnvironmentNode(graph, environmentId) : undefined;
+  const rendersEnvironment =
+    environmentId !== null && (!environmentNode || findIncomingSource(graph, environmentId, 'in') !== null);
+  const material = materialRenderInputs(graph, findIncomingSource(graph, nodeId, 'material'));
+  return {
+    rendered: [
+      ...material.rendered,
+      rendersEnvironment ? environmentId : null,
+      findIncomingSource(graph, nodeId, 'bg'),
+    ],
+    read: [
+      ...material.read,
+      findScene3DSourceLayer(doc, modelId)?.id ?? null,
+      rendersEnvironment ? null : environmentId,
+    ],
+  };
+}
+
+function shaderRenderInputs(graph: CanvasGraph, node: GraphShaderNode, nodeId: string): Array<string | null> {
+  const customCode = node.shaderKind === 'customCode' || node.shaderKind === 'aiShader';
+  const readsBackdrop = customCode ? node.role === 'effect' : node.role !== 'fill';
+  return readsBackdrop ? [findIncomingSource(graph, nodeId, 'bg')] : [];
+}
+
+function layerRenderInputs(doc: CanvasDocument, graph: CanvasGraph, nodeId: string): GraphNodeRenderInputs {
+  const layer = findLayer(doc, nodeId);
+  if (!layer) return { rendered: [], read: [] };
+  // A GPU-only effect chain renders the same `in` sources one link at a time.
+  const source = findIncomingSource(graph, nodeId, graphLayerInputPort(layer));
+  if (layer.kind !== 'primitive') return { rendered: [source], read: [] };
+  const material = materialRenderInputs(graph, findIncomingSource(graph, nodeId, 'material'));
+  return { rendered: [...material.rendered, source], read: material.read };
+}
+
+/** The inputs each `GRAPH_NODE_RENDERERS` entry, or `renderLayerGraphNode`, looks up for one node. */
+function graphNodeRenderInputs(doc: CanvasDocument, graph: CanvasGraph, nodeId: string): GraphNodeRenderInputs {
+  const rendered = (...ports: CanvasGraph['edges'][number]['toPort'][]) => ({
+    rendered: ports.map((port) => findIncomingSource(graph, nodeId, port)),
+    read: [],
+  });
+  if (nodeId === EXPORT_NODE_ID) return rendered('in');
+  if (findMergeNode(graph, nodeId)) return rendered('a', 'b');
+  if (findColorNode(graph, nodeId)) return rendered('in');
+  if (findRepeatNode(graph, nodeId)) return rendered('in', 'bg');
+  if (findMaterialNode(graph, nodeId)) return rendered('albedo');
+  if (findMaskNode(graph, nodeId)) return rendered('in', 'mask');
+  if (findTransformNode(graph, nodeId)) return rendered('in');
+  if (findGrimeShadowNode(graph, nodeId)) return rendered('in');
+  const shaderNode = findShaderNode(graph, nodeId);
+  if (shaderNode) return { rendered: shaderRenderInputs(graph, shaderNode, nodeId), read: [] };
+  if (findEnvironmentNode(graph, nodeId)) return rendered('in');
+  if (findScene3DNode(graph, nodeId)) return scene3DRenderInputs(doc, graph, nodeId);
+  return layerRenderInputs(doc, graph, nodeId);
+}
+
+/**
+ * Every node that contributes to `targetNodeId` when `renderGraphTarget` renders it, including the target:
+ * the nodes it renders plus the nodes whose settings it reads. Follows the renderers' own input lookups, so
+ * edges on ports a renderer ignores, and duplicate edges after the first on one port, do not count.
+ */
+export function collectGraphRenderReach(
+  doc: CanvasDocument,
+  graph: CanvasGraph,
+  targetNodeId: string = EXPORT_NODE_ID,
+): Set<string> {
+  const rendered = new Set<string>();
+  const read = new Set<string>();
+  const pending = [targetNodeId];
+  while (pending.length > 0) {
+    const nodeId = pending.pop()!;
+    if (rendered.has(nodeId)) continue;
+    rendered.add(nodeId);
+    const inputs = graphNodeRenderInputs(doc, graph, nodeId);
+    for (const id of inputs.rendered) if (id && !rendered.has(id)) pending.push(id);
+    for (const id of inputs.read) if (id) read.add(id);
+  }
+  return new Set([...rendered, ...read]);
+}
+
 export async function renderGraphTarget(
   doc: CanvasDocument,
   graph: CanvasGraph,

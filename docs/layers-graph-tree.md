@@ -41,6 +41,12 @@ a stack.
 
 ## Tree derivation
 
+Reachability is shared with the renderer: `collectGraphRenderReach` in
+`apps/web/app/utils/render/graph.ts` lists the nodes `renderGraphTarget`
+reaches, and Layers rows already use it (through
+`collectDocumentOutputNodeIds`) for their "not in output" status. The tree
+builder should take its in-output set from the same helper.
+
 A pure `buildGraphLayerTree(doc)` starts at `__export__.in` and follows each
 node's primary input upstream. Rows are listed top-first: the node nearest
 Output is at the top of its stack.

@@ -20,6 +20,7 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { NodePreviewProgress } from './thumbnails/NodePreviewProgress';
 import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
 
@@ -616,6 +617,7 @@ export function NodeCanvas({
               onOrganizeNodes={() => handleOrganizeNodes(doc.layers)}
               onTogglePerfDebug={handleTogglePerfDebug}
             />
+            <NodePreviewProgress />
 
             <ReactFlow
               className="node-canvas-flow"
