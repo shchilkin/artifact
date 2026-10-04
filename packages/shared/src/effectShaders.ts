@@ -121,6 +121,29 @@ void main() {
 }`;
 
 /**
+ * Interlace: shifts every row of the frame sideways, wrapping around, by a hashed fraction of `uIntensity`; odd rows
+ * move right and even rows left. Rows are counted at the render height `uResY`, and the hash is seeded by `uSeed`, so a
+ * new seed shifts every row by a different amount. Uniforms: `uIntensity`, `uSeed`, `uResY`.
+ */
+export const INTERLACE_FRAG = `${HEADER}
+uniform float uIntensity;
+uniform float uSeed;
+uniform float uResY;
+
+float ilHash(float n) {
+  return fract(sin(n * 127.1 + uSeed * 0.007) * 43758.5453);
+}
+
+void main() {
+  ${NORM_UV}
+  float row   = floor(norm.y * uResY);
+  float even  = mod(row, 2.0);
+  float shift = (even * 2.0 - 1.0) * uIntensity * ilHash(row);
+  vec2 warped = vec2(fract(norm.x + shift), norm.y);
+  gl_FragColor = ${SAMPLE('warped')};
+}`;
+
+/**
  * Chunk Tear: splits the frame into horizontal bands `uChunkH` tall (normalised) and shifts about 30% of them
  * sideways, wrapping around, by up to `uIntensity` of the width. Which bands move, and how far, is a hash of the band
  * index and `uSeed`, so a new seed tears different bands. Uniforms: `uIntensity`, `uChunkH`, `uSeed`.
