@@ -58,7 +58,7 @@ not its render loop.
   `setInput` fills `inputs`.
 
 Shader reuse: shared fragments live in `@artifact/shared/effect-shaders` (`HEADER`, `NORM_UV`, `SAMPLE`,
-`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`, `RGB_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
+`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`, `TEAR_FRAG`, `RGB_FRAG`, `VIGNETTE_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
 byte-identical. Port further editor fragments the same way: move the string, import it in both places.
 
 Pixi conventions the chain matches:
@@ -229,6 +229,14 @@ outward, one wavelength per turn, so a step track adding whole turns per loop cl
 the shader reads the click's age from the impulse (`age = −0.5 s × ln click`, the pointer model's decay), puts the
 packet's front `1.5 × age` half diagonals from the click, and scales the authored peak shift by the impulse, so the
 ring travels out and fades. GPU time at 540px: 0.12 ms (Chromium, Apple M5 Max).
+
+Vignette (`vignette`, `packages/runtime/src/effects/vignette.ts`) runs the editor's `VIGNETTE_FRAG` from
+`@artifact/shared/effect-shaders`, with `uIntensity = vignette × 0.01`. The fragment darkens around `uCenter` instead
+of a fixed centre; the editor passes `0.5, 0.5`, and its `renderDocument` output is byte-identical to before the move
+(SHA-256 of 3 fixtures × 4 amounts, in Chromium, Firefox and WebKit). The harness case is a torch in the dark: two
+fast, low waves flicker the amount (13 cycles of ±5 and 37 of ±3 over 4 s), `pointer.x/y` move the light spot through
+`uCenter`, and hover deepens the dark by up to 30. Parity at 540px: 0.000% of pixels over 8 levels, worst channel
+1 level, in all three engines on macOS. GPU time at 540px: 0.06 ms (Chromium, headed, Apple silicon).
 
 ### Export
 
@@ -498,7 +506,7 @@ no timer queries, and there is no GPU runner. The budget is enforced by hand, on
 
 Last measured (Playwright 1.60 Chromium, headed, M5 Max, `RUNTIME_GPU_BUDGET=1`): Noise Warp 0.28 ms, Vortex 0.10 ms,
 Grain 0.11 ms, Morph 0.20 ms, Chrom. Ab. 0.07 ms, Data Mosh 0.15 ms, Scanlines 0.17 ms, Tear 0.10 ms, Glitch
-0.67 ms, RGB Split 0.07 ms, Ripple 0.06 ms.
+0.67 ms, RGB Split 0.07 ms, Ripple 0.06 ms, Vignette 0.06 ms.
 
 ## Order of work
 

@@ -9,6 +9,7 @@ import rgbSplit from './rgbSplit.js';
 import ripple from './ripple.js';
 import scanlines from './scanlines.js';
 import tear from './tear.js';
+import vignette from './vignette.js';
 import vortex from './vortex.js';
 
 /** Every harness case, keyed by effect id. An effect issue adds its case file here. */
@@ -24,4 +25,5 @@ export const EFFECT_CASES: Readonly<Record<string, EffectCase>> = {
   glitch,
   rgbSplit,
   ripple,
+  vignette,
 };

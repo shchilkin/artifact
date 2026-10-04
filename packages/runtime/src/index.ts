@@ -77,7 +77,9 @@ export {
   scanlines,
   type TearLayer,
   tear,
+  type VignetteLayer,
   type VortexLayer,
+  vignette,
   vortex,
 } from './effects/index.js';
 export {

@@ -299,3 +299,27 @@ test('the runtime catalogue shows Ripple, with a click starting a ring', async (
   await page.mouse.up();
   await page.mouse.move(0, 0);
 });
+
+test('the runtime catalogue shows Vignette, with the light spot following the pointer', async ({ page }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const entry = page.locator('article[data-effect="vignette"]');
+  await expect(entry.getByRole('heading', { name: 'Vignette' })).toBeVisible();
+  await expect(entry.getByText('wave track, pointer.x, pointer.y, hover')).toBeVisible();
+  await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+
+  const canvas = entry.locator('canvas');
+  // The entry sits below the fold, and the mouse works in viewport coordinates.
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('catalogue canvas has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 });
+  await page.waitForTimeout(400);
+  const centred = await canvas.screenshot();
+  await page.mouse.move(box.x + 4, box.y + 4, { steps: 4 });
+  await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(false);
+  await page.mouse.move(0, 0);
+});
