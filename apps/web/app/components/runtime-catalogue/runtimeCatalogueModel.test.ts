@@ -76,6 +76,13 @@ describe('runtime catalogue model', () => {
     expect(catalogueBindings(EFFECT_CASES.ca)).toEqual(['wave track', 'pointer.x', 'pointer.y', 'pointer.speed']);
   });
 
+  it('lists Data Mosh with its amount slider, the step and pulse tracks and click', () => {
+    expect(catalogueTitle('dataMosh')).toBe('Data Mosh');
+    expect(catalogueControls('dataMosh')).toEqual([expect.objectContaining({ type: 'slider', field: 'dataMosh' })]);
+    expect(catalogueLayer('dataMosh', EFFECT_CASES.dataMosh)).toMatchObject({ preset: 'dataMosh', dataMosh: 30 });
+    expect(catalogueBindings(EFFECT_CASES.dataMosh)).toEqual(['step track', 'pulse track', 'click']);
+  });
+
   it('lists Tear with its amount and size sliders, the step track and click', () => {
     expect(catalogueTitle('tear')).toBe('Tear');
     expect(catalogueControls('tear')).toEqual([
@@ -83,6 +90,6 @@ describe('runtime catalogue model', () => {
       expect.objectContaining({ type: 'slider', field: 'tearSize' }),
     ]);
     expect(catalogueLayer('tear', EFFECT_CASES.tear)).toMatchObject({ preset: 'tear', tearAmt: 10, tearSize: 6 });
-    expect(catalogueBindings(EFFECT_CASES.tear)).toEqual(['step track', 'click']);
+    expect(catalogueBindings(EFFECT_CASES.tear)).toEqual(['step track', 'pulse track', 'click']);
   });
 });

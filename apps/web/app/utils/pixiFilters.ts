@@ -1,4 +1,5 @@
 import {
+  DATAMOSH_FRAG,
   HEADER,
   MORPH_FRAG,
   NOISE_FRAG,
@@ -91,27 +92,6 @@ void main() {
   if (uMode >= 0.5) m.x = 1.0 - abs(m.x * 2.0 - 1.0);
   if (uMode >= 1.5) m.y = 1.0 - abs(m.y * 2.0 - 1.0);
   gl_FragColor = ${SAMPLE('m')};
-}`;
-
-const DATAMOSH_FRAG = `${HEADER}
-uniform float uIntensity;
-uniform float uSeed;
-
-float dmHash(vec2 p) {
-  p = fract(p * vec2(234.34, 435.345));
-  p += dot(p, p + 34.23);
-  return fract(p.x * p.y);
-}
-
-void main() {
-  ${NORM_UV}
-  float blockSize = 0.06;
-  vec2 blockId = floor(norm / blockSize);
-  float active = step(0.55, dmHash(blockId + uSeed * 0.001));
-  vec2 offset  = (vec2(dmHash(blockId), dmHash(blockId + 1.3)) - 0.5)
-                 * uIntensity * active;
-  vec2 warped  = fract(norm + offset);
-  gl_FragColor = ${SAMPLE('warped')};
 }`;
 
 const INTERLACE_FRAG = `${HEADER}

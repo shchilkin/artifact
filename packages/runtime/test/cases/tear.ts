@@ -2,7 +2,8 @@ import { defineEffectCase, INPUT_FRAMES, MOTION_FRAMES } from '../../src/testing
 
 /**
  * Chunk Tear at 10 with 6px bands. Over a 4 s loop a step track re-seeds the tear eight times a second (32 steps, so
- * the loop closes), so every sampled loop position tears different bands. A click spikes the tear amount, decaying
+ * the loop closes), so every sampled loop position tears different bands. Two short pulses (at 0.2 and 0.7 loop
+ * turns, 0.08 long) add 8 to the amount, so `t-0.25` and `t-0.75` record a burst. A click spikes the amount, decaying
  * with the click input; the `click` frame records the press. Tear has no pointer-position or speed binding, so the
  * pointer frames match `t-0`.
  */
@@ -21,6 +22,13 @@ export default defineEffectCase({
     loop: { durationSeconds: 4 },
     bindings: [
       { from: { track: 'step', fps: 8, stride: 37 }, to: { pass: 0, field: 'seedOffset' }, mode: 'add' },
+      {
+        from: { track: 'pulse', at: [0.2, 0.7], length: 0.08 },
+        to: { pass: 0, field: 'tearAmt' },
+        range: [0, 8],
+        mode: 'add',
+        clamp: [0, 20],
+      },
       { from: { input: 'click' }, to: { pass: 0, field: 'tearAmt' }, range: [0, 10], mode: 'add', clamp: [0, 20] },
     ],
   },
