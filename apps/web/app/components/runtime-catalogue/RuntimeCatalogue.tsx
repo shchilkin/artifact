@@ -73,7 +73,6 @@ export function RuntimeCatalogue() {
           </SegmentedControl>
         </div>
       </header>
-      <LiveExportPanel />
       <ul className="runtime-catalogue-grid">
         {effects.map((effect) => (
           <li key={effect}>
@@ -81,6 +80,7 @@ export function RuntimeCatalogue() {
           </li>
         ))}
       </ul>
+      <LiveExportPanel />
     </div>
   );
 }

@@ -11,7 +11,7 @@ import {
 } from '../../../types/config';
 
 /**
- * A small cover with the Вайбер cover's structure: a fill, emoji, an effect run (Glitch, Grain, Noise Warp), an image
+ * A small cover with the Вайбер cover's structure: a fill, emoji, an effect run (Glitch, Grain, Noise Warp, Vortex), an image
  * and text above it. The live-package harness and the catalogue export it; which effects end up live follows the
  * runtime registry.
  */
@@ -25,6 +25,7 @@ export function sampleLiveCover(imageSrc: string): CanvasDocument {
       makeEffectPresetLayer('glitch', { id: 'sample-glitch', glitch: 24 }),
       makeEffectPresetLayer('grain', { id: 'sample-grain', grain: 60 }),
       makeEffectPresetLayer('noiseWarp', { id: 'sample-warp', noiseWarp: 100 }),
+      makeEffectPresetLayer('vortex', { id: 'sample-vortex', vortex: 20 }),
       makeImageLayer(imageSrc, {
         id: 'sample-image',
         name: 'Image',
