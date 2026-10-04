@@ -41,7 +41,7 @@ camera ownership, provider policy, or accepted AI results.
 
 | Visible surface | Current implementation | Required states |
 | --- | --- | --- |
-| Selected-layer basics | `Sidebar.tsx` `SelectedLayerBasics` | visible, hidden, locked guardrail |
+| Selected-layer basics | `layer-controls/LayerStateSection.tsx` (`SelectedLayerBasics` before v0.50) | visible, hidden, locked guardrail |
 | Image source | `Sidebar.tsx` `ImageSourceSection` | empty, ready preview, replace, file input, drag/drop, missing local asset |
 | Emoji set | `Sidebar.tsx` `EmojiSetSection` | selected/unselected glyphs, keyboard focus, wrapped dense grid |
 | AI Image properties | `Sidebar.tsx` `AiImageSection`, `AiGenerationPanel` | access disabled, empty, prompt/provider fields, loading, success, error, recovery |
@@ -62,14 +62,16 @@ The effect-only **Use source alpha** toggle is an explicit exception to the
 `SelectedLayerBasics` host assignment: #170 owns its migration because it writes
 the authored `EffectLayer.maskAlpha` value. #169 may migrate the surrounding
 visibility and lock rows, but must leave that toggle on the legacy surface until
-#170 moves it.
+#170 moves it. Since v0.50 (#309) the toggle lives only in the effect's Node
+section, and visibility and lock render in the shared `Layer` section in both
+Layers and Nodes.
 
 ### Ordinary graph property surfaces — #168
 
 | Visible surface | Current implementation | Required states |
 | --- | --- | --- |
 | Properties-panel selection content | `node-canvas/panel/NodePropertiesPanel.tsx` | no selection, selected target, close, narrow drawer, keyboard focus |
-| Target overview and layer lock readout | `NodePropertiesPanel.tsx` | layer-backed, graph utility, output, hidden, locked |
+| Target overview | `NodePropertiesPanel.tsx` | layer-backed, graph utility, output, hidden, locked |
 | Connected-port rows | `node-canvas/inspector/PortRow.tsx` and material/environment input rows | accessible connected/disconnected status; unavailable/read-only resource metadata |
 | Color utility | `ColorInspector.tsx` | named target, ordinary numeric fields |
 | Merge utility | `MergeInspector.tsx` | blend, opacity, missing input |
@@ -87,7 +89,8 @@ not reproduce them.
 
 | Visible surface | Current implementation | Required states |
 | --- | --- | --- |
-| Effect alpha-mask toggle | `Sidebar.tsx` `SelectedLayerBasics` | enabled/disabled source-alpha masking for an effect layer |
+| Effect alpha-mask toggle | `EffectInspector.tsx` Node section | enabled/disabled source-alpha masking for an effect layer |
+| Layer visibility and lock | `layer-controls/LayerStateSection.tsx`, rendered by `LayerControls` in Layers and Nodes | visible/hidden, locked/unlocked |
 | Effect layer and effect-node controls | `EffectInspector.tsx`, `EffectControlSections.tsx`, effect branches in `LayerControls` | every metadata-defined field, inactive/disabled, error, dense section, info note |
 | Grime shadow effect utility | `GrimeShadowInspector.tsx` | source missing/ready, color and dense numeric controls |
 | Material properties | `MaterialInspector.tsx` | scalar/color values, texture ports, connected/missing maps, clear action |

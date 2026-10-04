@@ -1921,7 +1921,9 @@ test('layers can add Pixelate with formatted creative controls', async ({ page }
   await expect(pixelateRow).toBeVisible({ timeout: 15_000 });
   await pixelateRow.click();
   await expect(page.locator('.layer-inspector-drawer')).toContainText('Block Size');
-  await expect(page.locator('.layer-inspector-drawer .artifact-inspector-value')).toContainText('6px');
+  await expect(
+    page.locator('.layer-inspector-drawer').getByRole('slider', { name: 'Block Size', exact: true }),
+  ).toHaveAttribute('aria-valuetext', '6px');
   await expectLayerCanvasToHavePixels(page);
 });
 
@@ -2270,9 +2272,9 @@ test('effect node inspector exposes and persists local seed offsets', async ({ p
   await expect(effectNode).toBeVisible({ timeout: 15_000 });
   await effectNode.locator('.node-shell-frame').click();
 
-  await page.locator('.node-props-panel-open button').filter({ hasText: /^Node/ }).first().click();
-  const seedControl = page.locator('.node-props-panel-open .artifact-inspector-control').filter({ hasText: /^Seed/ });
-  const seedSlider = seedControl.locator('input[type="range"]').first();
+  const nodeInspector = page.locator('.node-props-panel-open');
+  await nodeInspector.getByRole('button', { name: 'Node', exact: true }).click();
+  const seedSlider = nodeInspector.getByRole('slider', { name: 'Seed', exact: true });
   await expect(seedSlider).toBeVisible({ timeout: 15_000 });
   await seedSlider.evaluate((input) => {
     const slider = input as HTMLInputElement;
@@ -2341,7 +2343,7 @@ test('node properties show whether the selected target feeds output', async ({ p
   const targetOverview = nodePropsPanel.locator('.node-target-overview').first();
   const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
   await expect(targetOverview).toHaveClass(/node-target-overview-source/);
-  await expect(targetOverview.getByLabel('Toggle node delete lock')).toBeVisible();
+  await expect(nodePropsPanel.getByLabel('Toggle layer delete and reorder lock')).toBeVisible();
   await expect(targetHeader).toContainText('Nodes / Source');
   await expect(targetHeader).toContainText('Unconnected top fill');
   await expect(targetHeader).toContainText('Layer 2/2');
@@ -2376,7 +2378,7 @@ test('locked node target stays in the graph when delete is pressed', async ({ pa
   const orphanNode = await selectUnconnectedTopFillNode(page);
   const nodePropsPanel = page.locator('.node-props-panel-open');
   await expect(nodePropsPanel).toBeVisible();
-  await nodePropsPanel.getByLabel('Toggle node delete lock').check();
+  await nodePropsPanel.getByLabel('Toggle layer delete and reorder lock').check();
 
   const targetHeader = nodePropsPanel.locator('.editor-target-header').first();
   await expect(targetHeader).toContainText('Locked');
@@ -2420,7 +2422,7 @@ test('graph-only utility properties show area and output context without lock co
   await expect(targetHeader).toContainText(
     'Graph-only utility nodes can be deleted or moved; durable locking is reserved for layer-backed targets in v0.28.',
   );
-  await expect(nodePropsPanel.getByLabel('Toggle node delete lock')).toHaveCount(0);
+  await expect(nodePropsPanel.getByLabel('Toggle layer delete and reorder lock')).toHaveCount(0);
 });
 
 test('layers added after graph bootstrap connect into the export path', async ({ page }) => {
@@ -2979,7 +2981,9 @@ test('node add menu can add Pixelate with the shared formatted controls', async 
 
   await expectPixelateNode(page);
   await expect(page.locator('.node-props-panel')).toContainText('Block Size');
-  await expect(page.locator('.node-props-panel .artifact-inspector-value')).toContainText('6px');
+  await expect(
+    page.locator('.node-props-panel').getByRole('slider', { name: 'Block Size', exact: true }),
+  ).toHaveAttribute('aria-valuetext', '6px');
   await switchToLayerView(page);
   await expectLayerCanvasToHavePixels(page);
 });

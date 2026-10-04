@@ -34,6 +34,7 @@ export function InspectorSlider({
   label,
   value,
   formatValue,
+  unit,
   min,
   max,
   step = 1,
@@ -46,11 +47,14 @@ export function InspectorSlider({
 }: {
   label: string;
   value: number;
-  /** Formats the shown value, including a value still being dragged. */
+  /** Formats the value read out for the slider, including a value still being dragged. */
   formatValue?: (value: number) => string;
+  /** A short unit shown after the numeric entry, such as `%` or `px`. */
+  unit?: string;
   min: number;
   max: number;
   step?: number;
+  /** Numeric entry accepts values up to this limit; the slider stops at `max`. */
   overrideMax?: number;
   effectKey?: string;
   disabled?: boolean;
@@ -61,12 +65,9 @@ export function InspectorSlider({
   const infoRef = useRef<HTMLButtonElement>(null);
   const { displayValue, change, flush } = useCoalescedSliderValue(value, onChange);
   const sliderValue = Math.min(max, Math.max(min, displayValue));
-  const shownLabel = formatValue ? formatValue(displayValue) : displayValue;
-  const manualMax = overrideMax ?? max;
-  const clampManualValue = (nextValue: number) => Math.min(manualMax, Math.max(min, nextValue));
   return (
     <PropertyRow
-      className={`artifact-inspector-control${disabled ? ' artifact-inspector-control-disabled' : ''}`}
+      className={`artifact-inspector-slider${disabled ? ' artifact-inspector-control-disabled' : ''}`}
       label={<span className="artifact-inspector-label">{label}</span>}
       labelAction={
         effectKey && onInfoEnter ? (
@@ -74,7 +75,7 @@ export function InspectorSlider({
             as="button"
             ref={infoRef}
             type="button"
-            className="node-shell-action node-info-button"
+            className="artifact-inspector-info"
             onMouseEnter={() => {
               if (infoRef.current) onInfoEnter(effectKey, infoRef.current.getBoundingClientRect());
             }}
@@ -85,18 +86,18 @@ export function InspectorSlider({
           </NoPan>
         ) : undefined
       }
-      value={<span className="artifact-inspector-value">{shownLabel}</span>}
       disabled={disabled}
     >
       <SliderInputs
         label={label}
         value={displayValue}
+        valueText={formatValue?.(displayValue)}
+        unit={unit}
         sliderValue={sliderValue}
         min={min}
         max={max}
         step={step}
-        overrideMax={overrideMax}
-        clampManualValue={clampManualValue}
+        entryMax={overrideMax ?? max}
         onChange={change}
         onCommit={flush}
       />
@@ -111,26 +112,28 @@ function SliderInputs({
   disabled,
   label,
   value,
+  valueText,
+  unit,
   sliderValue,
   min,
   max,
   step,
-  overrideMax,
-  clampManualValue,
+  entryMax,
   onChange,
   onCommit,
 }: Pick<ComponentPropsWithoutRef<'input'>, 'aria-describedby' | 'aria-invalid' | 'disabled' | 'id'> & {
-  clampManualValue: (value: number) => number;
+  entryMax: number;
   label: string;
   max: number;
   min: number;
   onChange: (value: number) => void;
   /** The gesture ended: pass on a value that is still waiting. */
   onCommit: () => void;
-  overrideMax?: number;
   sliderValue: number;
   step: number;
+  unit?: string;
   value: number;
+  valueText?: string;
 }) {
   return (
     <div className="node-slider-row">
@@ -138,6 +141,7 @@ function SliderInputs({
         id={id}
         aria-describedby={ariaDescribedBy}
         aria-invalid={ariaInvalid}
+        aria-valuetext={valueText}
         className="node-slider nodrag nopan nowheel"
         type="range"
         min={min}
@@ -155,29 +159,93 @@ function SliderInputs({
         onKeyUp={onCommit}
         onBlur={onCommit}
       />
-      {overrideMax ? (
-        <input
-          className="node-slider-number nodrag nopan nowheel"
-          type="number"
-          min={min}
-          max={overrideMax}
-          step={step}
-          value={value}
-          disabled={disabled}
-          aria-label={`${label} override`}
-          title={`Manual override up to ${overrideMax}`}
-          onPointerDown={stopNodeEvent}
-          onMouseDown={stopNodeEvent}
-          onClick={stopNodeEvent}
-          onDoubleClick={stopNodeEvent}
-          onWheel={stopNodeEvent}
-          onChange={(event) => {
-            if (event.target.value === '') return;
-            onChange(clampManualValue(Number(event.target.value)));
-          }}
-          onBlur={onCommit}
-        />
-      ) : null}
+      <NumericEntry
+        label={label}
+        value={value}
+        unit={unit}
+        min={min}
+        max={entryMax}
+        step={step}
+        disabled={disabled}
+        onChange={onChange}
+        onCommit={onCommit}
+      />
     </div>
+  );
+}
+
+/**
+ * Numeric entry for a slider. A typed value inside the range applies as it is typed; a value outside it, or an
+ * unfinished one such as `-`, waits until Enter or blur, where it is clamped or discarded.
+ */
+function NumericEntry({
+  label,
+  value,
+  unit,
+  min,
+  max,
+  step,
+  disabled,
+  onChange,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  unit?: string;
+  min: number;
+  max: number;
+  step: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+  onCommit: () => void;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  const finish = () => {
+    if (text !== null) {
+      const typed = Number(text);
+      if (text.trim() !== '' && Number.isFinite(typed)) {
+        const clamped = Math.min(max, Math.max(min, typed));
+        if (clamped !== value) onChange(clamped);
+      }
+      setText(null);
+    }
+    onCommit();
+  };
+  return (
+    <span className="artifact-inspector-number">
+      <input
+        className="node-slider-number nodrag nopan nowheel"
+        type="number"
+        inputMode="decimal"
+        min={min}
+        max={max}
+        step={step}
+        value={text ?? value}
+        disabled={disabled}
+        aria-label={`${label} value`}
+        title={max > min ? `${min} to ${max}` : undefined}
+        onPointerDown={stopNodeEvent}
+        onMouseDown={stopNodeEvent}
+        onClick={stopNodeEvent}
+        onDoubleClick={stopNodeEvent}
+        onWheel={stopNodeEvent}
+        onChange={(event) => {
+          const next = event.target.value;
+          setText(next);
+          const typed = Number(next);
+          if (next.trim() !== '' && Number.isFinite(typed) && typed >= min && typed <= max) onChange(typed);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') finish();
+          if (event.key === 'Escape') setText(null);
+        }}
+        onBlur={finish}
+      />
+      {unit ? (
+        <span className="artifact-inspector-number__unit" aria-hidden="true">
+          {unit}
+        </span>
+      ) : null}
+    </span>
   );
 }

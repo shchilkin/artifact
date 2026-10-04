@@ -64,6 +64,7 @@ import {
   PRIMITIVE_SHAPE_OPTIONS,
   TEXT_ALIGN_OPTIONS,
 } from './fieldDefs';
+import { LayerStateSection } from './LayerStateSection';
 
 const R = FIELD_RANGES;
 const DEFAULT_PLACEMENT = { x: 0.5, y: 0.5, scaleX: 1, scaleY: 1, rotation: 0 };
@@ -1268,7 +1269,12 @@ export function LayerControls({
 
   return (
     <InspectorTargetContext.Provider value={layer.id}>
-      <InspectorStateProvider value={{ dirty, locked: layer.locked }}>{content}</InspectorStateProvider>
+      <InspectorStateProvider value={{ dirty, locked: layer.locked }}>
+        <div className="artifact-inspector-stack">
+          {content}
+          <LayerStateSection layer={layer} onChange={onChange} />
+        </div>
+      </InspectorStateProvider>
     </InspectorTargetContext.Provider>
   );
 }

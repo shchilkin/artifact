@@ -34,7 +34,7 @@ import {
   ShaderInspector,
   TransformInspector,
 } from '../inspector';
-import { InspectorTargetContext, InspectorToggle } from '../inspector/fields';
+import { InspectorTargetContext } from '../inspector/fields';
 import type { NodeCanvasProps } from '../types';
 
 interface NodePropertiesPanelProps
@@ -517,42 +517,13 @@ function ExportNodeInspector({
   );
 }
 
-function LayerLockToggle({
-  target,
-  onUpdateLayer,
-}: Pick<NodePropertiesPanelProps, 'onUpdateLayer'> & {
-  target: SelectedNodeTarget | null;
-}) {
-  if (target?.kind !== 'layer') return null;
-  return (
-    <div className="node-target-actions" aria-label="Layer node safety">
-      <InspectorToggle
-        ariaLabel="Toggle node delete lock"
-        checked={target.layer.locked}
-        className="node-target-toggle"
-        label="Locked"
-        locked={target.layer.locked}
-        onChange={(locked) => onUpdateLayer(target.layer.id, { locked })}
-      />
-    </div>
-  );
-}
-
-function NodeTargetOverview({
-  target,
-  summary,
-  onUpdateLayer,
-}: Pick<NodePropertiesPanelProps, 'onUpdateLayer'> & {
-  target: SelectedNodeTarget | null;
-  summary: EditorTargetSummary;
-}) {
+function NodeTargetOverview({ summary }: { summary: EditorTargetSummary }) {
   return (
     <section
       className={`node-target-overview node-target-overview-${summary.role}`}
       aria-label="Selected node overview"
     >
       <EditorTargetHeader summary={summary} compact />
-      <LayerLockToggle target={target} onUpdateLayer={onUpdateLayer} />
     </section>
   );
 }
@@ -857,10 +828,10 @@ function NodePropertiesPanelContent({
           ×
         </button>
       </div>
-      <div className="node-props-body">
+      <div className="node-props-body artifact-inspector-scroll">
         {targetSummary ? (
           <>
-            <NodeTargetOverview target={target} summary={targetSummary} onUpdateLayer={onUpdateLayer} />
+            <NodeTargetOverview summary={targetSummary} />
             <SelectedNodeInspector
               target={target}
               doc={doc}

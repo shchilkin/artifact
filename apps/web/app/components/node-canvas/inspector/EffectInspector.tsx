@@ -44,16 +44,8 @@ export function EffectInspector({
 
   return (
     <div className={effectInspectorClassName(detached)}>
-      <EffectInspectorHeader layer={layer} />
+      <EffectDescription preset={layer.preset} />
       <RetroRecipeNote preset={layer.preset} />
-
-      <EffectNodeSection
-        layer={layer}
-        open={openSection === 'node'}
-        onOpenChange={setOpenSection}
-        onChange={onChange}
-      />
-
       <EffectPresetControlNote preset={layer.preset} />
 
       <EffectControlSections
@@ -65,6 +57,13 @@ export function EffectInspector({
         onChange={onChange}
         onInfoEnter={handleInfoEnter}
         onInfoLeave={handleInfoLeave}
+      />
+
+      <EffectNodeSection
+        layer={layer}
+        open={openSection === 'node'}
+        onOpenChange={setOpenSection}
+        onChange={onChange}
       />
 
       <EffectInfoPortal
@@ -82,17 +81,6 @@ function effectInspectorClassName(detached: boolean) {
 
 function effectSectionVisible(preset: EffectPreset | undefined, presets: readonly EffectPreset[]) {
   return preset ? presets.includes(preset) : true;
-}
-
-function EffectInspectorHeader({ layer }: { layer: EffectLayer }) {
-  return (
-    <>
-      <div className="node-badge-row">
-        <span className="node-badge">{effectPresetLabel(layer.preset)}</span>
-      </div>
-      <EffectDescription preset={layer.preset} />
-    </>
-  );
 }
 
 function EffectNodeSection({
@@ -134,11 +122,6 @@ function EffectNodeSection({
       <BlendModeNote value={layer.blendMode ?? 'normal'} />
     </InspectorSection>
   );
-}
-
-function effectPresetLabel(preset: EffectPreset | undefined) {
-  if (!preset) return 'custom';
-  return EFFECT_PRESETS[preset]?.name ?? preset;
 }
 
 function EffectDescription({ preset }: { preset: EffectPreset | undefined }) {

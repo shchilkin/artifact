@@ -250,7 +250,7 @@ test('missing packaged model can be replaced without changing its graph connecti
   await modelNode.click();
 
   const properties = page.locator('.node-props-panel-open');
-  await properties.getByRole('button', { name: /^Model 1961 KB/ }).click();
+  await properties.getByRole('button', { name: 'Model', exact: true }).click();
   const chooserPromise = page.waitForEvent('filechooser');
   await properties.getByRole('button', { name: 'Replace model' }).click();
   const chooser = await chooserPromise;

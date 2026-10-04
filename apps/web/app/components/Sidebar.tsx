@@ -4,7 +4,6 @@ import {
   ALL_EMOJIS,
   type AspectRatio,
   type CanvasDocument,
-  type EffectLayer,
   type EmojiLayer,
   type GraphEnvironmentNode,
   type GraphScene3DNode,
@@ -40,7 +39,7 @@ import { LayerControls } from './layer-controls/LayerControls';
 import type { LayerPanelProps } from './layers-panel/LayerPanel';
 import { LayerPanel } from './layers-panel/LayerPanel';
 import { EnvironmentInspector } from './node-canvas/inspector/EnvironmentInspector';
-import { InspectorReadout, InspectorToggle } from './node-canvas/inspector/fields';
+import { InspectorReadout } from './node-canvas/inspector/fields';
 import { Scene3DInspector } from './node-canvas/inspector/Scene3DInspector';
 import { EmptyState } from './ui/EmptyState';
 
@@ -318,9 +317,8 @@ function SelectedLayerSections({
   };
 
   return (
-    <div className="layer-inspector-sections artifact-inspector-sidebar">
+    <div className="layer-inspector-sections artifact-inspector-sidebar artifact-inspector-scroll">
       {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact minimal />}
-      <SelectedLayerBasics selectedLayer={selectedLayer} onPatch={applyPatch} />
       <SelectedImageSourceSection layer={selectedLayer} inputRef={fileInputRef} onImageFile={handleImageFile} />
       <SelectedEmojiSetSection layer={selectedLayer} onToggleEmoji={toggleEmoji} />
       <LayerControls
@@ -353,7 +351,7 @@ function SelectedScene3DSections({
     onDocChange(updateEnvironmentNodeInDocument(doc, node.id, patch));
 
   return (
-    <div className="layer-inspector-sections artifact-inspector-sidebar">
+    <div className="layer-inspector-sections artifact-inspector-sidebar artifact-inspector-scroll">
       {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact minimal />}
       <SelectedScene3DInputSettings model={model} environment={environment} scene={scene} />
       <Scene3DInspector scene3dNode={scene} onChange={updateScene} detached />
@@ -438,45 +436,6 @@ function SelectedEmojiSetSection({
 }) {
   const emojiLayer = emojiLayerFromSelection(layer);
   return emojiLayer ? <EmojiSetSection layer={emojiLayer} onToggleEmoji={onToggleEmoji} /> : null;
-}
-
-function SelectedLayerBasics({
-  selectedLayer,
-  onPatch,
-}: {
-  selectedLayer: Layer;
-  onPatch: <T extends Layer>(patch: Partial<T>) => void;
-}) {
-  return (
-    <Section title={`${selectedLayer.kind.toUpperCase()} LAYER`} defaultOpen>
-      <InspectorToggle
-        ariaLabel="Toggle layer visibility"
-        checked={selectedLayer.visible}
-        className="sidebar-toggle-row"
-        label="Visible"
-        locked={selectedLayer.locked}
-        onChange={(visible) => onPatch({ visible } as Partial<Layer>)}
-      />
-      {selectedLayer.kind === 'effect' && (
-        <InspectorToggle
-          ariaLabel="Toggle effect alpha masking"
-          checked={selectedLayer.maskAlpha}
-          className="sidebar-toggle-row"
-          label="Use source alpha"
-          locked={selectedLayer.locked}
-          onChange={(maskAlpha) => onPatch<EffectLayer>({ maskAlpha })}
-        />
-      )}
-      <InspectorToggle
-        ariaLabel="Toggle layer delete and reorder lock"
-        checked={selectedLayer.locked}
-        className="sidebar-toggle-row"
-        label="Locked"
-        locked={selectedLayer.locked}
-        onChange={(locked) => onPatch({ locked } as Partial<Layer>)}
-      />
-    </Section>
-  );
 }
 
 function ImageSourceSection({

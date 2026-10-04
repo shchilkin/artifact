@@ -129,12 +129,11 @@ yet. Each names the delivery issue that removes it. The gate fails when a value
 exceeds its ceiling, and also when a `deterministic` exception is no longer
 needed, so a fixed behavior cannot keep a stale allowance.
 
-| Metric | v0.49.0 | Ceiling | Owner |
-| --- | --- | --- | --- |
-| `desktop/*/inspector/sliderWidthDeltaPx` | 39.5 px | 39.5 | [#309](https://github.com/shchilkin/artifact/issues/309) |
-| `mobile/*/inspector/sliderWidthDeltaPx` | 228 px | 228 | [#309](https://github.com/shchilkin/artifact/issues/309) |
-
-Layout ceilings equal the measured value.
+No exceptions remain: [#309](https://github.com/shchilkin/artifact/issues/309)
+removed the last two (`inspector/sliderWidthDeltaPx` on desktop and mobile,
+ceilings 39.5 px and 228 px). A future exception is added only through the
+process under Changing A Budget Or Exception. Layout ceilings equal the
+measured value.
 
 `slider-drag/mainThreadMs` replaced the budgeted `slider-drag/durationMs` in
 #308. On the CI runner the drag loop cannot run faster than two frames per step
@@ -162,6 +161,8 @@ baseline value they replaced. The v0.49.0 baseline still exceeds their budgets;
 | `mobile/*/command-bar/obscuredCommands` | 1 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `mobile/*/command-bar/overlappingCommands` | 2 | [#307](https://github.com/shchilkin/artifact/issues/307) |
 | `desktop/*/slider-keypress/inputToPreviewMs` | 62.4 / 121.8 ms | [#324](https://github.com/shchilkin/artifact/issues/324) |
+| `desktop/*/inspector/sliderWidthDeltaPx` | 39.5 px | [#309](https://github.com/shchilkin/artifact/issues/309) |
+| `mobile/*/inspector/sliderWidthDeltaPx` | 228 px | [#309](https://github.com/shchilkin/artifact/issues/309) |
 
 ## v0.49.0 Baseline
 
@@ -335,6 +336,22 @@ The GPU pass shrank fourfold in pixels (fence wait about 68 → 15-21 ms).
 cached texture (14 → 1 ms). The RGB Split worker round trip (6-18 ms) is now
 the largest Canvas 2D phase. The main thread is free while the GPU fence is
 pending.
+
+## After #309
+
+[#309](https://github.com/shchilkin/artifact/issues/309) gives Layers and Nodes
+one inspector layout. In v0.49.0 the Nodes stylesheet, which loads on the first
+Nodes visit, redefined the shared inspector field rules, so the Layers
+inspector changed layout after a visit to Nodes: the first slider went from
+168.5 px to 129 px on desktop and from 357 px to 129 px on mobile. Inspector
+field styles now load only with the editor, both inspectors use the same row
+(label, range, and numeric entry) and the same scroll gutter, and Layers and
+Nodes render the same sections in the same order.
+
+| Metric | `default` | `effect-stack` | Budget |
+| --- | ---: | ---: | ---: |
+| desktop `inspector/sliderWidthDeltaPx` | 0 | 0 | 1 |
+| mobile `inspector/sliderWidthDeltaPx` | 0 | 0 | 1 |
 
 ## Changing A Budget Or Exception
 

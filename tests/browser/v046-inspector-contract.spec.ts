@@ -194,7 +194,7 @@ test('layer and node property surfaces consume the runtime inspector contract', 
   await expect(nodeInspector).toBeVisible();
   await expect(nodeInspector.locator('[data-inspector-section="true"]')).not.toHaveCount(0);
   await expect(nodeInspector.locator('[data-inspector-property-row="true"]')).not.toHaveCount(0);
-  await expect(nodeInspector.getByLabel('Toggle node delete lock')).toBeEnabled();
+  await expect(nodeInspector.getByLabel('Toggle layer delete and reorder lock')).toBeEnabled();
 });
 
 test('Code Shader inspector associates accepted, unavailable, dirty, and invalid authoring states', async ({

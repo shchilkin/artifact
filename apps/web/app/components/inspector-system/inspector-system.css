@@ -74,6 +74,12 @@
   gap: var(--space-1);
 }
 
+.artifact-inspector-section__states {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .artifact-inspector-section__state,
 .artifact-inspector-section__indicator {
   flex: 0 0 auto;
