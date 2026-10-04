@@ -498,7 +498,7 @@ no timer queries, and there is no GPU runner. The budget is enforced by hand, on
 
 Last measured (Playwright 1.60 Chromium, headed, M5 Max, `RUNTIME_GPU_BUDGET=1`): Noise Warp 0.28 ms, Vortex 0.10 ms,
 Grain 0.11 ms, Morph 0.20 ms, Chrom. Ab. 0.07 ms, Data Mosh 0.15 ms, Scanlines 0.17 ms, Tear 0.10 ms, Glitch
-0.67 ms, RGB Split 0.07 ms.
+0.67 ms, RGB Split 0.07 ms, Ripple 0.06 ms.
 
 ## Order of work
 
