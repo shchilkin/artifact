@@ -58,12 +58,14 @@ test('the sample cover exports plates and a live chain that match the editor at 
   expect(manifest.stack.map((item) => item.type)).toEqual(['plate', 'chain', 'plate']);
   const chain = manifest.stack[1];
   if (chain.type !== 'chain') throw new Error('expected a chain');
-  // The registry decides: Grain, Noise Warp and Vortex are live; Glitch joins them once it is registered.
+  // The registry decides: Glitch, Grain, Noise Warp and Vortex are all registered, so the whole run is live.
   const live = chain.passes.map((pass) => pass.effect);
+  expect(live).toContain('glitch');
   expect(live).toContain('grain');
   expect(live).toContain('noiseWarp');
+  expect(live.indexOf('grain')).toBeGreaterThan(live.indexOf('glitch'));
   expect(live.indexOf('vortex')).toBeGreaterThan(live.indexOf('noiseWarp'));
-  expect(manifest.baked.map((layer) => layer.effects).flat()).toContain('glitch');
+  expect(manifest.baked.map((layer) => layer.effects).flat()).not.toContain('glitch');
   expect(manifest.baked.every((layer) => layer.reason.length > 0)).toBe(true);
   expect(result.files.sort()).toEqual(['manifest.json', 'plates/0.png', 'plates/2.png', 'still.png']);
   expect(result.comparison.pass, describeComparison(result.comparison)).toBe(true);
