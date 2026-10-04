@@ -270,3 +270,67 @@ test('node Add Library lists recipes as one more filter', async ({ page }) => {
   const ids = await surface.locator('[role="option"]').evaluateAll((options) => options.map((option) => option.id));
   expect(new Set(ids).size).toBe(ids.length);
 });
+
+const effectDocument = editorDocumentFixture([
+  fillLayerFixture({ id: 'progress-base', name: 'Base plate', color: '#243b66' }),
+  {
+    id: 'progress-scanlines',
+    name: 'Scanlines',
+    kind: 'effect',
+    visible: true,
+    locked: false,
+    opacity: 100,
+    blendMode: 'normal',
+    preset: 'scanlines',
+    scanlines: 24,
+    scanlineWidth: 2,
+  },
+]);
+
+test('preview progress shows while an edit renders and clears once the full-quality frame paints', async ({ page }) => {
+  await gotoDocument(page, effectDocument);
+  await expectLayerCanvasToHavePixels(page);
+  const surface = page.locator('.artifact-canvas-preview__surface');
+  const bar = page.locator('.canvas-preview-progress');
+  await expect(surface).toHaveAttribute('data-preview-pending', 'false', { timeout: 15_000 });
+  await expect(bar).toHaveCSS('opacity', '0');
+
+  await page.locator('.layer-row[data-layer-id="progress-scanlines"] .layer-row-name-button').click();
+  const slider = page.locator('.layer-inspector-drawer input[type="range"]').first();
+  await expect(slider).toBeVisible();
+  await expect(surface).toHaveAttribute('data-preview-pending', 'false', { timeout: 15_000 });
+
+  // Record each change of the signal with the indicator's state at that moment, plus any layout shift.
+  await page.evaluate(() => {
+    const record = { states: [] as Array<{ pending: string; indicator: string }>, shift: 0 };
+    Object.defineProperty(window, '__previewProgress', { value: record });
+    const target = document.querySelector<HTMLElement>('.artifact-canvas-preview__surface')!;
+    const indicator = document.querySelector<HTMLElement>('.canvas-preview-progress')!;
+    new MutationObserver(() => {
+      record.states.push({
+        pending: target.dataset.previewPending ?? '',
+        indicator: getComputedStyle(indicator).getPropertyValue('--canvas-preview-progress').trim() || 'idle',
+      });
+    }).observe(target, { attributes: true, attributeFilter: ['data-preview-pending'] });
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as Array<PerformanceEntry & { value: number }>) record.shift += entry.value;
+    }).observe({ type: 'layout-shift' });
+  });
+
+  await slider.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(surface).toHaveAttribute('data-preview-pending', 'false', { timeout: 15_000 });
+  await expect(bar).toHaveCSS('opacity', '0');
+
+  const record = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __previewProgress: { states: Array<{ pending: string; indicator: string }>; shift: number };
+        }
+      ).__previewProgress,
+  );
+  expect(record.states[0]).toEqual({ pending: 'true', indicator: 'active' });
+  expect(record.states.at(-1)).toEqual({ pending: 'false', indicator: 'idle' });
+  expect(record.shift).toBeLessThanOrEqual(0.05);
+});

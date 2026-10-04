@@ -852,11 +852,32 @@ export function useDocumentRenderer(
 
   // Latest-wins: one render in flight, at most one waiting, and free main-thread time between renders.
   const schedulerRef = useRef<PreviewRenderScheduler | null>(null);
+  /**
+   * Preview progress for the indicator: `data-preview-pending` on the render container is "true" from an edit until
+   * the frame for the latest document, including its deferred full-quality pass, has painted. It is written to the
+   * DOM outside React so interactive frames do not cost a commit each (see docs/state-model.md).
+   */
+  const syncPreviewPending = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const scheduler = schedulerRef.current;
+    const pending =
+      Boolean(scheduler?.running || scheduler?.pending) ||
+      settleTimerRef.current !== null ||
+      deferredFullRenderTimerRef.current !== null ||
+      cancelDeferredFullRenderIdleRef.current !== null;
+    const value = pending ? 'true' : 'false';
+    if (container.dataset.previewPending !== value) container.dataset.previewPending = value;
+  }, []);
   const scheduleRender = useCallback(() => {
     let scheduler = schedulerRef.current;
     if (!scheduler) {
       scheduler = createPreviewRenderScheduler({
-        run: (done) => doRender(done),
+        run: (done) =>
+          doRender((options) => {
+            done(options);
+            syncPreviewPending();
+          }),
         minIntervalMs: PREVIEW_FRAME_INTERVAL_MS,
         // A newer request aborts a running full-quality pass and drops its result. A running interactive pass is
         // allowed to finish and paint (one input behind): dropping it too left continuous drags on slow machines with
@@ -870,7 +891,8 @@ export function useDocumentRenderer(
       schedulerRef.current = scheduler;
     }
     scheduler.request();
-  }, [doRender]);
+    syncPreviewPending();
+  }, [doRender, syncPreviewPending]);
   const cancelScheduledRender = useCallback(() => {
     schedulerRef.current?.cancelScheduled();
   }, []);
@@ -935,6 +957,7 @@ export function useDocumentRenderer(
         scheduleRender();
       }, DRAFT_SETTLE_MS + 16);
     }
+    syncPreviewPending();
   }, [
     doc,
     imageCache,
@@ -952,6 +975,7 @@ export function useDocumentRenderer(
     scheduleRender,
     cancelDeferredFullRender,
     scheduleDeferredFullRender,
+    syncPreviewPending,
   ]);
 
   useEffect(

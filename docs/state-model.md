@@ -165,9 +165,17 @@ preview's `aria-busy`) is true while there is no frame yet or a full-quality
 pass is rendering. Interactive frames during an edit do not set it. Toggling it
 for every frame cost two React commits per frame (#324). A preview-progress
 indicator (#310) that should also cover interactive frames needs a separate
-signal that does not commit per frame. Examples: a flag set once when a burst
-of input starts and cleared by the full-quality pass, or a ref-backed
-subscription that only the indicator reads.
+signal that does not commit per frame.
+
+That signal is `data-preview-pending` on the render container. The hook writes
+it straight to the DOM (`syncPreviewPending`) whenever its scheduling state
+changes: a render requested, started or settled, and the settle or deferred
+full-quality timers set or fired. It is `"true"` from an edit until the frame
+for the latest document, including the deferred full-quality pass, has
+painted. The layer preview's progress bar (`.canvas-preview-progress`) is
+shown by CSS from that attribute, so it costs no React commit and, being an
+absolutely positioned overlay, no layout shift. Unpainted warm-up renders do
+not count as pending.
 
 ## Primitive camera state
 
