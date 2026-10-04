@@ -38,11 +38,16 @@ export {
   createCompositeRenderer,
 } from './chain.js';
 export {
+  CA_FRAG,
+  type CaLayer,
+  ca,
   EFFECTS,
   effectRegistry,
   GRAIN_FRAG,
   type GrainLayer,
   grain,
+  type MorphLayer,
+  morph,
   type NoiseWarpLayer,
   noiseWarp,
   SCANLINES_FRAG,
