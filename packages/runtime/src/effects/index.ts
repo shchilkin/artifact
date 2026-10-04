@@ -5,6 +5,7 @@ import { glitch } from './glitch.js';
 import { grain } from './grain.js';
 import { morph } from './morph.js';
 import { noiseWarp } from './noiseWarp.js';
+import { pixelate } from './pixelate.js';
 import { rgbSplit } from './rgbSplit.js';
 import { ripple } from './ripple.js';
 import { scanlines } from './scanlines.js';
@@ -26,6 +27,13 @@ export {
 export { GRAIN_FRAG, type GrainLayer, grain } from './grain.js';
 export { type MorphLayer, morph } from './morph.js';
 export { type NoiseWarpLayer, noiseWarp } from './noiseWarp.js';
+export {
+  PIXELATE_REVEAL_FRAG,
+  PIXELATE_REVEAL_LEVELS,
+  PIXELATE_SOFTNESS,
+  type PixelateLayer,
+  pixelate,
+} from './pixelate.js';
 export { RGB_SPLIT_OFFSET_FRAG, type RgbSplitLayer, rgbSplit, rgbSplitDirection } from './rgbSplit.js';
 export {
   RIPPLE_CLICK_DECAY,
@@ -51,6 +59,7 @@ export const EFFECTS = [
   glitch,
   rgbSplit,
   ripple,
+  pixelate,
 ] as const;
 
 export const effectRegistry = createEffectRegistry(EFFECTS);
