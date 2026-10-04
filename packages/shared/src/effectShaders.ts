@@ -175,3 +175,26 @@ void main() {
   float a  = texture2D(uSampler, uv).a;
   gl_FragColor = vec4(r, g, b, a);
 }`;
+
+/**
+ * The Pixelate cell lookup for a block count expression (`blocks` blocks across each axis of the input): snaps `norm`
+ * to the centre of its block and samples there. `PIXELATE_FRAG` calls it with `uBlocks`; the runtime's reveal mask
+ * calls it with a per-pixel block count, so both share the sampling code.
+ */
+export const PIXELATE_SAMPLE = (
+  blocks: string,
+) => `vec2 px      = floor(norm * ${blocks}) / ${blocks} + 0.5 / ${blocks};
+  vec2 warped  = clamp(px, 0.0, 1.0);
+  gl_FragColor = ${SAMPLE('warped')};`;
+
+/**
+ * Pixelate: samples each of `uBlocks × uBlocks` blocks at its centre. Uniforms: `uBlocks` (the editor passes
+ * `max(2, round(width / pixelate))`, so `pixelate` is the block size in pixels).
+ */
+export const PIXELATE_FRAG = `${HEADER}
+uniform float uBlocks;
+
+void main() {
+  ${NORM_UV}
+  ${PIXELATE_SAMPLE('uBlocks')}
+}`;

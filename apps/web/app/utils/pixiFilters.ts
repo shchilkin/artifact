@@ -5,6 +5,7 @@ import {
   MORPH_FRAG,
   NOISE_FRAG,
   NORM_UV,
+  PIXELATE_FRAG,
   RGB_FRAG,
   SAMPLE,
   TEAR_FRAG,
@@ -20,16 +21,6 @@ function hexToVec3(hex: string): [number, number, number] {
     parseInt(hex.slice(5, 7), 16) / 255,
   ];
 }
-
-const PIXELATE_FRAG = `${HEADER}
-uniform float uBlocks;
-
-void main() {
-  ${NORM_UV}
-  vec2 px      = floor(norm * uBlocks) / uBlocks + 0.5 / uBlocks;
-  vec2 warped  = clamp(px, 0.0, 1.0);
-  gl_FragColor = ${SAMPLE('warped')};
-}`;
 
 const HUE_FRAG = `${HEADER}
 uniform float uAngle;
