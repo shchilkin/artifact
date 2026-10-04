@@ -23,6 +23,8 @@ const GOLDENS_ENABLED = process.platform === 'linux' || process.env.RUNTIME_GOLD
 const GOLDEN_OPTIONS = { threshold: 0.05, maxDiffPixelRatio: 0.002 };
 
 const BROKEN_NOISE_WARP = { search: 'vec2(ox, oy)', replace: 'vec2(oy, ox)' };
+/** Grain at half the editor's strength: the same noise shape, too faint. */
+const FAINT_GRAIN = { search: 'uGrain * 3.0', replace: 'uGrain * 1.5' };
 
 async function openHarness(page: Page) {
   await setupBrowserTestPage(page);
@@ -172,5 +174,15 @@ test.describe('the harness itself', () => {
     const statistics = await runParity(page, 'noiseWarp', 'text', { ...reseeded, stochastic: true });
     expect(pixels.comparison.pass, describeComparison(pixels.comparison)).toBe(false);
     expect(statistics.comparison.pass, describeComparison(statistics.comparison)).toBe(true);
+  });
+
+  test('statistics reject Grain at half strength', async ({ page }) => {
+    // The subtlest broken grain port measured: mean and std dev barely move, the histogram does. Flat colours show
+    // it most clearly; a port must pass on every fixture, so failing on these is enough to reject it.
+    for (const fixture of ['graphic', 'text']) {
+      const result = await runParity(page, 'grain', fixture, { fragmentPatch: FAINT_GRAIN });
+      expect(result.patched).toBe(true);
+      expect(result.comparison.pass, `${fixture}: ${describeComparison(result.comparison)}`).toBe(false);
+    }
   });
 });
