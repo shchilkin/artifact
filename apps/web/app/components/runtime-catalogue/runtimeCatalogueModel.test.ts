@@ -89,4 +89,11 @@ describe('runtime catalogue model', () => {
     expect(catalogueLayer('ca', EFFECT_CASES.ca)).toMatchObject({ preset: 'ca', ca: 15 });
     expect(catalogueBindings(EFFECT_CASES.ca)).toEqual(['wave track', 'pointer.x', 'pointer.y', 'pointer.speed']);
   });
+
+  it('lists Data Mosh with its amount slider, the step and pulse tracks and click', () => {
+    expect(catalogueTitle('dataMosh')).toBe('Data Mosh');
+    expect(catalogueControls('dataMosh')).toEqual([expect.objectContaining({ type: 'slider', field: 'dataMosh' })]);
+    expect(catalogueLayer('dataMosh', EFFECT_CASES.dataMosh)).toMatchObject({ preset: 'dataMosh', dataMosh: 30 });
+    expect(catalogueBindings(EFFECT_CASES.dataMosh)).toEqual(['step track', 'pulse track', 'click']);
+  });
 });

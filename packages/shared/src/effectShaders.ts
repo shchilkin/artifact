@@ -93,3 +93,29 @@ void main() {
   vec2 warped = clamp(norm + vec2(wx, wy) * uIntensity, 0.0, 1.0);
   gl_FragColor = ${SAMPLE('warped')};
 }`;
+
+/**
+ * Data Mosh: splits the frame into blocks 0.06 wide; a seeded hash picks about 45% of them and shifts each by its own
+ * offset (wrapped with `fract`). The seed only chooses which blocks move, so re-seeding re-moshes the frame.
+ * Uniforms: `uIntensity`, `uSeed`.
+ */
+export const DATAMOSH_FRAG = `${HEADER}
+uniform float uIntensity;
+uniform float uSeed;
+
+float dmHash(vec2 p) {
+  p = fract(p * vec2(234.34, 435.345));
+  p += dot(p, p + 34.23);
+  return fract(p.x * p.y);
+}
+
+void main() {
+  ${NORM_UV}
+  float blockSize = 0.06;
+  vec2 blockId = floor(norm / blockSize);
+  float active = step(0.55, dmHash(blockId + uSeed * 0.001));
+  vec2 offset  = (vec2(dmHash(blockId), dmHash(blockId + 1.3)) - 0.5)
+                 * uIntensity * active;
+  vec2 warped  = fract(norm + offset);
+  gl_FragColor = ${SAMPLE('warped')};
+}`;

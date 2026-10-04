@@ -55,7 +55,7 @@ not its render loop.
   `setInput` fills `inputs`.
 
 Shader reuse: shared fragments live in `@artifact/shared/effect-shaders` (`HEADER`, `NORM_UV`, `SAMPLE`,
-`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
+`NOISE_FRAG`, `VORTEX_FRAG`, `MORPH_FRAG`, `DATAMOSH_FRAG`). `apps/web/app/utils/pixiFilters.ts` and the runtime both import them, so the strings stay
 byte-identical. Port further editor fragments the same way: move the string, import it in both places.
 
 Pixi conventions the chain matches:
