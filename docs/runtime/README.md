@@ -68,6 +68,47 @@ Pixi conventions the chain matches:
 `tests/browser/runtime-chain.spec.ts` imports the runtime source from the dev server (`/@fs/`), so no test route
 ships in the app.
 
+## Bindings (issue #332)
+
+`createLiveArtwork({ canvas, source, passes, context, bindings, pointer?, ...artworkOptions })` is `createArtwork`
+plus bindings. `passes` are the authored effects (`{ effect: 'noiseWarp', layer: { noiseWarp: 40 } }`); `bindings`
+is plain JSON, validated by `parseBindings` / `compileLiveChain`, which throw a `BindingError` listing every problem
+with its path (`bindings[2].to.field: noiseWarp has no field "noisewarp"; bindable fields: noiseWarp, seedOffset`).
+
+```json
+{
+  "version": 1,
+  "loop": { "durationSeconds": 6 },
+  "bindings": [
+    { "from": { "input": "pointer.x" }, "to": { "pass": 0, "uniform": "uCenter", "component": 0 }, "smoothing": 0.15 },
+    { "from": { "input": "pointer.y" }, "to": { "pass": 0, "uniform": "uCenter", "component": 1 }, "smoothing": 0.15 },
+    { "from": { "input": "hover" }, "to": { "pass": 0, "field": "vortex" }, "range": [20, 80], "easing": "easeOut" },
+    { "from": { "track": "wave", "cycles": 1 }, "to": { "pass": 1, "field": "noiseWarp" }, "range": [-20, 20], "mode": "add" }
+  ]
+}
+```
+
+- **Sources**: a time track (`wave` in [-1, 1] with whole `cycles` and `phase`; `pulse` 0/1 with `at` and `length`
+  in loop turns; `step` with `fps` and `stride`, unbounded) or an input. Tracks need `loop.durationSeconds`; a step
+  track's `durationSeconds × fps` must be whole so the loop closes.
+- **Targets**: `field` drives an authored field the effect lists in `EffectDefinition.fields`, and the effect's own
+  uniform mapping turns it into uniforms (so `noiseWarp` → `uIntensity` exactly as the editor maps it). `uniform`
+  sets a uniform directly after field bindings; vector uniforms such as `uCenter` need a `component`. `uCenter`
+  exists only on centred effects.
+- **Mapping**: a bounded source is normalised over its domain, eased (`linear`, `easeIn`, `easeOut`, `easeInOut`),
+  mapped onto `range` (default: the domain), smoothed (`smoothing`, an exponential time constant in seconds on the
+  scheduler clock), then `set` or `add`ed to the authored value and `clamp`ed. Bindings on one target apply in order.
+- A pass with bindings stays in the chain even when its authored amount is zero, since it may move off zero.
+- **Inputs** (`attachPointerInputs`, pure model in `createPointerModel`): `pointer.x/y` 0→1 across the artwork with
+  `y = 0` at the top, as `vTextureCoord`, resting at 0.5; `pointer.speed` smoothed velocity in artwork lengths per
+  second over `maxSpeed` (default 3), capped at 1; `pointer.dirX/dirY` the unit heading, kept when the pointer stops;
+  `hover` eases 0→1 over 0.25 s with smoothstep (on touch it follows touch-down); `click` is 1 at a press and decays
+  with a 0.5 s time constant, with `click.x/y`; `scroll` runs 0→1 from the artwork's top edge entering the viewport
+  to its bottom edge leaving. Listeners are passive and removed on `destroy`; values from `setInput` take precedence.
+- A stopped artwork redraws once when an input changes; a running one picks inputs up on its next frame.
+- **Reduced motion** turns every binding off and the artwork shows the authored still, also when the preference
+  switches on while playing.
+
 ## Verification: one effect at a time
 
 Every effect issue lands with visual tests in the shared harness (issue: parity harness):

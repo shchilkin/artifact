@@ -39,6 +39,7 @@ describe('effect registry', () => {
     const centred = defineEffect<{ amount: number; cx?: number; seedOffset?: number }>({
       id: 'centred',
       fragment: `${HEADER}\nuniform vec2 uCenter;\nvoid main() { gl_FragColor = vec4(uCenter, 0.0, 1.0); }`,
+      fields: ['amount', 'cx'],
       amount: (layer) => layer.amount,
       uniforms: (layer): UniformValues =>
         layer.cx === undefined ? { uAmount: layer.amount } : { uCenter: [layer.cx, 0.5] },
