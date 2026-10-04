@@ -314,7 +314,9 @@ function setUniform(
       gl.uniform3f(location, value[0], value[1], value[2]);
       return;
     case gl.FLOAT_VEC4:
-      gl.uniform4f(location, value[0], value[1], value[2], value[3]);
+      // A longer list fills a `vec4` array (for example Glitch's bands), four floats per element.
+      if (value.length > 4) gl.uniform4fv(location, value as number[]);
+      else gl.uniform4f(location, value[0], value[1], value[2], value[3]);
       return;
     case gl.INT_VEC2:
       gl.uniform2i(location, value[0], value[1]);
