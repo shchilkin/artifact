@@ -273,3 +273,31 @@ test('the runtime catalogue shows Chromatic split with a working amount control'
   await expect(amount).toHaveValue('15');
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });
+
+test('the runtime catalogue shows Ripple, with a click starting a ring', async ({ page, browserName }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const entry = page.locator('article[data-effect="ripple"]');
+  await expect(entry.getByRole('heading', { name: 'Ripple' })).toBeVisible();
+  await expect(entry.getByText('step track, click, click.x, click.y')).toBeVisible();
+  await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+
+  const canvas = entry.locator('canvas');
+  // The entry sits below the fold, and the mouse works in viewport coordinates.
+  await canvas.scrollIntoViewIfNeeded();
+  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
+  if (browserName === 'webkit' && process.platform === 'linux') return;
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('catalogue canvas has no box');
+  // Hover first so the resting frame is taken with the pointer on the canvas; only the press starts a ring.
+  await page.mouse.move(box.x + box.width / 4, box.y + box.height / 4, { steps: 4 });
+  await page.waitForTimeout(400);
+  const resting = await canvas.screenshot();
+  await page.mouse.down();
+  await expect.poll(async () => (await canvas.screenshot()).equals(resting)).toBe(false);
+  await page.mouse.up();
+  await page.mouse.move(0, 0);
+});
