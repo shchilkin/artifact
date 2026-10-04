@@ -7,6 +7,7 @@ import { plateCaseBindings } from '../../../../../../packages/runtime/src/testin
 import graphicUrl from '../../../../../../packages/runtime/test/fixtures/graphic.png?url';
 import type { CanvasDocument } from '../../../types/config';
 import { SegmentedControl, SegmentedControlTrigger } from '../../ui/SegmentedControl';
+import { CATALOGUE_CONTEXT_ATTRIBUTES } from '../runtimeCatalogueModel';
 import { exportLivePackage, type LiveExport, zipLivePackage } from './exportLivePackage';
 import { livePackageFromFiles } from './packageFromFiles';
 import { measurePackageParity, type PackageParity } from './packageParity';
@@ -82,6 +83,7 @@ export function LiveExportPanel() {
         observeVisibility: null,
         reducedMotion: false,
         devicePixelRatio: result.livePackage.manifest.size.width / CSS_SIZE,
+        contextAttributes: CATALOGUE_CONTEXT_ATTRIBUTES,
       });
       artwork.start();
       artwork.ready.catch(fail);

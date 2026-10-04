@@ -10,7 +10,13 @@ export default defineConfig({
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: process.env.CI ? [['html', { open: 'never' }], ['list']] : 'list',
+  reporter: [
+    ...(process.env.CI ? ([['html', { open: 'never' }], ['list']] as const) : ([['list']] as const)),
+    // A job where every selected test skipped fails instead of passing silently (runtime-experiment.yml sets it).
+    ...(process.env.PLAYWRIGHT_FAIL_ON_ALL_SKIPPED === '1'
+      ? ([['./tests/browser/runtime/requireRunReporter.ts']] as const)
+      : []),
+  ],
   use: {
     baseURL: webServerBaseUrl,
     trace: 'on-first-retry',

@@ -19,6 +19,8 @@ test('the runtime catalogue shows Noise Warp with working controls and a GPU tim
   await expect(entry.getByText('wave track, pointer.x, pointer.y, pointer.speed')).toBeVisible();
   // A measured time where the context has timer queries, "n/a" where it has none; never stuck measuring.
   await expect(entry.getByTestId('runtime-gpu-time')).toHaveText(/^(\d+\.\d\d ms|n\/a)$/, { timeout: 15_000 });
+  // The budget line judges a measured time against 2 ms; without timer queries there is nothing to judge.
+  await expect(entry.getByTestId('runtime-gpu-budget')).toHaveText(/^(within 2 ms|not measured)$/);
 
   const canvas = entry.locator('canvas');
   const before = await canvas.screenshot();
@@ -86,7 +88,7 @@ test('the catalogue exports the sample cover as a live package and plays it', as
   expect((await download).suggestedFilename()).toBe('Sample cover-live-540.zip');
 });
 
-test('the runtime catalogue shows Liquid Morph with a working frequency control', async ({ page, browserName }) => {
+test('the runtime catalogue shows Liquid Morph with a working frequency control', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -106,15 +108,11 @@ test('the runtime catalogue shows Liquid Morph with a working frequency control'
   await frequency.focus();
   await frequency.press('End');
   await expect(frequency).toHaveValue('20');
-  // WebKit on Linux (CI) presents a recreated catalogue canvas that started below the fold one update late; Vortex's
-  // entry shows the same lag, so the pixel check runs in the other engines and in WebKit on macOS.
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });
 
 test('the runtime catalogue shows radial chromatic aberration, with the fringe centre following the pointer', async ({
   page,
-  browserName,
 }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
@@ -128,8 +126,6 @@ test('the runtime catalogue shows radial chromatic aberration, with the fringe c
 
   // The entry sits below the fold; bring it into view before capturing, so WebKit composites the canvas.
   await entry.scrollIntoViewIfNeeded();
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   const canvas = entry.locator('canvas');
   const box = await canvas.boundingBox();
   if (!box) throw new Error('catalogue canvas has no box');
@@ -140,7 +136,7 @@ test('the runtime catalogue shows radial chromatic aberration, with the fringe c
   await page.mouse.move(0, 0);
 });
 
-test('the runtime catalogue shows Data Mosh with a working amount control', async ({ page, browserName }) => {
+test('the runtime catalogue shows Data Mosh with a working amount control', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -160,12 +156,10 @@ test('the runtime catalogue shows Data Mosh with a working amount control', asyn
   await amount.focus();
   await amount.press('End');
   await expect(amount).toHaveValue('100');
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });
 
-test('the runtime catalogue shows Tear, with a click spiking the tear', async ({ page, browserName }) => {
+test('the runtime catalogue shows Tear, with a click spiking the tear', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -179,8 +173,6 @@ test('the runtime catalogue shows Tear, with a click spiking the tear', async ({
   const canvas = entry.locator('canvas');
   // The entry sits below the fold, and the mouse works in viewport coordinates.
   await canvas.scrollIntoViewIfNeeded();
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   const box = await canvas.boundingBox();
   if (!box) throw new Error('catalogue canvas has no box');
   // Hover first so the resting frame is taken with the pointer on the canvas; only the press changes the tear.
@@ -193,7 +185,7 @@ test('the runtime catalogue shows Tear, with a click spiking the tear', async ({
   await page.mouse.move(0, 0);
 });
 
-test('the runtime catalogue shows Glitch with a working VHS Streaks control', async ({ page, browserName }) => {
+test('the runtime catalogue shows Glitch with a working VHS Streaks control', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -214,12 +206,10 @@ test('the runtime catalogue shows Glitch with a working VHS Streaks control', as
   await amount.press('End');
   // The editor's slider runs to 24 streaks.
   await expect(amount).toHaveValue('24');
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });
 
-test('the runtime catalogue shows plate parallax, with depth and strength controls', async ({ page, browserName }) => {
+test('the runtime catalogue shows plate parallax, with depth and strength controls', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -233,12 +223,11 @@ test('the runtime catalogue shows plate parallax, with depth and strength contro
   await expect(strength).toHaveValue('4');
   await expect(topDepth).toHaveValue('100');
 
-  // Below the fold: bring it into view so every engine composites the canvas (see Liquid Morph above).
+  // Below the fold: bring it into view so every engine composites the canvas.
   await entry.scrollIntoViewIfNeeded();
   await topDepth.focus();
   await topDepth.press('Home');
   await expect(entry.getByText('card (depth 0%)')).toBeVisible();
-  if (browserName === 'webkit' && process.platform === 'linux') return;
 
   const canvas = entry.locator('canvas');
   await expect.poll(async () => (await canvas.boundingBox())?.width ?? 0).toBeGreaterThan(0);
@@ -261,7 +250,7 @@ test('the runtime catalogue shows plate parallax, with depth and strength contro
   await page.mouse.move(0, 0);
 });
 
-test('the runtime catalogue shows Chromatic split with a working amount control', async ({ page, browserName }) => {
+test('the runtime catalogue shows Chromatic split with a working amount control', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -282,12 +271,10 @@ test('the runtime catalogue shows Chromatic split with a working amount control'
   await amount.press('End');
   // The editor's slider runs to 15.
   await expect(amount).toHaveValue('15');
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
 });
 
-test('the runtime catalogue shows Ripple, with a click starting a ring', async ({ page, browserName }) => {
+test('the runtime catalogue shows Ripple, with a click starting a ring', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
@@ -301,8 +288,6 @@ test('the runtime catalogue shows Ripple, with a click starting a ring', async (
   const canvas = entry.locator('canvas');
   // The entry sits below the fold, and the mouse works in viewport coordinates.
   await canvas.scrollIntoViewIfNeeded();
-  // WebKit on Linux (CI) presents a recreated catalogue canvas below the fold one update late (see Liquid Morph).
-  if (browserName === 'webkit' && process.platform === 'linux') return;
   const box = await canvas.boundingBox();
   if (!box) throw new Error('catalogue canvas has no box');
   // Hover first so the resting frame is taken with the pointer on the canvas; only the press starts a ring.
