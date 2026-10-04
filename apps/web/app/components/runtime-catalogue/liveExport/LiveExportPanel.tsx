@@ -3,6 +3,7 @@ import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import type { Artwork } from '../../../../../../packages/runtime/src/artwork';
 import { createLiveArtwork } from '../../../../../../packages/runtime/src/liveArtwork';
 import type { LivePackage } from '../../../../../../packages/runtime/src/livePackage';
+import { plateCaseBindings } from '../../../../../../packages/runtime/src/testing/plateCase';
 import graphicUrl from '../../../../../../packages/runtime/test/fixtures/graphic.png?url';
 import type { CanvasDocument } from '../../../types/config';
 import { SegmentedControl, SegmentedControlTrigger } from '../../ui/SegmentedControl';
@@ -11,6 +12,10 @@ import { livePackageFromFiles } from './packageFromFiles';
 import { measurePackageParity, type PackageParity } from './packageParity';
 import { loadProjectDocument } from './projectDocument';
 import { sampleLiveCover } from './sampleCover';
+
+function formatDepth(depth: number | undefined): string {
+  return depth === undefined ? 'default' : `${Math.round(depth * 100)}%`;
+}
 
 /** Displayed size of the still and the live canvas. */
 const CSS_SIZE = 270;
@@ -162,6 +167,7 @@ export function LiveExportPanel() {
             Download .zip
           </Button>
         </div>
+        <Button onClick={() => setBindings(JSON.stringify(plateCaseBindings(), null, 1))}>Parallax example</Button>
         <label className="runtime-catalogue-bindings">
           <span>Bindings JSON (optional; passes are counted bottom up across chains)</span>
           <textarea
@@ -201,7 +207,7 @@ export function LiveExportPanel() {
                   {manifest.stack.map((item, index) => (
                     <li key={item.type === 'plate' ? item.file : `chain-${index}`}>
                       {item.type === 'plate'
-                        ? `plate: ${item.layers.map((layer) => layer.name).join(', ') || 'empty'}`
+                        ? `plate (depth ${formatDepth(item.depth)}${item.edges ? (item.edges.length > 0 ? `, edges ${item.edges.join(' ')}` : '') : ', edges: all'}): ${item.layers.map((layer) => layer.name).join(', ') || 'empty'}`
                         : `chain: ${item.passes.map((pass) => `${pass.effect} (${pass.source.name})`).join(', ')}`}
                     </li>
                   ))}

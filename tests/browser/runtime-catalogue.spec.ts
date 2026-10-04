@@ -192,3 +192,43 @@ test('the runtime catalogue shows Tear, with a click spiking the tear', async ({
   await page.mouse.up();
   await page.mouse.move(0, 0);
 });
+
+test('the runtime catalogue shows plate parallax, with depth and strength controls', async ({ page, browserName }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const entry = page.locator('article[data-effect="plateParallax"]');
+  await expect(entry.getByRole('heading', { name: 'Plate parallax' })).toBeVisible();
+  await expect(entry.getByText('pointer.x, pointer.y, wave track')).toBeVisible();
+  const strength = entry.getByRole('slider', { name: 'Strength' });
+  const topDepth = entry.getByRole('slider', { name: 'Top depth' });
+  await expect(strength).toHaveValue('4');
+  await expect(topDepth).toHaveValue('100');
+
+  // Below the fold: bring it into view so every engine composites the canvas (see Liquid Morph above).
+  await entry.scrollIntoViewIfNeeded();
+  await topDepth.focus();
+  await topDepth.press('Home');
+  await expect(entry.getByText('card (depth 0%)')).toBeVisible();
+  if (browserName === 'webkit' && process.platform === 'linux') return;
+
+  const canvas = entry.locator('canvas');
+  await expect.poll(async () => (await canvas.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const centred = await canvas.screenshot();
+  await page.mouse.move(box.x + 4, box.y + 4, { steps: 4 });
+  await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(false);
+
+  // At zero strength the pointer moves nothing.
+  await strength.focus();
+  await strength.press('Home');
+  await expect(strength).toHaveValue('0');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(true);
+  await page.mouse.move(box.x + 4, box.y + 4, { steps: 4 });
+  await expect.poll(async () => (await canvas.screenshot()).equals(centred)).toBe(true);
+  await page.mouse.move(0, 0);
+});
