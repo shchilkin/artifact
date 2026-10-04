@@ -1029,7 +1029,7 @@ async function runGpuPass(
   return gpuRenderToCanvas({ width: W, height: H, source: current, filters, recordCost: options.recordGpuCost });
 }
 
-const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
+export const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
   'glitch',
   'badStream',
   'rgbSplit',
@@ -1069,8 +1069,8 @@ const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
   'gooeyMerge',
   'speedLines',
 ];
-const CANVAS_NONZERO_EFFECT_KEYS: Array<keyof EffectLayer> = ['squeezeX', 'squeezeY'];
-const GPU_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
+export const CANVAS_NONZERO_EFFECT_KEYS: Array<keyof EffectLayer> = ['squeezeX', 'squeezeY'];
+export const GPU_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
   'mirror',
   'dataMosh',
   'interlace',

@@ -18,6 +18,7 @@ import type { EffectLayer } from '../../types/config';
 import { formatEffectSliderValue } from '../node-canvas/inspector/EffectControlSections';
 import { InspectorColorInput, InspectorSlider } from '../node-canvas/inspector/fields';
 import { SegmentedControl, SegmentedControlTrigger } from '../ui/SegmentedControl';
+import { LiveExportPanel } from './liveExport/LiveExportPanel';
 import {
   catalogueBindings,
   catalogueControls,
@@ -72,6 +73,7 @@ export function RuntimeCatalogue() {
           </SegmentedControl>
         </div>
       </header>
+      <LiveExportPanel />
       <ul className="runtime-catalogue-grid">
         {effects.map((effect) => (
           <li key={effect}>
