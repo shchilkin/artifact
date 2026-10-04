@@ -1,4 +1,4 @@
-import { COPY_FRAGMENT, inputClamp, PASS_VERTEX } from './shaders.js';
+import { COPY_FRAGMENT, inputClamp, OVER_FRAGMENT, PASS_VERTEX, UNDER_FRAGMENT } from './shaders.js';
 import type { ArtworkSource, ChainPass, UniformValue, UniformValues } from './types.js';
 
 const POSITION_ATTRIBUTE = 0;
@@ -35,7 +35,57 @@ export interface ChainRenderer {
   destroy(): void;
 }
 
+/**
+ * One draw of a composite (see `createCompositeRenderer`): an effect pass over the image so far, or a plate
+ * composited over (`over`) or beneath (`under`) it with premultiplied alpha, as Canvas 2D `source-over` and
+ * `destination-over` do.
+ */
+export type CompositeStep =
+  | { readonly kind: 'pass'; readonly pass: ChainPass }
+  | { readonly kind: 'over' | 'under'; readonly plate: number };
+
+/** A chain renderer over several source images ("plates"); plate 0 is the image the first step reads. */
+export interface CompositeRenderer {
+  setSize(width: number, height: number): void;
+  /** Uploads plate `index`'s pixels. */
+  setPlate(index: number, source: ArtworkSource): void;
+  /** Draws every step. `overrides[i]` is merged over step `i`'s resting uniforms (pass steps only). */
+  render(overrides?: readonly (UniformValues | undefined)[]): void;
+  destroy(): void;
+}
+
 export function createChainRenderer(gl: WebGL2RenderingContext, passes: readonly ChainPass[]): ChainRenderer {
+  const renderer = createCompositeRenderer(
+    gl,
+    passes.map((pass) => ({ kind: 'pass', pass })),
+    1,
+  );
+  return {
+    setSize: renderer.setSize,
+    setSource: (source) => renderer.setPlate(0, source),
+    render: renderer.render,
+    destroy: renderer.destroy,
+  };
+}
+
+/** The unit plates bind to in `over` and `under` steps; the image so far stays on unit 0 as `uSampler`. */
+const PLATE_UNIT = 1;
+
+/**
+ * Draws `steps` starting from plate 0: the same ping-pong as a chain, where a step is either an effect pass or a
+ * plate composited over or beneath the image so far. The last step draws to the canvas.
+ */
+export function createCompositeRenderer(
+  gl: WebGL2RenderingContext,
+  steps: readonly CompositeStep[],
+  plateCount: number,
+): CompositeRenderer {
+  if (!(plateCount >= 1)) throw new Error('A composite needs at least one plate.');
+  for (const step of steps) {
+    if (step.kind !== 'pass' && !(Number.isInteger(step.plate) && step.plate >= 1 && step.plate < plateCount)) {
+      throw new Error(`Composite step reads plate ${step.plate}; plates 1 to ${plateCount - 1} can be composited.`);
+    }
+  }
   const created = {
     buffers: [] as WebGLBuffer[],
     vertexArrays: [] as WebGLVertexArrayObject[],
@@ -54,9 +104,11 @@ export function createChainRenderer(gl: WebGL2RenderingContext, passes: readonly
     }
     return compiled;
   };
-  const drawPasses: readonly ChainPass[] =
-    passes.length > 0 ? passes : [{ id: 'copy', fragment: COPY_FRAGMENT, uniforms: {} }];
-  const passPrograms = drawPasses.map((pass) => programFor(pass.fragment));
+  const drawSteps: readonly CompositeStep[] =
+    steps.length > 0 ? steps : [{ kind: 'pass', pass: { id: 'copy', fragment: COPY_FRAGMENT, uniforms: {} } }];
+  const stepPrograms = drawSteps.map((step) =>
+    programFor(step.kind === 'pass' ? step.pass.fragment : step.kind === 'over' ? OVER_FRAGMENT : UNDER_FRAGMENT),
+  );
 
   const vertexArray = gl.createVertexArray();
   const quad = gl.createBuffer();
@@ -69,9 +121,9 @@ export function createChainRenderer(gl: WebGL2RenderingContext, passes: readonly
   gl.vertexAttribPointer(POSITION_ATTRIBUTE, 2, gl.FLOAT, false, 0, 0);
   gl.bindVertexArray(null);
 
-  const sourceTexture = createTexture(gl);
-  // Two targets are enough for any chain length; a single pass draws straight from the source to the canvas.
-  const targetCount = Math.min(drawPasses.length - 1, 2);
+  const plateTextures = Array.from({ length: plateCount }, () => createTexture(gl));
+  // Two targets are enough for any number of steps; a single step draws straight from plate 0 to the canvas.
+  const targetCount = Math.min(drawSteps.length - 1, 2);
   const targets: Target[] = [];
   let width = 0;
   let height = 0;
@@ -101,9 +153,11 @@ export function createChainRenderer(gl: WebGL2RenderingContext, passes: readonly
       gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
-    setSource(source) {
+    setPlate(index, source) {
       assertLive();
-      gl.bindTexture(gl.TEXTURE_2D, sourceTexture);
+      const texture = plateTextures[index];
+      if (!texture) throw new Error(`There is no plate ${index}; the composite has ${plateCount}.`);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
       // Pixi uploads canvases premultiplied and unflipped; matching both keeps editor fragments' output identical.
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
@@ -117,24 +171,35 @@ export function createChainRenderer(gl: WebGL2RenderingContext, passes: readonly
       gl.disable(gl.BLEND);
       gl.disable(gl.DEPTH_TEST);
       gl.bindVertexArray(vertexArray);
-      gl.activeTexture(gl.TEXTURE0);
       gl.viewport(0, 0, width, height);
-      const last = drawPasses.length - 1;
+      const last = drawSteps.length - 1;
       for (let index = 0; index <= last; index += 1) {
-        const input = index === 0 ? sourceTexture : targets[(index - 1) % 2].texture;
+        const step = drawSteps[index];
+        const input = index === 0 ? plateTextures[0] : targets[(index - 1) % 2].texture;
         const output = index === last ? null : targets[index % 2].framebuffer;
-        const { program, uniforms } = passPrograms[index];
+        const { program, uniforms } = stepPrograms[index];
         gl.bindFramebuffer(gl.FRAMEBUFFER, output);
         gl.useProgram(program);
+        if (step.kind !== 'pass') {
+          gl.activeTexture(gl.TEXTURE0 + PLATE_UNIT);
+          gl.bindTexture(gl.TEXTURE_2D, plateTextures[step.plate]);
+          setUniform(gl, uniforms, 'uPlate', PLATE_UNIT, true);
+        }
+        gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, input);
         setUniform(gl, uniforms, 'uSampler', 0, true);
         setUniform(gl, uniforms, 'inputClamp', clamp);
         setUniform(gl, uniforms, 'uFlipY', output === null ? -1 : 1);
-        setUniforms(gl, uniforms, drawPasses[index].uniforms);
-        const override = overrides?.[index];
-        if (override) setUniforms(gl, uniforms, override);
+        if (step.kind === 'pass') {
+          setUniforms(gl, uniforms, step.pass.uniforms);
+          const override = overrides?.[index];
+          if (override) setUniforms(gl, uniforms, override);
+        }
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       }
+      gl.activeTexture(gl.TEXTURE0 + PLATE_UNIT);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, null);
       gl.bindVertexArray(null);
     },
@@ -149,7 +214,7 @@ export function createChainRenderer(gl: WebGL2RenderingContext, passes: readonly
         gl.deleteTexture(target.texture);
       }
       targets.length = 0;
-      gl.deleteTexture(sourceTexture);
+      for (const texture of plateTextures) gl.deleteTexture(texture);
       for (const program of created.programs) gl.deleteProgram(program);
       for (const shader of created.shaders) gl.deleteShader(shader);
       for (const buffer of created.buffers) gl.deleteBuffer(buffer);

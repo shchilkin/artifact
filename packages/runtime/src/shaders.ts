@@ -27,6 +27,30 @@ void main() {
 }`;
 
 /**
+ * Composites a plate (`uPlate`, premultiplied) over the image so far (`uSampler`): Canvas 2D `source-over`, which is
+ * how the editor draws a normal-blend layer onto the layers beneath it.
+ */
+export const OVER_FRAGMENT = `${HEADER}
+uniform sampler2D uPlate;
+void main() {
+  vec4 below = texture2D(uSampler, vTextureCoord);
+  vec4 plate = texture2D(uPlate, vTextureCoord);
+  gl_FragColor = plate + below * (1.0 - plate.a);
+}`;
+
+/**
+ * Composites a plate beneath the image so far: Canvas 2D `destination-over`, which is how the editor's stack export
+ * puts the document background under the rendered layers.
+ */
+export const UNDER_FRAGMENT = `${HEADER}
+uniform sampler2D uPlate;
+void main() {
+  vec4 above = texture2D(uSampler, vTextureCoord);
+  vec4 plate = texture2D(uPlate, vTextureCoord);
+  gl_FragColor = above + plate * (1.0 - above.a);
+}`;
+
+/**
  * Pixi's `inputClamp` for a filter input of `width` × `height` texels: the texture's extent inset by half a texel,
  * so clamped samples stay inside the frame. Every pass's input covers the whole render size (the source is
  * stretched to it by the first pass, as the editor draws it at the render size before filtering), so the runtime

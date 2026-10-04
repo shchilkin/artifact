@@ -66,6 +66,23 @@ test('the runtime catalogue shows Vortex, with the swirl centre following the po
   await page.mouse.move(0, 0);
 });
 
+test('the catalogue exports the sample cover as a live package and plays it', async ({ page }) => {
+  await setupBrowserTestPage(page);
+  await page.goto('/dev/runtime');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  test.skip(!webgl2, 'the runtime needs WebGL2');
+
+  const panel = page.getByRole('region', { name: 'Live package export' });
+  await panel.getByRole('button', { name: 'Export' }).click();
+  await expect(panel.getByTestId('live-export-summary')).toContainText('chain: noiseWarp (Noise Warp)', {
+    timeout: 30_000,
+  });
+  await expect(panel.getByTestId('live-export-parity')).toHaveText(/^pass/);
+  const download = page.waitForEvent('download');
+  await panel.getByRole('button', { name: 'Download .zip' }).click();
+  expect((await download).suggestedFilename()).toBe('Sample cover-live-540.zip');
+});
+
 test('the runtime catalogue shows Liquid Morph with a working frequency control', async ({ page }) => {
   await setupBrowserTestPage(page);
   await page.goto('/dev/runtime');
