@@ -73,6 +73,10 @@ Reachability has one home, `render/graphInputs.ts`: one walk
 it. When a graph renderer starts or stops reading an input port, update the table in the same change; the
 shared fixtures in `test-fixtures/render/graphReachFixtures.ts` cover every branch of the table and are checked
 against the nodes the renderer actually renders, by `graphRenderReach.test.ts` and `graphLayerTree.test.ts`.
+Layers tree edits (`utils/graphTreeEdits.ts`) read each node's primary port and input roles from the same table
+(`graphNodePrimaryPort`, `graphNodeInputRole`) and keep the first edge on every port first, so an edit never
+changes which edge the renderer reads on a port it did not splice. They change only graph edges, positions,
+and `doc.layers` order; render dispatch, thumbnails, and export are unchanged.
 
 Reach is about topology, not visibility: a hidden layer on the path to Output counts as reached (the renderer
 visits it and draws nothing). Layers rows show only "not in output" for unreached layers; a hidden layer's row

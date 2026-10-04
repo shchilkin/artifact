@@ -78,6 +78,12 @@ import {
   saveDocumentToStorage,
   takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
+import {
+  addLayerWithPlacement,
+  addNodeAboveTreeRow,
+  type LayerAddPlacement,
+  type TreeEditResult,
+} from '../utils/graphTreeEdits';
 import { graphUtilityNodeKind } from '../utils/nodeGraph';
 import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
@@ -271,45 +277,45 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   }, [commitDocument, nodeModeEnabled]);
 
   const addLayer = useCallback(
-    (kind: Exclude<LayerKind, 'effect'>) => {
+    (kind: Exclude<LayerKind, 'effect'>, placement?: LayerAddPlacement) => {
       const layer = createLayerOfKind(kind);
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
   );
 
   const addEffectPreset = useCallback(
-    (preset: EffectPreset) => {
+    (preset: EffectPreset, placement?: LayerAddPlacement) => {
       const layer = createEffectPresetLayer(preset);
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
   );
 
   const addTextPreset = useCallback(
-    (preset: TextPresetId) => {
+    (preset: TextPresetId, placement?: LayerAddPlacement) => {
       const layer = createTextPresetLayer(preset);
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
   );
 
   const addNoisePreset = useCallback(
-    (preset: NoisePresetId) => {
+    (preset: NoisePresetId, placement?: LayerAddPlacement) => {
       const layer = makeNoisePresetLayer(preset);
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
   );
 
   const addArrayPreset = useCallback(
-    (preset: ArrayPresetId) => {
+    (preset: ArrayPresetId, placement?: LayerAddPlacement) => {
       const layer = makeArrayPresetLayer(preset);
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
@@ -505,6 +511,30 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  /** Adds a graph-only node from Layers, above the selected tree row when `placement` names one. */
+  const addNodeFromLayers = useCallback(
+    (action: AddAction, position: { x: number; y: number }, placement?: LayerAddPlacement) => {
+      const placed = placement ? addNodeAboveTreeRow(docRef.current, action, placement.aboveNodeId) : null;
+      if (!placed) {
+        handleAddLayerAt(action, position);
+        return;
+      }
+      commitDocument(placed.doc, 'snapshot');
+      if (placed.selectedLayerId) setSelectedLayerId(placed.selectedLayerId);
+    },
+    [commitDocument, handleAddLayerAt],
+  );
+
+  /** Runs one Layers tree edit as one undo step. A blocked edit leaves the document as it is. */
+  const applyTreeEdit = useCallback(
+    (edit: (current: CanvasDocument) => TreeEditResult): TreeEditResult => {
+      const result = edit(docRef.current);
+      if (result.ok && result.doc !== docRef.current) commitDocument(result.doc, 'snapshot');
+      return result;
+    },
+    [commitDocument],
+  );
+
   const handleRandomize = useCallback(() => {
     const nextDoc = randomDocument();
     commitDocument(nextDoc, 'snapshot');
@@ -591,6 +621,8 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
+    addNodeFromLayers,
+    applyTreeEdit,
     handleRandomize,
     handleNewBlank,
     saveRecoveryDraft,

@@ -48,6 +48,8 @@ type SidebarLayerPanelProps = Pick<
   | 'onStartAiImage'
   | 'onRemoveLayer'
   | 'onDuplicateLayer'
+  | 'onApplyTreeEdit'
+  | 'onEditInNodes'
   | 'modeSwitcher'
 >;
 
@@ -320,6 +322,8 @@ export function Sidebar({
   onRemoveLayer,
   onReorderLayers,
   onDuplicateLayer,
+  onApplyTreeEdit,
+  onEditInNodes,
   showAiGeneration,
   onGeneratedImageSource,
   mobileActionBar,
@@ -370,6 +374,8 @@ export function Sidebar({
             onRemoveArea={layerPanelHandlers.handleRemoveArea}
             onRenameArea={layerPanelHandlers.handleRenameArea}
             onDuplicateLayer={onDuplicateLayer}
+            onApplyTreeEdit={onApplyTreeEdit}
+            onEditInNodes={onEditInNodes}
             onRenameLayer={layerPanelHandlers.handleRenameLayer}
             onAspectChange={handleAspectChange}
             modeSwitcher={modeSwitcher}

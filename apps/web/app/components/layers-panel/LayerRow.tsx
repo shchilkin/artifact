@@ -156,7 +156,7 @@ function handleLayerRowDragStart(
 
 function layerDragTitle(layer: Layer, reorderDisabled: boolean) {
   if (layer.locked) return 'Unlock to reorder';
-  if (reorderDisabled) return 'Order follows the node graph. Reorder in Nodes.';
+  if (reorderDisabled) return 'Order follows the node graph. Reorder in Structure or in Nodes.';
   return 'Drag to reorder';
 }
 
@@ -437,12 +437,28 @@ export const LayerRow = memo(function LayerRow({
     layer,
   });
 
-  const treeProps = tree ? layerTreeItemProps(tree, selected, areas[0]?.color) : { role: 'listitem' };
+  // Tree rows bring their own drag and drop (`LayerRowTreePlacement.drag`); list rows use the stack reorder.
+  const placementProps = tree
+    ? layerTreeItemProps(tree, selected, areas[0]?.color)
+    : {
+        role: 'listitem',
+        draggable: !layer.locked && !reorderDisabled,
+        onDragStart: (event: ReactDragEvent<HTMLElement>) =>
+          handleLayerRowDragStart(event, layer, onDragStart, reorderDisabled),
+        onDragOver: (event: ReactDragEvent<HTMLElement>) => {
+          event.preventDefault();
+          onDragOverLayer?.(layer.id, getDropPosition(event));
+        },
+        onDrop: (event: ReactDragEvent<HTMLElement>) => {
+          event.preventDefault();
+          onDropLayer?.(layer.id, getDropPosition(event));
+        },
+        onDragEnd,
+      };
 
   return (
     <EditorRowFrame
-      {...treeProps}
-      draggable={!layer.locked && !reorderDisabled}
+      {...placementProps}
       selected={selected}
       isHidden={!layer.visible}
       isLocked={layer.locked}
@@ -453,16 +469,6 @@ export const LayerRow = memo(function LayerRow({
       data-layer-visible={layer.visible ? 'true' : 'false'}
       data-layer-locked={layer.locked ? 'true' : 'false'}
       data-layer-output={reachesOutput ? 'reached' : 'unreached'}
-      onDragStart={(event) => handleLayerRowDragStart(event, layer, onDragStart, reorderDisabled)}
-      onDragOver={(event) => {
-        event.preventDefault();
-        onDragOverLayer?.(layer.id, getDropPosition(event));
-      }}
-      onDrop={(event) => {
-        event.preventDefault();
-        onDropLayer?.(layer.id, getDropPosition(event));
-      }}
-      onDragEnd={onDragEnd}
       onClick={(event) => onSelect(layer.id, event)}
       onContextMenu={(event) => onOpenContextMenu(layer.id, event)}
       onDoubleClick={(event) => {

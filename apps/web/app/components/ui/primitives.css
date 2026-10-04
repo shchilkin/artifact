@@ -330,12 +330,14 @@
   outline-offset: -2px;
 }
 
-.artifact-menu-item:disabled {
+.artifact-menu-item:disabled,
+.artifact-menu-item[aria-disabled="true"] {
   cursor: default;
   opacity: var(--state-disabled-opacity);
 }
 
-.artifact-menu-item:disabled:hover {
+.artifact-menu-item:disabled:hover,
+.artifact-menu-item[aria-disabled="true"]:hover {
   background: transparent;
   color: var(--text-secondary);
 }

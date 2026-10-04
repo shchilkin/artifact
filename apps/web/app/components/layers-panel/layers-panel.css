@@ -1900,6 +1900,46 @@
   flex-shrink: 0;
 }
 
+/* Tree edits: the drop line and the moving row are drawn with inset shadows, so rows never shift. */
+.layer-tree [data-tree-drop="above"] {
+  box-shadow: inset 0 2px 0 var(--accent-primary);
+}
+
+.layer-tree [data-tree-drop="below"] {
+  box-shadow: inset 0 -2px 0 var(--accent-primary);
+}
+
+.layer-tree [data-tree-dragging="true"] {
+  opacity: var(--state-disabled-opacity);
+}
+
+.layer-tree[data-tree-moving="true"] [aria-label$=", moving"] {
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+}
+
+.layer-tree-edit-status {
+  position: absolute;
+  inset-inline: var(--space-2);
+  bottom: var(--space-2);
+  z-index: 3;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-overlay);
+  color: var(--text-secondary);
+  font-size: var(--type-ui-sm);
+  line-height: var(--leading-ui);
+  pointer-events: none;
+}
+
+.layer-tree-edit-status[data-visible="false"] {
+  /* Kept in the accessibility tree so the live region is registered before the first message. */
+  clip-path: inset(50%);
+  opacity: 0;
+}
+
 @media (max-width: 767px) {
   .layer-tree {
     --layer-tree-indent: var(--space-2);

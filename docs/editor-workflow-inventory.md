@@ -73,6 +73,7 @@ redo, export, project, document-import, or storage behavior into UI patterns.
 | Scene 3D layer row | default, selected, locked, keyboard selection, remove where allowed | **v0.45 E3** |
 | Graph-helper row shown in Layers | kind, label, nested placement, remove | **v0.45 E3** |
 | Layers tree for custom graphs | Structure/Areas switch; graph-node row (merge blend and opacity), reference row, label folder row (Mask, Pattern source, Inputs, Not in output), area rail and chip, expanded/collapsed, selected, focus-visible, type-ahead, narrow indentation cap; `/docs/style-guide` 04 specimen | **v0.50 U6** |
+| Layers tree edits | drag reorder within a run, drag between runs (merge group, mask, pattern, Not in output), drop line above/below, blocked drop with reason, dragging row, Alt+Up/Down move, Move to… keyboard mode, Delete key, shared-delete confirm, Move up/down/Move to/Edit in Nodes/Delete row actions, blocked action with reason, Add above selected row, status live region | **v0.50 U7** |
 | Layer context menu | rename, show/hide, duplicate, delete, disabled locked actions, area actions | **v0.45 E3** |
 | Multi-selection command bar | selected count, create area, add to area, remove from area, clear selection | **v0.45 E3** |
 | Area/folder group | expanded, collapsed, empty, count, rename, visibility, remove, nested rows | **v0.45 E3** |

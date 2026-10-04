@@ -16,6 +16,7 @@ import type {
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import { isLayerStackGraph } from '../../utils/documentCommands';
 import { buildGraphLayerTree, type GraphLayerTree } from '../../utils/graphLayerTree';
+import type { LayerAddPlacement, TreeEditResult } from '../../utils/graphTreeEdits';
 import { getLayerAreaMap } from '../../utils/layerAreas';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import { collectDocumentOutputNodeIds } from '../../utils/renderer';
@@ -40,19 +41,25 @@ import { LayerRow, type LayerRowProps, LayerSelectionControl } from './LayerRow'
 import { buildLayerDisplayItems, type LayerDisplayItem } from './layerDisplayItems';
 import { useLayerDragReorder } from './useLayerDragReorder';
 import { useLayerSelection } from './useLayerSelection';
+import { useLayerTreeEditing } from './useLayerTreeEditing';
 
 export interface LayerPanelProps {
   doc: CanvasDocument;
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
-  onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
-  onAddEffectPreset: (preset: EffectPreset) => void;
-  onAddTextPreset: (preset: TextPresetId) => void;
-  onAddNoisePreset: (preset: NoisePresetId) => void;
-  onAddArrayPreset: (preset: ArrayPresetId) => void;
-  onAddScene3D: () => void;
+  /** Adds take a placement while a Layers tree row is selected: the new node goes above that row. */
+  onAddLayer: (kind: Exclude<LayerKind, 'effect'>, placement?: LayerAddPlacement) => void;
+  onAddEffectPreset: (preset: EffectPreset, placement?: LayerAddPlacement) => void;
+  onAddTextPreset: (preset: TextPresetId, placement?: LayerAddPlacement) => void;
+  onAddNoisePreset: (preset: NoisePresetId, placement?: LayerAddPlacement) => void;
+  onAddArrayPreset: (preset: ArrayPresetId, placement?: LayerAddPlacement) => void;
+  onAddScene3D: (placement?: LayerAddPlacement) => void;
   onStartAiImage?: () => void;
   onRemoveLayer: (id: string) => void;
+  /** Applies one Layers tree edit as one undo step. Without it the tree is read-only. */
+  onApplyTreeEdit?: (edit: (doc: CanvasDocument) => TreeEditResult) => TreeEditResult;
+  /** Switches to Nodes with the node selected, for edits the tree does not make. */
+  onEditInNodes?: (nodeId: string) => void;
   onReorderLayers: (newOrder: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => void;
   onToggleVisible: (id: string) => void;
   onSetLayersVisible: (ids: string[], visible: boolean) => void;
@@ -108,6 +115,8 @@ export function LayerPanel({
   onAddScene3D,
   onStartAiImage,
   onRemoveLayer,
+  onApplyTreeEdit,
+  onEditInNodes,
   onReorderLayers,
   onToggleVisible,
   onSetLayersVisible,
@@ -154,6 +163,23 @@ export function LayerPanel({
   });
 
   const outputNodeIds = useMemo(() => collectDocumentOutputNodeIds(doc), [doc]);
+  const handleSelectTreeNode = useCallback(
+    (id: string | null) => {
+      setSelectedLayerIds(new Set());
+      onSelectLayer(id);
+    },
+    [onSelectLayer, setSelectedLayerIds],
+  );
+  const treeEditing = useLayerTreeEditing({
+    doc,
+    tree: graphTree,
+    selectedLayerId,
+    onApplyTreeEdit,
+    onEditInNodes,
+    onSelectLayer: handleSelectTreeNode,
+    onOpenNodeContextMenu: setContextMenu,
+  });
+  const { addPlacement } = treeEditing;
   const { dragOverTarget, handleDragStart, handleDragOverLayer, handleDrop, handleCancelDrag } = useLayerDragReorder({
     displayLayers,
     areasByLayerId,
@@ -249,14 +275,6 @@ export function LayerPanel({
     [areasByLayerId, onRemoveLayersFromAreas],
   );
 
-  const handleSelectGraphNode = useCallback(
-    (id: string) => {
-      setSelectedLayerIds(new Set());
-      onSelectLayer(id);
-    },
-    [onSelectLayer, setSelectedLayerIds],
-  );
-
   // Row handlers keep their identity across document edits, so only the edited row re-renders during a gesture.
   const handleSelectRow = useStableCallback(handleSelectLayer);
   const handleOpenRowContextMenu = useStableCallback(handleOpenLayerContextMenu);
@@ -269,17 +287,17 @@ export function LayerPanel({
   }, [onSelectLayer, setSelectedLayerIds]);
 
   return (
-    <div className="flex flex-col min-h-0 h-full">
+    <div className="relative flex flex-col min-h-0 h-full">
       <LayerPanelHeader
         aspect={doc.global.aspect ?? '1:1'}
         modeSwitcher={modeSwitcher}
         onAspectChange={onAspectChange}
-        onAddLayer={onAddLayer}
-        onAddEffectPreset={onAddEffectPreset}
-        onAddTextPreset={onAddTextPreset}
-        onAddNoisePreset={onAddNoisePreset}
-        onAddArrayPreset={onAddArrayPreset}
-        onAddScene3D={onAddScene3D}
+        onAddLayer={(kind) => onAddLayer(kind, addPlacement)}
+        onAddEffectPreset={(preset) => onAddEffectPreset(preset, addPlacement)}
+        onAddTextPreset={(preset) => onAddTextPreset(preset, addPlacement)}
+        onAddNoisePreset={(preset) => onAddNoisePreset(preset, addPlacement)}
+        onAddArrayPreset={(preset) => onAddArrayPreset(preset, addPlacement)}
+        onAddScene3D={() => onAddScene3D(addPlacement)}
         onStartAiImage={onStartAiImage}
       />
       {reorderDisabled ? <LayerPanelViewSwitch value={panelView} onChange={setPanelView} /> : null}
@@ -290,9 +308,9 @@ export function LayerPanel({
         aria-label={graphTree ? undefined : 'Layer stack'}
       >
         <LayerPanelEmptyState visible={displayLayers.length === 0} />
-        {reorderDisabled && displayLayers.length > 1 ? (
+        {reorderDisabled && !graphTree && displayLayers.length > 1 ? (
           <p className="layer-panel-graph-order-note px-3 py-2 text-[11px] text-dim border-b border-border">
-            Layer order follows the node graph. Reorder in Nodes.
+            Layer order follows the node graph. Reorder in Structure or in Nodes.
           </p>
         ) : null}
         <LayerSelectionActions
@@ -312,7 +330,7 @@ export function LayerPanel({
             selectedActionLayerIds={selectedActionLayerIds}
             editingId={editingId}
             onSelectLayer={handleSelectRow}
-            onSelectNode={handleSelectGraphNode}
+            onSelectNode={handleSelectTreeNode}
             onOpenLayerContextMenu={handleOpenRowContextMenu}
             onOpenLayerContextMenuAt={openLayerContextMenuAt}
             onStartEditing={setEditingId}
@@ -320,6 +338,7 @@ export function LayerPanel({
             onToggleVisible={onToggleVisible}
             onDuplicateLayer={onDuplicateLayer}
             onRemoveLayer={onRemoveLayer}
+            editing={treeEditing.editing}
           />
         ) : (
           <Scene3DLayerRows doc={doc} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
@@ -364,14 +383,55 @@ export function LayerPanel({
         layers={doc.layers}
         onClose={closeLayerContextMenu}
         onDuplicateLayers={(ids) => ids.forEach(onDuplicateLayer)}
-        onRemoveLayers={(ids) => ids.forEach(onRemoveLayer)}
+        onRemoveLayers={(ids) => (treeEditing.editing ? void treeEditing.deleteRows(ids) : ids.forEach(onRemoveLayer))}
         onCreateAreaFromSelection={handleCreateAreaFromSelection}
         onAddSelectionToArea={handleAddSelectionToArea}
         onRemoveSelectionFromAreas={handleRemoveSelectionFromAreas}
         onRenameLayer={setEditingId}
         onSetLayersVisible={onSetLayersVisible}
+        treeItems={treeEditing.menuItems(contextMenu)}
       />
+      <LayerTreeEditStatus
+        editing={Boolean(treeEditing.editing)}
+        helpId={treeEditing.helpId}
+        status={treeEditing.status}
+      />
+      {treeEditing.confirmDialog}
     </div>
+  );
+}
+
+/**
+ * Announces tree edits and why a move is blocked. The message is also shown as an overlay at the
+ * bottom of the panel, so it never shifts the rows.
+ */
+function LayerTreeEditStatus({
+  editing,
+  helpId,
+  status,
+}: {
+  editing: boolean;
+  helpId: string;
+  status: { message: string; serial: number };
+}) {
+  if (!editing) return null;
+  return (
+    <>
+      <p id={helpId} className="sr-only">
+        Drag rows to move them. Alt+Up and Alt+Down move a row within its stack, and Delete removes it. Shift+F10 opens
+        row actions, including Move to and Edit in Nodes.
+      </p>
+      <p
+        role="status"
+        aria-live="polite"
+        className="layer-tree-edit-status"
+        data-visible={status.message ? 'true' : 'false'}
+      >
+        {status.message}
+        {/* Alternating trailing space so the same message is announced again. */}
+        {status.serial % 2 === 0 ? '' : '\u00a0'}
+      </p>
+    </>
   );
 }
 

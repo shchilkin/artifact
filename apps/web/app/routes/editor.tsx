@@ -159,6 +159,8 @@ export default function Editor() {
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
+    addNodeFromLayers,
+    applyTreeEdit,
     handleRandomize,
     handleNewBlank,
     saveRecoveryDraft,
@@ -347,6 +349,14 @@ export default function Editor() {
     projectSaveState,
   });
   const projectWorkspaceStatus = getProjectWorkspaceStatus(storageStatus, storageError);
+
+  const handleEditInNodes = useCallback(
+    (nodeId: string) => {
+      setSelectedLayerId(nodeId);
+      setViewMode('nodes');
+    },
+    [setSelectedLayerId],
+  );
 
   const handleStartAiImage = useCallback(() => {
     setViewMode('layers');
@@ -661,11 +671,13 @@ export default function Editor() {
             onAddTextPreset={addTextPreset}
             onAddNoisePreset={addNoisePreset}
             onAddArrayPreset={addArrayPreset}
-            onAddScene3D={() => handleAddLayerAt({ kind: 'scene3d' }, { x: 360, y: 180 })}
+            onAddScene3D={(placement) => addNodeFromLayers({ kind: 'scene3d' }, { x: 360, y: 180 }, placement)}
             onStartAiImage={handleStartAiImage}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}
             onDuplicateLayer={duplicateLayer}
+            onApplyTreeEdit={applyTreeEdit}
+            onEditInNodes={handleEditInNodes}
             showAiGeneration={showAiGeneration}
             onGeneratedImageSource={handleGeneratedImageSource}
             mobileActionBar={<BottomBar {...bottomBarProps} />}
