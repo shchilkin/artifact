@@ -20,14 +20,15 @@ Related architecture docs:
 
 Current planning status:
 
-- v0.50.0 is the Editor UX release candidate with its local release gate
-  complete: a stable editor frame with zero measured layout shift for selection,
-  mode switches, and Add Library; slider input-to-preview and drag main-thread
-  latency within the `npm run ux:gate` budgets with no exceptions; one inspector
-  layout for Layers and Nodes; in-app confirmation, progress, and output status;
-  and a graph-derived, editable Layers tree for custom graphs. Delivery issues
-  #306-#313 and #324 are closed by the release PR; exact-SHA staging,
-  production promotion, and publication evidence follow. See
+- v0.50.0 was released on 2026-10-05 as the Editor UX release: a stable editor
+  frame with zero measured layout shift for selection, mode switches, and Add
+  Library; slider input-to-preview and drag main-thread latency within the
+  `npm run ux:gate` budgets with no exceptions; one inspector layout for Layers
+  and Nodes; in-app confirmation, progress, and output status; and a
+  graph-derived, editable Layers tree for custom graphs. Tag `v0.50.0` resolves
+  to production commit `0b486e2aea444f97e92b40c79a447e84b4b81cde`; exact-SHA
+  staging, production API and web verification, and publication passed. Issues
+  #306-#313 and #324 and milestone #12 are closed. See
   [`version-plans/v0.50.md`](./version-plans/v0.50.md),
   [`layers-graph-tree.md`](./layers-graph-tree.md), and
   [`releases/v0.50.0.md`](./releases/v0.50.0.md).
@@ -135,8 +136,8 @@ Current planning status:
 - v0.51 is the rescheduled AI-Assisted Creation release: authenticated
   full-screen Chat, editable Creative Directions and Compositions, durable Runs,
   revision-bound Change Sets, adaptive image generation, and an explicitly
-  invoked Context Assistant for Layers and Nodes. It is the next Web release
-  once v0.50.0 is published. See
+  invoked Context Assistant for Layers and Nodes. It is the next Web release,
+  now that v0.50.0 is published. See
   [`version-plans/v0.51.md`](./version-plans/v0.51.md) and
   [`ai-assisted-creation.md`](./ai-assisted-creation.md).
 - The native macOS client (epic #260, draft PRs #283–#293) is paused as of
@@ -1424,13 +1425,11 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-Publish the completed Editor UX candidate before starting a new candidate
-track.
+Use the released Editor UX base before starting a new candidate track.
 
 Recommended order:
 
-1. Publish the completed v0.50 Editor UX candidate (#313).
-2. Resume new AI-assisted creation in v0.51 on top of the v0.50 editor.
+1. Resume new AI-assisted creation in v0.51 on top of the v0.50 editor.
 
 ## Non-goals for now
 
