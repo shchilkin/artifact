@@ -484,6 +484,11 @@
   border-left: 1px solid color-mix(in oklch, var(--line-default) 82%, transparent);
 }
 
+.layer-row-meta-state-not-in-output {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .layer-row-meta-state-hidden {
   color: var(--state-warning);
 }
@@ -638,6 +643,13 @@
   isolation: isolate;
 }
 
+/* Opaque from the first frame: no fade over the canvas while the surface opens or closes. */
+.add-library-surface,
+.add-library-surface[data-state] {
+  opacity: 1;
+  animation: none;
+}
+
 .add-library-surface [data-add-color-kind="fill"] {
   --add-kind-color: var(--node-kind-fill, oklch(72% 0.18 48));
 }
@@ -751,28 +763,17 @@
   outline: none;
 }
 
-.add-library-intents,
-.add-library-browse {
+.add-library-intents {
   display: flex;
   flex-shrink: 0;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--line-default);
-  overscroll-behavior-x: contain;
-}
-
-.add-library-intents {
   padding: 8px;
+  border-bottom: 1px solid var(--line-default);
   background: color-mix(in oklch, var(--surface-panel) 78%, var(--surface-card));
 }
 
-.add-library-browse {
-  padding: 6px 8px;
-  background: color-mix(in oklch, var(--surface-card) 72%, var(--surface-panel));
-}
-
-.add-library-intent,
-.add-library-browse-item {
+.add-library-intent {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -797,8 +798,7 @@
   font-size: 9px;
 }
 
-.add-library-intent[data-add-color-kind]::before,
-.add-library-browse-item[data-add-kind]::before {
+.add-library-intent[data-add-color-kind]::before {
   width: 6px;
   height: 6px;
   flex-shrink: 0;
@@ -807,8 +807,6 @@
   content: "";
 }
 
-.add-library-browse-item.artifact-toolbar-button,
-.add-library-recipe.artifact-toolbar-button,
 .add-library-intent.artifact-toolbar-button {
   border-width: 1px;
   font-size: 9px;
@@ -816,55 +814,16 @@
 }
 
 .add-library-intent:hover,
-.add-library-intent:focus-visible,
-.add-library-browse-item:hover,
-.add-library-browse-item:focus-visible {
+.add-library-intent:focus-visible {
   border-color: var(--line-default);
   color: var(--text-primary);
   outline: none;
 }
 
-.add-library-intent-active,
-.add-library-browse-item-active {
+.add-library-intent-active {
   border-color: color-mix(in oklch, var(--add-kind-color) 72%, var(--line-default));
   background: color-mix(in oklch, var(--add-kind-color) 10%, transparent);
   color: var(--add-kind-color);
-}
-
-.add-library-recipes {
-  display: flex;
-  flex-shrink: 0;
-  gap: 6px;
-  overflow-x: auto;
-  padding: 8px;
-  border-bottom: 1px solid var(--line-default);
-  background: color-mix(in oklch, var(--surface-panel) 72%, var(--surface-card));
-  overscroll-behavior-x: contain;
-}
-
-.add-library-recipe {
-  min-height: 30px;
-  flex-shrink: 0;
-  padding: 0 9px;
-  border: 1px solid var(--line-default);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.add-library-recipe:hover,
-.add-library-recipe-active {
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-}
-
-.add-library-recipe-active {
-  background: color-mix(in oklch, var(--accent-primary) 10%, transparent);
 }
 
 .add-library-list {
@@ -1316,9 +1275,7 @@
     display: none;
   }
 
-  .add-library-intent,
-  .add-library-browse-item,
-  .add-library-recipe {
+  .add-library-intent {
     min-width: var(--touch);
     height: var(--touch);
     min-height: var(--touch);
@@ -1796,5 +1753,215 @@
     background-position:
       -160% 0,
       0 0;
+  }
+}
+
+/* Graph-derived Layers tree for custom graphs (docs/layers-graph-tree.md). */
+.layer-panel-view-switch {
+  display: flex;
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid color-mix(in oklch, var(--line-default) 76%, transparent);
+}
+
+.layer-tree {
+  /*
+   * Component geometry (style-guide §6.2). Indentation steps use spacing tokens and are capped so deep
+   * graphs keep a usable name column; `aria-level` stays exact. Label rows (Mask, Inputs, Not in output)
+   * are a compact band below control height; the icon column matches the graph-helper row icon.
+   */
+  --layer-tree-indent: var(--space-3);
+  --layer-tree-indent-cap: 6;
+  --layer-tree-label-row-h: 28px;
+  --layer-tree-icon-w: 20px;
+}
+
+.layer-tree .layer-row-tree,
+.layer-tree .layer-tree-folder-row {
+  padding-inline-start: calc(
+    var(--space-3) +
+    (min(var(--layer-tree-level, 1), var(--layer-tree-indent-cap)) - 1) *
+    var(--layer-tree-indent)
+  );
+}
+
+.layer-tree [role="treeitem"]:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+.layer-row-tree .layer-row-drag-handle {
+  display: none;
+}
+
+.layer-tree [data-area-rail="true"]::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: var(--space-1);
+  background: var(--layer-area-color);
+  pointer-events: none;
+}
+
+.layer-tree-caret {
+  display: inline-flex;
+  width: var(--space-4);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: var(--type-ui-xs);
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.layer-tree-caret-leaf {
+  cursor: inherit;
+}
+
+.layer-tree-caret[data-expanded="true"] {
+  transform: rotate(90deg);
+}
+
+.layer-tree-node-row {
+  min-height: var(--control-h-compact);
+  background: color-mix(in oklch, var(--surface-panel) 84%, var(--surface-app));
+}
+
+.layer-tree-node-icon {
+  width: var(--layer-tree-icon-w);
+  flex-shrink: 0;
+  color: color-mix(in oklch, var(--accent-primary) 78%, var(--text-secondary));
+  font-size: var(--type-ui-sm);
+  text-align: center;
+}
+
+.layer-tree-node-kind,
+.layer-tree-merge-summary {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.layer-tree-merge-summary {
+  color: var(--text-secondary);
+}
+
+.layer-tree-reference-row {
+  min-height: var(--control-h-compact);
+  background: color-mix(in oklch, var(--surface-app) 42%, var(--surface-panel));
+}
+
+.layer-tree-reference-row .layer-row-name {
+  font-style: italic;
+}
+
+.layer-tree-folder-row {
+  position: relative;
+  display: flex;
+  min-height: var(--layer-tree-label-row-h);
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline-end: var(--space-3);
+  border-bottom: 1px solid color-mix(in oklch, var(--line-default) 48%, transparent);
+  background: color-mix(in oklch, var(--surface-app) 42%, transparent);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+}
+
+.layer-tree-folder-row:hover {
+  color: var(--text-secondary);
+}
+
+.layer-tree-folder-row[data-tree-folder="notInOutput"] {
+  margin-top: var(--space-3);
+  border-top: 1px solid color-mix(in oklch, var(--line-default) 76%, transparent);
+  color: var(--text-secondary);
+}
+
+.layer-tree-folder-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-tree-folder-count {
+  flex-shrink: 0;
+}
+
+/* Tree edits: the drop line and the moving row are drawn with inset shadows, so rows never shift. */
+.layer-tree [data-tree-drop="above"] {
+  box-shadow: inset 0 2px 0 var(--accent-primary);
+}
+
+.layer-tree [data-tree-drop="below"] {
+  box-shadow: inset 0 -2px 0 var(--accent-primary);
+}
+
+.layer-tree [data-tree-dragging="true"] {
+  opacity: var(--state-disabled-opacity);
+}
+
+.layer-tree [data-tree-moving-row="true"] {
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+}
+
+/* Overlay placement for the shared notice; the notice keeps its own surface, border, and tone. */
+.layer-tree-edit-status {
+  position: absolute;
+  inset-inline: var(--space-2);
+  bottom: var(--space-2);
+  z-index: 3;
+  isolation: isolate;
+  box-shadow: var(--shadow-overlay);
+  pointer-events: none;
+}
+
+/* The notice's tone tint is translucent; an opaque panel surface under it keeps rows from showing through. */
+.layer-tree-edit-status::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--surface-panel);
+}
+
+.layer-tree-edit-status[data-visible="false"] {
+  /* Kept in the accessibility tree so the live region is registered before the first message. */
+  clip-path: inset(50%);
+  opacity: 0;
+}
+
+@media (max-width: 767px) {
+  .layer-tree {
+    --layer-tree-indent: var(--space-2);
+    --layer-tree-indent-cap: 3;
+  }
+
+  .layer-tree .layer-row-tree {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .layer-tree-folder-row,
+  .layer-tree-node-row,
+  .layer-tree-reference-row {
+    min-height: var(--touch);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer-tree-caret {
+    transition: none;
   }
 }

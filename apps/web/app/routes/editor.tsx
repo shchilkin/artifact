@@ -1,19 +1,20 @@
 import './styles/editor.css';
-import { Button, IconButton } from '@artifact/ui';
+import { IconButton } from '@artifact/ui';
 import { AnimatePresence } from 'framer-motion';
 import { lazy, type RefObject, Suspense, useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { EditorOverlayFrame } from '../components/editor-workflow/EditorOverlayFrame';
+import { EditorConfirmDialog } from '../components/editor-workflow/EditorConfirmDialog';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
+import { useEditorConfirm } from '../components/editor-workflow/useEditorConfirm';
+import type { NodeCanvasViewport } from '../components/node-canvas';
 import { ProjectsPanel } from '../components/ProjectsPanel';
 import { Sidebar } from '../components/Sidebar';
 import { SiteNav } from '../components/SiteNav';
 import { StorageWarningStrip } from '../components/StorageWorkspaceStatus';
 import { getProjectWorkspaceStatus } from '../components/StorageWorkspaceStatusModel';
-import { DialogClose } from '../components/ui/dialog';
 import { useBrowserStorageStatus } from '../hooks/useBrowserStorageStatus';
 import {
   isArtifactDocumentFile,
@@ -24,15 +25,17 @@ import { useEditorAssets } from '../hooks/useEditorAssets';
 import { useEditorDocument } from '../hooks/useEditorDocument';
 import { useEditorExport } from '../hooks/useEditorExport';
 import { useEditorProjectsController } from '../hooks/useEditorProjectsController';
-import { type AspectRatio, cloneDocument, getPreviewDims } from '../types/config';
+import { type AspectRatio, type CanvasDocument, cloneDocument, getPreviewDims } from '../types/config';
 import { ARTIFACT_PROJECT_PACKAGE_MIME } from '../utils/documentPackage';
 import { ARTIFACT_FILE_MIME } from '../utils/documentPersistence';
 import { environmentUriFromId, isSupportedEnvironmentFile, saveEnvironmentFileAsset } from '../utils/envAssetStore';
 import { isSupportedModelFile, modelUriFromId, saveModelFileAsset } from '../utils/modelAssetStore';
+import type { SavedProject } from '../utils/projectLibrary';
 import { getStarterDocument } from '../utils/starterDocuments';
 import { EmptyCanvasStart } from './editor/EmptyCanvasStart';
 import { useEditorPanels } from './editor/useEditorPanels';
 import { useEditorPrimitiveExportState } from './editor/useEditorPrimitiveExportState';
+import { useReplaceableWork } from './editor/useReplaceableWork';
 import { type ViewMode, ViewModeToggle } from './editor/ViewModeToggle';
 
 const NodeCanvas = lazy(() => import('../components/node-canvas').then((module) => ({ default: module.NodeCanvas })));
@@ -72,15 +75,6 @@ const IMPORT_FILE_TYPES = [
   { icon: 'DOC', label: 'Artifact', detail: '.artifact.json' },
   { icon: 'PKG', label: 'Package', detail: '.artifact with assets' },
 ];
-
-async function saveRecoveryDraftOrConfirm(saveRecoveryDraft: () => Promise<void>) {
-  try {
-    await saveRecoveryDraft();
-    return true;
-  } catch {
-    return window.confirm('Could not save a recovery copy. Open the dropped file anyway?');
-  }
-}
 
 function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
   const [previewWidth, previewHeight] = getPreviewDims(aspect);
@@ -125,6 +119,7 @@ function EditorChromeSlot({
 export default function Editor() {
   const [dropPreview, setDropPreview] = useState<DropPreviewKind | null>(null);
   const [documentImportBusy, setDocumentImportBusy] = useState(false);
+  const [recoveryCopyFailed, setRecoveryCopyFailed] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
   const [environmentFileError, setEnvironmentFileError] = useState<string | null>(null);
@@ -164,6 +159,8 @@ export default function Editor() {
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
+    addNodeFromLayers,
+    applyTreeEdit,
     handleRandomize,
     handleNewBlank,
     saveRecoveryDraft,
@@ -171,6 +168,7 @@ export default function Editor() {
     handleExportConfigChange,
     handleCopyLink,
     loadDocument,
+    documentSessionId,
     setDoc,
     setAspect,
     undo,
@@ -183,6 +181,20 @@ export default function Editor() {
     isBlank,
     documentSaveStatus,
   } = useEditorDocument(viewMode === 'nodes');
+  const { confirm, confirmDialog } = useEditorConfirm();
+  const { hasReplaceableWork, setBaseline } = useReplaceableWork(doc, docRef);
+  const replaceDocument = useCallback(
+    (nextDoc: CanvasDocument) => {
+      setBaseline(loadDocument(nextDoc));
+    },
+    [loadDocument, setBaseline],
+  );
+  // The Nodes viewport the user left, per document (UI state, not saved): the first entry fits the graph instead.
+  const [nodeViewport, setNodeViewport] = useState<{ sessionId: number; viewport: NodeCanvasViewport } | null>(null);
+  const handleNodeViewportChange = useCallback(
+    (viewport: NodeCanvasViewport) => setNodeViewport({ sessionId: documentSessionId, viewport }),
+    [documentSessionId],
+  );
   const { imageCache, dropError, handleDroppedFile } = useEditorAssets(
     doc,
     (src, position) => addImageFromSource(src, undefined, position),
@@ -288,16 +300,16 @@ export default function Editor() {
     doc,
     docRef,
     imageCache,
-    onLoadDocument: loadDocument,
+    onLoadDocument: replaceDocument,
     initialDocumentClearsProject: fromDocParam || fromBlankParam,
   });
   const handleLoadExternalDocument = useCallback(
     (nextDoc: typeof doc) => {
       clearActiveProject();
       setAiPanelRequested(false);
-      loadDocument(nextDoc);
+      replaceDocument(nextDoc);
     },
-    [clearActiveProject, loadDocument],
+    [clearActiveProject, replaceDocument],
   );
   const {
     fileInputRef,
@@ -310,7 +322,7 @@ export default function Editor() {
     handleSaveDocument,
     handleSaveProjectPackage,
     handleStageDocumentImport,
-  } = useDocumentFileTransfer(docRef, handleLoadExternalDocument);
+  } = useDocumentFileTransfer(docRef, handleLoadExternalDocument, confirm);
 
   const handleNodeFileDragPreviewChange = useCallback((dataTransfer: DataTransfer | null) => {
     setDropPreview(dataTransfer ? inferDropPreviewKind(dataTransfer) : null);
@@ -338,6 +350,14 @@ export default function Editor() {
   });
   const projectWorkspaceStatus = getProjectWorkspaceStatus(storageStatus, storageError);
 
+  const handleEditInNodes = useCallback(
+    (nodeId: string) => {
+      setSelectedLayerId(nodeId);
+      setViewMode('nodes');
+    },
+    [setSelectedLayerId],
+  );
+
   const handleStartAiImage = useCallback(() => {
     setViewMode('layers');
     setAiPanelRequested(true);
@@ -346,20 +366,62 @@ export default function Editor() {
     }, 0);
   }, []);
 
-  const handleNewBlankRequest = useCallback(() => {
+  const handleNewBlankRequest = useCallback(async () => {
     if (
       !isBlank &&
-      !window.confirm('Create a new project? Current work will be kept as a recovery copy before replacing it.')
+      !(await confirm({
+        title: 'Create a new project?',
+        description: 'Current work is kept as a recovery copy in Projects before the canvas is cleared.',
+        confirmLabel: 'Create new project',
+      }))
     ) {
       return;
     }
     closePanels();
     clearActiveProject();
     setAiPanelRequested(false);
+    setBaseline(null);
     handleNewBlank();
     resetPrimitiveViewStates();
     setViewMode('layers');
-  }, [clearActiveProject, closePanels, handleNewBlank, isBlank, resetPrimitiveViewStates]);
+  }, [clearActiveProject, closePanels, confirm, handleNewBlank, isBlank, resetPrimitiveViewStates, setBaseline]);
+
+  /** Work is at risk when it changed since it was put in place and the active project does not hold it. */
+  const hasUnsavedWork = useCallback(
+    () => projectSaveState !== 'saved' && hasReplaceableWork(),
+    [hasReplaceableWork, projectSaveState],
+  );
+
+  const handleRandomizeRequest = useCallback(async () => {
+    if (
+      hasUnsavedWork() &&
+      !(await confirm({
+        title: 'Replace with a random cover?',
+        description: 'Your changes on the canvas are replaced by a new random document. Undo brings them back.',
+        confirmLabel: 'Randomize',
+      }))
+    ) {
+      return;
+    }
+    setBaseline(handleRandomize());
+  }, [confirm, handleRandomize, hasUnsavedWork, setBaseline]);
+
+  const handleLoadProjectRequest = useCallback(
+    async (project: SavedProject) => {
+      if (
+        hasUnsavedWork() &&
+        !(await confirm({
+          title: `Open ${project.name}?`,
+          description: 'Unsaved changes on the canvas will be replaced. Save them as a project first to keep them.',
+          confirmLabel: 'Open project',
+        }))
+      ) {
+        return;
+      }
+      handleLoadProject(project);
+    },
+    [confirm, handleLoadProject, hasUnsavedWork],
+  );
 
   const handleLoadStarter = useCallback(
     (id: string) => {
@@ -368,11 +430,11 @@ export default function Editor() {
       closePanels();
       clearActiveProject();
       setAiPanelRequested(false);
-      loadDocument(cloneDocument(starter.doc));
+      replaceDocument(cloneDocument(starter.doc));
       resetPrimitiveViewStates();
       setViewMode('layers');
     },
-    [clearActiveProject, closePanels, loadDocument, resetPrimitiveViewStates],
+    [clearActiveProject, closePanels, replaceDocument, resetPrimitiveViewStates],
   );
 
   const finishDroppedDocumentImport = useCallback(() => {
@@ -384,14 +446,27 @@ export default function Editor() {
 
   const handleConfirmDroppedDocument = useCallback(async () => {
     if (!pendingDocumentImport || documentImportBusy) return;
+    if (recoveryCopyFailed) {
+      setRecoveryCopyFailed(false);
+      finishDroppedDocumentImport();
+      return;
+    }
     setDocumentImportBusy(true);
     try {
-      const canOpenDroppedDocument = await saveRecoveryDraftOrConfirm(saveRecoveryDraft);
-      if (canOpenDroppedDocument) finishDroppedDocumentImport();
+      await saveRecoveryDraft();
+      finishDroppedDocumentImport();
+    } catch {
+      // The person decides in the dialog whether to open the file without a recovery copy.
+      setRecoveryCopyFailed(true);
     } finally {
       setDocumentImportBusy(false);
     }
-  }, [documentImportBusy, finishDroppedDocumentImport, pendingDocumentImport, saveRecoveryDraft]);
+  }, [documentImportBusy, finishDroppedDocumentImport, pendingDocumentImport, recoveryCopyFailed, saveRecoveryDraft]);
+
+  const handleCancelDroppedDocument = useCallback(() => {
+    setRecoveryCopyFailed(false);
+    handleCancelDocumentImport();
+  }, [handleCancelDocumentImport]);
 
   const handleGeneratedImageSource = useCallback(
     (...args: Parameters<typeof addImageFromSource>) => {
@@ -408,7 +483,7 @@ export default function Editor() {
 
   const bottomBarProps = {
     onNewBlank: handleNewBlankRequest,
-    onRandomize: handleRandomize,
+    onRandomize: handleRandomizeRequest,
     onUndo: undo,
     onRedo: redo,
     canUndo,
@@ -525,7 +600,10 @@ export default function Editor() {
             <div className="node-mode-stage">
               <Suspense fallback={<div style={{ flex: 1, background: 'var(--surface-app)' }} />}>
                 <NodeCanvas
+                  key={documentSessionId}
                   doc={doc}
+                  initialViewport={nodeViewport?.sessionId === documentSessionId ? nodeViewport.viewport : null}
+                  onViewportChange={handleNodeViewportChange}
                   imageCache={imageCache}
                   initialPrimitiveViewStates={effectivePrimitiveViewStates}
                   onPrimitiveViewStatesChange={handlePrimitiveViewStatesChange}
@@ -564,20 +642,23 @@ export default function Editor() {
           <DocumentImportConfirm
             pendingImport={pendingDocumentImport}
             busy={documentImportBusy}
-            returnFocusTargetRef={documentPickerReturnFocusRef}
-            onCancel={handleCancelDocumentImport}
+            recoveryCopyFailed={recoveryCopyFailed}
+            returnFocusRef={documentPickerReturnFocusRef}
+            onCancel={handleCancelDroppedDocument}
             onConfirm={() => {
               void handleConfirmDroppedDocument();
             }}
           />
+          {confirmDialog}
 
           {(dropError || exportError || documentFileError || modelFileError || environmentFileError) && (
             <EditorWorkflowNotice className="editor-workflow-notice--error" variant="danger">
               {dropError ?? exportError ?? documentFileError ?? modelFileError ?? environmentFileError}
             </EditorWorkflowNotice>
           )}
-          <BottomBar {...bottomBarProps} />
         </main>
+
+        <BottomBar {...bottomBarProps} />
 
         {viewMode === 'layers' && (
           <Sidebar
@@ -590,14 +671,18 @@ export default function Editor() {
             onAddTextPreset={addTextPreset}
             onAddNoisePreset={addNoisePreset}
             onAddArrayPreset={addArrayPreset}
-            onAddScene3D={() => handleAddLayerAt({ kind: 'scene3d' }, { x: 360, y: 180 })}
+            onAddScene3D={(placement) => addNodeFromLayers({ kind: 'scene3d' }, { x: 360, y: 180 }, placement)}
             onStartAiImage={handleStartAiImage}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}
             onDuplicateLayer={duplicateLayer}
+            onApplyTreeEdit={applyTreeEdit}
+            onEditInNodes={handleEditInNodes}
             showAiGeneration={showAiGeneration}
             onGeneratedImageSource={handleGeneratedImageSource}
             mobileActionBar={<BottomBar {...bottomBarProps} />}
+            onReplaceModelLayerFile={handleReplaceModelLayerFile}
+            onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
           />
         )}
 
@@ -613,7 +698,7 @@ export default function Editor() {
               maxProjects={maxProjects}
               onSaveCopy={saveCurrentProject}
               onSaveActive={saveActiveProject}
-              onLoad={handleLoadProject}
+              onLoad={handleLoadProjectRequest}
               onDelete={deleteProject}
               onSaveToCloud={saveProjectToCloud}
               onDeleteRecoveryDraft={deleteRecoveryDraft}
@@ -672,39 +757,35 @@ function DocumentImportConfirm({
   onCancel,
   onConfirm,
   pendingImport,
-  returnFocusTargetRef,
+  recoveryCopyFailed,
+  returnFocusRef,
 }: {
   busy: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   pendingImport: PendingDocumentImport | null;
-  returnFocusTargetRef: RefObject<HTMLElement | null>;
+  recoveryCopyFailed: boolean;
+  returnFocusRef: RefObject<HTMLElement | null>;
 }) {
   if (!pendingImport) return null;
 
   return (
-    <EditorOverlayFrame
-      variant="dialog"
+    <EditorConfirmDialog
       open
       busy={busy}
-      returnFocusTargetRef={returnFocusTargetRef}
-      onOpenChange={(open) => !open && onCancel()}
-      title="Open artifact file"
-      description="Review the dropped Artifact document before it replaces the current canvas."
+      returnFocusRef={returnFocusRef}
       className="document-import-confirm"
-      overlayClassName="document-import-confirm__overlay"
+      title="Open artifact file?"
+      description={
+        recoveryCopyFailed
+          ? 'Could not save a recovery copy of the current work. Open the file anyway and replace the canvas?'
+          : 'Current work will be saved as a recovery copy before this file replaces the canvas.'
+      }
+      tone={recoveryCopyFailed ? 'danger' : 'default'}
+      confirmLabel={recoveryCopyFailed ? 'Open anyway' : 'Open file'}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
     >
-      <div className="document-import-confirm__header">
-        <h2 className="document-import-confirm__title">Open artifact file</h2>
-        <DialogClose asChild>
-          <IconButton
-            className="document-import-confirm__close"
-            label="Cancel import"
-            icon={<span aria-hidden="true">×</span>}
-            disabled={busy}
-          />
-        </DialogClose>
-      </div>
       <ImportFileTypeRail />
       <div className="document-import-confirm__zone">
         <span className="document-import-confirm__zone-mark">⇧</span>
@@ -728,25 +809,6 @@ function DocumentImportConfirm({
           </div>
         </dl>
       </div>
-      <p className="document-import-confirm__body">
-        Current work will be saved as a recovery copy before this file replaces the canvas.
-      </p>
-      <div className="document-import-confirm__actions">
-        <DialogClose asChild>
-          <Button variant="quiet" disabled={busy}>
-            CANCEL
-          </Button>
-        </DialogClose>
-        <Button
-          className="export-btn"
-          variant="primary"
-          onClick={onConfirm}
-          loading={busy}
-          aria-label={busy ? 'Saving recovery copy before opening file' : undefined}
-        >
-          {busy ? 'SAVING' : 'OPEN FILE'}
-        </Button>
-      </div>
-    </EditorOverlayFrame>
+    </EditorConfirmDialog>
   );
 }

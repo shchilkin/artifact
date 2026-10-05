@@ -14,6 +14,7 @@ import {
   EditorRowPrimary,
 } from '../editor-workflow/EditorRowFrame';
 import { getLayerIcon } from './layerDisplayItems';
+import { isPointerInLowerHalf, type LayerRowTreePlacement, layerKindLabel, layerTreeItemProps } from './layerRowTree';
 import type { LayerDropPosition } from './useLayerDragReorder';
 import type { LayerSelectionModifiers } from './useLayerSelection';
 
@@ -21,19 +22,26 @@ export interface LayerRowProps {
   layer: Layer;
   areas: GraphArea[];
   selected: boolean;
-  dragOverPosition: LayerDropPosition | null;
+  dragOverPosition?: LayerDropPosition | null;
   editing: boolean;
   nested?: boolean;
   /** Stack order is owned by a custom node graph, so rows cannot be dragged. */
   reorderDisabled?: boolean;
+  tree?: LayerRowTreePlacement;
+  /**
+   * Whether the renderer reaches this layer from Output; see `collectDocumentOutputNodeIds`. A hidden layer on the
+   * path still counts as reached.
+   */
+  reachesOutput?: boolean;
   onSelect: (id: string, event: LayerSelectionModifiers) => void;
   onOpenContextMenu: (id: string, event: ReactMouseEvent<HTMLElement>) => void;
   onStartEditing: (id: string) => void;
   onFinishRename: (id: string, name: string | null) => void;
-  onDragStart: (id: string) => void;
-  onDragOverLayer: (id: string, position: LayerDropPosition) => void;
-  onDropLayer: (id: string, position: LayerDropPosition) => void;
-  onDragEnd: () => void;
+  /** Drag handlers are omitted where rows cannot be reordered, such as the graph-derived tree. */
+  onDragStart?: (id: string) => void;
+  onDragOverLayer?: (id: string, position: LayerDropPosition) => void;
+  onDropLayer?: (id: string, position: LayerDropPosition) => void;
+  onDragEnd?: () => void;
   onToggleVisible: (id: string) => void;
   onDuplicateLayer: (id: string) => void;
   onRemoveLayer: (id: string) => void;
@@ -82,7 +90,7 @@ function selectedClassName(selected: boolean) {
   return selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50';
 }
 
-function dropTargetClassName(position: LayerDropPosition | null) {
+function dropTargetClassName(position: LayerDropPosition | null | undefined) {
   return position ? `layer-row-drop-target layer-row-drop-${position}` : '';
 }
 
@@ -116,8 +124,7 @@ function getLayerRowStateClassNames({
 }
 
 function getDropPosition(event: ReactDragEvent<HTMLElement>): LayerDropPosition {
-  const rect = event.currentTarget.getBoundingClientRect();
-  return event.clientY > rect.top + rect.height / 2 ? 'after' : 'before';
+  return isPointerInLowerHalf(event) ? 'after' : 'before';
 }
 
 function shouldCancelLayerRowDrag(target: EventTarget) {
@@ -127,16 +134,16 @@ function shouldCancelLayerRowDrag(target: EventTarget) {
   );
 }
 
-function startLayerDrag(event: ReactDragEvent<HTMLElement>, layer: Layer, onDragStart: (id: string) => void) {
+function startLayerDrag(event: ReactDragEvent<HTMLElement>, layer: Layer, onDragStart?: (id: string) => void) {
   event.dataTransfer.effectAllowed = 'move';
   event.dataTransfer.setData('text/plain', layer.id);
-  onDragStart(layer.id);
+  onDragStart?.(layer.id);
 }
 
 function handleLayerRowDragStart(
   event: ReactDragEvent<HTMLElement>,
   layer: Layer,
-  onDragStart: (id: string) => void,
+  onDragStart: ((id: string) => void) | undefined,
   reorderDisabled: boolean,
 ) {
   if (layer.locked || reorderDisabled || shouldCancelLayerRowDrag(event.target)) {
@@ -148,7 +155,7 @@ function handleLayerRowDragStart(
 
 function layerDragTitle(layer: Layer, reorderDisabled: boolean) {
   if (layer.locked) return 'Unlock to reorder';
-  if (reorderDisabled) return 'Order follows the node graph. Reorder in Nodes.';
+  if (reorderDisabled) return 'Order follows the node graph. Reorder in Structure or in Nodes.';
   return 'Drag to reorder';
 }
 
@@ -185,16 +192,18 @@ function LayerNameEditor({
   layer,
   editing,
   selected,
+  inTree,
   onStartEditing,
   onFinishRename,
-}: Pick<LayerRowProps, 'layer' | 'editing' | 'selected' | 'onStartEditing' | 'onFinishRename'>) {
+}: Pick<LayerRowProps, 'layer' | 'editing' | 'selected' | 'onStartEditing' | 'onFinishRename'> & { inTree: boolean }) {
   const finishRename = (value: string | null) => onFinishRename(layer.id, value);
   if (!editing) {
     return (
       <button
         type="button"
         className={`layer-row-name layer-row-name-button ${selected ? 'text-text' : 'text-dim'}`}
-        title={selected ? `Rename ${layer.name}` : `Select ${layer.name}`}
+        title={layer.name}
+        tabIndex={inTree ? -1 : undefined}
         onClick={(event) => {
           if (!selected) return;
           event.stopPropagation();
@@ -221,12 +230,6 @@ function LayerNameEditor({
   );
 }
 
-function layerKindLabel(layer: Layer) {
-  if (layer.kind === 'emoji') return 'emoji';
-  if (layer.kind === 'primitive') return '3d';
-  return layer.kind;
-}
-
 function LayerKindBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
   return (
     <span
@@ -244,15 +247,26 @@ function LayerKindBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
   );
 }
 
-function LayerStatusMeta({ layer }: Pick<LayerRowProps, 'layer'>) {
-  const items = layer.visible ? [] : ['hidden'];
+const LAYER_STATUS_LABELS = {
+  'not-in-output': 'not in output',
+  hidden: 'hidden',
+  locked: 'locked',
+} as const;
+
+function LayerStatusMeta({ layer, reachesOutput }: Pick<LayerRowProps, 'layer' | 'reachesOutput'>) {
+  const items: Array<keyof typeof LAYER_STATUS_LABELS> = reachesOutput ? [] : ['not-in-output'];
+  if (!layer.visible) items.push('hidden');
   if (layer.locked) items.push('locked');
   if (items.length === 0) return null;
   return (
     <span className="layer-row-meta-status">
       {items.map((item) => (
-        <span key={item} className={`layer-row-meta-state layer-row-meta-state-${item}`}>
-          {item}
+        <span
+          key={item}
+          className={`layer-row-meta-state layer-row-meta-state-${item}`}
+          title={item === 'not-in-output' ? 'Not connected to Output in the node graph' : undefined}
+        >
+          {LAYER_STATUS_LABELS[item]}
         </span>
       ))}
     </span>
@@ -302,7 +316,7 @@ function LayerAiBadges({ layer }: Pick<LayerRowProps, 'layer'>) {
   );
 }
 
-function LayerAreaChip({ areas, nested }: Pick<LayerRowProps, 'areas' | 'nested'>) {
+export function LayerAreaChip({ areas, nested }: Pick<LayerRowProps, 'areas' | 'nested'>) {
   if (areas.length === 0 || nested) return null;
   const areaNames = areas.map((area) => area.name).join(', ');
   return (
@@ -314,20 +328,32 @@ function LayerAreaChip({ areas, nested }: Pick<LayerRowProps, 'areas' | 'nested'
   );
 }
 
-function LayerMoreButton({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'>) {
+/** A row's "•••" button. In the Layers tree it stays out of the tab order; the tree owns focus. */
+export function RowActionsButton({
+  label,
+  inTree,
+  onOpen,
+}: {
+  label: string;
+  inTree: boolean;
+  onOpen: (event: ReactMouseEvent<HTMLElement>) => void;
+}) {
   return (
-    <button
-      type="button"
-      className="layer-row-action"
-      onClick={(event) => {
-        event.stopPropagation();
-        onOpenContextMenu(layer.id, event);
-      }}
-      aria-label={`Open actions for layer ${layer.name}`}
-      title="Layer actions"
-    >
-      •••
-    </button>
+    <div className="layer-row-actions">
+      <button
+        type="button"
+        className="layer-row-action"
+        tabIndex={inTree ? -1 : undefined}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen(event);
+        }}
+        aria-label={label}
+        title={label}
+      >
+        •••
+      </button>
+    </div>
   );
 }
 
@@ -340,11 +366,56 @@ function LayerLockedBadge({ layer }: Pick<LayerRowProps, 'layer'>) {
   );
 }
 
-function LayerRowActions({ layer, onOpenContextMenu }: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'>) {
+function LayerRowActions({
+  layer,
+  inTree,
+  onOpenContextMenu,
+}: Pick<LayerRowProps, 'layer' | 'onOpenContextMenu'> & { inTree: boolean }) {
   return (
-    <div className="layer-row-actions" aria-label={`${layer.name} layer actions`}>
-      <LayerMoreButton layer={layer} onOpenContextMenu={onOpenContextMenu} />
-    </div>
+    <RowActionsButton
+      label={`Open actions for layer ${layer.name}`}
+      inTree={inTree}
+      onOpen={(event) => onOpenContextMenu(layer.id, event)}
+    />
+  );
+}
+
+/**
+ * Expand/collapse affordance for tree rows. It is not focusable: a click lands focus on its row, and
+ * the keyboard uses the tree's arrow keys.
+ */
+export function LayerTreeCaret({ expanded, onToggle }: { expanded?: boolean; onToggle?: () => void }) {
+  if (expanded === undefined) return <span className="layer-tree-caret layer-tree-caret-leaf" aria-hidden="true" />;
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: pointer shortcut; the treeitem owns keyboard expand/collapse.
+    // biome-ignore lint/a11y/useKeyWithClickEvents: ArrowLeft/ArrowRight on the treeitem expand and collapse.
+    <span
+      aria-hidden="true"
+      className="layer-tree-caret"
+      data-expanded={expanded ? 'true' : 'false'}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle?.();
+      }}
+    >
+      ▸
+    </span>
+  );
+}
+
+function LayerRowSelection({
+  layer,
+  selected,
+  tree,
+  onSelect,
+}: Pick<LayerRowProps, 'layer' | 'selected' | 'tree' | 'onSelect'>) {
+  if (tree) return <LayerTreeCaret expanded={tree.expanded} onToggle={tree.onToggleExpanded} />;
+  return (
+    <LayerSelectionControl
+      label={`Select ${layer.name} layer`}
+      selected={selected}
+      onSelect={(event) => onSelect(layer.id, event)}
+    />
   );
 }
 
@@ -356,6 +427,8 @@ export const LayerRow = memo(function LayerRow({
   editing,
   nested = false,
   reorderDisabled = false,
+  tree,
+  reachesOutput = true,
   onSelect,
   onOpenContextMenu,
   onStartEditing,
@@ -372,10 +445,28 @@ export const LayerRow = memo(function LayerRow({
     layer,
   });
 
+  // Tree rows bring their own drag and drop (`LayerRowTreePlacement.drag`); list rows use the stack reorder.
+  const placementProps = tree
+    ? layerTreeItemProps(tree, selected, areas[0]?.color)
+    : {
+        role: 'listitem',
+        draggable: !layer.locked && !reorderDisabled,
+        onDragStart: (event: ReactDragEvent<HTMLElement>) =>
+          handleLayerRowDragStart(event, layer, onDragStart, reorderDisabled),
+        onDragOver: (event: ReactDragEvent<HTMLElement>) => {
+          event.preventDefault();
+          onDragOverLayer?.(layer.id, getDropPosition(event));
+        },
+        onDrop: (event: ReactDragEvent<HTMLElement>) => {
+          event.preventDefault();
+          onDropLayer?.(layer.id, getDropPosition(event));
+        },
+        onDragEnd,
+      };
+
   return (
     <EditorRowFrame
-      draggable={!layer.locked && !reorderDisabled}
-      role="listitem"
+      {...placementProps}
       selected={selected}
       isHidden={!layer.visible}
       isLocked={layer.locked}
@@ -385,30 +476,17 @@ export const LayerRow = memo(function LayerRow({
       data-layer-id={layer.id}
       data-layer-visible={layer.visible ? 'true' : 'false'}
       data-layer-locked={layer.locked ? 'true' : 'false'}
-      onDragStart={(event) => handleLayerRowDragStart(event, layer, onDragStart, reorderDisabled)}
-      onDragOver={(event) => {
-        event.preventDefault();
-        onDragOverLayer(layer.id, getDropPosition(event));
-      }}
-      onDrop={(event) => {
-        event.preventDefault();
-        onDropLayer(layer.id, getDropPosition(event));
-      }}
-      onDragEnd={onDragEnd}
+      data-layer-output={reachesOutput ? 'reached' : 'unreached'}
       onClick={(event) => onSelect(layer.id, event)}
       onContextMenu={(event) => onOpenContextMenu(layer.id, event)}
       onDoubleClick={(event) => {
         event.stopPropagation();
         onStartEditing(layer.id);
       }}
-      className={`layer-row layer-row-kind-${layer.kind} px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${stateClassNames}`}
+      className={`layer-row layer-row-kind-${layer.kind} px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${tree ? 'layer-row-tree' : ''} ${stateClassNames}`}
     >
       <EditorRowLeading>
-        <LayerSelectionControl
-          label={`Select ${layer.name} layer`}
-          selected={selected}
-          onSelect={(event) => onSelect(layer.id, event)}
-        />
+        <LayerRowSelection layer={layer} selected={selected} tree={tree} onSelect={onSelect} />
         <LayerDragHandle layer={layer} reorderDisabled={reorderDisabled} onDragStart={onDragStart} />
         <LayerKindBadge layer={layer} />
       </EditorRowLeading>
@@ -417,18 +495,19 @@ export const LayerRow = memo(function LayerRow({
           layer={layer}
           editing={editing}
           selected={selected}
+          inTree={Boolean(tree)}
           onStartEditing={onStartEditing}
           onFinishRename={onFinishRename}
         />
       </EditorRowPrimary>
       <EditorRowMetadata className="layer-row-meta">
-        <LayerStatusMeta layer={layer} />
+        <LayerStatusMeta layer={layer} reachesOutput={reachesOutput} />
         <LayerAiBadges layer={layer} />
         <LayerLockedBadge layer={layer} />
         <LayerAreaChip areas={areas} nested={nested} />
       </EditorRowMetadata>
       <EditorRowActions>
-        <LayerRowActions layer={layer} onOpenContextMenu={onOpenContextMenu} />
+        <LayerRowActions layer={layer} inTree={Boolean(tree)} onOpenContextMenu={onOpenContextMenu} />
       </EditorRowActions>
     </EditorRowFrame>
   );

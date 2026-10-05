@@ -88,6 +88,9 @@ jobs:
       - name: Route loading gate
         run: npm run loading:gate
 
+      - name: Editor UX gate
+        run: npm run ux:gate
+
       - name: Full release browser gate
         run: npm run test:browser:release
 

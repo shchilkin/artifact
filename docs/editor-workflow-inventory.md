@@ -52,7 +52,7 @@ product contract, not a v0.45 navigation requirement.
 | Document import confirmation | ready, saving/busy, cancel, confirm, keyboard focus order, narrow | **v0.45 E2** |
 | Projects trigger and editor sheet placement | closed, open, active trigger, mobile | **v0.45 E2 integration**; Projects list/content remains the v0.44 Product Library pattern |
 | Left and right editor rails | collapsed, expanded, mobile sheet, active side | **v0.45 E2 shell** |
-| Inspector target header inside the right rail | default, compact, minimal, long target name | **v0.45 E2 anatomy** |
+| Inspector target header inside the right rail | default, compact, long target name (the minimal variant was removed in v0.50, when Layers and Nodes moved to one header) | **v0.45 E2 anatomy** |
 | Inspector sections, property fields, validation, and committed/live controls | all layer, graph, effect, material, scene, shader, and AI Shader property variants | **v0.46** |
 | Existing AI Image generation panel in the right rail | prompt/provider controls, disabled, empty, loading, success, error, recovery | **v0.46 visual integration**; existing generation behavior remains unchanged |
 
@@ -72,6 +72,8 @@ redo, export, project, document-import, or storage behavior into UI patterns.
 | Layer row actions | select, rename, show/hide, lock display, duplicate, delete, More menu | **v0.45 E3** |
 | Scene 3D layer row | default, selected, locked, keyboard selection, remove where allowed | **v0.45 E3** |
 | Graph-helper row shown in Layers | kind, label, nested placement, remove | **v0.45 E3** |
+| Layers tree for custom graphs | Structure/Areas switch; graph-node row (merge blend and opacity), reference row, label folder row (Mask, Pattern source, Inputs, Not in output), area rail and chip, expanded/collapsed, selected, focus-visible, type-ahead, narrow indentation cap; `/docs/style-guide` 04 specimen | **v0.50 U6** |
+| Layers tree edits | drag reorder within a run, drag between runs (merge group, mask, pattern, Not in output), drop line above/below, blocked drop with reason, dragging row, Alt+Up/Down move, Move to… keyboard mode, Delete key, shared-delete confirm, Move up/down/Move to/Edit in Nodes/Delete row actions, blocked action with reason, Add above selected row, status live region | **v0.50 U7** |
 | Layer context menu | rename, show/hide, duplicate, delete, disabled locked actions, area actions | **v0.45 E3** |
 | Multi-selection command bar | selected count, create area, add to area, remove from area, clear selection | **v0.45 E3** |
 | Area/folder group | expanded, collapsed, empty, count, rename, visibility, remove, nested rows | **v0.45 E3** |

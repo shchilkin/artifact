@@ -40,7 +40,7 @@ describe('storageStatus', () => {
       projects: [project],
       recoveryDraft: project,
       estimate: { usage: 1024 * 1024, quota: 4 * 1024 * 1024 },
-      saveStatus: { ok: true, savedAt: '2026-06-06T00:00:00.000Z' },
+      saveStatus: { ok: true },
       projectSaveState: 'saved',
     });
 
@@ -58,7 +58,7 @@ describe('storageStatus', () => {
       doc,
       projects: [],
       recoveryDraft: null,
-      saveStatus: { ok: true, savedAt: '2026-06-06T00:00:00.000Z' },
+      saveStatus: { ok: true },
     });
 
     expect(summary.activeWorkState).toBe('untracked');
@@ -70,7 +70,7 @@ describe('storageStatus', () => {
       doc,
       projects: [project],
       recoveryDraft: null,
-      saveStatus: { ok: true, savedAt: '2026-06-06T00:00:00.000Z' },
+      saveStatus: { ok: true },
       projectSaveState: 'unsaved',
     });
 
@@ -83,7 +83,7 @@ describe('storageStatus', () => {
       doc,
       projects: [],
       recoveryDraft: null,
-      saveStatus: { ok: false, savedAt: null },
+      saveStatus: { ok: false },
     });
 
     expect(summary.activeWorkState).toBe('blocked');

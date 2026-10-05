@@ -10,6 +10,7 @@
  */
 
 import type {
+  CanvasGraph,
   GraphColorNode,
   GraphEdge,
   GraphEnvironmentNode,
@@ -22,6 +23,7 @@ import type {
   GraphShaderNode,
   GraphTransformNode,
   Layer,
+  PrimitiveViewportStateConfig,
 } from '../types/config';
 
 const SHADER_PASS_RENDER_VERSION = 'shader-definition-instance-v4';
@@ -250,4 +252,29 @@ export function shaderNodeRenderSig(node: GraphShaderNode): string {
 /** Render-relevant fields for a graph edge (topology change invalidates downstream). */
 export function edgeRenderSig(edge: GraphEdge): string {
   return JSON.stringify([edge.fromId, edge.fromPort, edge.toId, edge.toPort]);
+}
+
+/** Camera signature for a primitive, model, or 3D scene node; `default` when no view state is set. */
+export function viewStateRenderSig(view: PrimitiveViewportStateConfig | undefined): string {
+  return view ? `${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}` : 'default';
+}
+
+function nodeRenderSigs<T extends { id: string }>(nodes: T[] | undefined, signature: (node: T) => string) {
+  return (nodes ?? []).map((node) => ({ id: node.id, sig: signature(node) }));
+}
+
+/** Render signatures of every graph utility node, grouped by kind. Layers and edges have their own signatures. */
+export function graphNodeRenderSigs(graph: CanvasGraph) {
+  return {
+    merge: nodeRenderSigs(graph.mergeNodes, mergeNodeRenderSig),
+    color: nodeRenderSigs(graph.colorNodes, colorNodeRenderSig),
+    repeat: nodeRenderSigs(graph.repeatNodes, repeatNodeRenderSig),
+    material: nodeRenderSigs(graph.materialNodes, materialNodeRenderSig),
+    mask: nodeRenderSigs(graph.maskNodes, maskNodeRenderSig),
+    transform: nodeRenderSigs(graph.transformNodes, transformNodeRenderSig),
+    grimeShadow: nodeRenderSigs(graph.grimeShadowNodes, grimeShadowNodeRenderSig),
+    scene3d: nodeRenderSigs(graph.scene3dNodes, scene3DNodeRenderSig),
+    environment: nodeRenderSigs(graph.environmentNodes, environmentNodeRenderSig),
+    shader: nodeRenderSigs(graph.shaderNodes, shaderNodeRenderSig),
+  };
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InsertConnectionConfig } from '../components/node-canvas';
 import {
   type AspectRatio,
@@ -60,11 +60,11 @@ import {
   updateTransformNodeInDocument,
 } from '../utils/documentCommands';
 import {
-  createPendingHistoryEntry,
+  clearPendingDocumentHistory,
+  commitDocumentWithHistory,
+  type DocumentHistoryCommit,
   type DocumentUpdateMode,
-  flushPendingHistory,
   type HistoryEntry,
-  pushSnapshotHistory,
   redoHistory,
   undoHistory,
 } from '../utils/documentHistory';
@@ -78,10 +78,17 @@ import {
   saveDocumentToStorage,
   takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
+import {
+  addLayerWithPlacement,
+  addNodeAboveTreeRow,
+  type LayerAddPlacement,
+  type TreeEditResult,
+} from '../utils/graphTreeEdits';
+import { graphUtilityNodeKind } from '../utils/nodeGraph';
 import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
-import { isSelectableScene3DTarget } from '../utils/scene3DInputs';
+import type { DocumentSaveStatus } from '../utils/storageStatus';
 import type { TextPresetId } from '../utils/textPresets';
 
 function isEditableUndoTarget(target: EventTarget | null) {
@@ -93,11 +100,10 @@ function isUndoShortcut(event: KeyboardEvent) {
 }
 
 export function useEditorDocument(nodeModeEnabled: boolean) {
-  const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument());
-  const [documentSaveStatus, setDocumentSaveStatus] = useState<{ ok: boolean; savedAt: string | null }>({
-    ok: true,
-    savedAt: null,
-  });
+  const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument);
+  // Changes when the whole document is replaced (load, starter, new blank), so per-document UI state can reset.
+  const [documentSessionId, setDocumentSessionId] = useState(0);
+  const [documentSaveStatus, setDocumentSaveStatus] = useState<DocumentSaveStatus>({ ok: true });
   const [fromDocParam] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc'),
   );
@@ -112,7 +118,8 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
 
   const safeSelectedLayerId =
     selectedLayerId &&
-    (doc.layers.some((layer) => layer.id === selectedLayerId) || isSelectableScene3DTarget(doc, selectedLayerId))
+    (doc.layers.some((layer) => layer.id === selectedLayerId) ||
+      Boolean(doc.graph && graphUtilityNodeKind(doc.graph, selectedLayerId)))
       ? selectedLayerId
       : null;
 
@@ -143,39 +150,24 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     });
   }, [fromBlankParam]);
 
-  const clearPendingHistory = useCallback(() => {
-    clearTimeout(histDebounceRef.current);
-    preChangeRef.current = null;
-  }, []);
+  const historyCommit = useMemo<DocumentHistoryCommit>(
+    () => ({
+      docRef,
+      pendingRef: preChangeRef,
+      timerRef: histDebounceRef,
+      setDoc: _setDoc,
+      setPast,
+      setFuture,
+    }),
+    [],
+  );
+  const clearPendingHistory = useCallback(() => clearPendingDocumentHistory(historyCommit), [historyCommit]);
 
   useEffect(() => () => clearTimeout(histDebounceRef.current), []);
 
   const commitDocument = useCallback(
-    (newDoc: CanvasDocument, mode: DocumentUpdateMode) => {
-      if (mode === 'snapshot') {
-        clearPendingHistory();
-        setPast((items) => pushSnapshotHistory({ past: items, future: [] }, docRef.current).past);
-        setFuture([]);
-        _setDoc(newDoc);
-        return;
-      }
-
-      if (mode === 'debounce') {
-        _setDoc(newDoc);
-        preChangeRef.current = createPendingHistoryEntry(docRef.current, preChangeRef.current);
-        clearTimeout(histDebounceRef.current);
-        histDebounceRef.current = setTimeout(() => {
-          if (!preChangeRef.current) return;
-          setPast((items) => flushPendingHistory({ past: items, future: [] }, preChangeRef.current).past);
-          setFuture([]);
-          preChangeRef.current = null;
-        }, 400);
-        return;
-      }
-
-      _setDoc(newDoc);
-    },
-    [clearPendingHistory],
+    (newDoc: CanvasDocument, mode: DocumentUpdateMode) => commitDocumentWithHistory(newDoc, mode, historyCommit),
+    [historyCommit],
   );
 
   const setDoc = useCallback(
@@ -194,8 +186,11 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
 
   const replaceDocument = useCallback(
     (nextDoc: CanvasDocument) => {
-      commitDocument(normalizeDocument(nextDoc), 'snapshot');
+      const loadedDoc = normalizeDocument(nextDoc);
+      commitDocument(loadedDoc, 'snapshot');
       setSelectedLayerId(null);
+      setDocumentSessionId((id) => id + 1);
+      return loadedDoc;
     },
     [commitDocument],
   );
@@ -249,7 +244,9 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     const ok = saveDocumentToStorage(doc);
     let cancelled = false;
     queueMicrotask(() => {
-      if (!cancelled) setDocumentSaveStatus({ ok, savedAt: ok ? new Date().toISOString() : null });
+      // Keep the same status object while the outcome is unchanged, so autosave on every edit does not re-render
+      // the editor a second time per edit.
+      if (!cancelled) setDocumentSaveStatus((current) => (current.ok === ok ? current : { ok }));
     });
     return () => {
       cancelled = true;
@@ -280,45 +277,45 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   }, [commitDocument, nodeModeEnabled]);
 
   const addLayer = useCallback(
-    (kind: Exclude<LayerKind, 'effect'>) => {
+    (kind: Exclude<LayerKind, 'effect'>, placement?: LayerAddPlacement) => {
       const layer = createLayerOfKind(kind);
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
   );
 
   const addEffectPreset = useCallback(
-    (preset: EffectPreset) => {
+    (preset: EffectPreset, placement?: LayerAddPlacement) => {
       const layer = createEffectPresetLayer(preset);
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
   );
 
   const addTextPreset = useCallback(
-    (preset: TextPresetId) => {
+    (preset: TextPresetId, placement?: LayerAddPlacement) => {
       const layer = createTextPresetLayer(preset);
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
   );
 
   const addNoisePreset = useCallback(
-    (preset: NoisePresetId) => {
+    (preset: NoisePresetId, placement?: LayerAddPlacement) => {
       const layer = makeNoisePresetLayer(preset);
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
   );
 
   const addArrayPreset = useCallback(
-    (preset: ArrayPresetId) => {
+    (preset: ArrayPresetId, placement?: LayerAddPlacement) => {
       const layer = makeArrayPresetLayer(preset);
-      updateDocument((current) => addLayerToDocument(current, layer), 'snapshot');
+      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
       setSelectedLayerId(layer.id);
     },
     [updateDocument],
@@ -514,9 +511,35 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
+  /** Adds a graph-only node from Layers, above the selected tree row when `placement` names one. */
+  const addNodeFromLayers = useCallback(
+    (action: AddAction, position: { x: number; y: number }, placement?: LayerAddPlacement) => {
+      const placed = placement ? addNodeAboveTreeRow(docRef.current, action, placement.aboveNodeId) : null;
+      if (!placed) {
+        handleAddLayerAt(action, position);
+        return;
+      }
+      commitDocument(placed.doc, 'snapshot');
+      if (placed.selectedLayerId) setSelectedLayerId(placed.selectedLayerId);
+    },
+    [commitDocument, handleAddLayerAt],
+  );
+
+  /** Runs one Layers tree edit as one undo step. A blocked edit leaves the document as it is. */
+  const applyTreeEdit = useCallback(
+    (edit: (current: CanvasDocument) => TreeEditResult): TreeEditResult => {
+      const result = edit(docRef.current);
+      if (result.ok && result.doc !== docRef.current) commitDocument(result.doc, 'snapshot');
+      return result;
+    },
+    [commitDocument],
+  );
+
   const handleRandomize = useCallback(() => {
-    commitDocument(randomDocument(), 'snapshot');
+    const nextDoc = randomDocument();
+    commitDocument(nextDoc, 'snapshot');
     setSelectedLayerId(null);
+    return nextDoc;
   }, [commitDocument]);
 
   const handleNewBlank = useCallback(() => {
@@ -530,6 +553,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     }
     commitDocument(createBlankDocument({ aspect: current.global.aspect, seed: current.global.seed }), 'snapshot');
     setSelectedLayerId(null);
+    setDocumentSessionId((id) => id + 1);
   }, [commitDocument]);
 
   const saveRecoveryDraft = useCallback(async () => {
@@ -597,6 +621,8 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
+    addNodeFromLayers,
+    applyTreeEdit,
     handleRandomize,
     handleNewBlank,
     saveRecoveryDraft,
@@ -604,6 +630,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     handleExportConfigChange,
     handleCopyLink,
     loadDocument: replaceDocument,
+    documentSessionId,
     setDoc,
     setSeed,
     setAspect,

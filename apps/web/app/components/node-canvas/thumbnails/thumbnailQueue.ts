@@ -1,3 +1,4 @@
+import { scheduleIdle } from '../../../utils/idleCallback';
 import { THUMB_DEBOUNCE_MS } from '../constants';
 import type { ThumbnailRenderTask } from '../types';
 
@@ -19,9 +20,13 @@ export interface ThumbnailQueueSnapshot {
   averageDurationMs: number;
 }
 
+/** Drain order: selected and output previews, then previews in the viewport, then previews only near it. */
+const ThumbnailTier = { Nearby: 0, Visible: 1, Active: 2 } as const;
+type ThumbnailTier = (typeof ThumbnailTier)[keyof typeof ThumbnailTier];
+
 interface QueuedThumbnailRender {
   task: ThumbnailRenderTask;
-  priority: boolean;
+  tier: ThumbnailTier;
   order: number;
 }
 
@@ -76,46 +81,38 @@ function emitThumbnailQueueChange() {
   thumbnailQueueListeners.forEach((listener) => listener());
 }
 
-function queueHasPriorityWork() {
+/** Whether queued work should drain on the next task rather than wait for an idle slot. */
+function queueHasEagerWork() {
   for (const queued of thumbnailRenderQueue.values()) {
-    if (queued.priority) return true;
+    if (queued.tier !== ThumbnailTier.Nearby) return true;
   }
   return false;
 }
 
 function pickNextTask() {
-  let fallback: [string, QueuedThumbnailRender] | undefined;
-  let priority: [string, QueuedThumbnailRender] | undefined;
-
+  let next: [string, QueuedThumbnailRender] | undefined;
   for (const entry of thumbnailRenderQueue.entries()) {
-    if (!fallback || entry[1].order < fallback[1].order) fallback = entry;
-    if (entry[1].priority && (!priority || entry[1].order < priority[1].order)) priority = entry;
+    const [, queued] = entry;
+    if (!next || queued.tier > next[1].tier || (queued.tier === next[1].tier && queued.order < next[1].order)) {
+      next = entry;
+    }
   }
-
-  return priority ?? fallback;
+  return next;
 }
 
-function requestIdleDrain(callback: () => void) {
-  if (typeof globalThis.requestIdleCallback === 'function') {
-    globalThis.requestIdleCallback(callback, { timeout: 250 });
-    return;
-  }
-  setTimeout(callback, 48);
-}
-
-function scheduleThumbnailQueueDrain(priority = false) {
+function scheduleThumbnailQueueDrain(eager = false) {
   if (thumbnailRenderActive || thumbnailRenderQueue.size === 0) return;
-  if (thumbnailDrainScheduled && !priority) return;
+  if (thumbnailDrainScheduled && !eager) return;
   thumbnailDrainScheduled = true;
   const run = () => {
     thumbnailDrainScheduled = false;
     drainThumbnailRenderQueue();
   };
-  if (priority) {
+  if (eager) {
     setTimeout(run, 0);
     return;
   }
-  requestIdleDrain(run);
+  scheduleIdle(run, 250, 48);
 }
 
 function drainThumbnailRenderQueue() {
@@ -137,24 +134,35 @@ function drainThumbnailRenderQueue() {
       thumbnailRenderActive = false;
       thumbnailActiveTaskKey = null;
       emitThumbnailQueueChange();
-      scheduleThumbnailQueueDrain(queueHasPriorityWork());
+      scheduleThumbnailQueueDrain(queueHasEagerWork());
     });
 }
 
+/**
+ * Queues a thumbnail render; a newer task for the same key replaces the queued one. `priority` marks the selected or
+ * output preview and `visible` a preview inside the viewport: both drain on the next task, highest tier first.
+ * Other previews wait for an idle slot.
+ */
 export function scheduleThumbnailRender(
   taskKey: string,
   task: ThumbnailRenderTask,
-  options: { priority?: boolean } = {},
+  options: { priority?: boolean; visible?: boolean } = {},
 ) {
   const existing = thumbnailRenderQueue.get(taskKey);
   if (!existing) thumbnailTotalScheduled += 1;
+  const requestedTier: ThumbnailTier = options.priority
+    ? ThumbnailTier.Active
+    : options.visible
+      ? ThumbnailTier.Visible
+      : ThumbnailTier.Nearby;
+  const tier = existing && existing.tier > requestedTier ? existing.tier : requestedTier;
   thumbnailRenderQueue.set(taskKey, {
     task,
-    priority: Boolean(options.priority) || Boolean(existing?.priority),
+    tier,
     order: existing?.order ?? thumbnailRenderOrder++,
   });
   emitThumbnailQueueChange();
-  scheduleThumbnailQueueDrain(Boolean(options.priority));
+  scheduleThumbnailQueueDrain(tier !== ThumbnailTier.Nearby);
 }
 
 async function measureThumbnailTask(taskKey: string, task: ThumbnailRenderTask) {

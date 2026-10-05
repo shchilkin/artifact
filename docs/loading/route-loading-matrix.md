@@ -178,7 +178,7 @@ entry with the same imports.
 | `routes/editor/editor.css` | editor layout, canvas area, sidebar, bottom bar | editor, style guide |
 | `components/layers-panel/layers-panel.css` | layer rows, areas, Add Library | editor, style guide |
 | `components/node-canvas/inspector/inspector.css` | layer and node inspector | editor, style guide |
-| `components/editor-target/editor-target.css`, `components/node-canvas/panel/node-properties-panel.css`, `components/ai-generation-panel.css`, `components/effect-info-popup.css` | editor panels | editor, style guide |
+| `components/editor-target/editor-target.css`, `components/ai-generation-panel.css`, `components/effect-info-popup.css` | editor panels | editor, style guide |
 | `components/storage-workspace-status.css`, `routes/editor/empty-canvas-start.css` | editor status and empty start | editor |
 | `components/account-panel.css` | account dialog | `AccountPanel`, on demand |
 | `components/public-page-layout.css` | public footer | `PublicPageLayout` |

@@ -34,10 +34,9 @@ export const NodeThumbnail = memo(function NodeThumbnail({
         className="node-thumbnail-frame checkerboard-surface"
         style={{ width: previewSize.display.width, height: previewSize.display.height }}
       >
+        {/* The render job sizes the backing store when it draws, so a resolution change keeps the last frame. */}
         <canvas
           ref={canvasRef}
-          width={previewSize.render.width}
-          height={previewSize.render.height}
           className="node-thumbnail-canvas"
           style={{ opacity: canvasOpacity, transition: 'opacity 0.1s ease' }}
         />

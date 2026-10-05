@@ -145,7 +145,7 @@ jobs:
           changed="$(git diff --name-only "$base" HEAD || true)"
           echo "$changed"
 
-          if echo "$changed" | grep -Eq '^(\.github/workflows/ci\.yml|package\.json|package-lock\.json|playwright\.config\.ts|apps/|packages/|tests/browser/|scripts/loading/|docs/loading/)'; then
+          if echo "$changed" | grep -Eq '^(\.github/workflows/ci\.yml|package\.json|package-lock\.json|playwright\.config\.ts|apps/|packages/|tests/browser/|scripts/loading/|docs/loading/|scripts/editor-ux/|docs/editor-ux/|scripts/preview-server\.mjs)'; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"
@@ -226,6 +226,44 @@ jobs:
         with:
           name: route-loading
           path: apps/web/build/route-loading.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  editor-ux:
+    needs: browser-changes
+    if: needs.browser-changes.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    name: editor ux
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install browser test font fixture
+        run: apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core
+
+      - name: Layout stability and edit latency budgets
+        env:
+          HOME: /root
+        run: npm run ux:gate
+
+      - name: Upload editor UX measurement
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editor-ux
+          path: apps/web/build/editor-ux.json
           if-no-files-found: ignore
           retention-days: 14
 

@@ -136,7 +136,7 @@ test('medium desktop editor keeps bottom actions inside the viewport', async ({ 
   await gotoDocument(page, layerStateDocument);
   await expectLayerCanvasToHavePixels(page);
 
-  const bottomBar = page.locator('.main > .bottom-bar');
+  const bottomBar = page.locator('.app > .bottom-bar');
   await expect(bottomBar).toBeVisible();
   await expect(bottomBar.getByRole('button', { name: /more editor actions/i })).toBeVisible();
   await expect(bottomBar.getByRole('button', { name: /projects/i })).toBeVisible();
@@ -162,7 +162,7 @@ test('wide desktop editor keeps overflow-only actions collapsed', async ({ page 
   await gotoDocument(page, layerStateDocument);
   await expectLayerCanvasToHavePixels(page);
 
-  const bottomBar = page.locator('.main > .bottom-bar');
+  const bottomBar = page.locator('.app > .bottom-bar');
   await expect(bottomBar.getByRole('button', { name: /open document file/i })).toBeVisible();
   await expect(bottomBar.getByRole('button', { name: /share link or download editable files/i })).toBeVisible();
   await expect(bottomBar.getByRole('button', { name: /more editor actions/i })).toBeHidden();
@@ -426,14 +426,14 @@ async function openGraphNodeBottomBar(page: Page, viewport: { width: number; hei
   await page.setViewportSize(viewport);
   await gotoDocument(page, graphStateDocument);
   await switchToNodeView(page);
-  const bottomBar = page.locator('.main-nodes > .bottom-bar');
+  const bottomBar = page.locator('.app-nodes > .bottom-bar');
   await expect(bottomBar).toBeVisible({ timeout: 15_000 });
   await expect(bottomBar.getByRole('button', { name: /more editor actions/i })).toBeVisible();
   return bottomBar;
 }
 
 async function readNodeBottomRailLayout(page: Page) {
-  const bottomBar = page.locator('.main-nodes > .bottom-bar');
+  const bottomBar = page.locator('.app-nodes > .bottom-bar');
   const buttons = await readVisibleButtonRects(bottomBar.locator('button'));
   return {
     ...(await readViewportMetrics(page)),
@@ -652,3 +652,24 @@ async function getCanvasCenterRgb(page: Page) {
     return { r: pixel[0] ?? 0, g: pixel[1] ?? 0, b: pixel[2] ?? 0 };
   });
 }
+
+test('style guide dialogs loop focus for Tab and Option+Tab', async ({ page, browserName }) => {
+  await page.goto('/docs/style-guide');
+  // WebKit, like Safari, moves between buttons only with Option+Tab, which Radix alone does not loop.
+  for (const forward of [browserName === 'webkit' ? 'Alt+Tab' : 'Tab']) {
+    const backward = forward.replace('Tab', 'Shift+Tab');
+    await page.getByRole('button', { name: 'Open confirmation specimen' }).click();
+    const dialog = page.getByRole('alertdialog', { name: 'Delete project?' });
+    const cancel = dialog.getByRole('button', { name: 'Cancel' });
+    const remove = dialog.getByRole('button', { name: 'Delete' });
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press(forward);
+    await expect(remove).toBeFocused();
+    await page.keyboard.press(forward);
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press(backward);
+    await expect(remove).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  }
+});

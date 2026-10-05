@@ -7,6 +7,7 @@ import { CanvasHandles } from './CanvasHandles';
 import { type CanvasPreviewRenderState, resolveCanvasPreviewState } from './canvasPreviewState';
 import type { PrimitiveViewportState } from './PrimitiveViewportState';
 import { EmptyState } from './ui/EmptyState';
+import { PreviewProgress } from './ui/PreviewProgress';
 
 import './canvas-preview.css';
 
@@ -17,6 +18,8 @@ const PREVIEW_DRAFT_RENDER_SCALE = 1;
 const PREVIEW_DRAFT_MAX_RENDER_DIMENSION = 540;
 const PREVIEW_FULL_RENDER_DELAY_MS = 240;
 const PREVIEW_FULL_RENDER_IDLE_TIMEOUT_MS = 900;
+/** Keeps a slider step's preview within the input-latency budget on slow GPUs such as software WebGL. */
+const PREVIEW_INTERACTIVE_GPU_PASS_BUDGET_MS = 12;
 const PREVIEW_DISPLAY_MAX_HEIGHT = 540;
 
 interface Props {
@@ -55,6 +58,7 @@ export function CanvasPreview({
     deferredPreviewQuality: 'full',
     deferredFullRenderMs: PREVIEW_FULL_RENDER_DELAY_MS,
     deferredFullRenderTimeoutMs: PREVIEW_FULL_RENDER_IDLE_TIMEOUT_MS,
+    interactiveGpuPassBudgetMs: PREVIEW_INTERACTIVE_GPU_PASS_BUDGET_MS,
   });
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId);
   const previewState = resolveCanvasPreviewState(renderState, doc.layers.length > 0, Boolean(selectedLayer));
@@ -94,6 +98,8 @@ export function CanvasPreview({
           className="pixi-container artifact-canvas-preview__surface checkerboard-surface flex items-center justify-center w-full h-full"
           onClick={(event) => handleCanvasPreviewSurfaceClick(event, onSelectLayer)}
         />
+        {/* Shown by CSS while the surface's data-preview-pending is "true"; see useDocumentRenderer. */}
+        <PreviewProgress />
         <CanvasPreviewHandles
           selectedLayer={selectedLayer}
           canvasW={pw}

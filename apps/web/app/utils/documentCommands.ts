@@ -53,6 +53,7 @@ import {
   addScene3DNode,
   addShaderNode,
   addTransformNode,
+  documentGraph,
   EXPORT_NODE_ID,
   GRAPH_AREA_COLORS,
   graphUtilityNodeCollections,
@@ -103,10 +104,6 @@ export interface AddNodeAtDocumentResult {
 }
 
 type CreateGraphEdgeId = (fromId: string, toId: string, index: number) => string;
-
-function ensureDocumentGraph(doc: CanvasDocument): CanvasGraph {
-  return doc.graph ?? inferLinearGraph(doc.layers);
-}
 
 export function bootstrapDocumentGraph(doc: CanvasDocument): CanvasDocument {
   return doc.graph ? doc : { ...doc, graph: inferLinearGraph(doc.layers) };
@@ -169,7 +166,7 @@ export function addEnvironmentMapToDocument(
     environmentMime: asset.environmentMime,
     environmentBytes: asset.environmentBytes,
   });
-  const graph = ensureDocumentGraph(doc);
+  const graph = documentGraph(doc);
   return {
     doc: {
       ...doc,
@@ -299,7 +296,7 @@ export function addLooseLayerNodeToDocument(
   layer: Layer,
   position?: { x: number; y: number },
 ): CanvasDocument {
-  const graph = ensureDocumentGraph(doc);
+  const graph = documentGraph(doc);
   return {
     ...doc,
     layers: [...doc.layers, layer],
@@ -308,7 +305,7 @@ export function addLooseLayerNodeToDocument(
 }
 
 export function createGraphAreaInDocument(doc: CanvasDocument, nodeIds: string[]): CanvasDocument {
-  const graph = ensureDocumentGraph(doc);
+  const graph = documentGraph(doc);
   const areaNumber = (graph.areas?.length ?? 0) + 1;
   const color = GRAPH_AREA_COLORS[(areaNumber - 1) % GRAPH_AREA_COLORS.length];
   return {
@@ -329,7 +326,7 @@ export function addLayersToGraphAreaInDocument(
 ): CanvasDocument {
   return {
     ...doc,
-    graph: addNodesToGraphArea(ensureDocumentGraph(doc), areaId, layerIds),
+    graph: addNodesToGraphArea(documentGraph(doc), areaId, layerIds),
   };
 }
 
@@ -338,7 +335,7 @@ export function renameGraphAreaInDocument(doc: CanvasDocument, areaId: string, n
   if (!trimmed) return doc;
   return {
     ...doc,
-    graph: updateGraphArea(ensureDocumentGraph(doc), areaId, { name: trimmed }),
+    graph: updateGraphArea(documentGraph(doc), areaId, { name: trimmed }),
   };
 }
 
@@ -353,7 +350,7 @@ export function removeNodesFromGraphAreaInDocument(
 ): CanvasDocument {
   return {
     ...doc,
-    graph: removeNodesFromGraphArea(ensureDocumentGraph(doc), areaId, nodeIds),
+    graph: removeNodesFromGraphArea(documentGraph(doc), areaId, nodeIds),
   };
 }
 
@@ -373,7 +370,7 @@ export function removeNodesFromAllGraphAreasInDocument(doc: CanvasDocument, node
 export function removeGraphAreaInDocument(doc: CanvasDocument, areaId: string): CanvasDocument {
   return {
     ...doc,
-    graph: removeGraphArea(ensureDocumentGraph(doc), areaId),
+    graph: removeGraphArea(documentGraph(doc), areaId),
   };
 }
 
@@ -532,18 +529,12 @@ function connectInsertedGraphOnlyNode(
 ) {
   if (action.kind === 'merge') {
     const node = makeGraphMergeNode();
-    return connectInsertedNode(
-      addMergeNode(ensureDocumentGraph(doc), node, position),
-      node.id,
-      'a',
-      insertion,
-      createEdgeId,
-    );
+    return connectInsertedNode(addMergeNode(documentGraph(doc), node, position), node.id, 'a', insertion, createEdgeId);
   }
   if (action.kind === 'color') {
     const node = makeGraphColorNode();
     return connectInsertedNode(
-      addColorNode(ensureDocumentGraph(doc), node, position),
+      addColorNode(documentGraph(doc), node, position),
       node.id,
       'in',
       insertion,
@@ -552,7 +543,7 @@ function connectInsertedGraphOnlyNode(
   }
   if (action.kind === 'material') {
     const node = makeGraphMaterialNode();
-    const graph = addMaterialNode(ensureDocumentGraph(doc), node, position);
+    const graph = addMaterialNode(documentGraph(doc), node, position);
     if (insertion?.targetId && insertion.targetPort === 'material') {
       return addGraphEdge(graph, {
         id: createEdgeId?.(node.id, insertion.targetId, 0) ?? defaultCreateGraphEdgeId(node.id, insertion.targetId, 0),
@@ -566,18 +557,12 @@ function connectInsertedGraphOnlyNode(
   }
   if (action.kind === 'mask') {
     const node = makeGraphMaskNode();
-    return connectInsertedNode(
-      addMaskNode(ensureDocumentGraph(doc), node, position),
-      node.id,
-      'in',
-      insertion,
-      createEdgeId,
-    );
+    return connectInsertedNode(addMaskNode(documentGraph(doc), node, position), node.id, 'in', insertion, createEdgeId);
   }
   if (action.kind === 'transform') {
     const node = makeGraphTransformNode();
     return connectInsertedNode(
-      addTransformNode(ensureDocumentGraph(doc), node, position),
+      addTransformNode(documentGraph(doc), node, position),
       node.id,
       'in',
       insertion,
@@ -587,7 +572,7 @@ function connectInsertedGraphOnlyNode(
   if (action.kind === 'grimeShadow') {
     const node = makeGraphGrimeShadowNode();
     return connectInsertedNode(
-      addGrimeShadowNode(ensureDocumentGraph(doc), node, position),
+      addGrimeShadowNode(documentGraph(doc), node, position),
       node.id,
       'in',
       insertion,
@@ -597,7 +582,7 @@ function connectInsertedGraphOnlyNode(
   if (action.kind === 'scene3d') {
     const node = makeGraphScene3DNode();
     return connectInsertedNode(
-      addScene3DNode(ensureDocumentGraph(doc), node, position),
+      addScene3DNode(documentGraph(doc), node, position),
       node.id,
       'model',
       insertion,
@@ -607,7 +592,7 @@ function connectInsertedGraphOnlyNode(
   if (action.kind === 'environment') {
     const node = makeGraphEnvironmentNode();
     return connectInsertedNode(
-      addEnvironmentNode(ensureDocumentGraph(doc), node, position),
+      addEnvironmentNode(documentGraph(doc), node, position),
       node.id,
       'env',
       insertion,
@@ -624,7 +609,7 @@ function connectInsertedGraphOnlyNode(
     });
     if (role === 'effect') {
       return connectInsertedNode(
-        addShaderNode(ensureDocumentGraph(doc), node, position),
+        addShaderNode(documentGraph(doc), node, position),
         node.id,
         'bg',
         insertion,
@@ -632,20 +617,14 @@ function connectInsertedGraphOnlyNode(
       );
     }
     return connectInsertedSourceNode(
-      addShaderNode(ensureDocumentGraph(doc), node, position),
+      addShaderNode(documentGraph(doc), node, position),
       node.id,
       insertion,
       createEdgeId,
     );
   }
   const node = action.kind === 'repeatPreset' ? makeRepeatPresetNode(action.preset) : makeGraphRepeatNode();
-  return connectInsertedNode(
-    addRepeatNode(ensureDocumentGraph(doc), node, position),
-    node.id,
-    'in',
-    insertion,
-    createEdgeId,
-  );
+  return connectInsertedNode(addRepeatNode(documentGraph(doc), node, position), node.id, 'in', insertion, createEdgeId);
 }
 
 function isGraphOnlyAddAction(action: DocumentAddAction): action is Extract<
@@ -721,7 +700,7 @@ export function addNodeAtDocument(
   if (isGraphOnlyAddAction(action)) return addGraphOnlyNodeAtDocument(doc, action, position, insertion, createEdgeId);
 
   const layer = layerForAddAction(action);
-  const baseGraph = ensureDocumentGraph(doc);
+  const baseGraph = documentGraph(doc);
   const graph = connectInsertedNode(
     addLayerToGraph(baseGraph, layer.id, position),
     layer.id,

@@ -3,6 +3,8 @@ import type * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+import { loopOptionTabFocus } from './dialogFocusLoop';
+
 import './dialog.css';
 
 const Dialog = DialogPrimitive.Root;
@@ -20,11 +22,18 @@ interface DialogContentProps extends React.ComponentProps<typeof DialogPrimitive
   overlayClassName?: string;
 }
 
-function DialogContent({ className, children, overlayClassName, ...props }: DialogContentProps) {
+function DialogContent({ className, children, overlayClassName, onKeyDown, ...props }: DialogContentProps) {
   return (
     <DialogPortal>
       <DialogOverlay className={overlayClassName} />
-      <DialogPrimitive.Content className={cn('artifact-dialog-content', className)} {...props}>
+      <DialogPrimitive.Content
+        className={cn('artifact-dialog-content', className)}
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+          loopOptionTabFocus(event);
+        }}
+        {...props}
+      >
         {children}
       </DialogPrimitive.Content>
     </DialogPortal>

@@ -28,6 +28,11 @@ PERF_OUTPUT=test-results/performance/before.json npm run perf:node-editor
 PERF_OUTPUT=test-results/performance/after.json npm run perf:node-editor
 ```
 
+Enforced editor budgets (layout shift, slider input-to-preview latency, and
+node-preview settle time on the production build) are a separate gate:
+`npm run ux:gate`, described in
+[`editor-ux/editor-ux-baseline.md`](./editor-ux/editor-ux-baseline.md).
+
 ## Metrics
 
 Each scenario reports:
@@ -99,7 +104,21 @@ The Pixi bridge records `artifact:gpu-render`, `artifact:gpu-queue-wait`,
 `artifact:gpu-upload`, `artifact:gpu-blit`, and `artifact:gpu-filter-extract`.
 These marks exist to answer whether GPU-backed effect time is coming from
 renderer serialization, canvas-to-texture upload, the WebGL pass, or readback
-into a Canvas 2D surface.
+into a Canvas 2D surface. Inside `gpu-filter-extract`, the non-blocking readback
+records `artifact:gpu-fence-wait`, `artifact:gpu-readback`, and
+`artifact:gpu-to-canvas`:
+
+- `gpu-fence-wait` is the GPU running the commands queued before it. These are
+  the texture upload and blit submitted in `gpu-blit`, the filters, and
+  `readPixels`. WebGL runs them asynchronously in the GPU process and the fence
+  only reports when all are done, so JavaScript cannot time them apart.
+  `EXT_disjoint_timer_query_webgl2` could, but software WebGL does not expose
+  it.
+- `gpu-readback` copies the pixels out of the buffer and unpremultiplies them.
+- `gpu-to-canvas` writes them into the output canvas.
+
+The Canvas 2D pixel-kernel worker records one `artifact:worker-transform` per
+round trip (main-thread `getImageData` excluded).
 
 Adjacent graph effect nodes that only use Pixi filters are batched into a single
 GPU pass. This preserves the separate-node editing model while avoiding repeated
@@ -152,12 +171,73 @@ Recent manual profiling notes:
   a transient `AbortSignal` and stops before continuing through stale expensive
   effects. This keeps cancellation outside `CanvasDocument` while preventing
   old full-quality work from blocking the node workspace.
-- Node thumbnails now share a render-session cache for graph branches. When
-  several visible thumbnails depend on the same upstream source/effect chain,
-  the renderer can reuse in-flight or completed upstream canvases instead of
+- v0.50 (#308) made direct edits meet the editor UX latency budgets without
+  changing render output:
+  - The layer preview schedules renders latest-wins
+    (`apps/web/app/hooks/previewRenderScheduler.ts`): one render in flight and
+    at most one waiting. A newer request aborts a running full-quality pass
+    and drops its result. **Deviation from "stale renders are dropped":** a
+    running interactive (preview-size) pass is allowed to finish and paint,
+    one input behind the latest state, and the newest state renders right
+    after it. Dropping those too was measured on the CI runner: a 20-step
+    drag then painted 0 preview frames on `default` and 0–1 on
+    `effect-stack` (3–5 with this rule). Requests that arrive while a render
+    runs never queue more than one render. While input keeps arriving, the next interactive render
+    waits until the main thread has been free for twice the previous render's
+    duration (at most 250 ms). The wait ends once input has been quiet for
+    twice its recent interval, and a request after a 120 ms pause (an edit
+    after a pause, or the full-quality pass after a gesture) starts without
+    it.
+  - The Pixi bridge reads filter output back through a pixel-pack buffer and a
+    fence instead of a blocking `readPixels`, so the main thread keeps handling
+    input while the GPU runs the filters. The bytes match
+    `renderer.extract.canvas` (same unpremultiply rounding); WebGL1 or a
+    readback that does not complete within 2 s falls back to the synchronous
+    extract.
+  - Node thumbnails use a content-addressed graph cache (see
+    [`rendering.md`](./rendering.md)), so a slider edit re-renders only the
+    edited node and what is downstream of it. Selected and output previews
+    queue with no debounce, previews in the viewport after a 32 ms pause and
+    ahead of previews that are only near the viewport (120 ms and an idle
+    slot).
+- v0.50 (#324) brought a slider keypress and a 20-step slider drag within their
+  budgets on the CI runner, where WebGL is software-rendered. One GPU effect pass
+  there costs about 34 ms at 540 px even with no filters (canvas upload, blit,
+  and readback), against 1-3 ms on a hardware GPU. Preview, thumbnail, and
+  export output did not change.
+  - The readback fence polls back to back for 2 ms, then every 1 ms on timers.
+    Back-to-back polling had kept the main thread busy for the whole GPU pass.
+  - The editor commits once per edit instead of three times. Autosave status
+    only changes when its outcome changes, and the storage summary follows the
+    document after an edit settles. Only the edited layer row re-renders.
+  - Interactive renders within one burst of input start at least
+    `PREVIEW_FRAME_INTERVAL_MS` apart (`apps/web/app/utils/interactionTiming.ts`,
+    about 15 preview frames per second). A first edit, and the last state after
+    input stops, still render at once. While a frame is showing, only a
+    full-quality pass marks the preview busy.
+  - Inspector sliders show every value at once and update the document at most
+    once per preview frame interval during a drag. A change after a pause, and
+    the value on release, go through at once. A value still waiting goes to the
+    layer or node it was made on (`InspectorTargetContext`).
+  - Grain textures up to the full-quality preview size are cached by seed, size,
+    and amount; larger (export) textures are not kept.
+  - The interactive preview frame is sized to the GPU: 3/4 or 1/2 of the draft
+    size when a pass at the draft size would exceed 12 ms (see
+    [`rendering.md`](./rendering.md)). The estimate is a fixed cost plus a cost
+    per megapixel, fitted to the layer preview's own GPU passes only. It merges an effect layer's GPU filters
+    into the next GPU-only pass. When its size changes, one unpainted render in
+    idle time fills the layer prefix cache at the new size.
+  - The display canvas takes each frame's own size. Upscaling a small frame into
+    the 1080 px canvas cost a full-resolution raster per paint.
+  - Keypress traces, before and after, are in
+    [`editor-ux/editor-ux-baseline.md`](./editor-ux/editor-ux-baseline.md).
+- Node thumbnails share a graph render cache for upstream branches (keyed by
+  content since v0.50, see [`rendering.md`](./rendering.md)). When several
+  visible thumbnails depend on the same upstream source/effect chain, the
+  renderer reuses in-flight or completed upstream canvases instead of
   recomputing the same branch for every thumbnail.
   In one local benchmark run, initial thumbnail render time dropped from roughly
-  `1360ms` total to roughly `107ms` total after this cache boundary.
+  `1360ms` total to roughly `107ms` total after this cache boundary was added.
 - Gallery previews and generated preset/example thumbnails can now pass the
   same external graph render cache through `renderDocument`, so the cache
   boundary is not limited to node cards. Generated thumbnail data URLs are also

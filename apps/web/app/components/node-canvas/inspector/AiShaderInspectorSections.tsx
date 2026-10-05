@@ -327,7 +327,7 @@ function AiShaderControlsContent({
       open={open}
       onToggle={() => setOpen((value) => !value)}
     >
-      <div className="node-shader-flat-controls">
+      <div className="artifact-inspector-flat-list">
         <AiShaderStrengthControl
           visible={builtInControls.includes('strength')}
           shaderNode={shaderNode}

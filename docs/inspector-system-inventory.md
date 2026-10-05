@@ -41,7 +41,7 @@ camera ownership, provider policy, or accepted AI results.
 
 | Visible surface | Current implementation | Required states |
 | --- | --- | --- |
-| Selected-layer basics | `Sidebar.tsx` `SelectedLayerBasics` | visible, hidden, locked guardrail |
+| Selected-layer basics | `layer-controls/LayerStateSection.tsx` (`SelectedLayerBasics` before v0.50) | visible, hidden, locked guardrail |
 | Image source | `Sidebar.tsx` `ImageSourceSection` | empty, ready preview, replace, file input, drag/drop, missing local asset |
 | Emoji set | `Sidebar.tsx` `EmojiSetSection` | selected/unselected glyphs, keyboard focus, wrapped dense grid |
 | AI Image properties | `Sidebar.tsx` `AiImageSection`, `AiGenerationPanel` | access disabled, empty, prompt/provider fields, loading, success, error, recovery |
@@ -52,7 +52,7 @@ camera ownership, provider policy, or accepted AI results.
 | Fill properties | `LayerControls` | color, opacity, blend |
 | Primitive and model-source properties | `LayerControls` | shape/model metadata, unavailable source, replace source, material-adjacent readouts |
 | Noise and array properties | `LayerControls` | preset-specific fields, value overrides, seeded variation, disabled/inactive controls |
-| Layer-backed node host | `node-canvas/inspector/LayerInspector.tsx` | same fields and state as Layers without forking document commands |
+| Layer target host (Layers and Nodes) | `layer-controls/LayerTargetInspector.tsx` | same sections, fields, and state in both modes without forking document commands |
 
 Effect-layer controls are assigned to #170 even though `LayerControls` currently
 hosts them. The common host may migrate in #169, but effect metadata and authored
@@ -62,14 +62,16 @@ The effect-only **Use source alpha** toggle is an explicit exception to the
 `SelectedLayerBasics` host assignment: #170 owns its migration because it writes
 the authored `EffectLayer.maskAlpha` value. #169 may migrate the surrounding
 visibility and lock rows, but must leave that toggle on the legacy surface until
-#170 moves it.
+#170 moves it. Since v0.50 (#309) the toggle lives only in the effect's Node
+section, and visibility and lock render in the shared `Layer` section in both
+Layers and Nodes.
 
 ### Ordinary graph property surfaces — #168
 
 | Visible surface | Current implementation | Required states |
 | --- | --- | --- |
 | Properties-panel selection content | `node-canvas/panel/NodePropertiesPanel.tsx` | no selection, selected target, close, narrow drawer, keyboard focus |
-| Target overview and layer lock readout | `NodePropertiesPanel.tsx` | layer-backed, graph utility, output, hidden, locked |
+| Target overview | `NodePropertiesPanel.tsx` | layer-backed, graph utility, output, hidden, locked |
 | Connected-port rows | `node-canvas/inspector/PortRow.tsx` and material/environment input rows | accessible connected/disconnected status; unavailable/read-only resource metadata |
 | Color utility | `ColorInspector.tsx` | named target, ordinary numeric fields |
 | Merge utility | `MergeInspector.tsx` | blend, opacity, missing input |
@@ -87,7 +89,8 @@ not reproduce them.
 
 | Visible surface | Current implementation | Required states |
 | --- | --- | --- |
-| Effect alpha-mask toggle | `Sidebar.tsx` `SelectedLayerBasics` | enabled/disabled source-alpha masking for an effect layer |
+| Effect alpha-mask toggle | `EffectInspector.tsx` Node section | enabled/disabled source-alpha masking for an effect layer |
+| Layer visibility and lock | `layer-controls/LayerStateSection.tsx`, rendered by `LayerControls` in Layers and Nodes | visible/hidden, locked/unlocked |
 | Effect layer and effect-node controls | `EffectInspector.tsx`, `EffectControlSections.tsx`, effect branches in `LayerControls` | every metadata-defined field, inactive/disabled, error, dense section, info note |
 | Grime shadow effect utility | `GrimeShadowInspector.tsx` | source missing/ready, color and dense numeric controls |
 | Material properties | `MaterialInspector.tsx` | scalar/color values, texture ports, connected/missing maps, clear action |
@@ -111,6 +114,45 @@ They are not inspector fields and must not be recreated in #170.
 Provider access, request cancellation, one-repair policy, browser validation,
 refinement ancestry, and accepted-result commits remain in the existing
 controllers and machines. #171 is a visual and accessibility migration only.
+
+## One Layout In Layers And Nodes (v0.50, #309)
+
+Layers and Nodes render a selected target through the same components:
+`EditorTargetOverview` for the identity header, `LayerTargetInspector` for
+every layer kind (fill, text, image, emoji, primitive, noise, array, line
+field, model, and every effect preset), and `SceneTargetInspector` for a 3D
+Scene. The same target therefore shows the same sections, in the same order,
+at the same size in both modes. `tests/browser/v050-inspector-layout.spec.ts`
+checks this for fill, text, image, emoji, primitive, ten effect presets, and a
+3D Scene.
+
+Section order for a layer: source sections (Image Source and Generate for an
+image, Emoji Set for emoji), the layer's own sections with its primary controls
+first, then the shared `Layer` section (Visible, Locked).
+
+Intentional differences between the modes:
+
+| Difference | Why |
+| --- | --- |
+| The header's eyebrow and first breadcrumb name the mode (`Layers / Source`, `Nodes / Source`). | It tells the user which mode they are editing in; the badges and notes are the same. |
+| Nodes wraps the inspector in a panel with a Properties title and a close button. | The Nodes inspector is a dismissible panel over the graph; the Layers inspector is a reserved column. The title is panel chrome, not the target's identity. |
+| Graph utility, material, environment, and output nodes have inspectors only in Nodes. | They are graph-only targets. Layers lists none of them yet; U6 (#311) adds them to the Layers tree with a notice that points to Nodes. |
+| The AI Image section that starts a new generated image appears only in Layers. | It belongs to the Add flow for a new layer, not to a selected target. An image layer's Generate section is the same in both modes. |
+
+## Accessible Names And Copy
+
+Inspector copy, including accessible names, is English product copy written in
+the components; there is no separate string catalog. Names follow these rules:
+
+- A control is named by its visible label (`Visible`, `Locked`, `Use source
+  alpha`); do not add an `aria-label` that replaces the visible text.
+- A slider's numeric entry is named `<label> value`.
+- A section toggle is named by its title; its summary and state labels describe
+  it (`aria-describedby`).
+- The disabled and inactive suffixes (`/ map`, `/ ignored`) are added in CSS
+  inside the label, so they are read as part of the control's name and tell
+  screen-reader users the same thing they tell sighted users. Keep them short
+  and in English, like the labels they extend.
 
 ## Approved Non-Goals
 

@@ -9,6 +9,21 @@ export interface LayerContextMenuState {
   y: number;
   ids: string[];
   returnFocusTarget: HTMLElement | null;
+  /** The menu was opened on a shared-use row of the Layers tree; only tree actions apply. */
+  reference?: boolean;
+}
+
+/**
+ * A Layers tree action shown at the top of the menu. A blocked action stays focusable and says why: its
+ * title carries the reason, and selecting it runs `onSelect`, which announces the reason.
+ */
+export interface LayerTreeMenuItem {
+  label: string;
+  onSelect: () => void;
+  blockedReason?: string;
+  variant?: 'danger';
+  /** Focus moves elsewhere (a mode switch or a confirm dialog), so it is not returned to the row. */
+  keepFocus?: boolean;
 }
 
 export function LayerContextMenu({
@@ -24,6 +39,7 @@ export function LayerContextMenu({
   onRemoveSelectionFromAreas,
   onRenameLayer,
   onSetLayersVisible,
+  treeItems = [],
 }: {
   contextMenu: LayerContextMenuState | null;
   graphAreas: GraphArea[];
@@ -37,6 +53,7 @@ export function LayerContextMenu({
   onRemoveSelectionFromAreas: (ids: string[]) => void;
   onRenameLayer: (id: string) => void;
   onSetLayersVisible: (ids: string[], visible: boolean) => void;
+  treeItems?: LayerTreeMenuItem[];
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef(true);
@@ -58,8 +75,16 @@ export function LayerContextMenu({
   const allVisible = selectedLayers.length > 0 && selectedLayers.every((layer) => layer.visible);
   const deletableIds = selectedLayers.filter((layer) => !layer.locked).map((layer) => layer.id);
   const hasSelectedAreaMembership = contextMenu.ids.some(hasAreaMembership);
+  // A graph-only node or a shared use has no layer actions; a shared use has no area actions either.
+  const showLayerItems = selectedLayers.length > 0;
+  const showAreaItems = !contextMenu.reference;
   const menuWidth = 196;
-  const menuHeight = 16 + layerContextMenuItemCount(singleLayer, graphAreas.length, hasSelectedAreaMembership) * 46;
+  const menuHeight =
+    16 +
+    (treeItems.length +
+      (showLayerItems ? layerEditMenuItemCount(singleLayer) : 0) +
+      (showAreaItems ? layerAreaMenuItemCount(graphAreas.length, hasSelectedAreaMembership) : 0)) *
+      46;
   const menuPosition = clampPopupPosition(contextMenu.x, contextMenu.y, menuWidth, menuHeight);
   const close = (restoreFocus: boolean) => {
     onClose();
@@ -115,27 +140,44 @@ export function LayerContextMenu({
       onKeyDown={handleMenuKeyDown}
       role="menu"
     >
-      <LayerEditMenuItems
-        allVisible={allVisible}
-        deletableIds={deletableIds}
-        ids={contextMenu.ids}
-        onDuplicateLayers={onDuplicateLayers}
-        onRemoveLayers={onRemoveLayers}
-        onRenameLayer={onRenameLayer}
-        onRun={run}
-        onSetLayersVisible={onSetLayersVisible}
-        singleLayer={singleLayer}
-      />
-      <MenuDivider />
-      <LayerAreaMenuItems
-        graphAreas={graphAreas}
-        hasSelectedAreaMembership={hasSelectedAreaMembership}
-        ids={contextMenu.ids}
-        onAddSelectionToArea={onAddSelectionToArea}
-        onCreateAreaFromSelection={onCreateAreaFromSelection}
-        onRemoveSelectionFromAreas={onRemoveSelectionFromAreas}
-        onRun={run}
-      />
+      {treeItems.map((item) => (
+        <MenuItem
+          key={item.label}
+          role="menuitem"
+          label={item.label}
+          variant={item.variant}
+          aria-disabled={item.blockedReason ? true : undefined}
+          aria-description={item.blockedReason}
+          title={item.blockedReason}
+          onClick={() => run(item.onSelect, !item.keepFocus)}
+        />
+      ))}
+      {treeItems.length > 0 && (showLayerItems || showAreaItems) ? <MenuDivider /> : null}
+      {showLayerItems ? (
+        <LayerEditMenuItems
+          allVisible={allVisible}
+          deletableIds={deletableIds}
+          ids={contextMenu.ids}
+          onDuplicateLayers={onDuplicateLayers}
+          onRemoveLayers={onRemoveLayers}
+          onRenameLayer={onRenameLayer}
+          onRun={run}
+          onSetLayersVisible={onSetLayersVisible}
+          singleLayer={singleLayer}
+        />
+      ) : null}
+      {showLayerItems && showAreaItems ? <MenuDivider /> : null}
+      {showAreaItems ? (
+        <LayerAreaMenuItems
+          graphAreas={graphAreas}
+          hasSelectedAreaMembership={hasSelectedAreaMembership}
+          ids={contextMenu.ids}
+          onAddSelectionToArea={onAddSelectionToArea}
+          onCreateAreaFromSelection={onCreateAreaFromSelection}
+          onRemoveSelectionFromAreas={onRemoveSelectionFromAreas}
+          onRun={run}
+        />
+      ) : null}
     </EditorOverlayFrame>
   );
 }
@@ -144,8 +186,12 @@ function selectedContextLayers(ids: string[], layers: Layer[]) {
   return ids.map((id) => layers.find((layer) => layer.id === id)).filter((layer): layer is Layer => Boolean(layer));
 }
 
-function layerContextMenuItemCount(singleLayer: Layer | null, areaCount: number, hasSelectedAreaMembership: boolean) {
-  return (singleLayer ? 1 : 0) + 4 + areaCount + (hasSelectedAreaMembership ? 1 : 0);
+function layerEditMenuItemCount(singleLayer: Layer | null) {
+  return (singleLayer ? 1 : 0) + 3;
+}
+
+function layerAreaMenuItemCount(areaCount: number, hasSelectedAreaMembership: boolean) {
+  return 1 + areaCount + (hasSelectedAreaMembership ? 1 : 0);
 }
 
 function LayerEditMenuItems({

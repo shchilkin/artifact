@@ -3,14 +3,17 @@ import { hashString } from './hashString';
 import { EXPORT_NODE_ID } from './nodeGraph';
 import type { RenderOptions } from './render/layers';
 import type { GraphRenderCache } from './renderer';
-import { layerRenderSig } from './renderSignature';
+import { layerRenderSig, viewStateRenderSig } from './renderSignature';
 
 const LAYER_PREVIEW_GRAPH_CACHE_LIMIT = 128;
 
 interface LayerPreviewRenderCacheConfig {
   width: number;
   height: number;
-  renderOptions: Pick<RenderOptions, 'draft' | 'skipEffects' | 'effectResolution' | 'primitiveViewStates'>;
+  renderOptions: Pick<
+    RenderOptions,
+    'draft' | 'skipEffects' | 'effectResolution' | 'mergeGpuPasses' | 'primitiveViewStates'
+  >;
   limit?: number;
 }
 
@@ -22,7 +25,7 @@ function imageLayerSignature(layer: ImageLayer, imageCache: Map<string, HTMLImag
 function primitiveViewSignature(layer: Layer, renderOptions: LayerPreviewRenderCacheConfig['renderOptions']): string {
   if (layer.kind !== 'primitive' && layer.kind !== 'model') return '';
   const view = renderOptions.primitiveViewStates?.[layer.id];
-  return view ? `${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}` : 'default';
+  return viewStateRenderSig(view);
 }
 
 export function createLayerPreviewRenderCache(
@@ -36,6 +39,7 @@ export function createLayerPreviewRenderCache(
     `${config.width}x${config.height}`,
     `draft:${config.renderOptions.draft ? 1 : 0}`,
     `skip:${config.renderOptions.skipEffects ? 1 : 0}`,
+    `merge:${config.renderOptions.mergeGpuPasses ? 1 : 0}`,
     config.renderOptions.effectResolution
       ? `effect:${config.renderOptions.effectResolution.width}x${config.renderOptions.effectResolution.height}`
       : 'effect:auto',

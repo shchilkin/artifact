@@ -42,7 +42,3 @@ export function getScene3DTarget(doc: CanvasDocument, id: string | null): GraphS
   if (!id) return null;
   return (doc.graph?.scene3dNodes ?? []).find((node) => node.id === id) ?? null;
 }
-
-export function isSelectableScene3DTarget(doc: CanvasDocument, id: string | null): boolean {
-  return Boolean(getScene3DTarget(doc, id));
-}

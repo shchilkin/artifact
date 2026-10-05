@@ -23,6 +23,8 @@ interface LayerAreaFolderProps {
   selectedActionLayerIds: string[];
   dragOverTarget: { id: string; position: LayerDropPosition } | null;
   editingId: string | null;
+  /** Omitted on reference surfaces, where every row counts as reaching Output. */
+  outputNodeIds?: ReadonlySet<string>;
   onToggleCollapsed: (areaId: string) => void;
   onStartAreaEditing: (areaId: string) => void;
   onFinishAreaRename: (areaId: string, name: string | null) => void;
@@ -229,6 +231,7 @@ function LayerAreaContents(props: LayerAreaFolderProps) {
           selected={props.selectedActionLayerIds.includes(layer.id)}
           dragOverPosition={props.dragOverTarget?.id === layer.id ? props.dragOverTarget.position : null}
           editing={props.editingId === layer.id}
+          reachesOutput={props.outputNodeIds?.has(layer.id) ?? true}
           onSelect={props.onSelectLayer}
           onOpenContextMenu={props.onOpenLayerContextMenu}
           onStartEditing={props.onStartEditing}

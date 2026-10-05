@@ -1,19 +1,11 @@
-import { Button } from '@artifact/ui';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  ALL_EMOJIS,
   type AspectRatio,
   type CanvasDocument,
-  type EffectLayer,
-  type EmojiLayer,
-  type GraphEnvironmentNode,
   type GraphScene3DNode,
   type ImageLayer,
   type Layer,
-  type ModelLayer,
-  type PrimitiveLayer,
 } from '../types/config';
-import { isAssetUri, resolveImageSource, saveImageAsset } from '../utils/assetStore';
 import {
   addLayersToGraphAreaInDocument,
   createGraphAreaInDocument,
@@ -31,17 +23,17 @@ import {
   updateLayerInDocument,
   updateScene3DNodeInDocument,
 } from '../utils/documentCommands';
-import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
-import { getScene3DTarget, getSceneEnvironmentNode, getSceneModelLayer } from '../utils/scene3DInputs';
+import { buildGraphTargetSummary, buildLayerTargetSummary } from '../utils/editorTargetSummary';
+import { findGraphUtilityNode } from '../utils/nodeGraph';
+import { getScene3DTarget } from '../utils/scene3DInputs';
 import { AiGenerationPanel } from './AiGenerationPanel';
-import { EditorTargetHeader } from './editor-target/EditorTargetHeader';
+import { EditorTargetOverview } from './editor-target/EditorTargetHeader';
 import { InspectorSection as ArtifactInspectorSection } from './inspector-system';
-import { LayerControls } from './layer-controls/LayerControls';
+import { LayerTargetInspector } from './layer-controls/LayerTargetInspector';
 import type { LayerPanelProps } from './layers-panel/LayerPanel';
 import { LayerPanel } from './layers-panel/LayerPanel';
-import { EnvironmentInspector } from './node-canvas/inspector/EnvironmentInspector';
-import { InspectorReadout, InspectorToggle } from './node-canvas/inspector/fields';
-import { Scene3DInspector } from './node-canvas/inspector/Scene3DInspector';
+import { SceneTargetInspector } from './node-canvas/inspector/SceneTargetInspector';
+import { EmptyState } from './ui/EmptyState';
 
 type SidebarLayerPanelProps = Pick<
   LayerPanelProps,
@@ -56,6 +48,8 @@ type SidebarLayerPanelProps = Pick<
   | 'onStartAiImage'
   | 'onRemoveLayer'
   | 'onDuplicateLayer'
+  | 'onApplyTreeEdit'
+  | 'onEditInNodes'
   | 'modeSwitcher'
 >;
 
@@ -66,6 +60,8 @@ interface Props extends SidebarLayerPanelProps {
   showAiGeneration?: boolean;
   onGeneratedImageSource?: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
   mobileActionBar?: React.ReactNode;
+  onReplaceModelLayerFile?: (id: string, file: File) => void;
+  onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
 }
 
 interface SectionProps {
@@ -96,36 +92,6 @@ function Section({ title, children, defaultOpen = false, hidden = false }: Secti
   );
 }
 
-function AssetImagePreview({ src }: { src: string }) {
-  const [resolvedAsset, setResolvedAsset] = useState({ src: '', value: '' });
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!isAssetUri(src)) return;
-    resolveImageSource(src)
-      .then((value) => {
-        if (!cancelled) setResolvedAsset({ src, value: value ?? '' });
-      })
-      .catch(() => {
-        if (!cancelled) setResolvedAsset({ src, value: '' });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
-
-  const resolvedSrc = isAssetUri(src) ? (resolvedAsset.src === src ? resolvedAsset.value : '') : src;
-  if (!resolvedSrc) {
-    return (
-      <div className="asset-image-preview asset-image-preview--empty checkerboard-surface">
-        <span className="asset-image-preview__title">Image unavailable</span>
-        <span className="asset-image-preview__copy">Replace the source to restore this layer.</span>
-      </div>
-    );
-  }
-  return <img src={resolvedSrc} alt="" className="asset-image-preview" />;
-}
-
 function useDocumentRef(doc: CanvasDocument) {
   const docRef = useRef(doc);
   useLayoutEffect(() => {
@@ -144,30 +110,11 @@ function selectedLayerTargetSummary(doc: CanvasDocument, selectedLayer: Layer | 
 }
 
 function selectedSceneTargetSummary(doc: CanvasDocument, scene: GraphScene3DNode | null) {
-  if (!scene) return null;
-  const model = getSceneModelLayer(doc.graph, doc.layers, scene.id);
-  const environment = getSceneEnvironmentNode(doc.graph, scene.id);
-  return {
-    title: scene.name,
-    eyebrow: 'Layers / 3D Scene',
-    role: 'utility' as const,
-    kindLabel: '3D Scene',
-    description: 'Renders a model input with camera, material, environment, and light settings.',
-    breadcrumbs: ['Layers', '3D Scene'],
-    badges: [
-      { label: 'Scene', tone: 'accent' as const },
-      { label: model ? 'Model input' : 'No model', tone: model ? ('success' as const) : ('warning' as const) },
-      { label: environment || scene.environmentName ? 'Environment' : 'No env', tone: 'muted' as const },
-    ],
-    notes: model
-      ? []
-      : [
-          {
-            text: 'Connect or import a model input before the scene can render model pixels.',
-            tone: 'warning' as const,
-          },
-        ],
-  };
+  if (!scene || !doc.graph) return null;
+  return buildGraphTargetSummary(
+    { kind: 'scene3d', node: scene },
+    { graph: doc.graph, layers: doc.layers, surface: 'layers' },
+  );
 }
 
 function useLayerPanelHandlers({
@@ -241,92 +188,35 @@ function useLayerPanelHandlers({
   };
 }
 
-function applySelectedLayerPatch<T extends Layer>(
-  doc: CanvasDocument,
-  selectedLayer: Layer,
-  patch: Partial<T>,
-  onDocChange: (doc: CanvasDocument) => void,
-) {
-  onDocChange(updateLayerInDocument(doc, selectedLayer.id, patch as Partial<Layer>));
-}
-
-function nextEmojiSet(layer: EmojiLayer, emoji: string) {
-  if (layer.emojis.includes(emoji) && layer.emojis.length === 1) return layer.emojis;
-  return layer.emojis.includes(emoji) ? layer.emojis.filter((item) => item !== emoji) : [...layer.emojis, emoji];
-}
-
-function saveSelectedImageSource(
-  docRef: React.MutableRefObject<CanvasDocument>,
-  targetLayerId: string,
-  src: string,
-  onDocChange: (doc: CanvasDocument) => void,
-) {
-  void saveImageAsset(src)
-    .then((assetSrc) => onDocChange(replaceSelectedImageSourceInDocument(docRef.current, targetLayerId, assetSrc)))
-    .catch(() => onDocChange(replaceSelectedImageSourceInDocument(docRef.current, targetLayerId, src)));
-}
-
-function readImageFileForLayer(
-  file: File,
-  layer: ImageLayer,
-  docRef: React.MutableRefObject<CanvasDocument>,
-  onDocChange: (doc: CanvasDocument) => void,
-) {
-  const targetLayerId = layer.id;
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    const src = event.target?.result;
-    if (typeof src === 'string') saveSelectedImageSource(docRef, targetLayerId, src, onDocChange);
-  };
-  reader.readAsDataURL(file);
-}
-
-function imageLayerFromSelection(layer: Layer): ImageLayer | null {
-  return layer.kind === 'image' ? layer : null;
-}
-
-function emojiLayerFromSelection(layer: Layer): EmojiLayer | null {
-  return layer.kind === 'emoji' ? layer : null;
-}
-
 function SelectedLayerSections({
   doc,
   docRef,
   selectedLayer,
   selectedTargetSummary,
   onDocChange,
+  onReplaceModelLayerFile,
 }: {
   doc: CanvasDocument;
   docRef: React.MutableRefObject<CanvasDocument>;
   selectedLayer: Layer | null;
   selectedTargetSummary: ReturnType<typeof buildLayerTargetSummary> | null;
   onDocChange: (doc: CanvasDocument) => void;
+  onReplaceModelLayerFile?: (id: string, file: File) => void;
 }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   if (!selectedLayer) return null;
-
-  const applyPatch = <T extends Layer>(patch: Partial<T>) => {
-    applySelectedLayerPatch(doc, selectedLayer, patch, onDocChange);
-  };
-  const handleImageFile = (file: File) => {
-    const imageLayer = imageLayerFromSelection(selectedLayer);
-    if (imageLayer) readImageFileForLayer(file, imageLayer, docRef, onDocChange);
-  };
-  const toggleEmoji = (layer: EmojiLayer, emoji: string) => {
-    applyPatch<EmojiLayer>({ emojis: nextEmojiSet(layer, emoji) });
-  };
+  const layerId = selectedLayer.id;
+  // Patches can arrive after an async step (an image read, an AI generation), so they apply to the current document.
+  const applyPatch = (patch: Partial<Layer>) => onDocChange(updateLayerInDocument(docRef.current, layerId, patch));
 
   return (
-    <div className="layer-inspector-sections artifact-inspector-sidebar">
-      {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact minimal />}
-      <SelectedLayerBasics selectedLayer={selectedLayer} onPatch={applyPatch} />
-      <SelectedImageSourceSection layer={selectedLayer} inputRef={fileInputRef} onImageFile={handleImageFile} />
-      <SelectedEmojiSetSection layer={selectedLayer} onToggleEmoji={toggleEmoji} />
-      <LayerControls
+    <div className="layer-inspector-sections artifact-inspector-sidebar artifact-inspector-scroll">
+      {selectedTargetSummary && <EditorTargetOverview summary={selectedTargetSummary} />}
+      <LayerTargetInspector
         layer={selectedLayer}
-        detached
-        surface="layers"
-        onChange={(patch) => applyPatch(patch as Partial<Layer>)}
+        aspect={doc.global.aspect ?? '1:1'}
+        onChange={applyPatch}
+        onImageSource={(src) => onDocChange(replaceSelectedImageSourceInDocument(docRef.current, layerId, src))}
+        onLoadModelFile={onReplaceModelLayerFile ? (file) => onReplaceModelLayerFile(layerId, file) : undefined}
       />
     </div>
   );
@@ -334,217 +224,65 @@ function SelectedLayerSections({
 
 function SelectedScene3DSections({
   doc,
+  docRef,
   scene,
   selectedTargetSummary,
   onDocChange,
+  onReplaceEnvironmentNodeFile,
 }: {
   doc: CanvasDocument;
+  docRef: React.MutableRefObject<CanvasDocument>;
   scene: GraphScene3DNode | null;
   selectedTargetSummary: ReturnType<typeof selectedSceneTargetSummary>;
   onDocChange: (doc: CanvasDocument) => void;
+  onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
 }) {
   if (!scene) return null;
-  const model = getSceneModelLayer(doc.graph, doc.layers, scene.id);
-  const environment = getSceneEnvironmentNode(doc.graph, scene.id);
-  const updateScene = (patch: Partial<GraphScene3DNode>) =>
-    onDocChange(updateScene3DNodeInDocument(doc, scene.id, patch));
-  const updateEnvironment = (node: GraphEnvironmentNode, patch: Partial<GraphEnvironmentNode>) =>
-    onDocChange(updateEnvironmentNodeInDocument(doc, node.id, patch));
-
   return (
-    <div className="layer-inspector-sections artifact-inspector-sidebar">
-      {selectedTargetSummary && <EditorTargetHeader summary={selectedTargetSummary} compact minimal />}
-      <SelectedScene3DInputSettings model={model} environment={environment} scene={scene} />
-      <Scene3DInspector scene3dNode={scene} onChange={updateScene} detached />
-      {environment && (
-        <EnvironmentInspector
-          environmentNode={environment}
-          onChange={(patch) => updateEnvironment(environment, patch)}
-          detached
-        />
-      )}
+    <div className="layer-inspector-sections artifact-inspector-sidebar artifact-inspector-scroll">
+      {selectedTargetSummary && <EditorTargetOverview summary={selectedTargetSummary} />}
+      <SceneTargetInspector
+        doc={doc}
+        scene={scene}
+        onUpdateScene={(patch) => onDocChange(updateScene3DNodeInDocument(docRef.current, scene.id, patch))}
+        onUpdateEnvironment={(id, patch) => onDocChange(updateEnvironmentNodeInDocument(docRef.current, id, patch))}
+        onLoadEnvironmentFile={onReplaceEnvironmentNodeFile}
+      />
     </div>
   );
 }
 
-function SelectedSceneReadout({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <InspectorReadout detail={detail} label={label} value={value} />;
-}
-
-function sceneSourceName(model: ModelLayer | PrimitiveLayer | null) {
-  if (!model) return 'No source connected';
-  if (model.kind === 'model') return model.modelName || model.name;
-  return model.name || `${model.primitiveShape} primitive`;
-}
-
-function sceneSourceDetail(model: ModelLayer | PrimitiveLayer) {
-  if (model.kind === 'model') return `${model.modelMime || 'model'} · ${Math.round(model.modelBytes / 1024)} KB`;
-  return `${model.primitiveShape} · procedural mesh`;
-}
-
-function SelectedScene3DInputSettings({
-  model,
-  environment,
-  scene,
-}: {
-  model: ModelLayer | PrimitiveLayer | null;
-  environment: GraphEnvironmentNode | null;
-  scene: GraphScene3DNode;
-}) {
+function InspectorEmptyState() {
   return (
-    <Section title="Scene Inputs" defaultOpen>
-      <SelectedSceneReadout
-        label="3D Source"
-        value={sceneSourceName(model)}
-        detail={
-          model ? sceneSourceDetail(model) : 'Model or primitive is a scene setting in Layers and a node in Nodes.'
-        }
+    <>
+      <h2 className="sr-only">Layer settings</h2>
+      <EmptyState
+        className="layer-inspector-empty-state"
+        title="No layer selected"
+        body="Select a layer to edit its settings."
       />
-      <SelectedSceneReadout
-        label="Environment Map"
-        value={environment?.environmentName || scene.environmentName || 'No environment connected'}
-        detail={
-          environment
-            ? `${environment.environmentMime || 'environment'} · ${Math.round(environment.environmentBytes / 1024)} KB`
-            : scene.environmentName
-              ? `${scene.environmentMime || 'environment'} · ${Math.round(scene.environmentBytes / 1024)} KB`
-              : 'Environment maps are scene settings in Layers and nodes in Nodes.'
-        }
-      />
-    </Section>
+    </>
   );
 }
 
-function SelectedImageSourceSection({
-  layer,
-  inputRef,
-  onImageFile,
-}: {
-  layer: Layer;
-  inputRef: React.RefObject<HTMLInputElement | null>;
-  onImageFile: (file: File) => void;
-}) {
-  const imageLayer = imageLayerFromSelection(layer);
-  return imageLayer ? <ImageSourceSection layer={imageLayer} inputRef={inputRef} onImageFile={onImageFile} /> : null;
+/** A graph-only node selected from the Layers tree; its settings are edited in Nodes. */
+function selectedGraphOnlyNode(doc: CanvasDocument, id: string | null) {
+  if (!id || !doc.graph) return null;
+  const found = findGraphUtilityNode(doc.graph, id);
+  return found && found.kind !== 'scene3d' ? found.node : null;
 }
 
-function SelectedEmojiSetSection({
-  layer,
-  onToggleEmoji,
-}: {
-  layer: Layer;
-  onToggleEmoji: (layer: EmojiLayer, emoji: string) => void;
-}) {
-  const emojiLayer = emojiLayerFromSelection(layer);
-  return emojiLayer ? <EmojiSetSection layer={emojiLayer} onToggleEmoji={onToggleEmoji} /> : null;
-}
-
-function SelectedLayerBasics({
-  selectedLayer,
-  onPatch,
-}: {
-  selectedLayer: Layer;
-  onPatch: <T extends Layer>(patch: Partial<T>) => void;
-}) {
+function GraphNodeInspectorNotice({ node }: { node: { name: string } | null }) {
+  if (!node) return null;
   return (
-    <Section title={`${selectedLayer.kind.toUpperCase()} LAYER`} defaultOpen>
-      <InspectorToggle
-        ariaLabel="Toggle layer visibility"
-        checked={selectedLayer.visible}
-        className="sidebar-toggle-row"
-        label="Visible"
-        locked={selectedLayer.locked}
-        onChange={(visible) => onPatch({ visible } as Partial<Layer>)}
+    <>
+      <h2 className="sr-only">Node settings</h2>
+      <EmptyState
+        className="layer-inspector-empty-state"
+        title={node.name}
+        body="This node's settings are edited in Nodes."
       />
-      {selectedLayer.kind === 'effect' && (
-        <InspectorToggle
-          ariaLabel="Toggle effect alpha masking"
-          checked={selectedLayer.maskAlpha}
-          className="sidebar-toggle-row"
-          label="Use source alpha"
-          locked={selectedLayer.locked}
-          onChange={(maskAlpha) => onPatch<EffectLayer>({ maskAlpha })}
-        />
-      )}
-      <InspectorToggle
-        ariaLabel="Toggle layer delete and reorder lock"
-        checked={selectedLayer.locked}
-        className="sidebar-toggle-row"
-        label="Locked"
-        locked={selectedLayer.locked}
-        onChange={(locked) => onPatch({ locked } as Partial<Layer>)}
-      />
-    </Section>
-  );
-}
-
-function ImageSourceSection({
-  layer,
-  inputRef,
-  onImageFile,
-}: {
-  layer: ImageLayer;
-  inputRef: React.RefObject<HTMLInputElement | null>;
-  onImageFile: (file: File) => void;
-}) {
-  return (
-    <Section title="Image Source" defaultOpen hidden={layer.kind !== 'image'}>
-      {layer.src ? (
-        <AssetImagePreview src={layer.src} />
-      ) : (
-        <button className="image-source-empty-action" onClick={() => inputRef.current?.click()}>
-          + Add image
-        </button>
-      )}
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) onImageFile(file);
-          event.currentTarget.value = '';
-        }}
-      />
-      <Button
-        className="image-source-replace-action"
-        onClick={() => inputRef.current?.click()}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          const file = event.dataTransfer.files?.[0];
-          if (file) onImageFile(file);
-        }}
-        variant="quiet"
-      >
-        Replace image
-      </Button>
-    </Section>
-  );
-}
-
-function EmojiSetSection({
-  layer,
-  onToggleEmoji,
-}: {
-  layer: EmojiLayer;
-  onToggleEmoji: (layer: EmojiLayer, emoji: string) => void;
-}) {
-  return (
-    <Section title="Emoji Set">
-      <div className="grid grid-cols-8 gap-1">
-        {ALL_EMOJIS.map((emoji) => (
-          <button
-            key={emoji}
-            className={`emoji-btn ${layer.emojis.includes(emoji) ? 'active' : ''}`}
-            onClick={() => onToggleEmoji(layer, emoji)}
-          >
-            {emoji}
-          </button>
-        ))}
-      </div>
-    </Section>
+    </>
   );
 }
 
@@ -584,13 +322,18 @@ export function Sidebar({
   onRemoveLayer,
   onReorderLayers,
   onDuplicateLayer,
+  onApplyTreeEdit,
+  onEditInNodes,
   showAiGeneration,
   onGeneratedImageSource,
   mobileActionBar,
   modeSwitcher,
+  onReplaceModelLayerFile,
+  onReplaceEnvironmentNodeFile,
 }: Props) {
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
   const selectedScene = getScene3DTarget(doc, selectedLayerId);
+  const selectedGraphNode = selectedGraphOnlyNode(doc, selectedLayerId);
   const selectedTargetSummary = useMemo(() => selectedLayerTargetSummary(doc, selectedLayer), [doc, selectedLayer]);
   const selectedSceneSummary = useMemo(() => selectedSceneTargetSummary(doc, selectedScene), [doc, selectedScene]);
   const docRef = useDocumentRef(doc);
@@ -601,7 +344,7 @@ export function Sidebar({
     [doc, onDocChange],
   );
 
-  const hasInspectorContent = Boolean(showAiGeneration || selectedLayer || selectedScene);
+  const hasInspectorContent = Boolean(showAiGeneration || selectedLayer || selectedScene || selectedGraphNode);
 
   return (
     <>
@@ -631,6 +374,8 @@ export function Sidebar({
             onRemoveArea={layerPanelHandlers.handleRemoveArea}
             onRenameArea={layerPanelHandlers.handleRenameArea}
             onDuplicateLayer={onDuplicateLayer}
+            onApplyTreeEdit={onApplyTreeEdit}
+            onEditInNodes={onEditInNodes}
             onRenameLayer={layerPanelHandlers.handleRenameLayer}
             onAspectChange={handleAspectChange}
             modeSwitcher={modeSwitcher}
@@ -638,28 +383,36 @@ export function Sidebar({
         </div>
       </aside>
 
-      {hasInspectorContent && (
-        <aside className="layer-inspector-drawer" aria-label="Layer settings">
-          <AiImageSection
-            aspect={doc.global.aspect ?? '1:1'}
-            show={showAiGeneration}
-            onGeneratedImageSource={onGeneratedImageSource}
-          />
-          <SelectedLayerSections
-            doc={doc}
-            docRef={docRef}
-            selectedLayer={selectedLayer}
-            selectedTargetSummary={selectedTargetSummary}
-            onDocChange={onDocChange}
-          />
-          <SelectedScene3DSections
-            doc={doc}
-            scene={selectedScene}
-            selectedTargetSummary={selectedSceneSummary}
-            onDocChange={onDocChange}
-          />
-        </aside>
-      )}
+      {/* Always rendered: desktop reserves the inspector column even when nothing is selected. */}
+      <aside
+        className={`layer-inspector-drawer${hasInspectorContent ? '' : ' layer-inspector-drawer--empty'}`}
+        aria-label="Layer settings"
+      >
+        {!hasInspectorContent && <InspectorEmptyState />}
+        {/* The notice stands in for the empty state; an open AI panel is the relevant content instead. */}
+        <GraphNodeInspectorNotice node={showAiGeneration ? null : selectedGraphNode} />
+        <AiImageSection
+          aspect={doc.global.aspect ?? '1:1'}
+          show={showAiGeneration}
+          onGeneratedImageSource={onGeneratedImageSource}
+        />
+        <SelectedLayerSections
+          doc={doc}
+          docRef={docRef}
+          selectedLayer={selectedLayer}
+          selectedTargetSummary={selectedTargetSummary}
+          onDocChange={onDocChange}
+          onReplaceModelLayerFile={onReplaceModelLayerFile}
+        />
+        <SelectedScene3DSections
+          doc={doc}
+          docRef={docRef}
+          scene={selectedScene}
+          selectedTargetSummary={selectedSceneSummary}
+          onDocChange={onDocChange}
+          onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
+        />
+      </aside>
     </>
   );
 }

@@ -4,9 +4,11 @@ export type { RenderOptions } from './render/layers';
 import type { CanvasDocument } from '../types/config';
 import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
 import { type GraphRenderCache, renderGraphTarget } from './render/graph';
+import { collectGraphRenderReach } from './render/graphInputs';
 import type { RenderOptions } from './render/layers';
 
 export { renderGraphTarget } from './render/graph';
+export { collectGraphRenderReach } from './render/graphInputs';
 
 const DOCUMENT_RENDER_MEASURE = 'artifact:document-render';
 
@@ -66,4 +68,12 @@ export async function renderDocument(
       renderCache,
     );
   });
+}
+
+/**
+ * Ids of the layers and graph nodes that contribute to the document's output, using the same graph choice
+ * as `renderDocument` with default options: the document graph when there is one, otherwise the layer stack.
+ */
+export function collectDocumentOutputNodeIds(doc: CanvasDocument): Set<string> {
+  return collectGraphRenderReach(doc, doc.graph ?? inferLinearGraph(doc.layers), EXPORT_NODE_ID);
 }

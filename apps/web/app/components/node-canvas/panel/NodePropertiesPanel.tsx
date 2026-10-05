@@ -10,31 +10,28 @@ import type {
   GraphScene3DNode,
   GraphShaderNode,
   GraphTransformNode,
-  ImageLayer,
   Layer,
   MaterialTextureInputPort,
 } from '../../../types/config';
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
-import type { EditorTargetSummary } from '../../../utils/editorTargetSummary';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../../../utils/editorTargetSummary';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
-import { AiGenerationPanel } from '../../AiGenerationPanel';
-import { EditorTargetHeader } from '../../editor-target/EditorTargetHeader';
+import { EditorTargetOverview } from '../../editor-target/EditorTargetHeader';
+import { LayerTargetInspector } from '../../layer-controls/LayerTargetInspector';
 import {
   ColorInspector,
   EnvironmentInspector,
   ExportInspector,
   GrimeShadowInspector,
-  LayerInspector,
   MaskInspector,
   MaterialInspector,
   MergeInspector,
   RepeatInspector,
-  Scene3DInspector,
   ShaderInspector,
   TransformInspector,
 } from '../inspector';
-import { InspectorToggle } from '../inspector/fields';
+import { InspectorTargetContext } from '../inspector/fields';
+import { SceneTargetInspector } from '../inspector/SceneTargetInspector';
 import type { NodeCanvasProps } from '../types';
 
 interface NodePropertiesPanelProps
@@ -83,71 +80,6 @@ type GraphUtilityInspectorTarget = Exclude<
   SelectedNodeTarget,
   { kind: 'layer' } | { kind: 'color' } | { kind: 'output' }
 >;
-
-function appendAiGenerationVariant(
-  layer: ImageLayer,
-  src: string,
-  aiGeneration: NonNullable<ImageLayer['aiGeneration']>,
-): Partial<ImageLayer> {
-  const existing = getAiGenerationHistorySeed(layer);
-  const nextVariant = { src, aiGeneration };
-  const nextHistory = [...existing.filter((item) => isDifferentAiVariant(item, src, aiGeneration.jobId)), nextVariant];
-  return {
-    src,
-    aiGeneration,
-    aiGenerationHistory: nextHistory,
-    aiGenerationHistoryIndex: nextHistory.length - 1,
-  };
-}
-
-function getAiGenerationHistorySeed(layer: ImageLayer): NonNullable<ImageLayer['aiGenerationHistory']> {
-  const history = layer.aiGenerationHistory;
-  if (hasAiGenerationHistory(history)) return history;
-  if (!layer.src) return [];
-  if (!layer.aiGeneration) return [];
-  return [{ src: layer.src, aiGeneration: layer.aiGeneration }];
-}
-
-function hasAiGenerationHistory(
-  history: ImageLayer['aiGenerationHistory'],
-): history is NonNullable<ImageLayer['aiGenerationHistory']> {
-  return Boolean(history?.length);
-}
-
-function isDifferentAiVariant(
-  item: NonNullable<ImageLayer['aiGenerationHistory']>[number],
-  src: string,
-  jobId: string | undefined,
-) {
-  return item.src !== src ? true : item.aiGeneration.jobId !== jobId;
-}
-
-function seedCurrentAiGenerationVariant(layer: ImageLayer): Partial<ImageLayer> {
-  const { aiGeneration } = layer;
-  if (!aiGeneration || !shouldSeedCurrentAiGenerationVariant(layer)) return {};
-  return {
-    aiGenerationHistory: [{ src: layer.src, aiGeneration }],
-    aiGenerationHistoryIndex: 0,
-  };
-}
-
-function shouldSeedCurrentAiGenerationVariant(layer: ImageLayer) {
-  if (layer.aiGenerationHistory?.length) return false;
-  if (!layer.src) return false;
-  return Boolean(layer.aiGeneration);
-}
-
-function selectAiGenerationVariant(layer: ImageLayer, index: number): Partial<ImageLayer> | null {
-  const history = layer.aiGenerationHistory ?? [];
-  const nextIndex = Math.min(Math.max(index, 0), history.length - 1);
-  const selected = history[nextIndex];
-  if (!selected) return null;
-  return {
-    src: selected.src,
-    aiGeneration: selected.aiGeneration,
-    aiGenerationHistoryIndex: nextIndex,
-  };
-}
 
 function findLayerTarget(
   doc: NodePropertiesPanelProps['doc'],
@@ -266,8 +198,9 @@ function buildSelectedTargetSummary(
       layers: doc.layers,
     });
   }
-  if (target.kind === 'output') return buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph });
-  return buildGraphTargetSummary(target, { surface: 'nodes', graph });
+  const options = { surface: 'nodes' as const, graph, layers: doc.layers };
+  if (target.kind === 'output') return buildGraphTargetSummary({ kind: 'output' }, options);
+  return buildGraphTargetSummary(target, options);
 }
 
 function modelFileLoader(
@@ -287,45 +220,13 @@ function LayerNodeInspector({
   layer: Layer;
 }) {
   return (
-    <>
-      {layer.kind === 'image' && (
-        <div className="node-ai-generation-section">
-          <div className="node-ai-generation-heading">
-            <span>Generate</span>
-            <span>Account gated</span>
-          </div>
-          <AiGenerationPanel
-            aspect={doc.global.aspect}
-            generation={layer.aiGeneration}
-            generationHistory={layer.aiGenerationHistory}
-            generationHistoryIndex={layer.aiGenerationHistoryIndex}
-            onGeneratedImageSource={(src, aiGeneration) =>
-              onUpdateLayer(layer.id, appendAiGenerationVariant(layer, src, aiGeneration))
-            }
-            onGenerationStateChange={(aiGeneration) =>
-              onUpdateLayer(layer.id, {
-                ...seedCurrentAiGenerationVariant(layer),
-                aiGeneration,
-              })
-            }
-            onGenerationHistorySelect={(index) => {
-              const patch = selectAiGenerationVariant(layer, index);
-              if (patch) onUpdateLayer(layer.id, patch);
-            }}
-            submitLabel={layer.src ? 'Replace Image' : 'Generate Image'}
-            successMessage="Updated image node."
-          />
-        </div>
-      )}
-      <LayerInspector
-        key={layer.id}
-        layer={layer}
-        onChange={(patch) => onUpdateLayer(layer.id, patch)}
-        onLoadModelFile={modelFileLoader(layer, onReplaceModelLayerFile)}
-        detached
-        showAiGenerationProvenance={false}
-      />
-    </>
+    <LayerTargetInspector
+      layer={layer}
+      aspect={doc.global.aspect}
+      onChange={(patch) => onUpdateLayer(layer.id, patch)}
+      onImageSource={(src) => onUpdateLayer(layer.id, { src })}
+      onLoadModelFile={modelFileLoader(layer, onReplaceModelLayerFile)}
+    />
   );
 }
 
@@ -443,19 +344,23 @@ function GrimeShadowNodeInspector({
 
 function Scene3DNodeInspector({
   node,
-  graph,
+  doc,
   onUpdateScene3DNode,
-}: Pick<NodePropertiesPanelProps, 'onUpdateScene3DNode'> & {
+  onUpdateEnvironmentNode,
+  onReplaceEnvironmentNodeFile,
+}: Pick<
+  NodePropertiesPanelProps,
+  'doc' | 'onUpdateScene3DNode' | 'onUpdateEnvironmentNode' | 'onReplaceEnvironmentNodeFile'
+> & {
   node: GraphScene3DNode;
-  graph: CanvasGraph | undefined;
 }) {
   return (
-    <Scene3DInspector
-      key={node.id}
-      scene3dNode={node}
-      materialInputConnected={isPortConnected(graph, node.id, 'material')}
-      onChange={(patch) => onUpdateScene3DNode(node.id, patch)}
-      detached
+    <SceneTargetInspector
+      doc={doc}
+      scene={node}
+      onUpdateScene={(patch) => onUpdateScene3DNode(node.id, patch)}
+      onUpdateEnvironment={onUpdateEnvironmentNode}
+      onLoadEnvironmentFile={onReplaceEnvironmentNodeFile}
     />
   );
 }
@@ -514,46 +419,6 @@ function ExportNodeInspector({
       onAspectChange={onUpdateAspectRatio}
       onExport={onExport}
     />
-  );
-}
-
-function LayerLockToggle({
-  target,
-  onUpdateLayer,
-}: Pick<NodePropertiesPanelProps, 'onUpdateLayer'> & {
-  target: SelectedNodeTarget | null;
-}) {
-  if (target?.kind !== 'layer') return null;
-  return (
-    <div className="node-target-actions" aria-label="Layer node safety">
-      <InspectorToggle
-        ariaLabel="Toggle node delete lock"
-        checked={target.layer.locked}
-        className="node-target-toggle"
-        label="Locked"
-        locked={target.layer.locked}
-        onChange={(locked) => onUpdateLayer(target.layer.id, { locked })}
-      />
-    </div>
-  );
-}
-
-function NodeTargetOverview({
-  target,
-  summary,
-  onUpdateLayer,
-}: Pick<NodePropertiesPanelProps, 'onUpdateLayer'> & {
-  target: SelectedNodeTarget | null;
-  summary: EditorTargetSummary;
-}) {
-  return (
-    <section
-      className={`node-target-overview node-target-overview-${summary.role}`}
-      aria-label="Selected node overview"
-    >
-      <EditorTargetHeader summary={summary} compact />
-      <LayerLockToggle target={target} onUpdateLayer={onUpdateLayer} />
-    </section>
   );
 }
 
@@ -676,6 +541,7 @@ function GraphOrExportNodeInspector({
     return (
       <GraphUtilityNodeInspector
         target={target}
+        doc={doc}
         graph={doc.graph}
         onUpdateMergeNode={onUpdateMergeNode}
         onUpdateRepeatNode={onUpdateRepeatNode}
@@ -702,6 +568,7 @@ function GraphOrExportNodeInspector({
 
 function GraphUtilityNodeInspector({
   target,
+  doc,
   graph,
   onUpdateMergeNode,
   onUpdateRepeatNode,
@@ -715,6 +582,7 @@ function GraphUtilityNodeInspector({
   onReplaceEnvironmentNodeFile,
 }: Pick<
   NodePropertiesPanelProps,
+  | 'doc'
   | 'onUpdateMergeNode'
   | 'onUpdateRepeatNode'
   | 'onUpdateMaterialNode'
@@ -731,6 +599,7 @@ function GraphUtilityNodeInspector({
 }) {
   return GRAPH_UTILITY_INSPECTORS[target.kind]({
     target: target as never,
+    doc,
     graph,
     onUpdateMergeNode,
     onUpdateRepeatNode,
@@ -764,8 +633,20 @@ const GRAPH_UTILITY_INSPECTORS = {
   grimeShadow: ({ target, onUpdateGrimeShadowNode }: GraphUtilityInspectorProps<'grimeShadow'>) => (
     <GrimeShadowNodeInspector node={target.node} onUpdateGrimeShadowNode={onUpdateGrimeShadowNode} />
   ),
-  scene3d: ({ target, graph, onUpdateScene3DNode }: GraphUtilityInspectorProps<'scene3d'>) => (
-    <Scene3DNodeInspector node={target.node} graph={graph} onUpdateScene3DNode={onUpdateScene3DNode} />
+  scene3d: ({
+    target,
+    doc,
+    onUpdateScene3DNode,
+    onUpdateEnvironmentNode,
+    onReplaceEnvironmentNodeFile,
+  }: GraphUtilityInspectorProps<'scene3d'>) => (
+    <Scene3DNodeInspector
+      node={target.node}
+      doc={doc}
+      onUpdateScene3DNode={onUpdateScene3DNode}
+      onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+      onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
+    />
   ),
   environment: ({
     target,
@@ -785,6 +666,7 @@ const GRAPH_UTILITY_INSPECTORS = {
 
 type GraphUtilityInspectorProps<K extends GraphUtilityInspectorTarget['kind']> = Pick<
   NodePropertiesPanelProps,
+  | 'doc'
   | 'onUpdateMergeNode'
   | 'onUpdateRepeatNode'
   | 'onUpdateMaterialNode'
@@ -857,10 +739,10 @@ function NodePropertiesPanelContent({
           ×
         </button>
       </div>
-      <div className="node-props-body">
+      <div className="node-props-body artifact-inspector-scroll">
         {targetSummary ? (
           <>
-            <NodeTargetOverview target={target} summary={targetSummary} onUpdateLayer={onUpdateLayer} />
+            <EditorTargetOverview summary={targetSummary} />
             <SelectedNodeInspector
               target={target}
               doc={doc}
@@ -927,29 +809,31 @@ export function NodePropertiesPanel({
       onClick={(event) => event.stopPropagation()}
     >
       {open && (
-        <NodePropertiesPanelContent
-          target={target}
-          targetSummary={targetSummary}
-          doc={doc}
-          exportBusy={exportBusy}
-          onUpdateLayer={onUpdateLayer}
-          onUpdateMergeNode={onUpdateMergeNode}
-          onUpdateColorNode={onUpdateColorNode}
-          onUpdateRepeatNode={onUpdateRepeatNode}
-          onUpdateMaterialNode={onUpdateMaterialNode}
-          onUpdateMaskNode={onUpdateMaskNode}
-          onUpdateTransformNode={onUpdateTransformNode}
-          onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
-          onUpdateScene3DNode={onUpdateScene3DNode}
-          onUpdateEnvironmentNode={onUpdateEnvironmentNode}
-          onUpdateShaderNode={onUpdateShaderNode}
-          onReplaceModelLayerFile={onReplaceModelLayerFile}
-          onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
-          onUpdateExportConfig={onUpdateExportConfig}
-          onUpdateAspectRatio={onUpdateAspectRatio}
-          onExport={onExport}
-          onClose={onClose}
-        />
+        <InspectorTargetContext.Provider value={selectedNodeId}>
+          <NodePropertiesPanelContent
+            target={target}
+            targetSummary={targetSummary}
+            doc={doc}
+            exportBusy={exportBusy}
+            onUpdateLayer={onUpdateLayer}
+            onUpdateMergeNode={onUpdateMergeNode}
+            onUpdateColorNode={onUpdateColorNode}
+            onUpdateRepeatNode={onUpdateRepeatNode}
+            onUpdateMaterialNode={onUpdateMaterialNode}
+            onUpdateMaskNode={onUpdateMaskNode}
+            onUpdateTransformNode={onUpdateTransformNode}
+            onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
+            onUpdateScene3DNode={onUpdateScene3DNode}
+            onUpdateEnvironmentNode={onUpdateEnvironmentNode}
+            onUpdateShaderNode={onUpdateShaderNode}
+            onReplaceModelLayerFile={onReplaceModelLayerFile}
+            onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
+            onUpdateExportConfig={onUpdateExportConfig}
+            onUpdateAspectRatio={onUpdateAspectRatio}
+            onExport={onExport}
+            onClose={onClose}
+          />
+        </InspectorTargetContext.Provider>
       )}
     </div>
   );

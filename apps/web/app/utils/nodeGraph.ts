@@ -1,6 +1,7 @@
 import {
   ASPECT_SIZES,
   type AspectRatio,
+  type CanvasDocument,
   type CanvasGraph,
   type GraphArea,
   type GraphColorNode,
@@ -39,35 +40,22 @@ export type GraphUtilityNodeKind =
   | 'environment'
   | 'shader';
 
+// Listed in the renderer's dispatch order (`GRAPH_NODE_RENDERERS` in `render/graph.ts`), so a lookup by id
+// classifies a node the way the renderer does.
 const GRAPH_UTILITY_NODE_SELECTORS = [
   { kind: 'merge', nodes: (graph: CanvasGraph) => graph.mergeNodes },
   { kind: 'color', nodes: (graph: CanvasGraph) => graph.colorNodes ?? [] },
   { kind: 'repeat', nodes: (graph: CanvasGraph) => graph.repeatNodes ?? [] },
   { kind: 'material', nodes: (graph: CanvasGraph) => graph.materialNodes ?? [] },
   { kind: 'mask', nodes: (graph: CanvasGraph) => graph.maskNodes ?? [] },
-  {
-    kind: 'transform',
-    nodes: (graph: CanvasGraph) => graph.transformNodes ?? [],
-  },
-  {
-    kind: 'grimeShadow',
-    nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [],
-  },
-  {
-    kind: 'scene3d',
-    nodes: (graph: CanvasGraph) => graph.scene3dNodes ?? [],
-  },
-  {
-    kind: 'environment',
-    nodes: (graph: CanvasGraph) => graph.environmentNodes ?? [],
-  },
-  {
-    kind: 'shader',
-    nodes: (graph: CanvasGraph) => graph.shaderNodes ?? [],
-  },
+  { kind: 'transform', nodes: (graph: CanvasGraph) => graph.transformNodes ?? [] },
+  { kind: 'grimeShadow', nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [] },
+  { kind: 'shader', nodes: (graph: CanvasGraph) => graph.shaderNodes ?? [] },
+  { kind: 'environment', nodes: (graph: CanvasGraph) => graph.environmentNodes ?? [] },
+  { kind: 'scene3d', nodes: (graph: CanvasGraph) => graph.scene3dNodes ?? [] },
 ] satisfies Array<{
   kind: GraphUtilityNodeKind;
-  nodes: (graph: CanvasGraph) => Array<{ id: string }>;
+  nodes: (graph: CanvasGraph) => Array<{ id: string; name: string }>;
 }>;
 
 type GraphLayoutState = {
@@ -203,6 +191,11 @@ export function appendNodeToExportPath(
   return next;
 }
 
+/** Ids for the two halves of a split edge: the edge into the inserted node, then the edge out of it. */
+function splitEdgeIds(edgeId: string) {
+  return { before: `${edgeId}__before`, after: `${edgeId}__after` };
+}
+
 export function splitEdgeWithNode(
   graph: CanvasGraph,
   edgeId: string,
@@ -211,22 +204,110 @@ export function splitEdgeWithNode(
 ): CanvasGraph {
   const edge = graph.edges.find((item) => item.id === edgeId);
   if (!edge) return graph;
+  const ids = splitEdgeIds(edgeId);
 
   let next = removeGraphEdge(graph, edgeId);
   next = addGraphEdge(next, {
-    id: `${edgeId}__before`,
+    id: ids.before,
     fromId: edge.fromId,
     fromPort: edge.fromPort,
     toId: insertedNodeId,
     toPort: insertedInputPort,
   });
   next = addGraphEdge(next, {
-    id: `${edgeId}__after`,
+    id: ids.after,
     fromId: insertedNodeId,
     fromPort: 'out',
     toId: edge.toId,
     toPort: edge.toPort,
   });
+  return next;
+}
+
+// Order-preserving edge edits. The renderer reads the first edge on a port, so these keep every other
+// edge where it is and say which edges must win their port (`promoteGraphEdges`).
+
+/** The graph a document renders through: its own graph, or its layer stack wired straight to Output. */
+export function documentGraph(doc: Pick<CanvasDocument, 'graph' | 'layers'>): CanvasGraph {
+  return doc.graph ?? inferLinearGraph(doc.layers);
+}
+
+function uniqueEdgeId(edges: GraphEdge[], base: string) {
+  const ids = new Set(edges.map((edge) => edge.id));
+  if (!ids.has(base)) return base;
+  let suffix = 2;
+  while (ids.has(`${base}-${suffix}`)) suffix += 1;
+  return `${base}-${suffix}`;
+}
+
+/** A new edge from `fromId` to `toId:toPort`, with the `e-from-to` id made unique within `edges`. */
+export function createGraphEdge(
+  edges: GraphEdge[],
+  fromId: string,
+  fromPort: GraphEdge['fromPort'],
+  toId: string,
+  toPort: GraphEdge['toPort'],
+): GraphEdge {
+  return { id: uniqueEdgeId(edges, `e-${fromId}-${toId}`), fromId, fromPort, toId, toPort };
+}
+
+/**
+ * `splitEdgeWithNode` without reordering: the edge is replaced, in its place, by the edge into the
+ * inserted node (when it has an input port) followed by the edge out of it to the old target.
+ */
+export function splitGraphEdgeInPlace(
+  edges: GraphEdge[],
+  edgeId: string,
+  insertedNodeId: string,
+  insertedInputPort: GraphEdge['toPort'] | null,
+): GraphEdge[] {
+  const edge = edges.find((item) => item.id === edgeId);
+  if (!edge) return edges;
+  const ids = splitEdgeIds(edgeId);
+  const after: GraphEdge = {
+    id: uniqueEdgeId(edges, ids.after),
+    fromId: insertedNodeId,
+    fromPort: 'out',
+    toId: edge.toId,
+    toPort: edge.toPort,
+  };
+  const before: GraphEdge | null = insertedInputPort
+    ? {
+        id: uniqueEdgeId([...edges, after], ids.before),
+        fromId: edge.fromId,
+        fromPort: edge.fromPort,
+        toId: insertedNodeId,
+        toPort: insertedInputPort,
+      }
+    : null;
+  return edges.flatMap((item) => (item === edge ? (before ? [before, after] : [after]) : [item]));
+}
+
+/** Replaces `edge`, in its place, with one from a new source; the target port is unchanged. */
+export function rewireGraphEdgeSource(
+  edges: GraphEdge[],
+  edge: GraphEdge,
+  fromId: string,
+  fromPort: GraphEdge['fromPort'],
+): GraphEdge[] {
+  const bridge = createGraphEdge(edges, fromId, fromPort, edge.toId, edge.toPort);
+  return edges.map((item) => (item === edge ? bridge : item));
+}
+
+/**
+ * Moves each edge in `edgeIds` ahead of any other edge on its port, so the renderer reads it. Every
+ * other edge keeps its relative order.
+ */
+export function promoteGraphEdges(edges: GraphEdge[], edgeIds: Iterable<string>): GraphEdge[] {
+  let next = edges;
+  for (const id of edgeIds) {
+    const at = next.findIndex((edge) => edge.id === id);
+    if (at === -1) continue;
+    const edge = next[at];
+    const first = next.findIndex((item) => item.toId === edge.toId && item.toPort === edge.toPort);
+    if (first >= at) continue;
+    next = [...next.slice(0, first), edge, ...next.slice(first, at), ...next.slice(at + 1)];
+  }
   return next;
 }
 
@@ -703,11 +784,20 @@ export function graphUtilityNodeCollections(graph: CanvasGraph) {
   return GRAPH_UTILITY_NODE_SELECTORS.map((selector) => selector.nodes(graph));
 }
 
+/** The graph-only node with this id and its kind, classified in the renderer's dispatch order. */
+export function findGraphUtilityNode(
+  graph: CanvasGraph,
+  nodeId: string,
+): { kind: GraphUtilityNodeKind; node: { id: string; name: string } } | null {
+  for (const selector of GRAPH_UTILITY_NODE_SELECTORS) {
+    const node = selector.nodes(graph).find((item) => item.id === nodeId);
+    if (node) return { kind: selector.kind, node };
+  }
+  return null;
+}
+
 export function graphUtilityNodeKind(graph: CanvasGraph, nodeId: string): GraphUtilityNodeKind | null {
-  return (
-    GRAPH_UTILITY_NODE_SELECTORS.find((selector) => selector.nodes(graph).some((node) => node.id === nodeId))?.kind ??
-    null
-  );
+  return findGraphUtilityNode(graph, nodeId)?.kind ?? null;
 }
 
 function createEmptyGraphLayoutState(nodeIds: string[]): GraphLayoutState {

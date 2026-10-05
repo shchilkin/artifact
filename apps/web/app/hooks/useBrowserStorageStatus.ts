@@ -10,6 +10,7 @@ import {
   type StorageEstimateSnapshot,
   summarizeEditorStorage,
 } from '../utils/storageStatus';
+import { useSettledValue } from './useSettledValue';
 
 interface BrowserStorageStatusOptions {
   doc: CanvasDocument;
@@ -36,6 +37,13 @@ const DEFAULT_CAPABILITIES: BrowserCapabilityReport = {
   offlineShell: 'limited',
 };
 
+/** Storage usage follows the document once an edit gesture has settled, not on every slider step. */
+const STORAGE_SUMMARY_SETTLE_MS = 600;
+
+function sameEstimate(a: StorageEstimateSnapshot | null, b: StorageEstimateSnapshot | null) {
+  return a === b || (a !== null && b !== null && a.usage === b.usage && a.quota === b.quota);
+}
+
 export function useBrowserStorageStatus({
   doc,
   projects,
@@ -48,6 +56,7 @@ export function useBrowserStorageStatus({
   );
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
   const [storageEstimate, setStorageEstimate] = useState<StorageEstimateSnapshot | null>(null);
+  const settledDoc = useSettledValue(doc, STORAGE_SUMMARY_SETTLE_MS);
 
   useEffect(() => {
     function updateOnline() {
@@ -67,7 +76,7 @@ export function useBrowserStorageStatus({
     void navigator.storage
       ?.estimate?.()
       .then((estimate) => {
-        if (!cancelled) setStorageEstimate(estimate);
+        if (!cancelled) setStorageEstimate((current) => (sameEstimate(current, estimate) ? current : estimate));
       })
       .catch(() => {
         if (!cancelled) setStorageEstimate(null);
@@ -75,19 +84,19 @@ export function useBrowserStorageStatus({
     return () => {
       cancelled = true;
     };
-  }, [doc, projects.length, recoveryDraft]);
+  }, [settledDoc, projects.length, recoveryDraft]);
 
   const summary = useMemo(
     () =>
       summarizeEditorStorage({
-        doc,
+        doc: settledDoc,
         projects,
         recoveryDraft,
         estimate: storageEstimate,
         saveStatus,
         projectSaveState,
       }),
-    [doc, projects, projectSaveState, recoveryDraft, saveStatus, storageEstimate],
+    [projects, projectSaveState, recoveryDraft, saveStatus, settledDoc, storageEstimate],
   );
 
   return { capabilities, online, storageEstimate, summary };

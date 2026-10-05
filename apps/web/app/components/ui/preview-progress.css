@@ -1,0 +1,54 @@
+/*
+ * Preview progress: a hairline bar along the top edge of a preview surface, positioned over it so showing it never
+ * moves the layout. It is driven by a `data-preview-pending` attribute written outside React, either on the bar
+ * itself or on a preceding sibling surface, so a pending render costs no React commit.
+ */
+.preview-progress {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: var(--z-toolbar);
+  height: var(--progress-hairline);
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+.preview-progress::before {
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: var(--ui-progress-fill);
+  content: "";
+  transform: translateX(-100%);
+}
+
+/* A short delay keeps renders that finish at once from flashing the bar. */
+.preview-progress[data-preview-pending="true"],
+[data-preview-pending="true"] ~ .preview-progress {
+  opacity: 1;
+  transition-delay: var(--motion-fast);
+}
+
+.preview-progress[data-preview-pending="true"]::before,
+[data-preview-pending="true"] ~ .preview-progress::before {
+  animation: preview-progress var(--ui-motion-progress) linear infinite;
+}
+
+@keyframes preview-progress {
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-progress[data-preview-pending="true"]::before,
+  [data-preview-pending="true"] ~ .preview-progress::before {
+    width: 100%;
+    animation: none;
+    opacity: 0.7;
+    transform: none;
+  }
+}

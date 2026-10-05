@@ -58,6 +58,7 @@ export async function setupBrowserTestPage(page: Page, options: BrowserTestPageO
   });
 
   waitForHydrationAfterNavigation(page);
+  await forbidNativeDialogs(page, issues);
 
   page.on('console', (message) => {
     const type = message.type();
@@ -68,6 +69,23 @@ export async function setupBrowserTestPage(page: Page, options: BrowserTestPageO
   page.on('pageerror', (error) => {
     if (isBenignBrowserTestIssue(error.message)) return;
     issues.push(`pageerror: ${error.message}`);
+  });
+}
+
+/**
+ * Editor flows confirm in-app (EditorConfirmDialog). Any native confirm, alert or prompt is recorded as a browser
+ * issue, so `expectNoBrowserIssues` fails the test. `window.confirm` also answers "cancel" so a flow cannot proceed.
+ */
+async function forbidNativeDialogs(page: Page, issues: string[]): Promise<void> {
+  await page.addInitScript(() => {
+    window.confirm = (message?: string) => {
+      console.error(`Native window.confirm is not allowed in the editor: ${String(message)}`);
+      return false;
+    };
+  });
+  page.on('dialog', async (dialog) => {
+    issues.push(`native ${dialog.type()} dialog: ${dialog.message()}`);
+    await dialog.dismiss().catch(() => undefined);
   });
 }
 

@@ -25,7 +25,15 @@ import { EXPORT_NODE_ID } from '../nodeGraph';
 import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas, toCompositeOperation } from './canvas';
 import { renderCustomCodeShaderNodeToCanvas } from './customCodeShader';
-import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
+import { findIncomingSource, graphLayerInputPort } from './graphInputs';
+import {
+  applyEffectLayerCanvas2DPass,
+  applyGpuOnlyEffectLayerChain,
+  applyLayerToCanvas,
+  canMergeTrailingGpuPass,
+  isGpuOnlyEffectLayer,
+  type RenderOptions,
+} from './layers';
 import { renderShaderNodeToCanvas } from './shaderNodes';
 
 const GRAPH_RENDER_CACHE_LIMIT = 160;
@@ -36,15 +44,6 @@ export interface GraphRenderCache {
   entries: Map<string, Promise<HTMLCanvasElement>>;
   entryKey?: (nodeId: string) => string | null;
   limit?: number;
-}
-
-function findIncomingSource(
-  graph: CanvasGraph,
-  toId: string,
-  toPort: CanvasGraph['edges'][number]['toPort'],
-): string | null {
-  const edge = graph.edges.find((item) => item.toId === toId && item.toPort === toPort);
-  return edge?.fromId ?? null;
 }
 
 function findMergeNode(graph: CanvasGraph, nodeId: string): GraphMergeNode | undefined {
@@ -114,10 +113,17 @@ function findScene3DSourceLayer(doc: CanvasDocument, nodeId: string | null): Sce
 
 interface GpuEffectChain {
   baseSourceId: string | null;
+  /** An effect layer below the chain whose Canvas 2D effects run first and whose GPU filters join the chain's pass. */
+  mergedLayer: EffectLayer | null;
   layers: EffectLayer[];
 }
 
-function collectGpuOnlyEffectChain(doc: CanvasDocument, graph: CanvasGraph, nodeId: string): GpuEffectChain | null {
+function collectGpuOnlyEffectChain(
+  doc: CanvasDocument,
+  graph: CanvasGraph,
+  nodeId: string,
+  mergeGpuPasses: boolean,
+): GpuEffectChain | null {
   const layers: EffectLayer[] = [];
   let currentId: string | null = nodeId;
   let baseSourceId: string | null = null;
@@ -138,7 +144,11 @@ function collectGpuOnlyEffectChain(doc: CanvasDocument, graph: CanvasGraph, node
     currentId = sourceId;
   }
 
-  return layers.length > 1 ? { baseSourceId, layers } : null;
+  const baseLayer = baseSourceId ? findLayer(doc, baseSourceId) : undefined;
+  if (mergeGpuPasses && layers.length > 0 && baseLayer?.kind === 'effect' && canMergeTrailingGpuPass(baseLayer)) {
+    return { baseSourceId: findIncomingSource(graph, baseLayer.id, 'in'), mergedLayer: baseLayer, layers };
+  }
+  return layers.length > 1 ? { baseSourceId, mergedLayer: null, layers } : null;
 }
 
 function throwIfRenderAborted(options: RenderOptions): void {
@@ -961,17 +971,16 @@ async function renderGpuOnlyLayerChain(
   layer: Layer,
   context: GraphNodeRenderContext,
 ): Promise<HTMLCanvasElement | null> {
-  const { doc, graph, W, H, options, renderDependency } = context;
+  const { doc, graph, W, H, imageCache, options, renderDependency } = context;
   if (layer.kind !== 'effect' || options.skipEffects || options.effectResolution) return null;
-  const gpuEffectChain = collectGpuOnlyEffectChain(doc, graph, nodeId);
+  const gpuEffectChain = collectGpuOnlyEffectChain(doc, graph, nodeId, options.mergeGpuPasses ?? false);
   if (!gpuEffectChain) return null;
-  const base = gpuEffectChain.baseSourceId ? await renderDependency(gpuEffectChain.baseSourceId) : createCanvas(W, H);
+  const { baseSourceId, mergedLayer, layers } = gpuEffectChain;
+  const source = baseSourceId ? await renderDependency(baseSourceId) : createCanvas(W, H);
   throwIfRenderAborted(options);
-  return applyGpuOnlyEffectLayerChain(base, gpuEffectChain.layers, doc, W, H, options);
-}
-
-function graphLayerInputPort(layer: Layer): 'in' | 'bg' {
-  return layer.kind === 'effect' ? 'in' : 'bg';
+  if (!mergedLayer) return applyGpuOnlyEffectLayerChain(source, layers, doc, W, H, options);
+  const base = await applyEffectLayerCanvas2DPass(source, mergedLayer, doc, W, H, imageCache, options);
+  return applyGpuOnlyEffectLayerChain(base, [mergedLayer, ...layers], doc, W, H, options);
 }
 
 function graphLayerRenderOptions(layer: Layer, options: RenderOptions): RenderOptions {
@@ -1067,7 +1076,12 @@ async function renderGraphNode(
   const sizedNodeCacheKey = W === rootSize.width && H === rootSize.height ? nodeCacheKey : `${nodeCacheKey}@${W}x${H}`;
   const cacheKey = cacheNamespace ? `${cacheNamespace}:${sizedNodeCacheKey}` : sizedNodeCacheKey;
   const cached = cache.get(cacheKey);
-  if (cached) return cached.then((canvas) => normalizeRenderedCanvas(canvas, W, H));
+  if (cached) {
+    // Least recently used goes first: a hit moves the entry to the end of the pruning order.
+    cache.delete(cacheKey);
+    cache.set(cacheKey, cached);
+    return cached.then((canvas) => normalizeRenderedCanvas(canvas, W, H));
+  }
   const renderDependency = (dependencyId: string, size?: { width: number; height: number }) =>
     renderGraphNode(
       doc,

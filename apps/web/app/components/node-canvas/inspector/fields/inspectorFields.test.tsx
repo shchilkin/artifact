@@ -27,6 +27,11 @@ describe('runtime inspector field adapters', () => {
     expect(html).toContain('aria-controls=');
     expect(html).toContain('artifact-inspector-section');
     expect(html).toContain('Controls');
+    // The toggle is named by its title; the summary describes it.
+    const titleId = html.match(/aria-labelledby="([^"]+)"/)?.[1];
+    const summaryId = html.match(/aria-describedby="([^"]+)"/)?.[1];
+    expect(html).toMatch(new RegExp(`id="${titleId}">Transform<`));
+    expect(html).toMatch(new RegExp(`id="${summaryId}">Position and scale<`));
   });
 
   it('exposes owning layer edit and lock state without disabling its section', () => {
@@ -58,19 +63,43 @@ describe('runtime inspector field adapters', () => {
     expect(html).toContain('disabled=""');
   });
 
-  it('renders sliders as labelled dense property rows with explicit values', () => {
+  it('renders sliders as one labelled row with a read-out value and numeric entry', () => {
     const html = renderToStaticMarkup(
-      <InspectorSlider label="Opacity" value={82} valueLabel="82%" min={0} max={100} disabled onChange={() => {}} />,
+      <InspectorSlider
+        label="Opacity"
+        value={82}
+        formatValue={(value) => `${value}%`}
+        unit="%"
+        min={0}
+        max={100}
+        disabled
+        onChange={() => {}}
+      />,
     );
 
     expect(html).toContain('data-inspector-property-row="true"');
+    expect(html).toContain('artifact-inspector-slider');
     expect(html).toContain('data-inspector-disabled="true"');
-    expect(html).toContain('<label');
-    expect(html).toContain('for=');
-    expect(html).toContain('<output');
-    expect(html).toContain('82%');
-    expect(html).toContain('type="range"');
-    expect(html).toContain('disabled=""');
+    expect(html).toMatch(/<label class="artifact-property-row__label" for="([^"]+)">.*Opacity.*<\/label>/);
+    const controlId = html.match(/<label class="artifact-property-row__label" for="([^"]+)"/)?.[1];
+    expect(html).toContain(`id="${controlId}"`);
+    expect(html).toMatch(new RegExp(`id="${controlId}"[^>]*type="range"`));
+    expect(html).toContain('aria-valuetext="82%"');
+    expect(html).toContain('type="number"');
+    expect(html).toContain('aria-label="Opacity value"');
+    expect(html).toContain('max="100"');
+    expect(html.match(/disabled=""/g)).toHaveLength(2);
+    expect(html).not.toContain('<output');
+  });
+
+  it('lets numeric entry reach the override limit while the slider keeps its range', () => {
+    const html = renderToStaticMarkup(
+      <InspectorSlider label="Size" value={40} min={1} max={100} overrideMax={300} onChange={() => {}} />,
+    );
+
+    expect(html).toMatch(/type="range" min="1" max="100"/);
+    expect(html).toMatch(/type="number"[^>]*min="1" max="300"/);
+    expect(html).not.toContain('aria-valuetext');
   });
 
   it('renders color and toggle controls as labelled dense property rows', () => {

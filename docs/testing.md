@@ -18,6 +18,8 @@ npm run test:browser:release           # full browser gate split across fresh lo
 npm run test:browser:ui-conformance    # both Product Themes: Foundation Matrix plus composed specimens
 npm run test:browser:install           # install Chromium, Firefox, and WebKit for Playwright
 npm run perf:node-editor               # opt-in node editor performance benchmark
+npm run ux:gate                        # editor layout-stability and edit-latency budgets on the production build
+npm run test:editor-ux                 # editor UX contract and checker tests (part of check)
 npm run --silent fallow                # report-only code-quality baseline in JSON
 npm run --silent fallow:audit -- --base origin/development  # changed-code Fallow audit in JSON
 npm --workspace @artifact/web run test -- app/types/config.test.ts  # single web test file

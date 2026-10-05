@@ -3,7 +3,6 @@
    in the global stylesheet). Each route keeps its own entry file: a shared
    entry would be split into a common chunk whose load order is not fixed. */
 @import "../../components/editor-target/editor-target.css";
-@import "../../components/node-canvas/panel/node-properties-panel.css";
 @import "../../components/storage-workspace-status.css";
 @import "../editor/empty-canvas-start.css";
 @import "../../components/layers-panel/layers-panel.css";

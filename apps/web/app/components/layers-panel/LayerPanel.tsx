@@ -1,6 +1,7 @@
 import { Button } from '@artifact/ui';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
+import { useStableCallback } from '../../hooks/useStableCallback';
 import type {
   AspectRatio,
   CanvasDocument,
@@ -14,8 +15,11 @@ import type {
 } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import { isLayerStackGraph } from '../../utils/documentCommands';
+import { buildGraphLayerTree, type GraphLayerTree } from '../../utils/graphLayerTree';
+import type { LayerAddPlacement, TreeEditResult } from '../../utils/graphTreeEdits';
 import { getLayerAreaMap } from '../../utils/layerAreas';
 import type { NoisePresetId } from '../../utils/noisePresets';
+import { collectDocumentOutputNodeIds } from '../../utils/renderer';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
 import type { TextPresetId } from '../../utils/textPresets';
 import { EditorCommandGroup } from '../editor-workflow/EditorCommandGroup';
@@ -27,26 +31,37 @@ import {
 } from '../editor-workflow/EditorRowFrame';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
+import { GraphLayerTreeView } from './GraphLayerTreeView';
+import { GraphLayerTreeEditingContext } from './graphLayerTreeEditing';
+import { graphTreeLayerOrder } from './graphTreeItems';
 import { LayerAddMenu } from './LayerAddMenu';
 import { LayerAreaFolder } from './LayerAreaFolder';
 import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu';
+import { type LayerPanelView, LayerPanelViewSwitch } from './LayerPanelViewSwitch';
 import { LayerRow, type LayerRowProps, LayerSelectionControl } from './LayerRow';
+import { LayerTreeEditStatus } from './LayerTreeEditStatus';
 import { buildLayerDisplayItems, type LayerDisplayItem } from './layerDisplayItems';
 import { useLayerDragReorder } from './useLayerDragReorder';
 import { useLayerSelection } from './useLayerSelection';
+import { useLayerTreeEditing } from './useLayerTreeEditing';
 
 export interface LayerPanelProps {
   doc: CanvasDocument;
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
-  onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
-  onAddEffectPreset: (preset: EffectPreset) => void;
-  onAddTextPreset: (preset: TextPresetId) => void;
-  onAddNoisePreset: (preset: NoisePresetId) => void;
-  onAddArrayPreset: (preset: ArrayPresetId) => void;
-  onAddScene3D: () => void;
+  /** Adds take a placement while a Layers tree row is selected: the new node goes above that row. */
+  onAddLayer: (kind: Exclude<LayerKind, 'effect'>, placement?: LayerAddPlacement) => void;
+  onAddEffectPreset: (preset: EffectPreset, placement?: LayerAddPlacement) => void;
+  onAddTextPreset: (preset: TextPresetId, placement?: LayerAddPlacement) => void;
+  onAddNoisePreset: (preset: NoisePresetId, placement?: LayerAddPlacement) => void;
+  onAddArrayPreset: (preset: ArrayPresetId, placement?: LayerAddPlacement) => void;
+  onAddScene3D: (placement?: LayerAddPlacement) => void;
   onStartAiImage?: () => void;
   onRemoveLayer: (id: string) => void;
+  /** Applies one Layers tree edit as one undo step. Without it the tree is read-only. */
+  onApplyTreeEdit?: (edit: (doc: CanvasDocument) => TreeEditResult) => TreeEditResult;
+  /** Switches to Nodes with the node selected, for edits the tree does not make. */
+  onEditInNodes?: (nodeId: string) => void;
   onReorderLayers: (newOrder: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => void;
   onToggleVisible: (id: string) => void;
   onSetLayersVisible: (ids: string[], visible: boolean) => void;
@@ -73,6 +88,18 @@ function graphAreasForDocument(doc: CanvasDocument) {
   return doc.graph?.areas ?? [];
 }
 
+function graphTreeDisplayLayers(tree: GraphLayerTree | null, layers: Layer[]): Layer[] | null {
+  if (!tree) return null;
+  const layersById = new Map(layers.map((layer) => [layer.id, layer]));
+  return graphTreeLayerOrder(tree, (id) => layersById.has(id)).map((id) => layersById.get(id)!);
+}
+
+function contextMenuReturnFocusTarget(target: HTMLElement) {
+  const row = target.closest<HTMLElement>('.layer-row');
+  if (row?.getAttribute('role') === 'treeitem') return row;
+  return row?.querySelector<HTMLElement>('.layer-row-selection-control') ?? target;
+}
+
 function activeLayerPanelCollapsedAreaIds(collapsedAreaIds: Set<string>, graphAreas: GraphArea[]) {
   const areaIds = new Set(graphAreas.map((area) => area.id));
   return new Set([...collapsedAreaIds].filter((areaId) => areaIds.has(areaId)));
@@ -90,6 +117,8 @@ export function LayerPanel({
   onAddScene3D,
   onStartAiImage,
   onRemoveLayer,
+  onApplyTreeEdit,
+  onEditInNodes,
   onReorderLayers,
   onToggleVisible,
   onSetLayersVisible,
@@ -108,7 +137,11 @@ export function LayerPanel({
   const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
   const [collapsedAreaIds, setCollapsedAreaIds] = useState<Set<string>>(() => new Set());
   const [contextMenu, setContextMenu] = useState<LayerContextMenuState | null>(null);
+  const [panelView, setPanelView] = useState<LayerPanelView>('structure');
 
+  const reorderDisabled = !isLayerStackGraph(doc);
+  const showGraphTree = reorderDisabled && panelView === 'structure';
+  const graphTree = useMemo(() => (showGraphTree ? buildGraphLayerTree(doc) : null), [doc, showGraphTree]);
   const displayLayers = useMemo(
     () => [...doc.layers].reverse().filter((layer) => !isSceneModelInputLayer(layer, doc.graph)),
     [doc.layers, doc.graph],
@@ -123,14 +156,32 @@ export function LayerPanel({
     () => activeLayerPanelCollapsedAreaIds(collapsedAreaIds, graphAreas),
     [collapsedAreaIds, graphAreas],
   );
+  const treeDisplayLayers = useMemo(() => graphTreeDisplayLayers(graphTree, doc.layers), [doc.layers, graphTree]);
   const { selectedActionLayerIds, setSelectedLayerIds, handleSelectLayer } = useLayerSelection({
-    displayLayers,
+    displayLayers: treeDisplayLayers ?? displayLayers,
     layers: doc.layers,
     selectedLayerId,
     onSelectLayer,
   });
 
-  const reorderDisabled = !isLayerStackGraph(doc);
+  const outputNodeIds = useMemo(() => collectDocumentOutputNodeIds(doc), [doc]);
+  const handleSelectTreeNode = useCallback(
+    (id: string | null) => {
+      setSelectedLayerIds(new Set());
+      onSelectLayer(id);
+    },
+    [onSelectLayer, setSelectedLayerIds],
+  );
+  const treeEditing = useLayerTreeEditing({
+    doc,
+    tree: graphTree,
+    selectedLayerId,
+    onApplyTreeEdit,
+    onEditInNodes,
+    onSelectLayer: handleSelectTreeNode,
+    onOpenNodeContextMenu: setContextMenu,
+  });
+  const { addPlacement } = treeEditing;
   const { dragOverTarget, handleDragStart, handleDragOverLayer, handleDrop, handleCancelDrag } = useLayerDragReorder({
     displayLayers,
     areasByLayerId,
@@ -139,18 +190,26 @@ export function LayerPanel({
 
   const closeLayerContextMenu = useCallback(() => setContextMenu(null), []);
 
+  const openLayerContextMenuAt = useCallback(
+    (id: string, position: { x: number; y: number }, returnFocusTarget: HTMLElement) => {
+      const activeIds = selectedActionLayerIds.includes(id) ? selectedActionLayerIds : [id];
+      setSelectedLayerIds(new Set(activeIds));
+      onSelectLayer(id);
+      setContextMenu({ ...position, ids: activeIds, returnFocusTarget });
+    },
+    [onSelectLayer, selectedActionLayerIds, setSelectedLayerIds],
+  );
+
   const handleOpenLayerContextMenu = useCallback(
     (id: string, event: ReactMouseEvent<HTMLElement>) => {
       event.preventDefault();
-      const activeIds = selectedActionLayerIds.includes(id) ? selectedActionLayerIds : [id];
-      const returnFocusTarget =
-        event.currentTarget.closest('.layer-row')?.querySelector<HTMLElement>('.layer-row-selection-control') ??
-        event.currentTarget;
-      setSelectedLayerIds(new Set(activeIds));
-      onSelectLayer(id);
-      setContextMenu({ x: event.clientX, y: event.clientY, ids: activeIds, returnFocusTarget });
+      openLayerContextMenuAt(
+        id,
+        { x: event.clientX, y: event.clientY },
+        contextMenuReturnFocusTarget(event.currentTarget),
+      );
     },
-    [onSelectLayer, selectedActionLayerIds, setSelectedLayerIds],
+    [openLayerContextMenuAt],
   );
 
   const handleFinishRename = useCallback(
@@ -218,35 +277,42 @@ export function LayerPanel({
     [areasByLayerId, onRemoveLayersFromAreas],
   );
 
+  // Row handlers keep their identity across document edits, so only the edited row re-renders during a gesture.
+  const handleSelectRow = useStableCallback(handleSelectLayer);
+  const handleOpenRowContextMenu = useStableCallback(handleOpenLayerContextMenu);
+  const handleFinishRowRename = useStableCallback(handleFinishRename);
+  const handleDropRow = useStableCallback(handleDrop);
+
   const handleClearLayerSelection = useCallback(() => {
     setSelectedLayerIds(new Set());
     onSelectLayer(null);
   }, [onSelectLayer, setSelectedLayerIds]);
 
   return (
-    <div className="flex flex-col min-h-0 h-full">
+    <div className="relative flex flex-col min-h-0 h-full">
       <LayerPanelHeader
         aspect={doc.global.aspect ?? '1:1'}
         modeSwitcher={modeSwitcher}
         onAspectChange={onAspectChange}
-        onAddLayer={onAddLayer}
-        onAddEffectPreset={onAddEffectPreset}
-        onAddTextPreset={onAddTextPreset}
-        onAddNoisePreset={onAddNoisePreset}
-        onAddArrayPreset={onAddArrayPreset}
-        onAddScene3D={onAddScene3D}
+        onAddLayer={(kind) => onAddLayer(kind, addPlacement)}
+        onAddEffectPreset={(preset) => onAddEffectPreset(preset, addPlacement)}
+        onAddTextPreset={(preset) => onAddTextPreset(preset, addPlacement)}
+        onAddNoisePreset={(preset) => onAddNoisePreset(preset, addPlacement)}
+        onAddArrayPreset={(preset) => onAddArrayPreset(preset, addPlacement)}
+        onAddScene3D={() => onAddScene3D(addPlacement)}
         onStartAiImage={onStartAiImage}
       />
+      {reorderDisabled ? <LayerPanelViewSwitch value={panelView} onChange={setPanelView} /> : null}
 
       <div
         className="layer-panel-list flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
-        role="list"
-        aria-label="Layer stack"
+        role={graphTree ? undefined : 'list'}
+        aria-label={graphTree ? undefined : 'Layer stack'}
       >
         <LayerPanelEmptyState visible={displayLayers.length === 0} />
-        {reorderDisabled && displayLayers.length > 1 ? (
+        {reorderDisabled && !graphTree && displayLayers.length > 1 ? (
           <p className="layer-panel-graph-order-note px-3 py-2 text-[11px] text-dim border-b border-border">
-            Layer order follows the node graph. Reorder in Nodes.
+            Layer order follows the node graph. Reorder in Structure or in Nodes.
           </p>
         ) : null}
         <LayerSelectionActions
@@ -258,36 +324,60 @@ export function LayerPanel({
           onRemoveSelectionFromAreas={handleRemoveSelectionFromAreas}
           onClearSelection={handleClearLayerSelection}
         />
-        <Scene3DLayerRows doc={doc} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
-        {displayItems.map((item) => (
-          <LayerDisplayEntry
-            key={item.type === 'area' ? item.area.id : item.layer.id}
-            item={item}
-            activeCollapsedAreaIds={activeCollapsedAreaIds}
-            editingAreaId={editingAreaId}
-            selectedActionLayerIds={selectedActionLayerIds}
-            dragOverTarget={dragOverTarget}
-            editingId={editingId}
-            reorderDisabled={reorderDisabled}
-            onToggleAreaCollapsed={handleToggleAreaCollapsed}
-            onStartAreaEditing={setEditingAreaId}
-            onFinishAreaRename={handleFinishAreaRename}
-            onRemoveArea={onRemoveArea}
-            onToggleAreaVisible={handleToggleAreaVisible}
-            onSelectLayer={handleSelectLayer}
-            onOpenLayerContextMenu={handleOpenLayerContextMenu}
-            onStartEditing={setEditingId}
-            onFinishRename={handleFinishRename}
-            onDragStart={handleDragStart}
-            onDragOverLayer={handleDragOverLayer}
-            onDropLayer={handleDrop}
-            onDragEnd={handleCancelDrag}
-            onToggleVisible={onToggleVisible}
-            onDuplicateLayer={onDuplicateLayer}
-            onRemoveLayer={onRemoveLayer}
-            onRemoveNodesFromArea={onRemoveNodesFromArea}
-          />
-        ))}
+        {graphTree ? (
+          <GraphLayerTreeEditingContext.Provider value={treeEditing.editing}>
+            <GraphLayerTreeView
+              doc={doc}
+              tree={graphTree}
+              selectedLayerId={selectedLayerId}
+              selectedActionLayerIds={selectedActionLayerIds}
+              editingId={editingId}
+              onSelectLayer={handleSelectRow}
+              onSelectNode={handleSelectTreeNode}
+              onOpenLayerContextMenu={handleOpenRowContextMenu}
+              onOpenLayerContextMenuAt={openLayerContextMenuAt}
+              onStartEditing={setEditingId}
+              onFinishRename={handleFinishRowRename}
+              onToggleVisible={onToggleVisible}
+              onDuplicateLayer={onDuplicateLayer}
+              onRemoveLayer={onRemoveLayer}
+            />
+          </GraphLayerTreeEditingContext.Provider>
+        ) : (
+          <Scene3DLayerRows doc={doc} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
+        )}
+        {graphTree
+          ? null
+          : displayItems.map((item) => (
+              <LayerDisplayEntry
+                key={item.type === 'area' ? item.area.id : item.layer.id}
+                item={item}
+                activeCollapsedAreaIds={activeCollapsedAreaIds}
+                editingAreaId={editingAreaId}
+                selectedActionLayerIds={selectedActionLayerIds}
+                dragOverTarget={dragOverTarget}
+                editingId={editingId}
+                reorderDisabled={reorderDisabled}
+                outputNodeIds={outputNodeIds}
+                onToggleAreaCollapsed={handleToggleAreaCollapsed}
+                onStartAreaEditing={setEditingAreaId}
+                onFinishAreaRename={handleFinishAreaRename}
+                onRemoveArea={onRemoveArea}
+                onToggleAreaVisible={handleToggleAreaVisible}
+                onSelectLayer={handleSelectRow}
+                onOpenLayerContextMenu={handleOpenRowContextMenu}
+                onStartEditing={setEditingId}
+                onFinishRename={handleFinishRowRename}
+                onDragStart={handleDragStart}
+                onDragOverLayer={handleDragOverLayer}
+                onDropLayer={handleDropRow}
+                onDragEnd={handleCancelDrag}
+                onToggleVisible={onToggleVisible}
+                onDuplicateLayer={onDuplicateLayer}
+                onRemoveLayer={onRemoveLayer}
+                onRemoveNodesFromArea={onRemoveNodesFromArea}
+              />
+            ))}
       </div>
       <LayerContextMenu
         contextMenu={contextMenu}
@@ -296,13 +386,16 @@ export function LayerPanel({
         layers={doc.layers}
         onClose={closeLayerContextMenu}
         onDuplicateLayers={(ids) => ids.forEach(onDuplicateLayer)}
-        onRemoveLayers={(ids) => ids.forEach(onRemoveLayer)}
+        onRemoveLayers={(ids) => (treeEditing.editing ? void treeEditing.deleteRows(ids) : ids.forEach(onRemoveLayer))}
         onCreateAreaFromSelection={handleCreateAreaFromSelection}
         onAddSelectionToArea={handleAddSelectionToArea}
         onRemoveSelectionFromAreas={handleRemoveSelectionFromAreas}
         onRenameLayer={setEditingId}
         onSetLayersVisible={onSetLayersVisible}
+        treeItems={treeEditing.menuItems(contextMenu)}
       />
+      {treeEditing.editing ? <LayerTreeEditStatus helpId={treeEditing.helpId} status={treeEditing.status} /> : null}
+      {treeEditing.confirmDialog}
     </div>
   );
 }
@@ -452,6 +545,7 @@ function LayerDisplayEntry({
   dragOverTarget,
   editingId,
   reorderDisabled,
+  outputNodeIds,
   onToggleAreaCollapsed,
   onStartAreaEditing,
   onFinishAreaRename,
@@ -477,6 +571,7 @@ function LayerDisplayEntry({
   dragOverTarget: { id: string; position: 'before' | 'after' } | null;
   editingId: string | null;
   reorderDisabled: boolean;
+  outputNodeIds: ReadonlySet<string>;
   onToggleAreaCollapsed: (areaId: string) => void;
   onStartAreaEditing: (id: string | null) => void;
   onFinishAreaRename: (id: string, name: string | null) => void;
@@ -506,6 +601,7 @@ function LayerDisplayEntry({
         selectedActionLayerIds={selectedActionLayerIds}
         dragOverTarget={dragOverTarget}
         editingId={editingId}
+        outputNodeIds={outputNodeIds}
         onToggleCollapsed={onToggleAreaCollapsed}
         onStartAreaEditing={onStartAreaEditing}
         onFinishAreaRename={onFinishAreaRename}
@@ -535,6 +631,7 @@ function LayerDisplayEntry({
       dragOverPosition={dragOverTarget?.id === item.layer.id ? dragOverTarget.position : null}
       editing={editingId === item.layer.id}
       reorderDisabled={reorderDisabled}
+      reachesOutput={outputNodeIds.has(item.layer.id)}
       onSelect={onSelectLayer}
       onOpenContextMenu={onOpenLayerContextMenu}
       onStartEditing={onStartEditing}

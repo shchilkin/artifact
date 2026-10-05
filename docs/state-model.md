@@ -93,9 +93,21 @@ Rules:
 - Graph edits should be undoable.
 - Layers actions may rebuild the graph only while it is a layer stack graph
   (`isLayerStackGraph`: no utility nodes and exactly the linear layer chain to
-  export). For any custom graph, adding a layer from Layers inserts it before
-  export without touching other edges or positions, and layer-stack reorder is
-  disabled; composition order is edited in Nodes.
+  export). For any custom graph, the flat Areas list cannot reorder, and the
+  Structure tree edits runs through `utils/graphTreeEdits.ts`
+  ([`layers-graph-tree.md`](./layers-graph-tree.md), "Editing in the tree"):
+  reorder within a run, move between runs, add above the selected row, and
+  delete with reconnection. Each tree edit is one `snapshot` update through
+  `useEditorDocument` `applyTreeEdit` (adds go through the add commands with a
+  placement), and only rewrites the primary edges it splices. Adding with no
+  tree row selected inserts the layer before export without touching other edges
+  or positions.
+- `doc.layers` follows tree edits by one rule: a moved or added layer sits
+  directly above the nearest layer below it in its new stack, else directly
+  below the nearest layer above it, else on top; every other layer keeps its
+  order. This keeps a layer chain bottom-to-top, so a graph edited back into a
+  plain chain is the layer stack again and stack-mode rendering matches it.
+  Edits in Nodes do not reorder `doc.layers`.
 - Graph traversal for preview/export must go through `renderGraphTarget`.
 - Graph edits should not be hidden in UI-only state.
 - Graph-only merge, color, repeat, and output nodes do not have a durable lock
@@ -119,11 +131,28 @@ Includes:
 - expanded node panel
 - open context menu
 - open gallery node
+- Layers tree folder collapse state and the Structure/Areas switch
+  (`GraphLayerTreeView`, `LayerPanel`), keyed by node id
+- Layers tree edit state: the drag target, the row being placed by the keyboard
+  Move to… action, and the edit status message (`useLayerTreeEditing`)
+
+Editor confirmation state is also overlay state. `useEditorConfirm`
+(`components/editor-workflow/useEditorConfirm.tsx`) holds one pending
+`EditorConfirmDialog` request, and `useReplaceableWork`
+(`routes/editor/useReplaceableWork.ts`) remembers a fingerprint of the document
+the editor last put in place (the default document, a shared link, a loaded
+file or project, New, Randomize). Randomize and opening a project ask first
+only when the current document differs from that baseline; New asks whenever
+the canvas is not blank. Neither value is saved or part of undo.
 
 Rules:
 
+- Replacing or destructive editor actions confirm through `EditorConfirmDialog`, never `window.confirm`.
 - Selection changes must not dirty the document.
 - Opening/closing menus must not invalidate thumbnails.
+- The editor's shared selection (`useEditorDocument` `selectedLayerId`) holds any
+  existing layer or graph node id, so a node selected in the Layers tree stays
+  selected in Nodes and back.
 - Node-local controls should stop propagation when they are not intended to select, pan, or zoom the graph.
 
 ## Gesture draft state
@@ -134,6 +163,11 @@ Current examples:
 
 - text/image node local transform draft
 - active primitive drag ref
+- inspector slider value during a drag: the slider shows each value at once and
+  commits to the document (`debounce` mode) at most once per preview frame
+  interval (`PREVIEW_FRAME_INTERVAL_MS`), and once more on release. A value still
+  waiting goes to the layer or node it was made on: `InspectorTargetContext`
+  flushes it when the inspector's target changes
 
 Rules:
 
@@ -142,6 +176,30 @@ Rules:
 - One continuous gesture should produce one undo snapshot.
 - Draft changes should not trigger thumbnail renders.
 - Draft UI should render live overlays or direct canvas/WebGL updates.
+
+## Preview render state
+
+`useDocumentRenderer` returns `renderState`. Its `isRendering` (and the
+preview's `aria-busy`) is true while there is no frame yet or a full-quality
+pass is rendering. Interactive frames during an edit do not set it. Toggling it
+for every frame cost two React commits per frame (#324). A preview-progress
+indicator (#310) that should also cover interactive frames needs a separate
+signal that does not commit per frame.
+
+That signal is `data-preview-pending` on the render container. The hook writes
+it straight to the DOM (`syncPreviewPending`) whenever its scheduling state
+changes: a render requested, started or settled, and the settle or deferred
+full-quality timers set or fired. It is `"true"` from an edit until the frame
+for the latest document, including the deferred full-quality pass, has
+painted. The layer preview's progress bar (`PreviewProgress`,
+`components/ui/preview-progress.css`) is shown by CSS from that attribute, so it
+costs no React commit and, being an absolutely positioned overlay, no layout
+shift. Unpainted warm-up renders do not count as pending.
+
+Nodes has no layer preview. `NodePreviewProgress` subscribes to the node
+thumbnail queue (`subscribeThumbnailQueue`) and writes the same attribute on its
+own bar while previews, including the Output preview, are queued or rendering.
+A preview's short debounce before it joins the queue is not counted.
 
 ## Primitive camera state
 

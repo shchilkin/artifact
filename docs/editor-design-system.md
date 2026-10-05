@@ -19,6 +19,8 @@ Artifact's print-like visual language.
 | Accessible mechanics, Artifact visuals | Radix/shadcn can provide behavior and accessibility, but Artifact tokens define the appearance. |
 | Style guide before broad migration | New or migrated primitives should be visible in a deterministic style-guide route before broad editor adoption. |
 | UI copy is product copy | Internal migration plans, QA strategy, release-plan notes, and agent workflow text live in `docs/`, not in app surfaces. |
+| Stable editor frame | On desktop the editor is a fixed grid: layer list, canvas, and a reserved inspector (`--editor-inspector-w`; a row of `--editor-inspector-h` under the canvas below 1024 px) above one full-width command-bar row. `.main` covers the whole stage in both modes and Layers insets its content, so selecting a layer or switching Layers/Nodes moves neither the canvas nor the command bar. `npm run ux:gate` enforces this. |
+| One inspector layout | Layers and Nodes render a target through the same component with the same configuration: `EditorTargetOverview` (the compact `EditorTargetHeader`), then `LayerTargetInspector` for layers (source sections such as Image Source, Generate, or Emoji Set; the layer's own sections, primary first; the shared `Layer` section with Visible and Locked) or `SceneTargetInspector` for a 3D Scene. A slider is one `PropertyRow` with label, range, and numeric entry on one row (`.artifact-inspector-slider`); numeric entry commits on Enter or blur, snapped to the slider step. Inspector field styles live in `node-canvas/inspector/inspector.css`, which loads with the editor; `node-canvas.css` loads only with Nodes and must not restyle inspector fields (shader control lists use the `.artifact-inspector-flat-list` modifier). Both inspectors scroll through `.artifact-inspector-scroll` (stable scrollbar gutter), and wider inspectors cap their content at `--editor-inspector-content-max`. `npm run ux:gate` checks the slider width across a mode switch. |
 
 ## Token Families
 
@@ -173,8 +175,18 @@ still consume the same tokens:
 - `InspectorField`
 - `PropertyRow`
 - `PreviewFrame`
-- `AddLibraryPanel`
+- `AddLibraryPanel` (one filter axis: All or one intent, plus Recipes on the
+  Nodes surface; opaque from its first frame)
 - `EditorTargetHeader`
+- `EditorConfirmDialog` (replacing and destructive editor actions; modal,
+  Cancel takes initial focus, Escape cancels; `useEditorConfirm` for
+  promise-style callers)
+- `EditorWorkflowNotice` laid over a panel (`LayerTreeEditStatus`): the
+  shared `InlineNotice` used as a non-shifting overlay for transient edit
+  feedback. It stays mounted while empty, so its status live region is
+  registered before the first message, and it ignores pointer events. Use it
+  where an inline notice would push rows the person is dragging or
+  navigating; otherwise use an inline `EditorWorkflowNotice`.
 
 ### Route-Level Style Guide
 
@@ -187,6 +199,8 @@ The deterministic internal route for the visual UI catalog is
 - sheets/dialogs/floating menus
 - badges and status chips
 - layer rows: default, selected, hidden, locked, selected+hidden
+- Layers tree edit states: drop line above and below, dragging row, row being
+  placed with Move to…, and the edit notice (blocked reason)
 - node frames: default, selected, output path, muted, locked delete action
 - node color states: at least two distinct categories selected in sequence
   (for example emoji and effect), selected+output-path, and active output edge

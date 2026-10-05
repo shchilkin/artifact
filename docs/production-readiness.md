@@ -13,6 +13,7 @@ npm run release:verify
 npm run check
 npm run build
 npm run loading:gate
+npm run ux:gate
 npm run test:browser:release
 ```
 
@@ -33,6 +34,13 @@ CI should run:
   `docs/loading/route-loading-contract.json`; the measurement is uploaded as the
   `route-loading` artifact. See `docs/loading/route-loading-matrix.md` for how an
   intentional budget or boundary change is reviewed.
+- `npm run ux:gate` in the Playwright container whenever the browser jobs run
+  (and when `scripts/editor-ux/` or `docs/editor-ux/` change). It builds the web
+  app, measures editor layout stability and edit latency in Chromium on desktop
+  and mobile, and fails on any budget or exception-ceiling violation of
+  `docs/editor-ux/editor-ux-contract.json`; the measurement is uploaded as the
+  `editor-ux` artifact. See `docs/editor-ux/editor-ux-baseline.md` for how an
+  intentional budget or exception change is reviewed.
 - `npm run test:browser` in a browser-capable job with Chromium, Firefox, and
   WebKit installed. The suite includes desktop projects plus focused mobile
   Chromium/WebKit smoke.
@@ -87,6 +95,58 @@ CI should run:
 
 ## Manual QA
 
+### v0.50.0 Release Prep
+
+- Package metadata is bumped to `0.50.0` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.50.0.md` is prepared from the release template without a
+  visible internal checklist.
+- Delivery issues are merged into `development`: the editor UX baseline and
+  gate (#306, #321), latency budgets (#308, #322; #324, #325; the fast-runner
+  scale cap #328), the stable editor frame (#307, #323), explicit editor state
+  (#310, #327), the unified inspector (#309, #329), the one-step Nodes
+  inspector layout (#414), the read-only Layers tree (#311, #326), and Layers
+  tree edits (#312, #434).
+- The full release gate passed locally on 2026-10-04 against `development`
+  revision `3edc44ab201a5b462beb260ecfb80f08624f13b6` in a clean worktree after
+  `npm ci`: `npm run check`, `npm run build`, `npm run loading:gate`,
+  `npm run ux:gate`, `npm run test:browser:release`, and
+  `npm run perf:node-editor`. The worktree stayed clean afterward.
+- The check includes 20 UI Foundation tests, 881 Web tests, 261 passing API
+  tests with 5 skipped, 11 Backoffice tests, 27 deployment tests, 20
+  route-loading contract tests, 15 editor UX contract tests, and 3
+  legacy-registry contract tests, plus formatting, lint, and all type checks.
+- The editor UX gate passed every budget with no exceptions in
+  `docs/editor-ux/editor-ux-contract.json`. On the CI reference runner (CI run
+  `37226893529`, speed 0.834), `default` / `effect-stack`: keypress to preview
+  37.6 / 36.8 ms (budget 50), drag main-thread time 116.8 / 122.8 ms (160),
+  drag settle 419.7 / 582.7 ms (700), Nodes entry settle 474.4 / 576.6 ms
+  (1200), Nodes slider settle 54.3 / 73.6 ms (100). Every layout metric is 0
+  on desktop and mobile.
+- The route-loading gate kept every state within budget: before-render
+  JavaScript (gzip) is 131.1 KiB home, 119.2 KiB docs, 119.6 KiB account
+  recovery, 220.9 KiB Projects, 337.7 KiB blank editor, and 367.2 KiB style
+  guide; Nodes activation adds 119.9 KiB and first 3D activation 182.5 KiB.
+- The complete browser release gate scheduled 833 scenarios: 702 passed
+  without retry, 1 passed on retry (WebKit showcase-to-editor smoke, which
+  passed 10 of 10 repeated runs afterward and is tracked in #435), and 130
+  were intentional skips.
+- `npm run perf:node-editor` passed: drag, effect-control, and graph-pan
+  interactions produced no long tasks, with p95 frame times of 9.0-9.3 ms
+  (v0.49.0: 9.6-9.7 ms) against the preferred 50 ms budget.
+- `npm audit` reports 0 vulnerabilities after a clean `npm ci`.
+- `grep` finds no `window.confirm` in `apps/web/app`; every replacing or
+  destructive flow uses the in-app confirmation dialog.
+- Manual QA on a production preview at 1440x900 and 375x812 covered layer
+  selection, Layers/Nodes switching, Add Library, slider undo, the New
+  confirmation, a custom-graph Layers tree with a delete and undo, and the
+  mobile command bar.
+- Accepted release risks are listed in `docs/releases/v0.50.0.md`: the
+  software-WebGL interactive frame size, machine-scaled latency, JavaScript
+  budget headroom, Nodes-only graph wiring, and Layers tree Delete requiring
+  row focus.
+
 ### v0.49.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.49.0` in `package.json`,
@@ -129,6 +189,12 @@ CI should run:
   after a WebGL context-loss warning.
 - Accepted release risk: React Router 7.18 prints v8 future-flag warnings during
   the build without changing runtime behavior.
+- Release PR #318 (`16ecf13`), post-merge CI `36862517921`, and exact-SHA
+  staging `36863906626` passed. Promotion PR #319 merged production commit
+  `c673a4de735ec0ed47a8bd44ab9e07e25e718d40` into `main`.
+- Release run `36865709034` created tag `v0.49.0`; production run
+  `36874222074` deployed and verified it; publish run `36878105056` published
+  the release on 2026-10-01.
 
 ### v0.48.1 Release Prep And Evidence
 

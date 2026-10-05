@@ -16,8 +16,11 @@ Size and antialiasing can differ, especially with WebGL, but the render path and
 
 Node previews use `apps/web/app/components/node-canvas/thumbnails/previewSizing.ts` to
 derive both CSS display size and internal render size from `doc.global.aspect`.
-Use that helper for new thumbnail-like surfaces so `16:9`, `9:16`, `4:5`, and
-`1:1` documents keep the same composition shape across nodes and export.
+`getNodePreviewSize(aspect, options)` renders at the document baseline by
+default; graph thumbnails pass a zoom `renderBucket` instead (see
+[Node thumbnails](#node-thumbnails)). Use that helper for new thumbnail-like
+surfaces so `16:9`, `9:16`, `4:5`, and `1:1` documents keep the same composition
+shape across nodes and export.
 
 The layer preview still uses `getPreviewDims(...)` for its CSS geometry, but
 `useDocumentRenderer` can render above that display size through
@@ -31,6 +34,14 @@ full-resolution pass after a short idle delay. This keeps layer edits feeling
 final while avoiding extra node-thumbnail work. Export, output thumbnails, and
 graph-target previews should still call the renderer with the requested
 full-quality options directly.
+The interactive frame is sized to the device's GPU (v0.50, #324): on a GPU
+where one effect pass at the draft size would take longer than the preview's
+budget (12 ms, typically software WebGL), it renders at 3/4 or 1/2 of the draft
+size, from the GPU bridge's running cost per megapixel
+(`apps/web/app/utils/gpuPassCost.ts`). It also sets `mergeGpuPasses`. The
+full-quality pass that follows is unchanged, so the frame the preview settles
+on, thumbnails, and export match as before. The display canvas takes each
+frame's own size and CSS scales it to the preview box.
 For stack-mode layer previews, the transient graph render cache may use
 per-layer prefix signatures so lower layers can be reused when an upper layer
 changes. Those signatures must include every pixel-affecting input and remain
@@ -47,12 +58,29 @@ into document pixels.
 | --- | --- | --- |
 | `renderDocument` | `apps/web/app/utils/renderer.ts` | Main document render entry. Chooses stack or graph mode. |
 | `renderGraphTarget` | `apps/web/app/utils/renderer.ts` | Renders a specific node target through graph traversal. |
+| `collectGraphRenderReach` | `apps/web/app/utils/renderer.ts` (from `render/graphInputs.ts`) | Node ids that contribute to a graph target: the nodes the graph renderers render plus those whose settings they read. |
+| `collectDocumentOutputNodeIds` | `apps/web/app/utils/renderer.ts` | Node ids that contribute to the document output, with `renderDocument`'s default graph choice. Layers rows use it for "not in output". |
 | `renderPrimitiveToCanvas` | `apps/web/app/utils/primitiveRenderer.ts` | One-shot Three.js primitive render for document/export pipeline. |
 | `generateThumbnail` | `apps/web/app/utils/generateThumbnail.ts` | Preset/example thumbnail generation. |
 
 Rule:
 
 > UI surfaces may wrap these functions, but they should not reimplement artwork rendering.
+
+Reachability has one home, `render/graphInputs.ts`: one walk
+(`collectGraphRenderReachModes`) over per-kind input tables (`graphNodeRenderInputs`). `collectGraphRenderReach`,
+`collectDocumentOutputNodeIds` (Layers row status), and the Layers tree (`buildGraphLayerTree`) all derive from
+it. When a graph renderer starts or stops reading an input port, update the table in the same change; the
+shared fixtures in `test-fixtures/render/graphReachFixtures.ts` cover every branch of the table and are checked
+against the nodes the renderer actually renders, by `graphRenderReach.test.ts` and `graphLayerTree.test.ts`.
+Layers tree edits (`utils/graphTreeEdits.ts`) read each node's primary port and input roles from the same table
+(`graphNodePrimaryPort`, `graphNodeInputRole`) and keep the first edge on every port first, so an edit never
+changes which edge the renderer reads on a port it did not splice. They change only graph edges, positions,
+and `doc.layers` order; render dispatch, thumbnails, and export are unchanged.
+
+Reach is about topology, not visibility: a hidden layer on the path to Output counts as reached (the renderer
+visits it and draws nothing). Layers rows show only "not in output" for unreached layers; a hidden layer's row
+already says "hidden".
 
 `apps/web/app/utils/renderer.ts` is the stable caller-facing facade. Renderer internals
 live under `apps/web/app/utils/render/`; app code should keep importing the public entry
@@ -104,11 +132,27 @@ Graph mode renders from `CanvasDocument.graph`. Nodes can be:
 - export node
 
 `renderGraphTarget` recursively renders upstream dependencies and composes the result.
+The port lookup (the first edge in `graph.edges` wins when several feed one
+port) lives in `apps/web/app/utils/render/graphInputs.ts` and the renderer
+imports it from there. The same module restates, per node kind, which inputs
+each `GRAPH_NODE_RENDERERS` entry reads; the renderer still dispatches through
+its own functions, so that table is a second description, not shared code, and
+the renderer-backed reach fixtures (see the rule above) guard it against drift.
 Within one graph render call it caches node results by node id. Thumbnail
-rendering can also pass an external render-session cache so sibling thumbnails
-reuse shared upstream branch results. That cache stores canvases/promises
-outside `CanvasDocument` and is invalidated by a render-session key derived from
-document, graph, render size, image availability, and primitive camera state.
+rendering can also pass an external cache so sibling thumbnails reuse shared
+upstream branch results. That cache stores canvases/promises outside
+`CanvasDocument`. Node thumbnails key it by content
+(`apps/web/app/utils/graphNodeRenderCache.ts`): a node's key hashes its own
+render signature, image availability, and primitive camera state with the keys
+of every node feeding it, and the namespace carries render size, effect
+resolution, seed, background, and aspect. An edit therefore re-renders only the
+edited node and what is downstream of it; unchanged upstream branches are
+reused across edits. A node without a stable key (unknown kind or a cycle) is
+cached for one render only. The namespace also carries a render-asset epoch
+(`apps/web/app/utils/renderAssetEpoch.ts`) that advances whenever a render falls
+back for a missing image, environment, or model asset or a font that did not
+load, so a fallback frame is not reused once the asset may be available.
+Entries are pruned least recently used first.
 Gallery previews and generated preset/example thumbnails use the same optional
 cache boundary so repeated graph branches are not recomputed while browsing or
 opening a high-resolution preview.
@@ -340,6 +384,16 @@ The thumbnail system:
 - calls `renderGraphTarget` or `renderDocument`
 - delays passive offscreen thumbnail work until the thumbnail frame is visible
   or near the viewport
+- renders the selected preview at the document baseline, without a debounce
+  and ahead of other previews. Every other thumbnail, Output included, renders at the
+  smallest of `NODE_PREVIEW_RENDER_BUCKETS` (160, 320, 640, 1280 px) that covers
+  its on-screen size at the current graph zoom, and moves to a sharper bucket
+  once the zoom rests for `THUMB_ZOOM_SETTLE_MS`, including after an animated
+  fit. This replaces the earlier split between a priority render scale and a
+  passive one. The bucket is part of the thumbnail and graph-node cache keys,
+  so a frame is never reused at another resolution. Effects still scale against
+  the document size (`effectResolution`); only thumbnail detail changes.
+  Thumbnails wait for the fit on the first Nodes entry before rendering.
 - keeps image-readiness invalidation scoped to images that are upstream of the
   thumbnail target
 
@@ -416,6 +470,7 @@ interface RenderOptions {
   graphMode?: 'auto' | 'graph' | 'stack';
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
   effectResolution?: { width: number; height: number };
+  mergeGpuPasses?: boolean;
 }
 ```
 
@@ -428,6 +483,13 @@ Guidelines:
 - `effectResolution` is used by export so scale 2/3 increases file
   resolution without changing procedural effect density from the base cover
   size.
+- `mergeGpuPasses` is for interactive preview frames only. An effect layer that
+  is not masked or blended runs its GPU filters in the same GPU pass as the
+  GPU-only effect layers above it, which saves a canvas upload and readback.
+  Opaque pixels are identical
+  (`tests/browser/v050-gpu-readback-parity.spec.ts`); translucent pixels can
+  differ by readback rounding, so full-quality previews, thumbnails, and export
+  never set it.
 - UI render hooks should avoid painting stale async results when a newer
   document, image-cache, or render-option change is already queued.
 
