@@ -95,7 +95,7 @@ CI should run:
 
 ## Manual QA
 
-### v0.50.0 Release Prep
+### v0.50.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.50.0` in `package.json`,
   `apps/web/package.json`, `apps/backoffice/package.json`, and
@@ -146,6 +146,12 @@ CI should run:
   software-WebGL interactive frame size, machine-scaled latency, JavaScript
   budget headroom, Nodes-only graph wiring, and Layers tree Delete requiring
   row focus.
+- Release PR #436 (`069fc91`), post-merge CI `37286810058`, and exact-SHA
+  staging `37288777713` passed. Promotion PR #437 merged production commit
+  `0b486e2aea444f97e92b40c79a447e84b4b81cde` into `main`.
+- Release run `37290833775` created tag `v0.50.0`; production run
+  `37295277263` deployed and verified it; publish run `37299099758` published
+  the release on 2026-10-05.
 
 ### v0.49.0 Release Prep And Evidence
 
