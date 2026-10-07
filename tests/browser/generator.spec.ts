@@ -2656,13 +2656,10 @@ test('new blank canvas ignores stored work and shows the empty start panel', asy
   await expectLayerCanvasToHavePixels(page);
 });
 
-test('empty layer panel offers direct layer quick starts', async ({ page }) => {
+test('empty canvas offers direct layer quick starts', async ({ page }) => {
   await page.goto('/app?new=blank');
 
-  const emptyPanel = page.locator('.layer-empty-state');
-  await expect(emptyPanel).toBeVisible({ timeout: 15_000 });
-  await expect(emptyPanel).toContainText('No layers yet');
-  await expect(emptyPanel).toContainText('Start with image, text, AI, or a recipe.');
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.empty-canvas-start').getByRole('link', { name: 'Open guide' })).toHaveAttribute(
     'href',
     '/docs/nodes#docs-first-cover',
@@ -2674,7 +2671,7 @@ test('empty layer panel offers direct layer quick starts', async ({ page }) => {
   await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Texture Type' })).toBeVisible();
 
   await page.locator('.empty-canvas-start').getByRole('button', { name: 'Add text' }).click();
-  await expect(page.locator('.layer-empty-state')).toHaveCount(0);
+  await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
   await expect(page.locator('.layer-row').filter({ hasText: 'Text' })).toHaveCount(1, { timeout: 15_000 });
   await expectLayerCanvasToHavePixels(page);
   await expect

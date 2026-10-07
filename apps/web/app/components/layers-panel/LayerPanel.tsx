@@ -30,7 +30,6 @@ import {
   EditorRowPrimary,
 } from '../editor-workflow/EditorRowFrame';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { GraphLayerTreeView } from './GraphLayerTreeView';
 import { GraphLayerTreeEditingContext } from './graphLayerTreeEditing';
 import { graphTreeLayerOrder } from './graphTreeItems';
@@ -309,7 +308,6 @@ export function LayerPanel({
         role={graphTree ? undefined : 'list'}
         aria-label={graphTree ? undefined : 'Layer stack'}
       >
-        <LayerPanelEmptyState visible={displayLayers.length === 0} />
         {reorderDisabled && !graphTree && displayLayers.length > 1 ? (
           <p className="layer-panel-graph-order-note px-3 py-2 text-[11px] text-dim border-b border-border">
             Layer order follows the node graph. Reorder in Structure or in Nodes.
@@ -477,11 +475,6 @@ function LayerPanelHeader({
       </div>
     </div>
   );
-}
-
-function LayerPanelEmptyState({ visible }: { visible: boolean }) {
-  if (!visible) return null;
-  return <EmptyLayerPanelStart />;
 }
 
 function LayerSelectionActions({
