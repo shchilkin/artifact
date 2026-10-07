@@ -194,6 +194,28 @@ jobs:
             test-results/
           retention-days: 7
 
+  # Single required check for the browser matrix. A skipped matrix job reports
+  # an unexpanded "browser (${{ matrix.project }})" name, so branch protection
+  # cannot require the per-project checks directly.
+  browser-result:
+    needs: [browser-changes, browser]
+    if: always()
+    runs-on: ubuntu-latest
+    name: browser
+
+    steps:
+      - name: Check browser matrix result
+        env:
+          CHANGES_RESULT: ${{ needs.browser-changes.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          echo "browser-changes: $CHANGES_RESULT, browser matrix: $BROWSER_RESULT"
+          if [ "$CHANGES_RESULT" != "success" ]; then exit 1; fi
+          case "$BROWSER_RESULT" in
+            success|skipped) exit 0 ;;
+            *) exit 1 ;;
+          esac
+
   route-loading:
     needs: browser-changes
     if: needs.browser-changes.outputs.should_run == 'true'
