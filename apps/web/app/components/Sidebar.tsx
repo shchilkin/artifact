@@ -252,15 +252,18 @@ function SelectedScene3DSections({
   );
 }
 
-function InspectorEmptyState() {
+function InspectorEmptyState({ hasLayers }: { hasLayers: boolean }) {
   return (
     <>
       <h2 className="sr-only">Layer settings</h2>
-      <EmptyState
-        className="layer-inspector-empty-state"
-        title="No layer selected"
-        body="Select a layer to edit its settings."
-      />
+      {/* An empty document already shows its start actions on the canvas; nothing here to select. */}
+      {hasLayers && (
+        <EmptyState
+          className="layer-inspector-empty-state"
+          title="No layer selected"
+          body="Select a layer to edit its settings."
+        />
+      )}
     </>
   );
 }
@@ -388,7 +391,7 @@ export function Sidebar({
         className={`layer-inspector-drawer${hasInspectorContent ? '' : ' layer-inspector-drawer--empty'}`}
         aria-label="Layer settings"
       >
-        {!hasInspectorContent && <InspectorEmptyState />}
+        {!hasInspectorContent && <InspectorEmptyState hasLayers={doc.layers.length > 0} />}
         {/* The notice stands in for the empty state; an open AI panel is the relevant content instead. */}
         <GraphNodeInspectorNotice node={showAiGeneration ? null : selectedGraphNode} />
         <AiImageSection

@@ -119,7 +119,7 @@ export const CANVAS_CHROME_SURFACES = [
     states: [
       state('Loaded opaque artwork', 'Artifact preview frame'),
       state('Loaded transparent artwork', 'Artifact preview frame with checkerboard UI chrome'),
-      state('Empty canvas', 'Artifact canvas EmptyState'),
+      state('Empty canvas', 'Editor empty-canvas start actions'),
       state('Render error', 'Artifact preview error state'),
       state('Recovery frame', 'Artifact preview recovery action'),
       state('Selected transformable layer', 'Artifact canvas selection and handle chrome'),
