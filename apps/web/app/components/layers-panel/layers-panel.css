@@ -1282,31 +1282,6 @@
   }
 }
 
-.layer-empty-state {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4) 14px;
-  border-bottom: 1px solid var(--line-default);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  line-height: 1.5;
-  text-transform: uppercase;
-}
-
-.layer-empty-state p {
-  margin: 0;
-}
-
-.layer-empty-kicker {
-  color: var(--accent-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-}
-
 .layer-selection-actions {
   position: sticky;
   top: 0;
