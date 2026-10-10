@@ -182,14 +182,16 @@ moved to a gap the person can see.
   state.
 - Rows that cannot move are not draggable: reference rows, shared nodes,
   side-input tops, and locked layers.
-- Keyboard, on a focused row: <kbd>Alt</kbd>+<kbd>Up</kbd> or
+- Keyboard, on a focused row or a control inside it (such as the name after a
+  click; text fields keep their keys): <kbd>Alt</kbd>+<kbd>Up</kbd> or
   <kbd>Alt</kbd>+<kbd>Down</kbd> moves it within its stack; <kbd>Delete</kbd> or
   <kbd>Backspace</kbd> deletes it (or the selection it belongs to);
   <kbd>Shift</kbd>+<kbd>F10</kbd> opens row actions.
 - Row actions add Move up, Move down, Move to…, Edit in Nodes, and Delete for
   graph-only nodes. Graph-only and shared-use rows get the same "•••" actions
-  button as layer rows, so touch screens reach them too. A blocked action stays
-  focusable and announces its reason.
+  button as layer rows. On coarse pointers the button is always shown, not only
+  on hover or selection, and every row control has a 44 px hit area. A blocked
+  action stays focusable and announces its reason.
   Move to… starts a keyboard move: arrow to a row, then <kbd>Enter</kbd> places
   the moving row above it and <kbd>Shift</kbd>+<kbd>Enter</kbd> below it;
   <kbd>Escape</kbd> cancels.
@@ -266,8 +268,9 @@ several branches, so both cannot be folders at once.
   shortcuts and never take focus.
 - Custom graphs switch views with a Structure/Areas segmented control (toggle
   buttons, not tabs: both views fill the same list).
-- Selecting a graph-only node shows a short inspector notice; its settings are
-  edited in Nodes until a later release brings those inspectors to Layers.
+- Selecting a graph-only node shows a short inspector notice with an "Edit in
+  Nodes" button; its settings are edited in Nodes until a later release brings
+  those inspectors to Layers.
 - Folder rows have no thumbnails, matching layer rows. If they are added, they
   must render through the content-keyed graph cache described in
   [`rendering.md`](./rendering.md) and invalidate only on commit.

@@ -322,6 +322,10 @@ function dropTargetFor(item: GraphTreeItem, row: GraphTreeRow, pointer: TreeDrop
   return { target: row, position: pointer };
 }
 
+function isTextEntry(element: HTMLElement) {
+  return element.isContentEditable || element.matches('input, textarea, select');
+}
+
 /** The ids a Delete key press acts on: the selection when the row is part of it, else the row. */
 function deleteIds(nodeId: string, selectedIds: string[]) {
   return selectedIds.includes(nodeId) ? selectedIds : [nodeId];
@@ -574,12 +578,18 @@ export function GraphLayerTreeView({
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      const target = event.target as HTMLElement;
-      if (target.getAttribute('role') !== 'treeitem') return;
+      const origin = event.target as HTMLElement;
+      // Text fields keep their own keys; any other control in a row (the name button after a click,
+      // the actions button) acts for its row.
+      if (isTextEntry(origin)) return;
+      const target = origin.closest<HTMLElement>('[role="treeitem"]');
+      if (!target) return;
       const index = items.findIndex((item) => item.key === target.dataset.treeKey);
       const item = items[index];
       if (!item) return;
       if (editing && handleEditKey(event, item)) return;
+      // Enter and Space on a row control press that control.
+      if (origin !== target && (event.key === 'Enter' || event.key === ' ')) return;
 
       const moveTo = nextFocusKey(items, index, event.key);
       if (moveTo) {

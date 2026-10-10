@@ -144,8 +144,7 @@ CI should run:
   mobile command bar.
 - Accepted release risks are listed in `docs/releases/v0.50.0.md`: the
   software-WebGL interactive frame size, machine-scaled latency, JavaScript
-  budget headroom, Nodes-only graph wiring, and Layers tree Delete requiring
-  row focus.
+  budget headroom, and Nodes-only graph wiring.
 - Release PR #436 (`069fc91`), post-merge CI `37286810058`, and exact-SHA
   staging `37288777713` passed. Promotion PR #437 merged production commit
   `0b486e2aea444f97e92b40c79a447e84b4b81cde` into `main`.

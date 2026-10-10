@@ -134,7 +134,9 @@ Includes:
 - Layers tree folder collapse state and the Structure/Areas switch
   (`GraphLayerTreeView`, `LayerPanel`), keyed by node id
 - Layers tree edit state: the drag target, the row being placed by the keyboard
-  Move to… action, and the edit status message (`useLayerTreeEditing`)
+  Move to… action, and the edit status message (`useLayerTreeEditing`). The
+  status remembers the document it describes; any other document change, such
+  as Undo, Redo, or an inspector edit, retires it.
 
 Editor confirmation state is also overlay state. `useEditorConfirm`
 (`components/editor-workflow/useEditorConfirm.tsx`) holds one pending

@@ -1935,6 +1935,35 @@
   }
 }
 
+/*
+ * Touch: row actions have no hover to reveal them, so they stay visible, and every row control gets a
+ * 44 px hit area (style-guide touch target).
+ */
+@media (pointer: coarse) {
+  .layer-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  .layer-row-action,
+  .layer-row-drag-handle,
+  .layer-tree-caret,
+  .layer-area-folder-toggle,
+  .layer-area-rename,
+  .layer-area-remove,
+  .layer-area-visibility {
+    width: var(--touch);
+    min-width: var(--touch);
+    height: auto;
+    min-height: var(--touch);
+  }
+
+  .layer-area-name-button {
+    min-height: var(--touch);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .layer-tree-caret {
     transition: none;

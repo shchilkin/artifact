@@ -33,6 +33,11 @@ export interface LayerTreeEditStatus {
   tone: 'done' | 'blocked';
 }
 
+/** A status and the document it describes. Any other document change, such as Undo, retires it. */
+interface DocumentTreeEditStatus extends LayerTreeEditStatus {
+  doc: CanvasDocument;
+}
+
 export function useLayerTreeEditing({
   doc,
   tree,
@@ -53,7 +58,7 @@ export function useLayerTreeEditing({
   const helpId = useId();
   const { confirm, confirmDialog } = useEditorConfirm();
   const [movingNodeId, setMovingNodeId] = useState<string | null>(null);
-  const [status, setStatus] = useState<LayerTreeEditStatus | null>(null);
+  const [status, setStatus] = useState<DocumentTreeEditStatus | null>(null);
 
   const index = useMemo(
     () => (tree && onApplyTreeEdit ? buildGraphTreeEditIndex(doc, tree) : null),
@@ -66,10 +71,20 @@ export function useLayerTreeEditing({
     return () => window.clearTimeout(timer);
   }, [status]);
 
-  const announce = useCallback((message: string, tone: LayerTreeEditStatus['tone'] = 'done') => {
-    setStatus({ message, tone });
-  }, []);
+  const announce = useCallback(
+    (message: string, tone: LayerTreeEditStatus['tone'] = 'done', about: CanvasDocument = doc) => {
+      setStatus({ message, tone, doc: about });
+    },
+    [doc],
+  );
   const announceBlocked = useCallback((reason: string) => announce(reason, 'blocked'), [announce]);
+  // A history step outside the tree (Undo, Redo, an inspector edit) makes the last tree message stale.
+  // It is dropped during render, so it never shows and a Redo back to the same document can't revive it.
+  if (status && status.doc !== doc) setStatus(null);
+  const visibleStatus = useMemo<LayerTreeEditStatus | null>(
+    () => (status ? { message: status.message, tone: status.tone } : null),
+    [status],
+  );
 
   const nameOf = useCallback(
     (nodeId: string) => index?.places.get(nodeId)?.row.name ?? doc.layers.find((layer) => layer.id === nodeId)?.name,
@@ -81,7 +96,7 @@ export function useLayerTreeEditing({
     (edit: (current: CanvasDocument) => TreeEditResult, success: string) => {
       if (!onApplyTreeEdit) return null;
       const result = onApplyTreeEdit(edit);
-      if (result.ok) announce(success);
+      if (result.ok) announce(success, 'done', result.doc);
       else announceBlocked(result.reason);
       return result.ok ? result.doc : null;
     },
@@ -217,5 +232,5 @@ export function useLayerTreeEditing({
     [index, selectedLayerId],
   );
 
-  return { editing, menuItems, deleteRows, addPlacement, helpId, status, confirmDialog };
+  return { editing, menuItems, deleteRows, addPlacement, helpId, status: visibleStatus, confirmDialog };
 }
