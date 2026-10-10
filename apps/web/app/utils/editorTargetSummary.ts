@@ -175,7 +175,7 @@ export function buildGraphTargetSummary(
   const notes: EditorTargetNote[] = [];
   addGraphStatus(badges, notes, id, 'utility', options.graph, options.layers);
   notes.push({
-    text: 'Graph-only utility nodes can be deleted or moved; durable locking is reserved for layer-backed targets in v0.28.',
+    text: "Utility nodes can't be locked.",
     tone: 'muted',
   });
 

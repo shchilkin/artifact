@@ -41,23 +41,23 @@ describe('AiShaderInspectorModel', () => {
   it('keeps generation phases distinct for the loading state and action', () => {
     expect(view({ generating: true, creatingOpenAi: true })).toMatchObject({
       summary: 'creating',
-      primaryActionLabel: 'Creating...',
-      loading: { title: 'Creating shader' },
+      primaryActionLabel: 'Creating…',
+      loading: { title: 'Creating shader…' },
     });
     expect(view({ generating: true, validating: true })).toMatchObject({
-      primaryActionLabel: 'Checking...',
-      loading: { title: 'Checking shader' },
+      primaryActionLabel: 'Checking…',
+      loading: { title: 'Checking shader…' },
     });
     expect(view({ generating: true, repairing: true })).toMatchObject({
-      primaryActionLabel: 'Repairing...',
-      loading: { title: 'Repairing shader' },
+      primaryActionLabel: 'Repairing…',
+      loading: { title: 'Repairing shader…' },
     });
     expect(view({ generating: true, refining: true })).toMatchObject({
-      primaryActionLabel: 'Refining...',
-      loading: { title: 'Refining shader' },
+      primaryActionLabel: 'Refining…',
+      loading: { title: 'Refining shader…' },
     });
     expect(view({ generating: true, generatingFallback: true })).toMatchObject({
-      loading: { title: 'Making local draft' },
+      loading: { title: 'Making local draft…' },
     });
   });
 

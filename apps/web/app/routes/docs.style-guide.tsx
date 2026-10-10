@@ -723,7 +723,7 @@ export default function DocsStyleGuide() {
             <AddLibraryPanel
               surface="layers"
               searchLabel="Search style-guide layers and effects"
-              placeholder="Add layer..."
+              placeholder="Add layer…"
               onAdd={handleAddLibrary}
               onClose={noop}
               autoFocusSearch={false}

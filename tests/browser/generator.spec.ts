@@ -2417,9 +2417,7 @@ test('graph-only utility properties show area and output context without lock co
   await expect(targetHeader).toContainText('Nodes / Utility');
   await expect(targetHeader).toContainText('Area: Area 1');
   await expect(targetHeader).toContainText('Output path');
-  await expect(targetHeader).toContainText(
-    'Graph-only utility nodes can be deleted or moved; durable locking is reserved for layer-backed targets in v0.28.',
-  );
+  await expect(targetHeader).toContainText("Utility nodes can't be locked.");
   await expect(nodePropsPanel.getByRole('checkbox', { name: 'Locked', exact: true })).toHaveCount(0);
 });
 

@@ -26,7 +26,7 @@ describe('editor guardrails', () => {
       canReorder: false,
       canEditControls: true,
       canToggleVisibility: true,
-      reason: 'Locked layer targets are protected from delete actions and layer-stack reorder.',
+      reason: "Locked layers can't be moved or deleted.",
     });
   });
 

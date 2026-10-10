@@ -547,14 +547,14 @@ function ShaderNodeCreationOverlay({ status }: { status: ShaderNodeGenerationSta
               : blocked
                 ? 'Another creation is running'
                 : repairing
-                  ? 'Repairing shader'
+                  ? 'Repairing shader…'
                   : validating
-                    ? 'Checking shader'
+                    ? 'Checking shader…'
                     : refining
-                      ? 'Refining shader'
+                      ? 'Refining shader…'
                       : fallback
-                        ? 'Making local draft'
-                        : 'Creating shader'}
+                        ? 'Making local draft…'
+                        : 'Creating shader…'}
           </strong>
           <small>
             {failed

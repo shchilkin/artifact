@@ -114,7 +114,7 @@ test('inspector contract exposes ordinary and dense states with keyboard disclos
   await expect(dense.locator('[data-inspector-locked="true"] select')).toBeEnabled();
   await expect(dense.locator('[data-inspector-loading="true"]').first()).toHaveAttribute('aria-busy', 'true');
   await expect(dense.getByText('Lock', { exact: true })).toBeVisible();
-  await expect(dense.getByText('Checking', { exact: true })).toBeVisible();
+  await expect(dense.getByText('Checking…', { exact: true })).toBeVisible();
 
   const denseTargets = await dense.locator('button, input, select').evaluateAll((elements) =>
     elements.map((element) => ({
