@@ -77,7 +77,7 @@ function estimatePreviewHeight(aspect: AspectRatio): number {
   return Math.round((aspectHeight / Math.max(aspectWidth, aspectHeight)) * NODE_PREVIEW_MAX);
 }
 
-function estimateNodeHeight(aspect: AspectRatio): number {
+export function estimateNodeHeight(aspect: AspectRatio): number {
   const previewHeight = estimatePreviewHeight(aspect);
   return previewHeight + NODE_CHROME_H;
 }

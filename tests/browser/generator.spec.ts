@@ -1504,7 +1504,7 @@ test('rand creates cover-ready text layers with curated fonts', async ({ page })
 });
 
 test('node visual hierarchy marks selected nodes toolbar actions and graph areas', async ({ page }) => {
-  await gotoDocument(page, areaMergeDocument);
+  await gotoDocument(page, areaMergeDocument, 'debug=perf');
   await switchToNodeView(page);
   await expect(page.locator('.node-shell-kind-fill')).toBeVisible({ timeout: 15_000 });
 
@@ -2536,7 +2536,7 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
 });
 
 test('node performance debug toggle persists', async ({ page }) => {
-  await gotoDocument(page, wideNodeDocument);
+  await gotoDocument(page, wideNodeDocument, 'debug=perf');
   await switchToNodeView(page);
 
   await clickEditorControl(page.getByRole('button', { name: 'Show performance debug overlay' }));

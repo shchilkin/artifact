@@ -277,9 +277,11 @@ nodes in between are not visually claimed by the area.
 | Drop a handle connection on empty canvas | Open add menu; selected node is connected to the dragged handle |
 | Toolbar Add Node | Open add menu; created node appears at the menu/button anchor in graph space |
 | Drag Add Library item onto edge | Highlight the edge and split it with the dropped node |
-| Enter Nodes | First entry for a document: fit the whole graph once React Flow has measured the nodes. Later entries restore the viewport the user left (editor UI state, not saved with the document). A graph with only the Output node is not fitted |
+| Enter Nodes | Before the first paint, nodes with no stored position get the auto layout: the whole graph when no node has one, otherwise only the unpositioned nodes, placed below the stored ones. Once React Flow has measured the nodes, intersecting cards get the auto layout for the whole graph and a refit. Stored positions that do not overlap are never moved. Each step is one `silent` update with no undo entry (see [`state-model.md`](./state-model.md), "Undo rules"). First entry for a document: fit the whole graph. Later entries restore the viewport the user left (editor UI state, not saved with the document). A graph with only the Output node is not fitted |
+| Edit in Nodes (Layers tree) | Enter Nodes with the node selected, and center the viewport on it instead of fitting or restoring the viewport |
 | Toolbar Path | Fit the viewport to the graph nodes that feed the output |
 | Toolbar Output | Center the viewport on the output node |
+| Toolbar Metrics | Shown only with `?debug` (any value) or `?perf=1`, in a Debug group; toggles the performance overlay. The account button has its own group |
 | Right-click graph | Open pane add menu |
 | Right-click node shell | Open node context menu |
 | `M` with layer nodes selected | Mute/unmute selected layer nodes by toggling visibility |

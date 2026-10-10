@@ -128,8 +128,9 @@ export async function supportsWebGl(page: Page): Promise<boolean> {
   return page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl')));
 }
 
-export function documentUrl(doc: object): string {
-  return `/app?doc=${encodeURIComponent(JSON.stringify(doc))}`;
+/** `search` adds query parameters before `doc`, for example `debug=perf`. */
+export function documentUrl(doc: object, search = ''): string {
+  return `/app?${search ? `${search}&` : ''}doc=${encodeURIComponent(JSON.stringify(doc))}`;
 }
 
 export function editorDocumentFixture(layers: object[]) {
@@ -175,8 +176,8 @@ export function textLayerFixture({ id, name, content }: { id: string; name: stri
   };
 }
 
-export async function gotoDocument(page: Page, doc: object): Promise<void> {
-  await gotoReadyEditor(page, documentUrl(doc));
+export async function gotoDocument(page: Page, doc: object, search = ''): Promise<void> {
+  await gotoReadyEditor(page, documentUrl(doc, search));
 }
 
 async function gotoEditor(page: Page, url: string): Promise<void> {

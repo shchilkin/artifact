@@ -39,6 +39,7 @@ import {
   connectedPortIds,
   EXPORT_NODE_ID,
   inferLinearGraph,
+  organizeGraph,
   removeGraphEdge,
   resolveOutputPath,
 } from '../../utils/nodeGraph';
@@ -73,6 +74,7 @@ import { nodeCanvasMachine } from './machine';
 import { EdgeContextMenu } from './menus/EdgeContextMenu';
 import { NodeContextMenu } from './menus/NodeContextMenu';
 import { PaneContextMenu } from './menus/PaneContextMenu';
+import { FOCUS_NODE_FIT_OPTIONS, NodeEntryViewport, useUnpositionedNodeLayout } from './NodeEntryViewport';
 import type { NodeAlignmentGuide } from './nodeAlignment';
 import {
   ColorNodeComponent,
@@ -144,6 +146,7 @@ export function NodeCanvas({
   doc,
   imageCache,
   initialViewport,
+  entryFocusNodeId,
   onViewportChange,
   initialPrimitiveViewStates,
   onPrimitiveViewStatesChange,
@@ -181,6 +184,7 @@ export function NodeCanvas({
   useLayoutEffect(() => {
     graphRef.current = graph;
   }, [graph]);
+  useUnpositionedNodeLayout(doc, graph, onGraphChange);
 
   const connected = useMemo(() => connectedPortIds(graph), [graph]);
   const outputPath = useMemo(() => resolveOutputPath(graph), [graph]);
@@ -207,7 +211,7 @@ export function NodeCanvas({
     input: { selectedNodeIds: selectedLayerId ? [selectedLayerId] : [] },
   });
   const { selectedNodeIds, selectedEdgeId, expandedNodeId, contextMenu, galleryNodeId } = machineState.context;
-  const { perfDebugEnabled, handleTogglePerfDebug } = useNodePerfDebug();
+  const { perfDebugAvailable, perfDebugEnabled, handleTogglePerfDebug } = useNodePerfDebug();
   const deleteEdge = useCallback(
     (edgeId: string) => {
       onGraphChange(removeGraphEdge(graphRef.current, edgeId));
@@ -312,6 +316,7 @@ export function NodeCanvas({
   // jump the viewport when the first node is added.
   const [entryViewport] = useState(() => initialViewport ?? undefined);
   const [fitOnEntry] = useState(() => !initialViewport && !graphEmpty);
+  const [focusNodeIdOnEntry] = useState(() => entryFocusNodeId ?? null);
 
   const {
     dragNodes,
@@ -506,13 +511,13 @@ export function NodeCanvas({
   );
 
   const handleJumpToOutput = useCallback(() => {
-    void rfInstanceRef.current?.fitView({
-      nodes: [{ id: EXPORT_NODE_ID }],
-      padding: 0.42,
-      maxZoom: 0.95,
-      duration: 220,
-    });
+    void rfInstanceRef.current?.fitView({ ...FOCUS_NODE_FIT_OPTIONS, nodes: [{ id: EXPORT_NODE_ID }], duration: 220 });
   }, []);
+  const relayoutOnEntry = useCallback(() => {
+    const organized = organizeGraph(graphRef.current, doc.layers, doc.global.aspect);
+    onGraphChange(organized, 'silent');
+    return organized.positions;
+  }, [doc.global.aspect, doc.layers, onGraphChange]);
 
   const handleToggleSelectedLayerVisibility = useCallback(() => {
     const selectedLayers = selectedNodeIds
@@ -610,6 +615,7 @@ export function NodeCanvas({
               areaActionDisabled={areaActionDisabled}
               areaActionTargetId={areaActionTargetId}
               auth={auth}
+              perfDebugAvailable={perfDebugAvailable}
               perfDebugEnabled={perfDebugEnabled}
               onAddNode={openAddNodeMenu}
               onCreateArea={handleCreateAreaFromSelection}
@@ -640,7 +646,7 @@ export function NodeCanvas({
               onEdgeClick={onEdgeClick}
               isValidConnection={isValidConnection}
               onInit={onRFInit}
-              fitView={fitOnEntry}
+              fitView={fitOnEntry && !focusNodeIdOnEntry}
               fitViewOptions={RF_FIT_VIEW_OPTIONS}
               defaultViewport={entryViewport}
               onMove={onMove}
@@ -674,6 +680,12 @@ export function NodeCanvas({
                 <NodeAlignmentGuideOverlay guides={alignmentGuides} />
               </ViewportPortal>
               <Controls className="node-canvas-viewport-controls" showInteractive={false} />
+              <NodeEntryViewport
+                focusNodeId={focusNodeIdOnEntry}
+                fitViewOptions={RF_FIT_VIEW_OPTIONS}
+                nodes={dragNodes}
+                onRelayout={relayoutOnEntry}
+              />
             </ReactFlow>
             {graphEmpty ? (
               <div className="node-canvas-empty-overlay" data-canvas-chrome-state="empty-graph">
@@ -1312,6 +1324,7 @@ function NodeCanvasToolbar({
   areaActionDisabled,
   areaActionTargetId,
   auth,
+  perfDebugAvailable,
   perfDebugEnabled,
   onAddNode,
   onCreateArea,
@@ -1323,6 +1336,8 @@ function NodeCanvasToolbar({
   areaActionDisabled: boolean;
   areaActionTargetId: string | null;
   auth: ReturnType<typeof useArtifactAuth>;
+  /** The performance overlay toggle ships only behind `?debug`. */
+  perfDebugAvailable: boolean;
   perfDebugEnabled: boolean;
   onAddNode: () => void;
   onCreateArea: () => void;
@@ -1361,21 +1376,23 @@ function NodeCanvasToolbar({
           Output
         </ToolbarButton>
       </div>
-      <div className="node-toolbar-group node-toolbar-group-debug" aria-label="Debug actions">
-        <span className="node-toolbar-group-label" aria-hidden="true">
-          Debug
-        </span>
-        <ToolbarButton
-          onClick={onTogglePerfDebug}
-          aria-label={perfDebugEnabled ? 'Hide performance debug overlay' : 'Show performance debug overlay'}
-          aria-pressed={perfDebugEnabled}
-          title="Show FPS, thumbnail queue, and long-task metrics"
-        >
-          <span aria-hidden="true">▥</span>
-          Metrics
-        </ToolbarButton>
-        <NodeToolbarAccountButton auth={auth} />
-      </div>
+      {perfDebugAvailable ? (
+        <div className="node-toolbar-group node-toolbar-group-debug" aria-label="Debug actions">
+          <span className="node-toolbar-group-label" aria-hidden="true">
+            Debug
+          </span>
+          <ToolbarButton
+            onClick={onTogglePerfDebug}
+            aria-label={perfDebugEnabled ? 'Hide performance debug overlay' : 'Show performance debug overlay'}
+            aria-pressed={perfDebugEnabled}
+            title="Show FPS, thumbnail queue, and long-task metrics"
+          >
+            <span aria-hidden="true">▥</span>
+            Metrics
+          </ToolbarButton>
+        </div>
+      ) : null}
+      <NodeToolbarAccountGroup auth={auth} />
     </Toolbar>
   );
 }
@@ -1417,13 +1434,15 @@ const AREA_TOOLBAR_TARGET_COPY = {
   label: 'Add to area',
 };
 
-function NodeToolbarAccountButton({ auth }: { auth: ReturnType<typeof useArtifactAuth> }) {
+function NodeToolbarAccountGroup({ auth }: { auth: ReturnType<typeof useArtifactAuth> }) {
   if (!auth.configured) return null;
   const copy = accountButtonCopy(auth);
   return (
-    <ToolbarButton className="node-toolbar-account" onClick={copy.onClick} disabled={!auth.loaded}>
-      {copy.label}
-    </ToolbarButton>
+    <div className="node-toolbar-group" aria-label="Account">
+      <ToolbarButton className="node-toolbar-account" onClick={copy.onClick} disabled={!auth.loaded}>
+        {copy.label}
+      </ToolbarButton>
+    </div>
   );
 }
 
