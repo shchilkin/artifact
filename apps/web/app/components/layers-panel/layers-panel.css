@@ -150,8 +150,8 @@
 }
 
 .layer-row:has(.layer-row-selection-control:focus-visible) {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: calc(-1 * var(--focus-ring-width));
+  outline: var(--focus-ring);
+  outline-offset: -2px;
 }
 
 .layer-row.bg-accent-dim,
