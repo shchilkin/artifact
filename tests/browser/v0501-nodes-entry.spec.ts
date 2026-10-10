@@ -93,10 +93,15 @@ test('entering Nodes never moves stored positions that do not overlap', async ({
 
   await expectReadableGraph(page);
   expect(await storedPositions(page)).toEqual(positions);
-  const transforms = await Promise.all(
-    NODE_IDS.map((id) => flowNode(page, id).evaluate((node) => (node as HTMLElement).style.transform)),
+  const rendered = await Promise.all(
+    NODE_IDS.map((id) =>
+      flowNode(page, id).evaluate((node) => {
+        const matrix = new DOMMatrix((node as HTMLElement).style.transform);
+        return { x: matrix.e, y: matrix.f };
+      }),
+    ),
   );
-  expect(transforms).toEqual(NODE_IDS.map((id) => `translate(${positions[id]!.x}px, ${positions[id]!.y}px)`));
+  expect(rendered).toEqual(NODE_IDS.map((id) => positions[id]));
 });
 
 test('Edit in Nodes selects and centers the target node, uncovered', async ({ page }) => {
