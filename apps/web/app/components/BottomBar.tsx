@@ -13,7 +13,6 @@ interface Props {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  undoCount: number;
   onProjectsToggle: () => void;
   onCopyLink: () => void;
   onOpenDocument: () => void;
@@ -31,7 +30,6 @@ export function BottomBar({
   onRedo,
   canUndo,
   canRedo,
-  undoCount,
   onCopyLink,
   onOpenDocument,
   onSaveDocument,
@@ -70,11 +68,6 @@ export function BottomBar({
           className="bottom-command bottom-icon-command"
         >
           <span aria-hidden="true">↩</span>
-          {canUndo && undoCount > 0 ? (
-            <span className="bottom-command-badge" aria-hidden="true">
-              {undoCount}
-            </span>
-          ) : null}
         </Button>
         <Button
           onClick={onRedo}
@@ -133,7 +126,15 @@ export function BottomBar({
           variant="primary"
           aria-label={exportBusy ? 'Exporting artwork' : 'Export artwork'}
         >
-          {exportBusy ? '…' : 'EXPORT'}
+          {/* Both labels share one grid cell, so the button keeps the wider label's width and nothing moves. */}
+          <span className="export-btn__labels">
+            <span className="export-btn__label" data-active={!exportBusy}>
+              EXPORT
+            </span>
+            <span className="export-btn__label" data-active={exportBusy}>
+              Exporting…
+            </span>
+          </span>
         </Button>
       </EditorCommandGroup>
     </EditorCommandBar>

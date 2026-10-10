@@ -120,7 +120,9 @@ export function useLayerTreeEditing({
         const one = shared.length === 1;
         const confirmed = await confirm({
           title: one ? `Delete shared ${sharedNames}?` : 'Delete shared nodes?',
-          description: `${sharedNames} ${one ? 'is' : 'are'} used in more than one place. Each of those places will use what was under ${one ? 'it' : 'them'} instead, so that source becomes shared.`,
+          description: one
+            ? `${sharedNames} is used in ${graphNodeConsumerCount(doc, shared[0])} places. Deleting it reconnects each place to the layer below it. You can undo this.`
+            : `${sharedNames} are each used in more than one place. Deleting them reconnects each place to the layer below it. You can undo this.`,
           confirmLabel: 'Delete',
           tone: 'danger',
         });

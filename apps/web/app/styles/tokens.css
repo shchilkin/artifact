@@ -56,7 +56,8 @@
   --row-h-default: 52px;
   --focus-ring: 2px solid var(--accent-primary);
   --focus-ring-offset: 3px;
-  --state-danger: oklch(66% 0.18 28);
+  /* Danger sits 14° hue toward crimson from the flare accent so a destructive action never reads as the CTA. */
+  --state-danger: oklch(64% 0.19 14);
   --state-success: oklch(72% 0.14 152);
   --state-warning: oklch(74% 0.12 68);
   --state-hidden-opacity: 0.58;

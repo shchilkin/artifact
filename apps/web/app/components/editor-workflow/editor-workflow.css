@@ -233,6 +233,48 @@
   text-align: center;
 }
 
+.editor-export-status {
+  position: absolute;
+  top: var(--space-3);
+  left: 50%;
+  z-index: 20;
+  display: grid;
+  width: min(440px, calc(100% - 2 * var(--space-3)));
+  gap: var(--space-2);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.editor-export-status__notice {
+  position: relative;
+  isolation: isolate;
+  border-width: 1px;
+  box-shadow: var(--shadow-overlay);
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  pointer-events: auto;
+}
+
+/* The notice's tone tint is translucent; an opaque surface under it keeps the canvas from showing through. */
+.editor-export-status__notice::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--surface-panel);
+}
+
+.editor-export-status__notice[data-visible="false"] {
+  /* Kept in the accessibility tree so the live region is registered before the first message. */
+  clip-path: inset(50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.editor-export-status__notice .editor-workflow-notice__action {
+  gap: var(--space-2);
+}
+
 .editor-confirm-dialog {
   top: 50%;
   left: 50%;
@@ -273,6 +315,18 @@
   color: var(--text-secondary);
   font-size: var(--type-readable-sm);
   line-height: 1.5;
+}
+
+/* The confirm is filled in both tones, so a destructive confirm never looks like the outlined Cancel. */
+.editor-confirm-dialog__confirm.ui-command--danger,
+.editor-confirm-dialog__confirm.ui-command--danger:not(:disabled):not([aria-disabled="true"]):hover {
+  border-color: var(--state-danger);
+  background: var(--state-danger);
+  color: var(--surface-app);
+}
+
+.editor-confirm-dialog__confirm.ui-command--danger:not(:disabled):not([aria-disabled="true"]):hover {
+  background: color-mix(in oklch, var(--state-danger) 86%, var(--text-primary));
 }
 
 .editor-confirm-dialog__actions {

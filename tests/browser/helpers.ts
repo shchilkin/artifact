@@ -331,3 +331,18 @@ function isBenignBrowserTestIssue(text: string): boolean {
     BENIGN_BROWSER_TEST_SUBSTRINGS.some((substring) => text.includes(substring))
   );
 }
+
+/**
+ * A destructive EditorConfirmDialog confirms with the danger variant, filled so it never looks like the outlined
+ * Cancel next to it.
+ */
+export async function expectDangerConfirm(dialog: Locator, confirmName: string): Promise<void> {
+  const confirm = dialog.getByRole('button', { name: confirmName, exact: true });
+  await expect(confirm).toHaveClass(/ui-command--danger/);
+  const [confirmBackground, cancelBackground] = await Promise.all([
+    confirm.evaluate((element) => getComputedStyle(element).backgroundColor),
+    dialog.getByRole('button', { name: 'Cancel' }).evaluate((element) => getComputedStyle(element).backgroundColor),
+  ]);
+  expect(confirmBackground).not.toBe(cancelBackground);
+  expect(confirmBackground).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+}

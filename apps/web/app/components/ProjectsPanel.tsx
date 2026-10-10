@@ -86,9 +86,7 @@ export function ProjectsPanel({
               {projects.length} / {maxProjects}
             </span>
             <SheetClose asChild>
-              <Button aria-label="Close projects" variant="quiet">
-                x
-              </Button>
+              <IconButton label="Close projects" icon="×" />
             </SheetClose>
           </div>
         </SheetHeader>
@@ -165,7 +163,7 @@ function ProjectSaveForm({
           <Input
             id="project-name-input"
             type="text"
-            placeholder="Name this project..."
+            placeholder="Name this project…"
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
@@ -233,10 +231,10 @@ function ProjectWorkspaceSummary({
       <Button
         className="project-new-blank-action w-full mt-2"
         onClick={onNewBlank}
-        aria-label="Create new project from projects"
+        aria-label="New blank canvas"
         variant="quiet"
       >
-        CREATE NEW PROJECT
+        NEW BLANK CANVAS
       </Button>
     </div>
   );
@@ -289,7 +287,7 @@ function projectNameChanged(activeProject: SavedProject | null, name: string) {
 }
 
 function projectSaveButtonLabel(hasActiveProject: boolean) {
-  return hasActiveProject ? 'SAVE PROJECT' : 'CREATE PROJECT';
+  return hasActiveProject ? 'SAVE PROJECT' : 'SAVE CURRENT CANVAS';
 }
 
 function projectSaveDisabled(

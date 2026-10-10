@@ -180,13 +180,20 @@ still consume the same tokens:
 - `EditorTargetHeader`
 - `EditorConfirmDialog` (replacing and destructive editor actions; modal,
   Cancel takes initial focus, Escape cancels; `useEditorConfirm` for
-  promise-style callers)
+  promise-style callers). Work that cannot be recovered without undo or a
+  saved copy uses `tone: 'danger'`, which fills the confirm with
+  `--state-danger`; `--state-danger` stays at least 10° of hue from the flare
+  accent.
 - `EditorWorkflowNotice` laid over a panel (`LayerTreeEditStatus`): the
   shared `InlineNotice` used as a non-shifting overlay for transient edit
   feedback. It stays mounted while empty, so its status live region is
   registered before the first message, and it ignores pointer events. Use it
   where an inline notice would push rows the person is dragging or
   navigating; otherwise use an inline `EditorWorkflowNotice`.
+- `EditorExportStatus`: export feedback laid over the workspace. A success
+  `EditorWorkflowNotice` stays mounted as the status region and announces the
+  downloaded file name; an export error stays until Dismiss or Retry. The
+  `EXPORT` button keeps one width for its idle and busy ("Exporting…") labels.
 
 ### Route-Level Style Guide
 
