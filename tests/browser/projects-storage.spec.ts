@@ -29,9 +29,7 @@ test('Projects panel shows work state first and keeps storage diagnostics collap
   await projects.getByText('Storage details').click();
   await expect(projects.getByText('Local storage')).toBeVisible();
   await expect(projects.getByText('Offline app')).toBeVisible();
-  await expect(projects.getByRole('button', { name: 'Create new project from projects' })).toHaveClass(
-    /project-new-blank-action/,
-  );
+  await expect(projects.getByRole('button', { name: 'New blank canvas' })).toHaveClass(/project-new-blank-action/);
   await expectNoBrowserIssues(page);
 });
 
@@ -127,7 +125,7 @@ test('PWA assets are served for install and app shell support', async ({ page })
 
 async function expectSaveFormToAlign(projects: Locator) {
   const inputBox = await projects.locator('.project-name-field').boundingBox();
-  const saveBox = await projects.getByRole('button', { name: 'CREATE PROJECT' }).boundingBox();
+  const saveBox = await projects.getByRole('button', { name: 'SAVE CURRENT CANVAS' }).boundingBox();
 
   expect(inputBox).not.toBeNull();
   expect(saveBox).not.toBeNull();
@@ -145,7 +143,7 @@ async function createNamedProject(page: Page, name: string) {
   await page.goto('/app?new=blank');
   const projects = await openProjectsPanel(page);
   await projects.getByLabel('Project name').fill(name);
-  await projects.getByRole('button', { name: 'CREATE PROJECT' }).click();
+  await projects.getByRole('button', { name: 'SAVE CURRENT CANVAS' }).click();
   return projects;
 }
 

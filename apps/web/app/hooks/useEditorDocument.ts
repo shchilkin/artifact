@@ -638,7 +638,6 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     redo,
     canUndo: past.length > 0,
     canRedo: future.length > 0,
-    undoCount: past.length,
     fromDocParam,
     fromBlankParam,
     isBlank: isBlankDocument(doc),

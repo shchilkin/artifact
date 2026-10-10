@@ -2,11 +2,11 @@ import type { CanvasDocument } from '../types/config';
 import { ASPECT_SIZES } from '../types/config';
 import { type RenderOptions, renderDocument } from './renderer';
 
-function triggerDownload(blob: Blob, seed: number, w: number, h: number, format: 'png' | 'jpeg') {
+function triggerDownload(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `cover-${seed}-${w}x${h}.${format}`;
+  a.download = fileName;
   a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
@@ -14,13 +14,14 @@ function triggerDownload(blob: Blob, seed: number, w: number, h: number, format:
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+/** Renders and downloads the cover; resolves with the downloaded file name. */
 export async function exportCanvas(
   doc: CanvasDocument,
   imageCache: Map<string, HTMLImageElement>,
   scale: 1 | 2 | 3,
   format: 'png' | 'jpeg' = 'png',
   options: RenderOptions = {},
-): Promise<void> {
+): Promise<string> {
   try {
     const finalCanvas = await renderCoverExportCanvas(doc, imageCache, scale, options);
     const W = finalCanvas.width;
@@ -28,7 +29,9 @@ export async function exportCanvas(
 
     const { mimeType, quality } = exportFormatOptions(format);
     const blob = await canvasToBlob(finalCanvas, mimeType, quality);
-    triggerDownload(blob, doc.global.seed, W, H, format);
+    const fileName = `cover-${doc.global.seed}-${W}x${H}.${format}`;
+    triggerDownload(blob, fileName);
+    return fileName;
   } catch (err) {
     throw new Error(`Canvas export failed: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }

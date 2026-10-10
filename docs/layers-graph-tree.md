@@ -153,8 +153,9 @@ moved to a gap the person can see.
   - **Deleting a shared node shares its source.** Each place that used the node
     now uses what was under it, so that source feeds all of them. The edit
     creates a shared node, which is otherwise a Nodes edit, so it always asks
-    first through `EditorConfirmDialog`, and the dialog says the source becomes
-    shared. A shared node with nothing under it just leaves those inputs empty.
+    first through `EditorConfirmDialog` with a danger confirm. The dialog says
+    how many places use the node, that each place reconnects to the layer below
+    it, and that the delete can be undone. A shared node with nothing under it just leaves those inputs empty.
   - Locked layers are not deleted.
 - **Add above.** With a tree row selected, Add Library places a new layer or
   Scene 3D node in the gap above that row and positions it between the row and

@@ -853,18 +853,6 @@
   color: var(--text-primary);
 }
 
-.bottom-command-badge {
-  min-width: 12px;
-  padding: 1px 3px;
-  border: 1px solid color-mix(in oklch, var(--line-strong) 48%, transparent);
-  border-radius: var(--control-radius);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: var(--type-editor-meta);
-  font-weight: var(--weight-strong);
-  line-height: 1;
-}
-
 @media (max-width: 767px) {
   .app-nodes > .bottom-bar {
     position: absolute;
@@ -1096,6 +1084,33 @@
 
 .export-btn {
   min-width: 92px;
+}
+
+/* The busy label replaces the spinner, so the button width never changes while exporting. */
+.export-btn .ui-command__progress {
+  display: none;
+}
+
+.export-btn__labels {
+  display: inline-grid;
+  min-width: 0;
+}
+
+.export-btn__label {
+  grid-area: 1 / 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-btn__label[data-active="false"] {
+  visibility: hidden;
+}
+
+/* Export keeps its flare fill on hover, so a finished export under the pointer never turns cream. */
+.export-btn.ui-command--primary:not(:disabled):not([aria-disabled="true"]):hover {
+  border-color: color-mix(in oklch, var(--accent-primary) 86%, var(--text-primary));
+  background: color-mix(in oklch, var(--accent-primary) 86%, var(--text-primary));
 }
 
 @media (min-width: 768px) {

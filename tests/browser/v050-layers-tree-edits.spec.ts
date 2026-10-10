@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 import type { CanvasDocument, GraphEdge, Layer } from '../../apps/web/app/types/config';
-import { expectNoBrowserIssues, gotoDocument, setupBrowserTestPage } from './helpers';
+import { expectDangerConfirm, expectNoBrowserIssues, gotoDocument, setupBrowserTestPage } from './helpers';
 import { layersTreeDocument } from './layersTreeFixture';
 
 declare global {
@@ -241,7 +241,10 @@ test('deleting a shared node asks first in the editor dialog', async ({ page }) 
   await page.keyboard.press('Delete');
 
   const dialog = page.getByRole('alertdialog', { name: 'Delete shared Backdrop?' });
-  await expect(dialog).toContainText('used in more than one place');
+  await expect(dialog).toContainText(
+    'Backdrop is used in 2 places. Deleting it reconnects each place to the layer below it. You can undo this.',
+  );
+  await expectDangerConfirm(dialog, 'Delete');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toHaveCount(0);
   await expectOutline(page, INITIAL_OUTLINE);

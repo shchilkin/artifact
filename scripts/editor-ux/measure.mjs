@@ -267,6 +267,47 @@ const readCommandBar = (page) =>
     return { obscured, overlapping };
   });
 
+// Left edges of the buttons in the visible command bar, in DOM order.
+const readCommandXs = (page) =>
+  page.evaluate(() => {
+    const bar = [...document.querySelectorAll('.editor-command-bar')].find(
+      (el) => el.getBoundingClientRect().width > 0,
+    );
+    return [...(bar?.querySelectorAll('button') ?? [])]
+      .map((button) => button.getBoundingClientRect())
+      .filter((rect) => rect.width > 0)
+      .map((rect) => rect.x);
+  });
+
+/**
+ * The first edit of a session makes Undo available. Every command-bar button must keep its x position across it; a
+ * button that appears or disappears counts as moving by its whole offset.
+ */
+async function measureFirstEdit(page) {
+  const before = await readCommandXs(page);
+  const slider = page.locator('input[type="range"]:visible').first();
+  await slider.focus();
+  await slider.press('ArrowRight');
+  await page.waitForFunction(
+    () => {
+      const bar = [...document.querySelectorAll('.editor-command-bar')].find(
+        (el) => el.getBoundingClientRect().width > 0,
+      );
+      return bar?.querySelector('button[aria-label="Undo"]')?.disabled === false;
+    },
+    null,
+    { timeout: 10_000 },
+  );
+  await page.waitForTimeout(300);
+  const after = await readCommandXs(page);
+  await waitForIdle(page);
+  let move = 0;
+  for (let index = 0; index < Math.max(before.length, after.length); index += 1) {
+    move = Math.max(move, Math.abs((before[index] ?? 0) - (after[index] ?? 0)));
+  }
+  return { before: before.map((x) => round(x)), after: after.map((x) => round(x)), firstEditMovePx: round(move) };
+}
+
 const readNodes = (page) =>
   page.evaluate(() => {
     const pane = document.querySelector('.react-flow').getBoundingClientRect();
@@ -306,6 +347,7 @@ async function measureLayout(browser, origin, viewport, reference) {
   const nodes = await readNodes(page);
   interactions['switch-to-layers'] = await measureInteraction(page, () => switchToLayers(page));
   const sliderWidthAfterNodes = await firstSliderWidth(page);
+  const firstEdit = await measureFirstEdit(page);
   interactions['open-add-library'] = await measureInteraction(page, async () => {
     await page.getByRole('button', { name: 'Add layer' }).click();
     await page.getByRole('combobox', { name: 'Search layers and effects' }).waitFor({ timeout: 10_000 });
@@ -313,7 +355,7 @@ async function measureLayout(browser, origin, viewport, reference) {
   await context.close();
   return {
     interactions,
-    commandBar,
+    commandBar: { ...commandBar, firstEdit },
     nodes,
     inspector: {
       sliderWidthLayers: round(sliderWidthLayers),
@@ -471,6 +513,7 @@ function flatten(results, speed) {
       }
       metrics[`${prefix}/command-bar/obscuredCommands`] = result.layout.commandBar.obscured.length;
       metrics[`${prefix}/command-bar/overlappingCommands`] = result.layout.commandBar.overlapping.length;
+      metrics[`${prefix}/command-bar/firstEditMovePx`] = result.layout.commandBar.firstEdit.firstEditMovePx;
       metrics[`${prefix}/inspector/sliderWidthDeltaPx`] = result.layout.inspector.sliderWidthDeltaPx;
       if (!result.latency) continue;
       metrics[`${prefix}/nodes-entry/nodesOutsideViewport`] = result.layout.nodes.outsideViewport;

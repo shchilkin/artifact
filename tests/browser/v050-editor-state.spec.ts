@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 import {
   clickEditorControl,
   editorDocumentFixture,
+  expectDangerConfirm,
   expectLayerCanvasToHavePixels,
   expectNoBrowserIssues,
   fillLayerFixture,
@@ -325,7 +326,7 @@ async function openProjectsPanel(page: Page) {
 async function saveProject(page: Page, name: string) {
   const projects = await openProjectsPanel(page);
   await projects.getByLabel('Project name').fill(name);
-  await projects.getByRole('button', { name: 'CREATE PROJECT' }).click();
+  await projects.getByRole('button', { name: 'SAVE CURRENT CANVAS' }).click();
   await expect(projects.getByRole('button', { name: `Load ${name}` })).toHaveCount(1, { timeout: 15_000 });
   await projects.getByRole('button', { name: 'Close projects' }).click();
   await expect(projects).toBeHidden();
@@ -342,6 +343,7 @@ test('opening a project over unsaved changes asks first', async ({ page }) => {
   const dialog = page.getByRole('alertdialog', { name: 'Open Keep state?' });
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAccessibleDescription(/Unsaved changes/);
+  await expectDangerConfirm(dialog, 'Open project');
   await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
@@ -361,6 +363,7 @@ test('deleting a project from the editor Projects panel confirms in-app', async 
   await projects.getByRole('button', { name: 'Delete Remove me' }).click();
   const dialog = page.getByRole('alertdialog', { name: 'Delete project?' });
   await expect(dialog).toContainText('Remove me will be removed from this browser.');
+  await expectDangerConfirm(dialog, 'Delete');
   await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(projects.getByRole('button', { name: 'Load Remove me' })).toHaveCount(1);

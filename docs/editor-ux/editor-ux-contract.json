@@ -60,6 +60,15 @@
       "subjects": ["command-bar"]
     },
     {
+      "metric": "firstEditMovePx",
+      "max": 0,
+      "unit": "px",
+      "deterministic": true,
+      "since": "#445",
+      "viewports": ["desktop", "mobile"],
+      "subjects": ["command-bar"]
+    },
+    {
       "metric": "sliderWidthDeltaPx",
       "max": 1,
       "unit": "px",
