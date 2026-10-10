@@ -1,9 +1,9 @@
 # AI-Assisted Creation
 
 Status: accepted as the product and domain contract for
-[`v0.51 AI-Assisted Creation`](./version-plans/v0.51.md). Delivery is tracked in
+[`v0.52 AI-Assisted Creation`](./version-plans/v0.52.md). Delivery is tracked in
 GitHub milestone
-[`v0.51 AI-Assisted Creation`](https://github.com/shchilkin/artifact/milestone/1).
+[`v0.52 AI-Assisted Creation`](https://github.com/shchilkin/artifact/milestone/1).
 
 This document defines AI-assisted creation as a third Artifact workflow beside
 Layers and Nodes. It covers a full-screen conversational creation mode and an

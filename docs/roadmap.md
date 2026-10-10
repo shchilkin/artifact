@@ -133,12 +133,21 @@ Current planning status:
   [`editor-design-system.md`](./editor-design-system.md),
   [`version-plans/v0.42.md`](./version-plans/v0.42.md), and
   [`releases/v0.42.0.md`](./releases/v0.42.0.md).
-- v0.51 is the rescheduled AI-Assisted Creation release: authenticated
-  full-screen Chat, editable Creative Directions and Compositions, durable Runs,
-  revision-bound Change Sets, adaptive image generation, and an explicitly
-  invoked Context Assistant for Layers and Nodes. It is the next Web release,
-  now that v0.50.0 is published. See
-  [`version-plans/v0.51.md`](./version-plans/v0.51.md) and
+- v0.50.1 is the Editor Polish Patch: behaviour-preserving fixes from the
+  2026-10 editor polish audit (readable Nodes on entry, truthful feedback,
+  touch-reachable tree actions). See
+  [`version-plans/v0.50.md`](./version-plans/v0.50.md) and
+  [`discovery/editor-polish-audit-2026-10.md`](./discovery/editor-polish-audit-2026-10.md).
+- v0.51 is Editor Polish: one control grammar across Layers, Nodes, the
+  inspector, Add Library, dialogs and sheets, converged before AI adds Chat and
+  Change Preview. Mobile task flow stays in discovery. See
+  [`version-plans/v0.51.md`](./version-plans/v0.51.md).
+- v0.52 is the rescheduled AI-Assisted Creation release (renumbered from v0.51
+  on 2026-10-10): authenticated full-screen Chat, editable Creative Directions
+  and Compositions, durable Runs, revision-bound Change Sets, adaptive image
+  generation, and an explicitly invoked Context Assistant for Layers and Nodes.
+  It follows the v0.51 gate. See
+  [`version-plans/v0.52.md`](./version-plans/v0.52.md) and
   [`ai-assisted-creation.md`](./ai-assisted-creation.md).
 - The native macOS client (epic #260, draft PRs #283–#293) is paused as of
   2026-09-29. Web comes first: v0.49, then v0.50 Editor UX, which owns the
@@ -222,7 +231,7 @@ Current planning status:
   storage/render risks are recorded without pulling product work into the
   release.
 - Deferred product and infrastructure tracks below remain candidates after the
-  active sequence through v0.51 unless promoted through a separate version
+  active sequence through v0.52 unless promoted through a separate version
   plan.
 - The v0.31/v0.32 cleanup backlog is intentionally trace-gated future work. It
   should not be treated as hidden scope for landing work, Showcase / How-to
@@ -427,7 +436,7 @@ Recently shipped:
   focused low-resolution workflow, and renderer-backed menu previews. Released
   as `v0.17.0`.
 
-Future candidates outside the active v0.45-v0.51 sequence:
+Future candidates outside the active v0.45-v0.52 sequence:
 
 - **3D Scene Polish, Palettes, And Dither Variants** — build on the v0.36 model
   foundation with named old-game palettes, richer deterministic dither
@@ -985,7 +994,8 @@ v0.44 completed the non-editor Artifact product surfaces, v0.45 completed the
 editor shell, Layers organization, and Add Library, and v0.46 completed the
 property-inspector migration. Editor migration remains sequenced through
 v0.47-v0.48; v0.49 then owns application-shell and loading boundaries before
-the v0.50 Editor UX release and new AI-assisted creation resumes in v0.51.
+the v0.50 Editor UX release, v0.50.1 and v0.51 polish the editor, and new
+AI-assisted creation resumes in v0.52.
 Earlier version plans are release history, not active target buckets. Their
 detailed acceptance criteria and validation notes live under
 `docs/version-plans/` and `docs/releases/`.
@@ -1030,7 +1040,7 @@ Current shipped baseline:
 
 ### Future Candidate Tracks
 
-The accepted v0.45-v0.51 sequence remains the active release path. The ideas
+The accepted v0.45-v0.52 sequence remains the active release path. The ideas
 below are future candidates only and require a dedicated version plan before
 implementation is called release scope:
 
@@ -1425,11 +1435,13 @@ Completed and remaining implementation details now live in
 
 ## Recommended near-term focus
 
-Use the released Editor UX base before starting a new candidate track.
+Converge the released Editor UX base before starting a new product surface.
 
 Recommended order:
 
-1. Resume new AI-assisted creation in v0.51 on top of the v0.50 editor.
+1. Ship the v0.50.1 Editor Polish Patch (#448).
+2. Converge the editor on one control grammar in v0.51 Editor Polish (#456).
+3. Resume new AI-assisted creation in v0.52 on top of the converged editor.
 
 ## Non-goals for now
 
