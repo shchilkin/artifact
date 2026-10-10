@@ -234,6 +234,48 @@ test('deleting a row reconnects its stack in one undo step', async ({ page }) =>
   await undoOnceAndRedo(page, edited);
 });
 
+test('Delete after clicking a row name removes the row in one undo step', async ({ page }) => {
+  await openTree(page);
+  const badge = treeItem(page, 'Badge, fill layer');
+  await badge.locator('.layer-row-name-button').click();
+  await expect(badge).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('Delete');
+
+  await expect.poll(() => treeOutline(page), { timeout: 15_000 }).not.toContain('2 Badge, fill layer');
+  await expect(treeStatus(page)).toHaveText('Deleted Badge.');
+  await page.getByRole('button', { name: 'Undo' }).first().click();
+  await expectOutline(page, INITIAL_OUTLINE);
+  await expect(page.getByRole('button', { name: 'Undo' }).first()).toBeDisabled();
+});
+
+test('Undo and Redo retire the tree status of the edit they step over', async ({ page }) => {
+  await openTree(page);
+  await treeItem(page, 'Grade, grade').focus();
+  await page.keyboard.press('Delete');
+  await expect(treeStatus(page)).toHaveText('Deleted Grade.');
+
+  await page.getByRole('button', { name: 'Undo' }).first().click();
+  await expectOutline(page, INITIAL_OUTLINE);
+  await expect(treeStatus(page)).not.toContainText('Deleted');
+  await expect(treeStatus(page)).toHaveAttribute('data-visible', 'false');
+
+  await page.getByRole('button', { name: 'Redo' }).first().click();
+  await expect.poll(() => treeOutline(page)).not.toContain('1 Grade, grade');
+  await expect(treeStatus(page)).not.toContainText('Deleted');
+});
+
+test('the Layers inspector of a graph-only node opens it in Nodes', async ({ page }) => {
+  await openTree(page);
+  await treeItem(page, 'Pattern, repeat').click();
+  const inspector = page.getByRole('complementary', { name: 'Layer settings' });
+  await expect(inspector).toContainText("This node's settings are edited in Nodes.");
+  await inspector.getByRole('button', { name: 'Edit in Nodes' }).click();
+
+  await expect(page.locator('.react-flow__node[data-id="tree-pattern"]')).toHaveClass(/selected/, {
+    timeout: 15_000,
+  });
+});
+
 test('deleting a shared node asks first in the editor dialog', async ({ page }) => {
   await openTree(page);
   const backdrop = treeItem(page, 'Backdrop, fill layer');
