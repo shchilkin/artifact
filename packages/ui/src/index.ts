@@ -51,6 +51,8 @@ export {
 } from './foundation-overlay-specimens';
 export {
   Popover,
+  PopoverAnchor,
+  type PopoverAnchorProps,
   PopoverClose,
   type PopoverCloseProps,
   PopoverContent,

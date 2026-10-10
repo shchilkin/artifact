@@ -133,6 +133,11 @@ export function getEffectFamilyMeta(key: string) {
   return EFFECT_FAMILY_META[family as EffectFamilyId];
 }
 
+/** Whether an effect control has help to show. */
+export function hasEffectInfo(effectKey: string) {
+  return effectKey in EFFECT_META;
+}
+
 export const EFFECT_META: Record<string, EffectMeta> = {
   rayInt: {
     title: 'Ray Intensity',
@@ -144,7 +149,7 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   rays: {
     title: 'Ray Count',
     description:
-      'Number of thick colored light beams in the poster burst. Use the manual field to push beyond the slider.',
+      'Number of thick colored light beams in the poster burst. Type a Count up to 240; the slider stops at 96.',
     valueLabel: '20 rays',
     cfgOverride: { rays: 20, rayInt: 70 },
   },
@@ -177,7 +182,7 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   speedLines: {
     title: 'Speed Lines',
     description:
-      'Thin white manga motion streaks from center. Use the manual field for denser bursts than the slider range.',
+      'Thin white manga motion streaks from center. Type up to 300 for denser bursts; the slider stops at 140.',
     valueLabel: 'density 90',
     cfgOverride: { speedLines: 90 },
   },

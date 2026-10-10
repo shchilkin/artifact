@@ -1,22 +1,13 @@
 import { useEffect, useState } from 'react';
 import { EFFECT_META, getEffectFamilyMeta, renderEffectThumb } from '../utils/effectInfo';
-import { FloatingMenu } from './ui/floating-menu';
 
-const POPUP_WIDTH = 220;
-const POPUP_GAP = 12;
+const PREVIEW_SIZE = 240;
 
-interface Props {
-  effectKey: string;
-  anchorRect: DOMRect;
-  sidebarRight: number;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-}
-
-export function EffectInfoPopup({ effectKey, anchorRect, sidebarRight, onMouseEnter, onMouseLeave }: Props) {
+/** Help for one effect control: a preview of the effect, what it does, and a sample value. */
+export function EffectInfoContent({ effectKey }: { effectKey: string }) {
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
 
-  // Load thumbnail lazily; cancel if the popup unmounts before render finishes
+  // Load thumbnail lazily; cancel if the help closes before render finishes
   useEffect(() => {
     let cancelled = false;
     renderEffectThumb(effectKey).then((url) => {
@@ -31,21 +22,8 @@ export function EffectInfoPopup({ effectKey, anchorRect, sidebarRight, onMouseEn
   if (!meta) return null;
   const familyMeta = getEffectFamilyMeta(effectKey);
 
-  // Position to the right of the sidebar, into the canvas area
-  const left = sidebarRight + POPUP_GAP;
-  const top = Math.max(8, Math.min(anchorRect.top - 8, window.innerHeight - 290));
-
   return (
-    <FloatingMenu
-      x={left}
-      y={top}
-      className="effect-popup effect-popup--visible"
-      style={{ width: POPUP_WIDTH }}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      role="tooltip"
-      aria-label={`${meta.title}: ${meta.description}`}
-    >
+    <div className="effect-popup">
       <EffectPopupImage thumbUrl={thumbUrl} title={meta.title} />
       <div className="effect-popup__body">
         <span className="effect-popup__title">{meta.title}</span>
@@ -57,7 +35,7 @@ export function EffectInfoPopup({ effectKey, anchorRect, sidebarRight, onMouseEn
         )}
         <span className="effect-popup__value">{meta.valueLabel}</span>
       </div>
-    </FloatingMenu>
+    </div>
   );
 }
 
@@ -69,8 +47,8 @@ function EffectPopupImage({ thumbUrl, title }: { thumbUrl: string | null; title:
           src={thumbUrl}
           alt={`${title} effect preview`}
           className="effect-popup__image"
-          width={POPUP_WIDTH}
-          height={POPUP_WIDTH}
+          width={PREVIEW_SIZE}
+          height={PREVIEW_SIZE}
         />
       ) : (
         <div className="effect-popup__image-placeholder" aria-hidden="true" />

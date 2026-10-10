@@ -537,6 +537,7 @@
 }
 
 .artifact-inspector-number {
+  position: relative;
   display: flex;
   min-width: 0;
   height: var(--control-h-compact);
@@ -581,6 +582,28 @@
 .artifact-inspector-number__unit {
   flex: 0 0 auto;
   padding-right: var(--space-1);
+}
+
+/* The limit a typed value was clamped to. It floats above the entry, so showing it never moves the rows; the live
+   region stays mounted while empty so its first message is announced. */
+.artifact-inspector-number__limit {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--space-1));
+  z-index: 1;
+  pointer-events: none;
+}
+
+.artifact-inspector-number__limit[data-visible] {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--control-radius);
+  background: var(--surface-panel-raised);
+  padding: 2px var(--space-1);
+  color: var(--node-text);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .artifact-inspector-info {

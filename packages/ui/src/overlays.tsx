@@ -40,6 +40,13 @@ export function Popover(props: PopoverProps) {
   return <PopoverPrimitive.Root {...props} />;
 }
 
+export type PopoverAnchorProps = ComponentPropsWithRef<typeof PopoverPrimitive.Anchor>;
+
+/** Positions the popover against this element instead of its trigger, such as the whole row a trigger sits in. */
+export function PopoverAnchor(props: PopoverAnchorProps) {
+  return <PopoverPrimitive.Anchor {...props} />;
+}
+
 export type PopoverTriggerProps = ComponentPropsWithRef<typeof PopoverPrimitive.Trigger>;
 
 export function PopoverTrigger(props: PopoverTriggerProps) {

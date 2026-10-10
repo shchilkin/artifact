@@ -8,8 +8,8 @@ update data, rendering, controls, docs, and tests in one slice.
 
 - `apps/web/app/types/config.ts`: add durable fields to `EffectLayer`,
   `DEFAULT_EFFECT_LAYER_PROPS`, focused preset metadata, and menu order.
-- `apps/web/app/components/node-canvas/inspector/EffectInspector.tsx`: expose durable
-  controls, labels, ranges, override ranges, and info-popover keys.
+- `apps/web/app/components/node-canvas/inspector/EffectControlSections.tsx`: expose durable
+  controls, labels, ranges, override ranges, and help keys.
 - `apps/web/app/utils/effectInfo.ts`: add slider/help metadata and popup preview
   overrides.
 - `apps/web/app/utils/effectDocs.ts`: add user-facing docs text, key parameters, and
@@ -40,9 +40,17 @@ update data, rendering, controls, docs, and tests in one slice.
   re-rolling the whole document.
 - Every slider has numeric entry. It commits on Enter or blur, clamped to the
   range and snapped to the slider step from `min`, so it stores the same values
-  the slider can. If a slider needs creative values beyond the common range,
-  set `overrideMax` so numeric entry accepts them instead of hiding the
-  capability.
+  the slider can. A typed value outside the range briefly shows the limit it
+  was clamped to, such as "Max 100". If a slider needs creative values beyond
+  the common range, set `overrideMax` so numeric entry accepts them instead of
+  hiding the capability.
+- Help text in `effectInfo.ts` may only promise typing past the slider for a
+  control with `overrideMax`, and must name that control and its real limits
+  ("Type a Count up to 240; the slider stops at 96."). A unit test in
+  `EffectControlSections.test.ts` checks this.
+- Slider help opens from the "About …" button on click, Enter, or Space, closes
+  on Escape, and sits beside its row through the shared `Popover`
+  (`InspectorSlider` `help` prop).
 - Give a slider a `valueFormat`; it is read out through the slider's
   `aria-valuetext`, and `%`, `px`, and `deg` also show as a unit after the
   numeric entry.
