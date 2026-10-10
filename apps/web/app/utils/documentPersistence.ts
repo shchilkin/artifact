@@ -973,13 +973,43 @@ export function getInitialDocumentFromSources({ search = '', storageValue = null
   return parseDocumentJson(docParam) ?? parseDocumentJson(storageValue) ?? cloneDocument(DEFAULT_DOCUMENT);
 }
 
-export function getInitialDocument(): CanvasDocument {
-  let storageValue: string | null = null;
-  try {
-    storageValue = localStorage.getItem(DOC_KEY);
-  } catch {
-    // ignore inaccessible storage
+/** Query value that marks a `?doc` link opened from the docs pages. */
+const DOCS_LINK_SOURCE = 'docs';
+
+/** How the editor's initial document relates to a `?doc` link, for the load notice. */
+export type DocumentLinkStatus =
+  | { kind: 'none' }
+  | { kind: 'opened'; source: 'docs' | 'link' }
+  | { kind: 'unreadable'; fallback: 'stored' | 'default' };
+
+export function getDocumentLinkStatusFromSources({
+  search = '',
+  storageValue = null,
+}: InitialDocumentSources): DocumentLinkStatus {
+  const params = new URLSearchParams(search);
+  const docParam = params.get('doc');
+  if (docParam === null || params.get('new') === 'blank' || params.get('blank') === '1') return { kind: 'none' };
+  if (parseDocumentJson(docParam)) {
+    return { kind: 'opened', source: params.get('from') === DOCS_LINK_SOURCE ? 'docs' : 'link' };
   }
+  return { kind: 'unreadable', fallback: parseDocumentJson(storageValue) ? 'stored' : 'default' };
+}
+
+function readStoredDocumentValue() {
+  try {
+    return localStorage.getItem(DOC_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function getDocumentLinkStatus(): DocumentLinkStatus {
+  if (typeof window === 'undefined') return { kind: 'none' };
+  return getDocumentLinkStatusFromSources({ search: window.location.search, storageValue: readStoredDocumentValue() });
+}
+
+export function getInitialDocument(): CanvasDocument {
+  const storageValue = readStoredDocumentValue();
 
   const search = typeof window === 'undefined' ? '' : window.location.search;
   const params = new URLSearchParams(search);
@@ -1019,6 +1049,7 @@ export function createDocumentShareUrl(origin: string, doc: CanvasDocument, path
 export function removeDocParamFromUrl(href: string) {
   const url = new URL(href);
   url.searchParams.delete('doc');
+  url.searchParams.delete('from');
   url.searchParams.delete('new');
   url.searchParams.delete('blank');
   return url.toString();

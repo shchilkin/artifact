@@ -71,6 +71,7 @@ import {
 import {
   createBlankDocument,
   createDocumentShareUrl,
+  getDocumentLinkStatus,
   getInitialDocument,
   isBlankDocument,
   normalizeDocument,
@@ -107,6 +108,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   const [fromDocParam] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc'),
   );
+  const [documentLinkStatus] = useState(getDocumentLinkStatus);
   const [fromBlankParam] = useState(() => {
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
@@ -640,6 +642,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     canRedo: future.length > 0,
     undoCount: past.length,
     fromDocParam,
+    documentLinkStatus,
     fromBlankParam,
     isBlank: isBlankDocument(doc),
     documentSaveStatus,

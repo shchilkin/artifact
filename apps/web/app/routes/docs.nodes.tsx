@@ -758,7 +758,7 @@ function itemMatches(item: SearchItem, query: string, filter: DocFilter) {
 }
 
 export function starterHref(starter: StarterDocument) {
-  return `/app?doc=${encodeURIComponent(JSON.stringify(starter.doc))}`;
+  return `/app?doc=${encodeURIComponent(JSON.stringify(starter.doc))}&from=docs`;
 }
 
 export function DocsLink({ children, className, href }: { children: ReactNode; className?: string; href: string }) {
@@ -935,7 +935,7 @@ export function NodePoster({ node }: { node: NodeDef }) {
   const docRef = useRef(doc);
   const revRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const tryHref = `/app?doc=${encodeURIComponent(JSON.stringify(doc))}`;
+  const tryHref = `/app?doc=${encodeURIComponent(JSON.stringify(doc))}&from=docs`;
   const controlsId = `node-${node.id}-controls`;
 
   useLayoutEffect(() => {

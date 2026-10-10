@@ -19,6 +19,7 @@ import {
   createDocumentShareUrl,
   DOC_KEY,
   deletePreBlankDraft,
+  getDocumentLinkStatusFromSources,
   getInitialDocumentFromSources,
   isBlankDocument,
   loadPreBlankDraft,
@@ -756,6 +757,38 @@ describe('getInitialDocumentFromSources', () => {
   });
 });
 
+describe('getDocumentLinkStatusFromSources', () => {
+  const docParam = encodeURIComponent(encodeDoc({ global: { bg: '#000', seed: 1, aspect: '1:1' }, layers: [] }));
+  const storedValue = encodeDoc({ global: { bg: '#101010', seed: 10, aspect: '1:1' }, layers: [] });
+
+  it('reports no link when there is no doc param or the start is blank', () => {
+    expect(getDocumentLinkStatusFromSources({})).toEqual({ kind: 'none' });
+    expect(getDocumentLinkStatusFromSources({ search: `?doc=${docParam}&new=blank` })).toEqual({ kind: 'none' });
+  });
+
+  it('names the docs only for links marked as coming from the docs', () => {
+    expect(getDocumentLinkStatusFromSources({ search: `?doc=${docParam}&from=docs` })).toEqual({
+      kind: 'opened',
+      source: 'docs',
+    });
+    expect(getDocumentLinkStatusFromSources({ search: `?doc=${docParam}` })).toEqual({
+      kind: 'opened',
+      source: 'link',
+    });
+  });
+
+  it('reports an unreadable link and which document is shown instead', () => {
+    expect(getDocumentLinkStatusFromSources({ search: '?doc=%7Bbroken&from=docs' })).toEqual({
+      kind: 'unreadable',
+      fallback: 'default',
+    });
+    expect(getDocumentLinkStatusFromSources({ search: '?doc=%7Bbroken', storageValue: storedValue })).toEqual({
+      kind: 'unreadable',
+      fallback: 'stored',
+    });
+  });
+});
+
 describe('document serialization helpers', () => {
   const doc: CanvasDocument = {
     global: { bg: '#303030', seed: 30, aspect: '4:5' },
@@ -821,7 +854,7 @@ describe('document serialization helpers', () => {
   });
 
   it('removes doc query params while preserving unrelated params', () => {
-    const url = removeDocParamFromUrl('https://example.test/app?doc=%7B%7D&new=blank&tab=node#preview');
+    const url = removeDocParamFromUrl('https://example.test/app?doc=%7B%7D&from=docs&new=blank&tab=node#preview');
 
     expect(url).toBe('https://example.test/app?tab=node#preview');
   });

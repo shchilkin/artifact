@@ -227,6 +227,7 @@ export function FontPicker({
             accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"
             className="sr-only"
             aria-label="Import font"
+            tabIndex={-1}
             onChange={(event) => void handleImportFont(event.target.files?.[0])}
           />
           <button className="font-picker-import" type="button" onClick={() => importInputRef.current?.click()}>
