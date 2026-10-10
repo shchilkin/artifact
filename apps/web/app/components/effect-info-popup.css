@@ -2,25 +2,10 @@
 
 /* ─── EFFECT INFO POPUP ──────────────────────────── */
 
-.effect-popup {
-  position: fixed;
-  z-index: 400;
-  background: var(--surface-panel);
-  border: 1px solid var(--line-default);
-  border-radius: 4px;
-  box-shadow: 0 4px 24px oklch(0% 0 0 / 0.5);
+.ui-popover-content.artifact-inspector-help {
+  width: min(240px, calc(100vw - 24px));
+  padding: 0;
   overflow: hidden;
-  pointer-events: auto;
-  opacity: 0;
-  transform: translateX(6px);
-  transition:
-    opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.effect-popup--visible {
-  opacity: 1;
-  transform: translateX(0);
 }
 
 .effect-popup__image-wrap {
@@ -78,19 +63,4 @@
   font-size: 9px;
   color: var(--text-secondary);
   margin-top: 2px;
-}
-
-/* Mobile: hide popup entirely */
-
-@media (max-width: 767px) {
-  .effect-popup {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .effect-popup {
-    transition: opacity 0.01ms;
-    transform: none;
-  }
 }

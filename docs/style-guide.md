@@ -282,7 +282,9 @@ until the migration is complete.
 
 - **Anatomy**: overlay, surface, title, description, body, actions, close.
 - **Foundation Popover contract**: compose `Popover`, `PopoverTrigger`, and
-  `PopoverContent`; use `PopoverClose` for explicit close actions. Preserve
+  `PopoverContent`; use `PopoverClose` for explicit close actions and
+  `PopoverAnchor` when the popover must sit beside a larger element than its
+  trigger, such as an inspector row. Preserve
   default initial focus, Escape and outside dismissal, collision handling, and
   focus return unless a documented product interaction requires an override.
 - **Variants**: dialog, sheet, anchored menu when a full modal is not needed.
