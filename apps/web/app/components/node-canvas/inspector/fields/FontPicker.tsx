@@ -237,7 +237,7 @@ export function FontPicker({
               className="font-picker-search node-field"
               value={googleFontInput}
               aria-label="Import Google font"
-              placeholder="Google family or CSS URL..."
+              placeholder="Google family or CSS URL…"
               onChange={(event) => setGoogleFontInput(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') void handleImportGoogleFont();
@@ -260,7 +260,7 @@ export function FontPicker({
             className="font-picker-search node-field"
             value={query}
             aria-label="Search fonts"
-            placeholder="Search fonts..."
+            placeholder="Search fonts…"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Escape') setOpen(false);

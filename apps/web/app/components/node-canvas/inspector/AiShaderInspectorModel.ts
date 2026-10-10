@@ -147,10 +147,10 @@ function aiShaderInspectorSummary(input: AiShaderInspectorViewModelInput): strin
 function aiShaderPrimaryActionLabel(input: AiShaderInspectorViewModelInput): string {
   return firstMatching(
     [
-      { when: input.creatingOpenAi, value: 'Creating...' },
-      { when: input.refining, value: 'Refining...' },
-      { when: input.validating, value: 'Checking...' },
-      { when: input.repairing, value: 'Repairing...' },
+      { when: input.creatingOpenAi, value: 'Creating…' },
+      { when: input.refining, value: 'Refining…' },
+      { when: input.validating, value: 'Checking…' },
+      { when: input.repairing, value: 'Repairing…' },
       { when: input.blocked || input.fallbackAvailable || input.failed || input.compileFailed, value: 'Try Again' },
       { when: input.promptTooLong, value: 'Shorten Prompt' },
       { when: !input.sourceConnected, value: 'Connect Source First' },
@@ -166,34 +166,34 @@ function aiShaderLoadingMessage(input: AiShaderInspectorViewModelInput) {
       {
         when: input.repairing,
         value: {
-          title: 'Repairing shader',
+          title: 'Repairing shader…',
           message: 'Adjusting the result once so it works in this browser.',
         },
       },
       {
         when: input.refining,
         value: {
-          title: 'Refining shader',
+          title: 'Refining shader…',
           message: 'Updating the accepted version while keeping it visible until the new result passes.',
         },
       },
       {
         when: input.validating,
         value: {
-          title: 'Checking shader',
+          title: 'Checking shader…',
           message: 'Making sure the result works before replacing your current shader.',
         },
       },
       {
         when: input.generatingFallback,
         value: {
-          title: 'Making local draft',
+          title: 'Making local draft…',
           message: 'Making an editable local version from this prompt.',
         },
       },
     ],
     {
-      title: 'Creating shader',
+      title: 'Creating shader…',
       message: 'Creating the effect and its editable controls. This may take a few seconds.',
     },
   );

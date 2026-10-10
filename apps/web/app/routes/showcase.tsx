@@ -297,7 +297,7 @@ export default function Showcase() {
 
         <div className="showcase-sentinel" ref={sentinelRef}>
           <Button variant="primary" onClick={handleGenerateMore} loading={generating}>
-            {generating ? 'Rendering...' : 'Render more'}
+            {generating ? 'Rendering…' : 'Render more'}
           </Button>
           {generating ? (
             <div className="showcase-loading">

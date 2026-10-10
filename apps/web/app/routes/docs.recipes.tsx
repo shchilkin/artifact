@@ -34,7 +34,7 @@ export default function DocsRecipes() {
       title="Recipes."
       deck="Open a complete document first, then change one decision. Recipes are the fastest way to learn how a workflow is wired."
     >
-      <DocsSection id="new-workflows" eyebrow="v0.35" title="Masks, rotated repeats, and line fields.">
+      <DocsSection id="new-workflows" eyebrow="Featured" title="Masks, rotated repeats, and line fields.">
         <div className="docs-recipe-list docs-recipe-list--featured">
           {featuredRecipes.map(({ starter, mode, desc, steps }) => (
             <article key={starter.id} className="docs-recipe docs-recipe--feature">
