@@ -2,8 +2,13 @@ import { useCallback, useState } from 'react';
 
 const PERF_DEBUG_STORAGE_KEY = 'artifact-debug-perf';
 
+/**
+ * The performance overlay is a developer tool: its toolbar toggle and the stored preference apply only when the URL
+ * has `?debug` (any value) or `?perf=1`.
+ */
 export function useNodePerfDebug() {
-  const [perfDebugEnabled, setPerfDebugEnabled] = useState(() => isPerfDebugEnabledByDefault());
+  const [perfDebugAvailable] = useState(() => isPerfDebugAvailable());
+  const [perfDebugEnabled, setPerfDebugEnabled] = useState(() => perfDebugAvailable && isPerfDebugEnabledByDefault());
 
   const handleTogglePerfDebug = useCallback(() => {
     setPerfDebugEnabled((enabled) => {
@@ -17,11 +22,16 @@ export function useNodePerfDebug() {
     });
   }, []);
 
-  return { perfDebugEnabled, handleTogglePerfDebug };
+  return { perfDebugAvailable, perfDebugEnabled, handleTogglePerfDebug };
+}
+
+function isPerfDebugAvailable() {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.has('debug') || params.get('perf') === '1';
 }
 
 function isPerfDebugEnabledByDefault() {
-  if (typeof window === 'undefined') return false;
   if (perfDebugEnabledInSearch(window.location.search)) return true;
   try {
     return localStorage.getItem(PERF_DEBUG_STORAGE_KEY) === '1';

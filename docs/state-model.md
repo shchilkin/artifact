@@ -270,6 +270,11 @@ Expected behavior:
 - A wheel-scale gesture creates one undo entry after idle.
 - Graph node movement creates one undo entry on drag stop.
 - Selection, hover, menus, camera lock toggles, and gallery view changes do not need undo unless promoted to durable document features.
+- Auto layout on Nodes entry (nodes with no stored position, or measured cards that
+  intersect) is `silent`: it persists the positions but adds no undo entry, like
+  graph bootstrap. It repairs an unreadable first view rather than recording a
+  creative decision, and undo past it only returns to a state that is laid out
+  again on the next entry. The toolbar Layout action stays an undoable edit.
 
 ## Thumbnail invalidation rules
 

@@ -122,9 +122,7 @@ test('blank editor and shared primitive project surfaces open and close', async 
   await expect(toolbar.getByRole('button', { name: 'Add node' })).toHaveClass(/artifact-toolbar-button/);
   await expect(toolbar.getByRole('button', { name: 'Auto layout nodes' })).toHaveClass(/artifact-toolbar-button/);
   await expect(toolbar.getByRole('button', { name: 'Jump to output node' })).toHaveClass(/artifact-toolbar-button/);
-  await expect(toolbar.getByRole('button', { name: 'Show performance debug overlay' })).toHaveClass(
-    /artifact-toolbar-button/,
-  );
+  await expect(toolbar.getByRole('button', { name: 'Show performance debug overlay' })).toHaveCount(0);
   const emptyGraph = page.locator('[data-canvas-chrome-state="empty-graph"]');
   await expect(emptyGraph).toBeVisible();
   await emptyGraph.getByRole('button', { name: 'Add first node' }).click();

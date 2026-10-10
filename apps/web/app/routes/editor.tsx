@@ -121,6 +121,12 @@ export default function Editor() {
   const [documentImportBusy, setDocumentImportBusy] = useState(false);
   const [recoveryCopyFailed, setRecoveryCopyFailed] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
+  // Node that Edit in Nodes centers on entry; switching modes from the view switch clears it.
+  const [nodeEntryFocusId, setNodeEntryFocusId] = useState<string | null>(null);
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setNodeEntryFocusId(null);
+    setViewMode(mode);
+  }, []);
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
   const [environmentFileError, setEnvironmentFileError] = useState<string | null>(null);
   const [modelFileError, setModelFileError] = useState<string | null>(null);
@@ -353,6 +359,7 @@ export default function Editor() {
   const handleEditInNodes = useCallback(
     (nodeId: string) => {
       setSelectedLayerId(nodeId);
+      setNodeEntryFocusId(nodeId);
       setViewMode('nodes');
     },
     [setSelectedLayerId],
@@ -505,7 +512,7 @@ export default function Editor() {
         ariaLabel="Editor navigation"
         solid
         compact
-        compactSlot={<EditorChromeSlot viewMode={viewMode} onViewModeChange={setViewMode} />}
+        compactSlot={<EditorChromeSlot viewMode={viewMode} onViewModeChange={handleViewModeChange} />}
       />
       <input
         ref={fileInputRef}
@@ -602,6 +609,7 @@ export default function Editor() {
                   key={documentSessionId}
                   doc={doc}
                   initialViewport={nodeViewport?.sessionId === documentSessionId ? nodeViewport.viewport : null}
+                  entryFocusNodeId={nodeEntryFocusId}
                   onViewportChange={handleNodeViewportChange}
                   imageCache={imageCache}
                   initialPrimitiveViewStates={effectivePrimitiveViewStates}

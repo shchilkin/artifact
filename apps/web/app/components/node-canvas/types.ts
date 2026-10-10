@@ -57,7 +57,9 @@ export interface NodeCanvasProps {
   onPrimitiveViewStatesChange?: (viewStates: Record<string, PrimitiveViewportState>, mode?: DocumentUpdateMode) => void;
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
-  onGraphChange: (graph: CanvasGraph) => void;
+  /** Node to select and center on entry, set by Edit in Nodes. */
+  entryFocusNodeId?: string | null;
+  onGraphChange: (graph: CanvasGraph, mode?: DocumentUpdateMode) => void;
   onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
   onUpdateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
   onUpdateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
