@@ -194,3 +194,10 @@
     transform: translateY(100%);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .artifact-sheet-overlay,
+  .artifact-sheet-content {
+    animation-duration: 0.01ms !important;
+  }
+}

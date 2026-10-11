@@ -26,7 +26,7 @@ function nodeDetailChains(nodeId: string) {
 }
 
 function nodeEditorHref(node: (typeof ALL_NODES)[number]) {
-  return `/app?doc=${encodeURIComponent(JSON.stringify(node.doc))}`;
+  return `/app?doc=${encodeURIComponent(JSON.stringify(node.doc))}&from=docs`;
 }
 
 export default function DocsReferenceDetail() {

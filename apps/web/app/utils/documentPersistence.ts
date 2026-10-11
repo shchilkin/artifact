@@ -965,21 +965,61 @@ export function createArtifactFileName(doc: CanvasDocument, date = new Date()) {
   return `artifact-${seed}-${stamp}${ARTIFACT_FILE_EXTENSION}`;
 }
 
-export function getInitialDocumentFromSources({ search = '', storageValue = null }: InitialDocumentSources) {
-  const params = new URLSearchParams(search);
-  if (params.get('new') === 'blank' || params.get('blank') === '1') return createBlankDocument();
-
-  const docParam = params.get('doc');
-  return parseDocumentJson(docParam) ?? parseDocumentJson(storageValue) ?? cloneDocument(DEFAULT_DOCUMENT);
+export function getInitialDocumentFromSources(sources: InitialDocumentSources) {
+  return resolveInitialDocumentFromSources(sources).doc;
 }
 
-export function getInitialDocument(): CanvasDocument {
-  let storageValue: string | null = null;
-  try {
-    storageValue = localStorage.getItem(DOC_KEY);
-  } catch {
-    // ignore inaccessible storage
+/** Query value that marks a `?doc` link opened from the docs pages. */
+const DOCS_LINK_SOURCE = 'docs';
+
+/** How the editor's initial document relates to a `?doc` link, for the load notice. */
+export type DocumentLinkStatus =
+  | { kind: 'none' }
+  | { kind: 'opened'; source: 'docs' | 'link' }
+  | { kind: 'unreadable'; fallback: 'stored' | 'default' };
+
+export interface InitialDocumentState {
+  doc: CanvasDocument;
+  linkStatus: DocumentLinkStatus;
+}
+
+/** Picks the opening document and reports how it relates to a `?doc` link, parsing each source once. */
+export function resolveInitialDocumentFromSources({
+  search = '',
+  storageValue = null,
+}: InitialDocumentSources): InitialDocumentState {
+  const params = new URLSearchParams(search);
+  if (params.get('new') === 'blank' || params.get('blank') === '1') {
+    return { doc: createBlankDocument(), linkStatus: { kind: 'none' } };
   }
+
+  const docParam = params.get('doc');
+  const linkedDoc = parseDocumentJson(docParam);
+  if (linkedDoc) {
+    return {
+      doc: linkedDoc,
+      linkStatus: { kind: 'opened', source: params.get('from') === DOCS_LINK_SOURCE ? 'docs' : 'link' },
+    };
+  }
+
+  const storedDoc = parseDocumentJson(storageValue);
+  return {
+    doc: storedDoc ?? cloneDocument(DEFAULT_DOCUMENT),
+    linkStatus:
+      docParam === null ? { kind: 'none' } : { kind: 'unreadable', fallback: storedDoc ? 'stored' : 'default' },
+  };
+}
+
+function readStoredDocumentValue() {
+  try {
+    return localStorage.getItem(DOC_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function getInitialDocumentState(): InitialDocumentState {
+  const storageValue = readStoredDocumentValue();
 
   const search = typeof window === 'undefined' ? '' : window.location.search;
   const params = new URLSearchParams(search);
@@ -995,7 +1035,7 @@ export function getInitialDocument(): CanvasDocument {
     }
   }
 
-  return getInitialDocumentFromSources({
+  return resolveInitialDocumentFromSources({
     search,
     storageValue,
   });
@@ -1019,6 +1059,7 @@ export function createDocumentShareUrl(origin: string, doc: CanvasDocument, path
 export function removeDocParamFromUrl(href: string) {
   const url = new URL(href);
   url.searchParams.delete('doc');
+  url.searchParams.delete('from');
   url.searchParams.delete('new');
   url.searchParams.delete('blank');
   return url.toString();
