@@ -20,6 +20,17 @@ Related architecture docs:
 
 Current planning status:
 
+- v0.50.1 is the Editor Polish Patch release candidate with its local release
+  gate complete: behaviour-preserving fixes from the 2026-10 editor polish
+  audit. Nodes opens with no overlapping nodes and no debug controls, Layers
+  tree actions work from a clicked name, after Undo, and on touch, export,
+  numeric limits, broken links, and canvas errors give visible feedback, and the
+  command bar keeps its button positions after the first edit, enforced by
+  `npm run ux:gate` with no exceptions. Delivery issues #442-#447 are closed;
+  #448 closes after exact-SHA staging, production promotion, and publication
+  evidence. See [`version-plans/v0.50.md`](./version-plans/v0.50.md),
+  [`discovery/editor-polish-audit-2026-10.md`](./discovery/editor-polish-audit-2026-10.md),
+  and [`releases/v0.50.1.md`](./releases/v0.50.1.md).
 - v0.50.0 was released on 2026-10-05 as the Editor UX release: a stable editor
   frame with zero measured layout shift for selection, mode switches, and Add
   Library; slider input-to-preview and drag main-thread latency within the
@@ -133,11 +144,6 @@ Current planning status:
   [`editor-design-system.md`](./editor-design-system.md),
   [`version-plans/v0.42.md`](./version-plans/v0.42.md), and
   [`releases/v0.42.0.md`](./releases/v0.42.0.md).
-- v0.50.1 is the Editor Polish Patch: behaviour-preserving fixes from the
-  2026-10 editor polish audit (readable Nodes on entry, truthful feedback,
-  touch-reachable tree actions). See
-  [`version-plans/v0.50.md`](./version-plans/v0.50.md) and
-  [`discovery/editor-polish-audit-2026-10.md`](./discovery/editor-polish-audit-2026-10.md).
 - v0.51 is Editor Polish: one control grammar across Layers, Nodes, the
   inspector, Add Library, dialogs and sheets, converged before AI adds Chat and
   Change Preview. Mobile task flow stays in discovery. See
@@ -1439,7 +1445,7 @@ Converge the released Editor UX base before starting a new product surface.
 
 Recommended order:
 
-1. Ship the v0.50.1 Editor Polish Patch (#448).
+1. Publish the completed v0.50.1 Editor Polish Patch candidate (#448).
 2. Converge the editor on one control grammar in v0.51 Editor Polish (#456).
 3. Resume new AI-assisted creation in v0.52 on top of the converged editor.
 
