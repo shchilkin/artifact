@@ -31,8 +31,14 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('[ErrorBoundary]', error, info.componentStack);
   }
 
-  componentDidUpdate(previousProps: Props) {
-    if (this.state.hasError && resetKeysChanged(previousProps.resetKeys, this.props.resetKeys)) {
+  componentDidUpdate(previousProps: Props, previousState: State) {
+    // Skip the commit that caught the error: when a key change itself made a child throw, the keys differ from the
+    // previous props, and resetting then would only render the same failure again.
+    if (
+      this.state.hasError &&
+      previousState.hasError &&
+      resetKeysChanged(previousProps.resetKeys, this.props.resetKeys)
+    ) {
       this.reset();
     }
   }

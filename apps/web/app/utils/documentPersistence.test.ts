@@ -19,7 +19,6 @@ import {
   createDocumentShareUrl,
   DOC_KEY,
   deletePreBlankDraft,
-  getDocumentLinkStatusFromSources,
   getInitialDocumentFromSources,
   isBlankDocument,
   loadPreBlankDraft,
@@ -27,6 +26,7 @@ import {
   PRE_BLANK_DRAFT_KEY,
   parseArtifactDocument,
   removeDocParamFromUrl,
+  resolveInitialDocumentFromSources,
   saveDocumentToStorage,
   savePreBlankDraft,
   serializeArtifactDocument,
@@ -757,32 +757,35 @@ describe('getInitialDocumentFromSources', () => {
   });
 });
 
-describe('getDocumentLinkStatusFromSources', () => {
+describe('resolveInitialDocumentFromSources link status', () => {
+  const linkStatus = (sources: Parameters<typeof resolveInitialDocumentFromSources>[0]) =>
+    resolveInitialDocumentFromSources(sources).linkStatus;
+
   const docParam = encodeURIComponent(encodeDoc({ global: { bg: '#000', seed: 1, aspect: '1:1' }, layers: [] }));
   const storedValue = encodeDoc({ global: { bg: '#101010', seed: 10, aspect: '1:1' }, layers: [] });
 
   it('reports no link when there is no doc param or the start is blank', () => {
-    expect(getDocumentLinkStatusFromSources({})).toEqual({ kind: 'none' });
-    expect(getDocumentLinkStatusFromSources({ search: `?doc=${docParam}&new=blank` })).toEqual({ kind: 'none' });
+    expect(linkStatus({})).toEqual({ kind: 'none' });
+    expect(linkStatus({ search: `?doc=${docParam}&new=blank` })).toEqual({ kind: 'none' });
   });
 
   it('names the docs only for links marked as coming from the docs', () => {
-    expect(getDocumentLinkStatusFromSources({ search: `?doc=${docParam}&from=docs` })).toEqual({
+    expect(linkStatus({ search: `?doc=${docParam}&from=docs` })).toEqual({
       kind: 'opened',
       source: 'docs',
     });
-    expect(getDocumentLinkStatusFromSources({ search: `?doc=${docParam}` })).toEqual({
+    expect(linkStatus({ search: `?doc=${docParam}` })).toEqual({
       kind: 'opened',
       source: 'link',
     });
   });
 
   it('reports an unreadable link and which document is shown instead', () => {
-    expect(getDocumentLinkStatusFromSources({ search: '?doc=%7Bbroken&from=docs' })).toEqual({
+    expect(linkStatus({ search: '?doc=%7Bbroken&from=docs' })).toEqual({
       kind: 'unreadable',
       fallback: 'default',
     });
-    expect(getDocumentLinkStatusFromSources({ search: '?doc=%7Bbroken', storageValue: storedValue })).toEqual({
+    expect(linkStatus({ search: '?doc=%7Bbroken', storageValue: storedValue })).toEqual({
       kind: 'unreadable',
       fallback: 'stored',
     });

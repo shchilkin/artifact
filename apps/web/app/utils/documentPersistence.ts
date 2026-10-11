@@ -965,12 +965,8 @@ export function createArtifactFileName(doc: CanvasDocument, date = new Date()) {
   return `artifact-${seed}-${stamp}${ARTIFACT_FILE_EXTENSION}`;
 }
 
-export function getInitialDocumentFromSources({ search = '', storageValue = null }: InitialDocumentSources) {
-  const params = new URLSearchParams(search);
-  if (params.get('new') === 'blank' || params.get('blank') === '1') return createBlankDocument();
-
-  const docParam = params.get('doc');
-  return parseDocumentJson(docParam) ?? parseDocumentJson(storageValue) ?? cloneDocument(DEFAULT_DOCUMENT);
+export function getInitialDocumentFromSources(sources: InitialDocumentSources) {
+  return resolveInitialDocumentFromSources(sources).doc;
 }
 
 /** Query value that marks a `?doc` link opened from the docs pages. */
@@ -982,17 +978,36 @@ export type DocumentLinkStatus =
   | { kind: 'opened'; source: 'docs' | 'link' }
   | { kind: 'unreadable'; fallback: 'stored' | 'default' };
 
-export function getDocumentLinkStatusFromSources({
+export interface InitialDocumentState {
+  doc: CanvasDocument;
+  linkStatus: DocumentLinkStatus;
+}
+
+/** Picks the opening document and reports how it relates to a `?doc` link, parsing each source once. */
+export function resolveInitialDocumentFromSources({
   search = '',
   storageValue = null,
-}: InitialDocumentSources): DocumentLinkStatus {
+}: InitialDocumentSources): InitialDocumentState {
   const params = new URLSearchParams(search);
-  const docParam = params.get('doc');
-  if (docParam === null || params.get('new') === 'blank' || params.get('blank') === '1') return { kind: 'none' };
-  if (parseDocumentJson(docParam)) {
-    return { kind: 'opened', source: params.get('from') === DOCS_LINK_SOURCE ? 'docs' : 'link' };
+  if (params.get('new') === 'blank' || params.get('blank') === '1') {
+    return { doc: createBlankDocument(), linkStatus: { kind: 'none' } };
   }
-  return { kind: 'unreadable', fallback: parseDocumentJson(storageValue) ? 'stored' : 'default' };
+
+  const docParam = params.get('doc');
+  const linkedDoc = parseDocumentJson(docParam);
+  if (linkedDoc) {
+    return {
+      doc: linkedDoc,
+      linkStatus: { kind: 'opened', source: params.get('from') === DOCS_LINK_SOURCE ? 'docs' : 'link' },
+    };
+  }
+
+  const storedDoc = parseDocumentJson(storageValue);
+  return {
+    doc: storedDoc ?? cloneDocument(DEFAULT_DOCUMENT),
+    linkStatus:
+      docParam === null ? { kind: 'none' } : { kind: 'unreadable', fallback: storedDoc ? 'stored' : 'default' },
+  };
 }
 
 function readStoredDocumentValue() {
@@ -1003,12 +1018,7 @@ function readStoredDocumentValue() {
   }
 }
 
-export function getDocumentLinkStatus(): DocumentLinkStatus {
-  if (typeof window === 'undefined') return { kind: 'none' };
-  return getDocumentLinkStatusFromSources({ search: window.location.search, storageValue: readStoredDocumentValue() });
-}
-
-export function getInitialDocument(): CanvasDocument {
+export function getInitialDocumentState(): InitialDocumentState {
   const storageValue = readStoredDocumentValue();
 
   const search = typeof window === 'undefined' ? '' : window.location.search;
@@ -1025,7 +1035,7 @@ export function getInitialDocument(): CanvasDocument {
     }
   }
 
-  return getInitialDocumentFromSources({
+  return resolveInitialDocumentFromSources({
     search,
     storageValue,
   });

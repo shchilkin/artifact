@@ -575,7 +575,8 @@ export default function Editor() {
               resetKeys={[doc]}
               fallback={(reset) => (
                 <CanvasErrorFallback
-                  aspect={doc.global.aspect ?? '1:1'}
+                  // The fallback must render even when the document that failed has a malformed `global`.
+                  aspect={doc.global?.aspect ?? '1:1'}
                   canUndo={canUndo}
                   onRetry={reset}
                   onUndo={undo}

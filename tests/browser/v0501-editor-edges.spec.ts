@@ -8,6 +8,7 @@ import {
   gotoDocument,
   pressForwardTab,
   setupBrowserTestPage,
+  textLayerFixture,
 } from './helpers';
 
 // v0.50.1 #446: honest `?doc` notices, no hidden Tab stops, a recoverable canvas error state,
@@ -22,7 +23,26 @@ async function gotoEditorUrl(page: Page, url: string) {
 declare global {
   interface Window {
     __failCanvasOnce?: boolean;
+    __failTextRender?: boolean;
   }
+}
+
+const RENDER_FAILURE_MARKER = 'RENDER-FAIL';
+
+/**
+ * The canvas handles size a selected text layer by splitting its content during render. While the switch is on,
+ * splitting text that holds the marker throws, so a text edit fails in the render phase rather than in an effect.
+ */
+async function installTextRenderFailureSwitch(page: Page, marker: string) {
+  await page.addInitScript((failureMarker) => {
+    const nativeSplit = String.prototype.split;
+    String.prototype.split = function split(this: string, ...args: Parameters<typeof nativeSplit>) {
+      if (window.__failTextRender && args[0] === '\n' && String(this).includes(failureMarker)) {
+        throw new Error('Simulated render-phase canvas failure');
+      }
+      return nativeSplit.apply(this, args);
+    } as typeof nativeSplit;
+  }, marker);
 }
 
 /**
@@ -113,17 +133,16 @@ test.describe('editor edges', () => {
               box.height > 1
             );
           };
-          // A visually hidden control counts as visible when a close ancestor draws its focus ring
-          // (layer rows outline themselves for their selection checkbox).
-          const ringAncestor = (() => {
-            let ancestor = element.parentElement;
-            for (let depth = 0; ancestor && depth < 3; depth += 1, ancestor = ancestor.parentElement) {
-              const style = getComputedStyle(ancestor);
-              if (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0) return ancestor;
-            }
-            return null;
+          // Rule: a stop is visible when the focused control itself is shown. The one exception is a visually
+          // hidden control whose own row or label draws the focus ring (layer rows outline themselves for their
+          // selection checkbox). Any other hidden control, or a ring drawn by a wider container, still fails.
+          const owner = element.closest('label, .layer-row');
+          const ownerDrawsRing = (() => {
+            if (!owner || owner === element) return false;
+            const style = getComputedStyle(owner);
+            return style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0 && isShown(owner);
           })();
-          const visible = isShown(element) || (ringAncestor !== null && isShown(ringAncestor));
+          const visible = isShown(element) || ownerDrawsRing;
           return { label, visible };
         }),
       );
@@ -149,6 +168,49 @@ test.describe('editor edges', () => {
     await expect
       .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('doc') ?? '{}').global?.aspect))
       .toBe('1:1');
+  });
+
+  test('a render-phase error from a text edit is caught once, and Undo restores the canvas', async ({ page }) => {
+    const boundaryLogs: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error' && message.text().startsWith('[ErrorBoundary]')) boundaryLogs.push(message.text());
+    });
+    await installTextRenderFailureSwitch(page, RENDER_FAILURE_MARKER);
+    await gotoDocument(
+      page,
+      editorDocumentFixture([
+        fillLayerFixture({ id: 'edge-fill', name: 'Backdrop', color: '#2255cc' }),
+        textLayerFixture({ id: 'edge-title', name: 'Title', content: 'EDGE' }),
+      ]),
+    );
+    await expectLayerCanvasToHavePixels(page);
+    await page.locator('.layer-row[data-layer-id="edge-title"] .layer-row-name-button').click();
+
+    await page.evaluate(() => {
+      window.__failTextRender = true;
+    });
+    await page.getByRole('textbox', { name: 'Text', exact: true }).fill(`EDGE ${RENDER_FAILURE_MARKER}`);
+
+    const errorState = page.getByRole('alert').filter({ hasText: "The canvas couldn't render these layers." });
+    await expect(errorState).toBeVisible();
+    // The boundary must not reset on the commit that caught the error and immediately fail again.
+    await page.waitForTimeout(300);
+    expect(boundaryLogs).toHaveLength(1);
+
+    await errorState.getByRole('button', { name: 'Undo' }).click();
+    await expect(errorState).toHaveCount(0);
+    await expectLayerCanvasToHavePixels(page);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            JSON.parse(localStorage.getItem('doc') ?? '{}').layers?.find(
+              (layer: { id: string }) => layer.id === 'edge-title',
+            )?.content,
+        ),
+      )
+      .toBe('EDGE');
+    expect(boundaryLogs).toHaveLength(1);
   });
 
   test('Retry renders the canvas again after a render error', async ({ page }) => {
