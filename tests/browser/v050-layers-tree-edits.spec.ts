@@ -264,6 +264,59 @@ test('Undo and Redo retire the tree status of the edit they step over', async ({
   await expect(treeStatus(page)).not.toContainText('Deleted');
 });
 
+test('keyboard Undo and inspector edits retire the tree status', async ({ page }) => {
+  await openTree(page);
+  await treeItem(page, 'Grade, grade').focus();
+  await page.keyboard.press('Delete');
+  await expect(treeStatus(page)).toHaveText('Deleted Grade.');
+  await page.keyboard.press('ControlOrMeta+z');
+  await expectOutline(page, INITIAL_OUTLINE);
+  await expect(treeStatus(page)).toHaveAttribute('data-visible', 'false');
+
+  await treeItem(page, 'Unused fill, fill layer').focus();
+  await page.keyboard.press('Delete');
+  await expect(treeStatus(page)).toHaveText('Deleted Unused fill.');
+  // Selecting a row keeps the message; editing in the inspector changes the document and retires it.
+  await treeItem(page, 'Headline, text layer').click();
+  await expect(treeStatus(page)).toHaveText('Deleted Unused fill.');
+  const value = page.getByRole('complementary', { name: 'Layer settings' }).getByRole('spinbutton').first();
+  await value.fill('42');
+  await value.press('Enter');
+  await expect(treeStatus(page)).toHaveAttribute('data-visible', 'false');
+  await expect(treeStatus(page)).not.toContainText('Deleted');
+});
+
+test('Delete inside the rename field edits the name and keeps the row', async ({ page }) => {
+  await openTree(page);
+  const headline = treeItem(page, 'Headline, text layer');
+  const name = headline.locator('.layer-row-name-button');
+  await name.click();
+  await expect(headline).toHaveAttribute('aria-selected', 'true');
+  await name.click();
+  const input = headline.getByRole('textbox', { name: 'Rename layer Headline' });
+  await expect(input).toBeFocused();
+  await input.evaluate((element: HTMLInputElement) => element.setSelectionRange(0, 0));
+  await input.press('Delete');
+  await expect(input).toHaveValue('eadline');
+  await input.press('Escape');
+  await expectOutline(page, INITIAL_OUTLINE);
+  await expect(page.getByRole('button', { name: 'Undo' }).first()).toBeDisabled();
+});
+
+test('arrow keys and F2 work from a clicked row name', async ({ page }) => {
+  await openTree(page);
+  const headline = treeItem(page, 'Headline, text layer');
+  await headline.locator('.layer-row-name-button').click();
+  await page.keyboard.press('ArrowDown');
+  await expect(treeItem(page, 'Glow, merge group, screen · 70%')).toBeFocused();
+
+  await treeItem(page, 'Badge, fill layer').locator('.layer-row-name-button').click();
+  await page.keyboard.press('F2');
+  await expect(page.getByRole('textbox', { name: 'Rename layer Badge' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expectOutline(page, INITIAL_OUTLINE);
+});
+
 test('the Layers inspector of a graph-only node opens it in Nodes', async ({ page }) => {
   await openTree(page);
   await treeItem(page, 'Pattern, repeat').click();

@@ -83,16 +83,19 @@ test('mobile graph-only rows open Edit in Nodes from their actions button', asyn
 
 const PHONE = { width: 375, height: 812 };
 
+/** Each control's hit area: its box, or the larger centered `::before` that coarse pointers add. */
 async function expectTouchTargets(controls: Locator) {
   const sizes = await controls.evaluateAll((elements) =>
     elements
       .filter((element) => (element as HTMLElement).offsetParent !== null)
       .map((element) => {
         const rect = element.getBoundingClientRect();
+        const hit = getComputedStyle(element, '::before');
+        const hasHitArea = hit.content !== 'none' && hit.position === 'absolute';
         return {
           name: element.getAttribute('aria-label') ?? element.className,
-          width: rect.width,
-          height: rect.height,
+          width: Math.max(rect.width, hasHitArea ? Number.parseFloat(hit.width) : 0),
+          height: Math.max(rect.height, hasHitArea ? Number.parseFloat(hit.height) : 0),
         };
       }),
   );
@@ -102,6 +105,8 @@ async function expectTouchTargets(controls: Locator) {
     expect(size.height, `${size.name} height`).toBeGreaterThanOrEqual(44);
   }
 }
+
+const TREE_CONTROLS = '.layer-row-action, .layer-row-drag-handle, .layer-tree-caret:not(.layer-tree-caret-leaf)';
 
 async function expectNoSideScroll(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -120,7 +125,7 @@ test('375 touch: unselected tree rows show their actions and every row control i
   await expect(headline.getByRole('button', { name: 'Open actions for layer Headline' })).toBeVisible();
   await expect(tree.getByRole('button', { name: 'Open actions for Grade' })).toBeVisible();
 
-  await expectTouchTargets(tree.locator('.layer-row-action, .layer-row-drag-handle, .layer-tree-caret'));
+  await expectTouchTargets(tree.locator(TREE_CONTROLS));
   await expectNoSideScroll(page);
 });
 
@@ -142,6 +147,8 @@ test('375 touch: unselected stack rows show their actions and every row control 
   await page.getByRole('button', { name: 'Open actions for layer Base' }).click();
   await page.getByRole('menuitem', { name: 'Create area' }).click();
   await expect(page.locator('.layer-area-folder')).toBeVisible();
+  // The hit area grows, not the visible control.
+  expect((await page.locator('.layer-area-folder-toggle').boundingBox())?.width).toBeLessThan(44);
   await expect(page.getByRole('button', { name: 'Open actions for layer Glow' })).toBeVisible();
 
   await expectTouchTargets(
@@ -149,5 +156,19 @@ test('375 touch: unselected stack rows show their actions and every row control 
       '.layer-row .layer-row-action, .layer-row .layer-row-drag-handle, .layer-area-folder-toggle, .layer-area-rename, .layer-area-remove, .layer-area-visibility',
     ),
   );
+  await expectNoSideScroll(page);
+});
+
+test('coarse-pointer tablets show tree row actions with 44 px targets', async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
+  expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+  await gotoDocument(page, layersTreeDocument);
+  const tree = page.getByRole('tree', { name: 'Layer tree' });
+  await expect(tree).toBeVisible({ timeout: 15_000 });
+
+  const headline = tree.getByRole('treeitem', { name: 'Headline, text layer', exact: true });
+  await expect(headline).toHaveAttribute('aria-selected', 'false');
+  await expect(headline.getByRole('button', { name: 'Open actions for layer Headline' })).toBeVisible();
+  await expectTouchTargets(tree.locator(TREE_CONTROLS));
   await expectNoSideScroll(page);
 });

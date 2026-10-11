@@ -33,9 +33,24 @@ export interface LayerTreeEditStatus {
   tone: 'done' | 'blocked';
 }
 
-/** A status and the document it describes. Any other document change, such as Undo, retires it. */
-interface DocumentTreeEditStatus extends LayerTreeEditStatus {
+/**
+ * A status and the document it describes. `awaitsCommit` marks a tree edit whose document has not
+ * rendered yet: the next document change is that edit and the status moves onto it. Any other
+ * document change, such as Undo, Redo or an inspector edit, retires the status. This does not rely
+ * on the committed document being the same object as `TreeEditResult.doc`.
+ */
+export interface DocumentTreeEditStatus extends LayerTreeEditStatus {
   doc: CanvasDocument;
+  awaitsCommit: boolean;
+}
+
+/** The status to show with the rendered document `doc`; see `DocumentTreeEditStatus`. */
+export function settleTreeEditStatus(
+  status: DocumentTreeEditStatus | null,
+  doc: CanvasDocument,
+): DocumentTreeEditStatus | null {
+  if (!status || status.doc === doc) return status;
+  return status.awaitsCommit ? { ...status, doc, awaitsCommit: false } : null;
 }
 
 export function useLayerTreeEditing({
@@ -72,15 +87,16 @@ export function useLayerTreeEditing({
   }, [status]);
 
   const announce = useCallback(
-    (message: string, tone: LayerTreeEditStatus['tone'] = 'done', about: CanvasDocument = doc) => {
-      setStatus({ message, tone, doc: about });
+    (message: string, tone: LayerTreeEditStatus['tone'] = 'done', awaitsCommit = false) => {
+      setStatus({ message, tone, doc, awaitsCommit });
     },
     [doc],
   );
   const announceBlocked = useCallback((reason: string) => announce(reason, 'blocked'), [announce]);
-  // A history step outside the tree (Undo, Redo, an inspector edit) makes the last tree message stale.
-  // It is dropped during render, so it never shows and a Redo back to the same document can't revive it.
-  if (status && status.doc !== doc) setStatus(null);
+  // Settled during render, so a stale message never shows and a Redo back to the same document
+  // can't revive it.
+  const settled = settleTreeEditStatus(status, doc);
+  if (settled !== status) setStatus(settled);
   const visibleStatus = useMemo<LayerTreeEditStatus | null>(
     () => (status ? { message: status.message, tone: status.tone } : null),
     [status],
@@ -96,11 +112,11 @@ export function useLayerTreeEditing({
     (edit: (current: CanvasDocument) => TreeEditResult, success: string) => {
       if (!onApplyTreeEdit) return null;
       const result = onApplyTreeEdit(edit);
-      if (result.ok) announce(success, 'done', result.doc);
+      if (result.ok) announce(success, 'done', result.doc !== doc);
       else announceBlocked(result.reason);
       return result.ok ? result.doc : null;
     },
-    [announce, announceBlocked, onApplyTreeEdit],
+    [announce, announceBlocked, doc, onApplyTreeEdit],
   );
 
   const move = useCallback(

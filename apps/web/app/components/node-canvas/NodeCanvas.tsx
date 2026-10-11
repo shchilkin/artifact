@@ -20,6 +20,7 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { isEditableKeyTarget } from '../../utils/editableKeyTarget';
 import { NodePreviewProgress } from './thumbnails/NodePreviewProgress';
 import '@xyflow/react/dist/style.css';
 import './node-canvas.css';
@@ -1487,8 +1488,6 @@ function edgeOpacityByState(visibleOutputPath: boolean, onOutputPath: boolean) {
   return onOutputPath ? 0.78 : 0.46;
 }
 
-const EDITABLE_KEY_TARGETS = new Set(['input', 'textarea', 'select']);
-
 function shouldToggleSelectedLayerVisibility(event: KeyboardEvent) {
   return [
     event.key.toLowerCase() === 'm',
@@ -1497,10 +1496,4 @@ function shouldToggleSelectedLayerVisibility(event: KeyboardEvent) {
     event.altKey === false,
     isEditableKeyTarget(event.target) === false,
   ].every(Boolean);
-}
-
-function isEditableKeyTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  const tagName = target.tagName.toLowerCase();
-  return EDITABLE_KEY_TARGETS.has(tagName) || target.isContentEditable;
 }
