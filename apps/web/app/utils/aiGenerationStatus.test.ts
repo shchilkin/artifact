@@ -27,8 +27,8 @@ describe('aiGenerationStatus', () => {
     expect(getAiGenerationStatusLabel(generation('succeeded'))).toBe('Ready');
     expect(getAiGenerationStatusDetail(undefined)).toBeNull();
     expect(getAiGenerationStatusDetail(generation('queued'))).toBe('Your creation will start shortly');
-    expect(getAiGenerationStatusDetail(generation('running'))).toBe('Creating your image');
-    expect(getAiGenerationStatusDetail(generation('importing'))).toBe('Preparing your image');
+    expect(getAiGenerationStatusDetail(generation('running'))).toBe('Creating your image…');
+    expect(getAiGenerationStatusDetail(generation('importing'))).toBe('Preparing your image…');
     expect(getAiGenerationStatusDetail(generation('failed', { errorMessage: 'provider unavailable' }))).toBe(
       'provider unavailable',
     );

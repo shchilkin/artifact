@@ -38,7 +38,7 @@ export function ExportInspector({
       <CoverExportControls exportConfig={exportConfig} height={height} width={width} onChange={onChange} />
       <EnvmapExportLabel target={exportConfig.target} />
       {busy ? (
-        <InspectorStatus loading title="Exporting image" tone="info">
+        <InspectorStatus loading title="Exporting image…" tone="info">
           Rendering the current composition at the selected output size.
         </InspectorStatus>
       ) : null}

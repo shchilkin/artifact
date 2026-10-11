@@ -14,8 +14,8 @@ const GENERATION_STATUS_LABELS: Record<string, string> = {
 };
 const GENERATION_STATUS_DETAILS: Record<string, string> = {
   queued: 'Your creation will start shortly',
-  running: 'Creating your image',
-  importing: 'Preparing your image',
+  running: 'Creating your image…',
+  importing: 'Preparing your image…',
   cancelled: 'Creation was cancelled',
   expired: 'This creation is no longer available',
 };
