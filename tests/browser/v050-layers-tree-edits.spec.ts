@@ -242,7 +242,7 @@ test('deleting a shared node asks first in the editor dialog', async ({ page }) 
 
   const dialog = page.getByRole('alertdialog', { name: 'Delete shared Backdrop?' });
   await expect(dialog).toContainText(
-    'Backdrop is used in 2 places. Deleting it reconnects each place to the layer below it. You can undo this.',
+    'Backdrop is used in 2 places. Deleting it leaves those inputs empty. You can undo this.',
   );
   await expectDangerConfirm(dialog, 'Delete');
   await dialog.getByRole('button', { name: 'Cancel' }).click();

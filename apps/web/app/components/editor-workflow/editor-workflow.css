@@ -317,18 +317,6 @@
   line-height: 1.5;
 }
 
-/* The confirm is filled in both tones, so a destructive confirm never looks like the outlined Cancel. */
-.editor-confirm-dialog__confirm.ui-command--danger,
-.editor-confirm-dialog__confirm.ui-command--danger:not(:disabled):not([aria-disabled="true"]):hover {
-  border-color: var(--state-danger);
-  background: var(--state-danger);
-  color: var(--surface-app);
-}
-
-.editor-confirm-dialog__confirm.ui-command--danger:not(:disabled):not([aria-disabled="true"]):hover {
-  background: color-mix(in oklch, var(--state-danger) 86%, var(--text-primary));
-}
-
 .editor-confirm-dialog__actions {
   display: flex;
   flex-wrap: wrap;

@@ -13,6 +13,8 @@ interface Props {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  /** Shown only in the Undo tooltip, so the command bar never changes width. */
+  undoCount: number;
   onProjectsToggle: () => void;
   onCopyLink: () => void;
   onOpenDocument: () => void;
@@ -30,6 +32,7 @@ export function BottomBar({
   onRedo,
   canUndo,
   canRedo,
+  undoCount,
   onCopyLink,
   onOpenDocument,
   onSaveDocument,
@@ -52,8 +55,8 @@ export function BottomBar({
       <EditorCommandGroup className="bottom-history-group" label="Document history">
         <Button
           onClick={onNewBlank}
-          aria-label="Create new project"
-          title="Create new project"
+          aria-label="New blank canvas"
+          title="New blank canvas"
           variant="quiet"
           className="bottom-command"
         >
@@ -63,7 +66,11 @@ export function BottomBar({
           onClick={onUndo}
           disabled={!canUndo}
           aria-label="Undo"
-          title="Undo (Cmd+Z)"
+          title={
+            undoCount > 0
+              ? `Undo (Cmd+Z), ${undoCount} ${undoCount === 1 ? 'step' : 'steps'} available`
+              : 'Undo (Cmd+Z)'
+          }
           variant="quiet"
           className="bottom-command bottom-icon-command"
         >
@@ -123,18 +130,11 @@ export function BottomBar({
           className="export-btn"
           onClick={onExport}
           loading={exportBusy}
+          busyLabel="Exporting…"
           variant="primary"
           aria-label={exportBusy ? 'Exporting artwork' : 'Export artwork'}
         >
-          {/* Both labels share one grid cell, so the button keeps the wider label's width and nothing moves. */}
-          <span className="export-btn__labels">
-            <span className="export-btn__label" data-active={!exportBusy}>
-              EXPORT
-            </span>
-            <span className="export-btn__label" data-active={exportBusy}>
-              Exporting…
-            </span>
-          </span>
+          EXPORT
         </Button>
       </EditorCommandGroup>
     </EditorCommandBar>

@@ -333,12 +333,12 @@ function isBenignBrowserTestIssue(text: string): boolean {
 }
 
 /**
- * A destructive EditorConfirmDialog confirms with the danger variant, filled so it never looks like the outlined
+ * A destructive EditorConfirmDialog confirms with the filled danger variant, so it never looks like the outlined
  * Cancel next to it.
  */
 export async function expectDangerConfirm(dialog: Locator, confirmName: string): Promise<void> {
   const confirm = dialog.getByRole('button', { name: confirmName, exact: true });
-  await expect(confirm).toHaveClass(/ui-command--danger/);
+  await expect(confirm).toHaveClass(/ui-command--danger-filled/);
   const [confirmBackground, cancelBackground] = await Promise.all([
     confirm.evaluate((element) => getComputedStyle(element).backgroundColor),
     dialog.getByRole('button', { name: 'Cancel' }).evaluate((element) => getComputedStyle(element).backgroundColor),

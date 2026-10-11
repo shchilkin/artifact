@@ -89,6 +89,35 @@
   color: var(--ui-command-danger);
 }
 
+/* The confirming action of a destructive dialog: filled, so it never reads like the outlined action beside it. */
+.ui-command--danger-filled {
+  border-color: var(--ui-command-danger);
+  background: var(--ui-command-danger);
+  color: var(--ui-command-accent-contrast);
+}
+
+.ui-command--danger-filled:not(:disabled):not([aria-disabled="true"]):hover {
+  border-color: color-mix(in oklch, var(--ui-command-danger) 86%, var(--ui-command-accent-hover));
+  background: color-mix(in oklch, var(--ui-command-danger) 86%, var(--ui-command-accent-hover));
+  color: var(--ui-command-accent-contrast);
+}
+
+.ui-command__labels {
+  display: inline-grid;
+  min-width: 0;
+}
+
+.ui-command__label {
+  grid-area: 1 / 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-command__label[data-active="false"] {
+  visibility: hidden;
+}
+
 .ui-icon-command {
   width: var(--ui-command-target-size);
   padding: 0;

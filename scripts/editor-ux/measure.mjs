@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { withPreviewServer } from '../preview-server.mjs';
+import { firstEditMovePx } from './command-bar.mjs';
 import { REFERENCE_DOCUMENTS } from './documents.mjs';
 
 const ROOT = process.cwd();
@@ -267,24 +268,28 @@ const readCommandBar = (page) =>
     return { obscured, overlapping };
   });
 
-// Left edges of the buttons in the visible command bar, in DOM order.
-const readCommandXs = (page) =>
+// Left edges of the buttons in the visible command bar, in DOM order, and whether its Undo is enabled
+// (null when the bar has no Undo).
+const readCommandBarState = (page) =>
   page.evaluate(() => {
     const bar = [...document.querySelectorAll('.editor-command-bar')].find(
       (el) => el.getBoundingClientRect().width > 0,
     );
-    return [...(bar?.querySelectorAll('button') ?? [])]
-      .map((button) => button.getBoundingClientRect())
-      .filter((rect) => rect.width > 0)
-      .map((rect) => rect.x);
+    const undo = bar?.querySelector('button[aria-label="Undo"]');
+    return {
+      undoEnabled: undo ? !undo.disabled : null,
+      xs: [...(bar?.querySelectorAll('button') ?? [])]
+        .map((button) => button.getBoundingClientRect())
+        .filter((rect) => rect.width > 0)
+        .map((rect) => rect.x),
+    };
   });
 
-/**
- * The first edit of a session makes Undo available. Every command-bar button must keep its x position across it; a
- * button that appears or disappears counts as moving by its whole offset.
- */
+/** The first edit of a session makes Undo available; every command-bar button must keep its x position across it. */
 async function measureFirstEdit(page) {
-  const before = await readCommandXs(page);
+  const { undoEnabled: undoEnabledBefore, xs: before } = await readCommandBarState(page);
+  // Checked before editing, so a session that already has history fails instead of measuring nothing.
+  firstEditMovePx({ undoEnabledBefore, before, after: before });
   const slider = page.locator('input[type="range"]:visible').first();
   await slider.focus();
   await slider.press('ArrowRight');
@@ -299,13 +304,13 @@ async function measureFirstEdit(page) {
     { timeout: 10_000 },
   );
   await page.waitForTimeout(300);
-  const after = await readCommandXs(page);
+  const { xs: after } = await readCommandBarState(page);
   await waitForIdle(page);
-  let move = 0;
-  for (let index = 0; index < Math.max(before.length, after.length); index += 1) {
-    move = Math.max(move, Math.abs((before[index] ?? 0) - (after[index] ?? 0)));
-  }
-  return { before: before.map((x) => round(x)), after: after.map((x) => round(x)), firstEditMovePx: round(move) };
+  return {
+    before: before.map((x) => round(x)),
+    after: after.map((x) => round(x)),
+    firstEditMovePx: round(firstEditMovePx({ undoEnabledBefore, before, after })),
+  };
 }
 
 const readNodes = (page) =>

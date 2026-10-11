@@ -65,15 +65,15 @@ test('New confirms in an accessible dialog that traps focus and cancels with Esc
   await gotoDocument(page, stateDocument);
   await expectLayerCanvasToHavePixels(page);
 
-  const newProject = page.getByRole('button', { name: 'Create new project' }).first();
+  const newProject = page.getByRole('button', { name: 'New blank canvas' }).first();
   await newProject.focus();
   await page.keyboard.press('Enter');
 
-  const dialog = page.getByRole('alertdialog', { name: 'Create a new project?' });
+  const dialog = page.getByRole('alertdialog', { name: 'Start a new blank canvas?' });
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAccessibleDescription(/recovery copy/);
   const cancel = dialog.getByRole('button', { name: 'Cancel' });
-  const confirm = dialog.getByRole('button', { name: 'Create new project' });
+  const confirm = dialog.getByRole('button', { name: 'New blank canvas' });
   // The replacing action is never the initial focus.
   await expect(cancel).toBeFocused();
 
@@ -91,7 +91,7 @@ test('New confirms in an accessible dialog that traps focus and cancels with Esc
 
   await page.keyboard.press('Enter');
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'Create new project' }).click();
+  await dialog.getByRole('button', { name: 'New blank canvas' }).click();
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
 });
 

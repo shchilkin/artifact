@@ -176,6 +176,7 @@ export default function Editor() {
     redo,
     canUndo,
     canRedo,
+    undoCount,
     fromDocParam,
     fromBlankParam,
     isBlank,
@@ -277,7 +278,7 @@ export default function Editor() {
     docRef,
     onGraphChange: handleGraphChange,
   });
-  const { exportBusy, exportFeedback, dismissExportFeedback, handleNodeExport } = useEditorExport(
+  const { exportBusy, exportFeedback, dismissExportFeedback, handleNodeExport, retryExport } = useEditorExport(
     docRef,
     imageCache,
     exportRenderOptions,
@@ -374,9 +375,9 @@ export default function Editor() {
     if (
       !isBlank &&
       !(await confirm({
-        title: 'Create a new project?',
+        title: 'Start a new blank canvas?',
         description: 'Current work is kept as a recovery copy in Projects before the canvas is cleared.',
-        confirmLabel: 'Create new project',
+        confirmLabel: 'New blank canvas',
       }))
     ) {
       return;
@@ -493,6 +494,7 @@ export default function Editor() {
     onRedo: redo,
     canUndo,
     canRedo,
+    undoCount,
     onProjectsToggle: handleToggleProjects,
     onCopyLink: handleCopyLink,
     onOpenDocument: handleOpenDocumentPicker,
@@ -659,7 +661,7 @@ export default function Editor() {
               {dropError ?? documentFileError ?? modelFileError ?? environmentFileError}
             </EditorWorkflowNotice>
           )}
-          <EditorExportStatus feedback={exportFeedback} onRetry={handleNodeExport} onDismiss={dismissExportFeedback} />
+          <EditorExportStatus feedback={exportFeedback} onRetry={retryExport} onDismiss={dismissExportFeedback} />
         </main>
 
         <BottomBar {...bottomBarProps} />

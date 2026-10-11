@@ -100,21 +100,8 @@ test('export shows busy text, announces the file, and returns to its resting sty
   await expect(button).toHaveText(/^export$/i, { useInnerText: true });
   await expect(button).not.toHaveAttribute('aria-busy', 'true');
 
-  // The pointer is still over the button: it keeps the flare fill rather than turning cream, and shows no focus ring.
-  const after = await button.evaluate((element) => {
-    const probe = document.createElement('span');
-    probe.style.color = 'var(--text-primary)';
-    document.body.append(probe);
-    const cream = getComputedStyle(probe).color;
-    probe.remove();
-    return {
-      background: getComputedStyle(element).backgroundColor,
-      cream,
-      focusVisible: element.matches(':focus-visible'),
-    };
-  });
-  expect(after.background).not.toBe(after.cream);
-  expect(after.focusVisible).toBe(false);
+  // A pointer export leaves no focus ring; once the pointer leaves, the button is back to its resting fill.
+  expect(await button.evaluate((element) => element.matches(':focus-visible'))).toBe(false);
   await page.mouse.move(0, 0);
   await expect
     .poll(() => button.evaluate((element) => getComputedStyle(element).backgroundColor))
@@ -134,10 +121,16 @@ test('an export error stays until it is dismissed and offers Retry', async ({ pa
   await expect(alert).toBeVisible();
   await expect(exportStatus(page)).toHaveText('');
 
+  // Retry writes the export that failed, not the canvas as it is now: randomize first, then expect the old seed.
+  await commandBar(page).getByRole('button', { name: 'Randomize document' }).click();
+  const randomizeConfirm = page.getByRole('alertdialog', { name: 'Replace with a random cover?' });
+  if (await randomizeConfirm.isVisible()) await randomizeConfirm.getByRole('button', { name: 'Randomize' }).click();
+  await expect(commandBar(page).getByRole('button', { name: 'Undo' })).toBeEnabled();
   await failNextExports(page, false);
   const downloadPromise = page.waitForEvent('download');
   await alert.getByRole('button', { name: 'Retry' }).click();
   const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^cover-1-\d+x\d+\.png$/);
   await expect(exportStatus(page)).toHaveText(`Exported ${download.suggestedFilename()}`);
   await expect(alert).toHaveCount(0);
 

@@ -437,6 +437,7 @@ export default function DocsStyleGuide() {
               <Button variant="secondary">Secondary</Button>
               <Button variant="quiet">Quiet</Button>
               <Button variant="danger">Danger</Button>
+              <Button variant="danger-filled">Danger filled</Button>
               <Button variant="secondary" disabled>
                 Disabled
               </Button>

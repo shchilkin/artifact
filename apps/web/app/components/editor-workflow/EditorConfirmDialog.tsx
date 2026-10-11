@@ -90,12 +90,7 @@ export function EditorConfirmDialog({
           <Button ref={cancelRef} variant="quiet" disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button
-            className="editor-confirm-dialog__confirm"
-            variant={tone === 'danger' ? 'danger' : 'primary'}
-            loading={busy}
-            onClick={onConfirm}
-          >
+          <Button variant={tone === 'danger' ? 'danger-filled' : 'primary'} loading={busy} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </div>

@@ -9,6 +9,7 @@ import {
   checkTreeRowMovable,
   deleteTreeNodes,
   graphNodeConsumerCount,
+  graphNodeHasSourceBelow,
   type LayerAddPlacement,
   moveTreeRow,
   stepTreeRow,
@@ -120,9 +121,7 @@ export function useLayerTreeEditing({
         const one = shared.length === 1;
         const confirmed = await confirm({
           title: one ? `Delete shared ${sharedNames}?` : 'Delete shared nodes?',
-          description: one
-            ? `${sharedNames} is used in ${graphNodeConsumerCount(doc, shared[0])} places. Deleting it reconnects each place to the layer below it. You can undo this.`
-            : `${sharedNames} are each used in more than one place. Deleting them reconnects each place to the layer below it. You can undo this.`,
+          description: sharedDeleteDescription(doc, shared, sharedNames),
           confirmLabel: 'Delete',
           tone: 'danger',
         });
@@ -220,4 +219,20 @@ export function useLayerTreeEditing({
   );
 
   return { editing, menuItems, deleteRows, addPlacement, helpId, status, confirmDialog };
+}
+
+/** Plain copy for deleting shared nodes: where they are used, what each place gets instead, and that it can be undone. */
+function sharedDeleteDescription(doc: CanvasDocument, shared: string[], sharedNames: string) {
+  const withSource = shared.filter((id) => graphNodeHasSourceBelow(doc, id)).length;
+  if (shared.length === 1) {
+    const effect = withSource ? 'reconnects each place to the layer below it' : 'leaves those inputs empty';
+    return `${sharedNames} is used in ${graphNodeConsumerCount(doc, shared[0])} places. Deleting it ${effect}. You can undo this.`;
+  }
+  const effect =
+    withSource === shared.length
+      ? 'reconnects each place to the layer below it'
+      : withSource === 0
+        ? 'leaves those inputs empty'
+        : 'reconnects each place to the layer below it, or leaves the input empty where there is none';
+  return `${sharedNames} are each used in more than one place. Deleting them ${effect}. You can undo this.`;
 }

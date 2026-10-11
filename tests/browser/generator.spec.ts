@@ -2810,10 +2810,10 @@ test('new blank canvas action confirms before replacing current work', async ({ 
   await gotoDocument(page, lightDocument);
   await expectLayerCanvasToHavePixels(page);
 
-  await page.getByRole('button', { name: 'Create new project' }).click();
-  const confirm = page.getByRole('alertdialog', { name: 'Create a new project?' });
+  await page.getByRole('button', { name: 'New blank canvas' }).click();
+  const confirm = page.getByRole('alertdialog', { name: 'Start a new blank canvas?' });
   await expect(confirm).toContainText('recovery copy');
-  await confirm.getByRole('button', { name: 'Create new project' }).click();
+  await confirm.getByRole('button', { name: 'New blank canvas' }).click();
 
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expectCanvasCenterAlpha(page, 0);
