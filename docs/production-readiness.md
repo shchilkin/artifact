@@ -95,6 +95,61 @@ CI should run:
 
 ## Manual QA
 
+### v0.50.1 Release Prep
+
+- Package metadata is bumped to `0.50.1` in `package.json`,
+  `apps/web/package.json`, `apps/backoffice/package.json`, and
+  `package-lock.json`.
+- `docs/releases/v0.50.1.md` is prepared from the release template without a
+  visible internal checklist.
+- Delivery issues are merged into `development`: readable Nodes entry without
+  debug chrome (#442, #461), Layers tree actions (#443, #459), inspector help
+  and numeric limits (#444, #460), command bar, export feedback, and confirm
+  dialogs (#445, #463), load, focus, error, motion, and mobile-meta edges
+  (#446, #462), internal copy removal (#447, #458), and the post-merge
+  collision fix (#464).
+- The full release gate passed locally on 2026-10-11 against `development`
+  revision `6c8beea0a842fbe3e3b69a290f45d15e6a23c600` in a clean worktree after
+  `npm ci`: `npm run check`, `npm run build`, `npm run loading:gate`,
+  `npm run ux:gate`, `npm run test:browser:release`, and
+  `npm run perf:node-editor`. Locally, `format:check` flagged only a globally
+  git-ignored `.claude/settings.local.json` outside the repository's tracked
+  files; Biome passed on every tracked file.
+- The check includes 21 UI Foundation tests, 908 Web tests, 261 passing API
+  tests with 5 skipped, 11 Backoffice tests, 27 deployment tests, 20
+  route-loading contract tests, 18 editor UX contract tests, and 3
+  legacy-registry contract tests, plus formatting, lint, and all type checks.
+- The editor UX gate passed every budget with no exceptions in
+  `docs/editor-ux/editor-ux-contract.json`, including the new
+  `command-bar/firstEditMovePx` budget (0 px on desktop and mobile for both
+  documents). Every layout metric is 0 on desktop and mobile, and no nodes are
+  outside the viewport on Nodes entry. Local latency for `default` /
+  `effect-stack`: keypress to preview 15.0 / 11.9 ms (budget 50), drag
+  main-thread time 62.6 / 60.9 ms (160), drag settle 310.8 / 338.5 ms (700),
+  Nodes entry settle 645.6 / 652.0 ms (1200), Nodes slider settle 47.1 / 56.0
+  ms (100).
+- The route-loading gate kept every state within budget: before-render
+  JavaScript (gzip) is 131.3 KiB home, 119.3 KiB docs, 119.6 KiB account
+  recovery, 221.1 KiB Projects, 337.5 KiB blank editor, and 368.2 KiB style
+  guide; Nodes activation adds 121.1 KiB and first 3D activation 182.5 KiB.
+- The complete browser release gate scheduled 914 scenarios: 782 passed
+  without retry and 132 were intentional skips. No scenario needed a retry,
+  including the WebKit showcase-to-editor smoke (#435).
+- `npm run perf:node-editor` passed: drag, effect-control, and graph-pan
+  interactions produced no long tasks, with p95 frame times of 8.8-9.2 ms
+  (v0.50.0: 9.0-9.3 ms) against the preferred 50 ms budget.
+- `npm audit` reports 3 advisories in transitive dependencies published after
+  v0.50.0 (`proxy-addr` critical, `compression` high, `source-map-js` high).
+  The release does not change dependencies; the upgrade is tracked separately.
+- `grep` finds no `window.confirm` in `apps/web/app`.
+- Manual QA on a production preview at 1440x900 covered command-bar positions
+  across the first edit, the numeric clamp message, Nodes entry without
+  overlap or debug controls, and the malformed `?doc` notice.
+- Accepted release risks are listed in `docs/releases/v0.50.1.md`: the
+  Cmd+Z-only Undo tooltip, Nodes entry placement without an undo entry,
+  overlapping area frames, the pre-existing numeric-entry undo merge,
+  JavaScript budget headroom, and Nodes-only graph wiring.
+
 ### v0.50.0 Release Prep And Evidence
 
 - Package metadata is bumped to `0.50.0` in `package.json`,
