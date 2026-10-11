@@ -66,8 +66,9 @@ Current baseline, captured during the v0.27 planning slice:
 
 ## Debug Flags
 
-- Node performance overlay: `?debug=perf`, `?perf=1`, or
-  `localStorage.setItem('artifact-debug-perf', '1')`.
+- Node performance overlay: `?debug=perf` or `?perf=1`. The toolbar Metrics
+  toggle and the stored `localStorage.setItem('artifact-debug-perf', '1')`
+  preference apply only when the URL has `?debug` (any value) or `?perf=1`.
 - AI generation access/job diagnostics: `?debug=ai`, `?aiDebug=1`,
   `?debugAi=1`, `VITE_AI_DEBUG=1`, or
   `localStorage.setItem('artifact-debug-ai', '1')`.
