@@ -36,7 +36,7 @@ const ASSET_IMPORT_TIMEOUT_MS = 30_000;
 const AI_DEBUG_STORAGE_KEY = 'artifact-debug-ai';
 const AI_DEBUG_ENABLED_VALUES = new Set(['1', 'true', 'ai', 'all']);
 const ACCESS_ACTION_LABELS: Partial<Record<string, string>> = {
-  anonymous: 'Create account',
+  anonymous: 'Sign in',
   invalid_session: 'Sign in again',
 };
 
@@ -671,7 +671,7 @@ function AccessBanner({
   const checking = !access && !failed;
   return (
     <InspectorStatus
-      className={accessBannerClassName(accessCheck)}
+      className="ai-generation-access-banner"
       id="ai-generation-status"
       loading={checking}
       title={accessBannerTitle(access, accessBlockReason, accessCheck)}
@@ -680,12 +680,6 @@ function AccessBanner({
       {accessBannerBody(access, accessBlockReason, accessCheck, authSignedIn)}
     </InspectorStatus>
   );
-}
-
-function accessBannerClassName(accessCheck: AccessCheckState) {
-  return accessCheck.state === 'failed'
-    ? 'ai-generation-access-banner ai-generation-access-banner--failed'
-    : 'ai-generation-access-banner';
 }
 
 function accessBannerTitle(

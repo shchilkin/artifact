@@ -1,9 +1,7 @@
-import { useCallback, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useState } from 'react';
 import type { EffectLayer, EffectPreset } from '../../../types/config';
 import { EFFECT_PRESETS } from '../../../types/config';
 import { EFFECT_META } from '../../../utils/effectInfo';
-import { EffectInfoPopup } from '../../EffectInfoPopup';
 import { FIELD_RANGES } from '../../layer-controls/fieldDefs';
 import { BLEND_OPTIONS } from '../constants';
 import type { EffectSectionId } from '../types';
@@ -28,18 +26,6 @@ export function EffectInspector({
   detached?: boolean;
 }) {
   const [openSection, setOpenSection] = useState<EffectSectionId | null>(() => initialEffectSection(layer));
-  const [infoState, setInfoState] = useState<{ key: string; rect: DOMRect } | null>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  const handleInfoEnter = useCallback((key: string, rect: DOMRect) => {
-    clearTimeout(closeTimerRef.current);
-    setInfoState({ key, rect });
-  }, []);
-
-  const handleInfoLeave = useCallback(() => {
-    closeTimerRef.current = setTimeout(() => setInfoState(null), 150);
-  }, []);
-
   const showSection = (presets: readonly EffectPreset[]) => effectSectionVisible(layer.preset, presets);
 
   return (
@@ -55,8 +41,6 @@ export function EffectInspector({
         showSection={showSection}
         showControl={showSection}
         onChange={onChange}
-        onInfoEnter={handleInfoEnter}
-        onInfoLeave={handleInfoLeave}
       />
 
       <EffectNodeSection
@@ -64,12 +48,6 @@ export function EffectInspector({
         open={openSection === 'node'}
         onOpenChange={setOpenSection}
         onChange={onChange}
-      />
-
-      <EffectInfoPortal
-        infoState={infoState}
-        onInfoEnter={() => clearTimeout(closeTimerRef.current)}
-        onInfoLeave={handleInfoLeave}
       />
     </div>
   );
@@ -218,26 +196,4 @@ function EffectPresetControlNote({ preset }: { preset: EffectPreset | undefined 
 
 function effectPresetHasControls(preset: EffectPreset | undefined) {
   return !preset || EFFECT_CONTROL_PRESETS.includes(preset);
-}
-
-function EffectInfoPortal({
-  infoState,
-  onInfoEnter,
-  onInfoLeave,
-}: {
-  infoState: { key: string; rect: DOMRect } | null;
-  onInfoEnter: () => void;
-  onInfoLeave: () => void;
-}) {
-  if (!infoState || typeof document === 'undefined') return null;
-  return createPortal(
-    <EffectInfoPopup
-      effectKey={infoState.key}
-      anchorRect={infoState.rect}
-      sidebarRight={infoState.rect.right}
-      onMouseEnter={onInfoEnter}
-      onMouseLeave={onInfoLeave}
-    />,
-    document.body,
-  );
 }

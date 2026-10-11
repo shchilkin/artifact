@@ -192,6 +192,9 @@ still consume the same tokens:
   registered before the first message, and it ignores pointer events. Use it
   where an inline notice would push rows the person is dragging or
   navigating; otherwise use an inline `EditorWorkflowNotice`.
+  Numeric entry's clamp message ("Max 100%", `InspectorSlider`) uses the same
+  overlay, laid over the slider track inside the row so a section's clipped
+  edge never cuts it off.
 - `EditorExportStatus`: export feedback laid over the workspace. A success
   `EditorWorkflowNotice` stays mounted as the status region and announces the
   downloaded file name; an export error stays until Dismiss or Retry. The

@@ -123,3 +123,29 @@ test('configured account overlay preserves auth states, keyboard focus, and reco
   await expect(successDialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Sign Out' })).toBeVisible();
 });
+
+test('signed-out AI gate offers Sign in and opens the account panel', async ({ page }) => {
+  await page.route('**/api/auth/**', (route) =>
+    route.fulfill({ body: 'null', contentType: 'application/json', status: 200 }),
+  );
+  await page.route('**/api/ai/access', (route) =>
+    route.fulfill({
+      body: JSON.stringify({ authenticated: false, enabled: false, disabledReason: 'anonymous', providers: [] }),
+      contentType: 'application/json',
+    }),
+  );
+
+  await page.goto('/app?new=blank');
+  await page.locator('.empty-canvas-start').getByRole('button', { name: 'AI image' }).click();
+
+  const panel = page.locator('.ai-generation-panel');
+  const gate = panel.locator('.ai-generation-access-banner');
+  await expect(gate).toContainText('Account required for AI');
+  await expect(gate).toHaveAttribute('data-inspector-status', 'info');
+  const signIn = panel.getByRole('button', { name: 'Sign in', exact: true });
+  await expect(signIn).toBeVisible();
+
+  await signIn.focus();
+  await signIn.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible();
+});

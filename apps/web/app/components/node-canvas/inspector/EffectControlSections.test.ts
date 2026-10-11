@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { EFFECT_PRESET_MENU_ORDER } from '../../../types/config';
+import { EFFECT_META } from '../../../utils/effectInfo';
 import {
   activeIndexedPaletteCount,
   EFFECT_SECTION_DEFINITIONS,
@@ -195,5 +196,26 @@ describe('EffectControlSections metadata', () => {
     expect(patch.indexedColorA).toBe('#09001f');
     expect(patch.indexedPalette).toBeUndefined();
     expect(patch.indexedPaletteCount).toBeUndefined();
+  });
+});
+
+describe('effect help limits', () => {
+  const sliders = EFFECT_SECTION_DEFINITIONS.flatMap((section) => section.controls).filter(
+    (control): control is EffectSliderControl => control.type === 'slider',
+  );
+  const helpFor = (control: EffectSliderControl) => EFFECT_META[control.effectKey ?? control.field]?.description ?? '';
+
+  it('promises typing past the slider only for controls whose entry accepts it, naming the control and its limits', () => {
+    for (const control of sliders) {
+      const description = helpFor(control);
+      if (!/\btyp(e|ing)\b|\bbeyond\b|\bpast\b|\bmanual\b|\bslider\b|\brange\b/i.test(description)) continue;
+      expect(description.toLowerCase(), `${control.field} help must name its control`).toContain(
+        control.label.toLowerCase(),
+      );
+      const promise = description.match(/up to (\d+).*slider stops at (\d+)/);
+      expect(promise, `${control.field}: ${description}`).not.toBeNull();
+      expect(control.overrideMax, control.field).toBe(Number(promise?.[1]));
+      expect(control.max, control.field).toBe(Number(promise?.[2]));
+    }
   });
 });

@@ -1,5 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import type { EffectLayer, EffectNumericField, EffectPreset } from '../../../types/config';
+import { hasEffectInfo } from '../../../utils/effectInfo';
+import { EffectInfoContent } from '../../EffectInfoContent';
 import {
   COLOR_PRESETS,
   GLITCH_PRESETS,
@@ -955,12 +957,10 @@ interface Props {
   showSection: (presets: readonly EffectPreset[]) => boolean;
   showControl: (presets: readonly EffectPreset[]) => boolean;
   onChange: (patch: Partial<EffectLayer>) => void;
-  onInfoEnter: (key: string, rect: DOMRect) => void;
-  onInfoLeave: () => void;
 }
 
 function renderControl(control: EffectControl, props: Props) {
-  const { layer, showControl, onChange, onInfoEnter, onInfoLeave } = props;
+  const { layer, showControl, onChange } = props;
   if (!showControl(control.presets)) return null;
 
   if (control.type === 'color') {
@@ -985,9 +985,7 @@ function renderControl(control: EffectControl, props: Props) {
       formatValue={(value) => formatEffectSliderValue(value, control.valueFormat)}
       unit={effectSliderUnit(control.valueFormat)}
       overrideMax={control.overrideMax}
-      effectKey={effectKey}
-      onInfoEnter={onInfoEnter}
-      onInfoLeave={onInfoLeave}
+      help={hasEffectInfo(effectKey) ? <EffectInfoContent effectKey={effectKey} /> : undefined}
       onChange={(value) => onChange({ [control.field]: value } as Partial<EffectLayer>)}
     />
   );

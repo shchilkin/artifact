@@ -41,3 +41,16 @@ export function parseEntry(text: string, range: SliderEntryRange): number | null
 export function formatEntry(value: number, range: Pick<SliderEntryRange, 'min' | 'step'>): string {
   return String(Number(value.toFixed(sliderPrecision(range))));
 }
+
+/**
+ * Names the limit a typed value was clamped to, such as `Max 100` or `Min 0`, or `null` when the text is in range
+ * or not a number.
+ */
+export function entryLimitMessage(text: string, range: SliderEntryRange, unit = ''): string | null {
+  if (text.trim() === '') return null;
+  const typed = Number(text);
+  if (!Number.isFinite(typed)) return null;
+  if (typed > range.max) return `Max ${formatEntry(range.max, range)}${unit}`;
+  if (typed < range.min) return `Min ${formatEntry(range.min, range)}${unit}`;
+  return null;
+}
