@@ -65,7 +65,7 @@ export default function DocsReference() {
         </div>
         <SearchField
           aria-label="Search node reference"
-          placeholder="Search mask, line field, grain, export..."
+          placeholder="Search mask, line field, grain, export…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onClear={() => setQuery('')}

@@ -241,7 +241,7 @@ function logBearerTokenClaims(token: string | undefined) {
 function shortId(id: string | undefined) {
   if (!id) return null;
   if (id.length <= 12) return id;
-  return `${id.slice(0, 8)}...${id.slice(-4)}`;
+  return `${id.slice(0, 8)}…${id.slice(-4)}`;
 }
 
 function yesNo(value: boolean | null | undefined) {
@@ -491,7 +491,7 @@ function AiDeveloperDiagnostics({
       <div className="ai-generation-dev-diagnostics-header">
         <span>AI diagnostics</span>
         <button type="button" onClick={onRetryAccess} disabled={accessCheck.state === 'checking'}>
-          {accessCheck.state === 'checking' ? 'Checking' : 'Retry'}
+          {accessCheck.state === 'checking' ? 'Checking…' : 'Retry'}
         </button>
       </div>
       <div className="ai-generation-dev-diagnostics-rows">
@@ -694,7 +694,7 @@ function accessBannerTitle(
   accessCheck: AccessCheckState,
 ) {
   if (access) return disabledReasonTitle(accessBlockReason);
-  return accessCheck.state === 'failed' ? 'AI API unavailable' : 'Checking AI access';
+  return accessCheck.state === 'failed' ? 'AI API unavailable' : 'Checking AI access…';
 }
 
 function accessBannerBody(

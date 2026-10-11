@@ -116,7 +116,7 @@ describe('Artifact inspector system contract', () => {
     expect(html).toContain('aria-describedby="opacity-description opacity-state opacity-error"');
     expect(html).toContain('aria-errormessage="opacity-error"');
     expect(html).toContain('>Edited<');
-    expect(html).toContain('>Checking<');
+    expect(html).toContain('>Checking…<');
     expect(html).toContain('data-inspector-status="success"');
     expect(html).toContain('ui-inline-notice--success');
     expect(html).toContain('role="status"');

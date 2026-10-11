@@ -88,7 +88,7 @@ test('docs research page supports search and type filtering', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Four paths.' })).toBeVisible();
   await expect(page.locator('.docs-workflow-guide')).toHaveCount(4);
 
-  await page.getByPlaceholder('Search effects, export, fonts, nodes...').fill('noise');
+  await page.getByPlaceholder('Search effects, export, fonts, nodes…').fill('noise');
   await expect(page.locator('.docs-search-result')).toHaveCount(10);
 
   await page.getByText('Filter results by type').click();
@@ -98,7 +98,7 @@ test('docs research page supports search and type filtering', async ({ page }) =
 
   await page.goto('/docs/reference');
   await expect(page.getByRole('heading', { name: 'Reference.' })).toBeVisible();
-  await page.getByPlaceholder('Search mask, line field, grain, export...').fill('line');
+  await page.getByPlaceholder('Search mask, line field, grain, export…').fill('line');
   await expect(page.locator('.docs-reference-row[href="/docs/reference/lineField"]')).toBeVisible();
   await page.locator('.docs-reference-row[href="/docs/reference/lineField"]').click();
   await expect(page).toHaveURL(/\/docs\/reference\/lineField$/);

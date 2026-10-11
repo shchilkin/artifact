@@ -2417,9 +2417,7 @@ test('graph-only utility properties show area and output context without lock co
   await expect(targetHeader).toContainText('Nodes / Utility');
   await expect(targetHeader).toContainText('Area: Area 1');
   await expect(targetHeader).toContainText('Output path');
-  await expect(targetHeader).toContainText(
-    'Graph-only utility nodes can be deleted or moved; durable locking is reserved for layer-backed targets in v0.28.',
-  );
+  await expect(targetHeader).toContainText("Utility nodes can't be locked.");
   await expect(nodePropsPanel.getByRole('checkbox', { name: 'Locked', exact: true })).toHaveCount(0);
 });
 
@@ -3578,7 +3576,7 @@ test.describe('AI provider failure flow', () => {
 
     await expect(panel).toContainText('Provider timed out.', { timeout: 15_000 });
     await expect(panel.locator('.ai-generation-feedback')).toHaveClass(/ui-inline-notice--danger/);
-    await expect(panel.locator('.ai-generation-diagnostics')).toContainText('browser-...-job');
+    await expect(panel.locator('.ai-generation-diagnostics')).toContainText('browser-…-job');
     await expect(panel.locator('.ai-generation-diagnostics')).toContainText('provider_unavailable');
     await expect(panel.getByRole('button', { name: 'Retry Prompt' })).toBeVisible();
     await expect(panel.getByRole('button', { name: 'Recover Asset' })).toHaveCount(0);

@@ -578,7 +578,7 @@ export function ModelViewport3D({
     : loadFailure
       ? sourceLoadStatus(layer, loadFailure)
       : !hasRenderedFrame
-        ? 'Loading 3D model'
+        ? 'Loading 3D model…'
         : '3D model ready';
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!interactive || locked) return;

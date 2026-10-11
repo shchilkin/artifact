@@ -443,6 +443,12 @@ until the migration is complete.
 - **Banned public copy**: agent workflow, migration notes, QA strategy, release
   notes, test names, and broad labels that characterize the final work as a
   whole.
+- **Versions**: UI copy never names a release version ("v0.28"). Describe the
+  behaviour instead.
+- **Ellipsis**: use the typographic "…", never "...". Placeholders that invite
+  input ("Search fonts…") and in-progress status words ("Loading…",
+  "Exporting image…") end with "…". Full sentences end with a period.
+  `apps/web/app/utils/userCopyBoundary.test.ts` enforces these rules.
 
 ## 6. Implementation Rules
 

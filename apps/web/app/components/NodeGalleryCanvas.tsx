@@ -339,7 +339,7 @@ export function NodeGalleryCanvas({
       </div>
       {renderState === 'loading' && (
         <div className="node-gallery-status node-gallery-status--loading">
-          <Skeleton label="Loading gallery preview" shape="block" />
+          <Skeleton label="Loading gallery preview…" shape="block" />
         </div>
       )}
       {renderState === 'failed' && (

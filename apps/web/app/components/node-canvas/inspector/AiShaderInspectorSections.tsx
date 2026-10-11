@@ -114,7 +114,7 @@ function AiShaderAccessStatus({ generation }: { generation: AiShaderGeneration }
   const check = generation.aiAccess;
   if (check.status === 'checking') {
     return (
-      <ShaderStatusMessage title="Checking AI access" message="Confirming what this account can create." tone="info" />
+      <ShaderStatusMessage title="Checking AI access…" message="Confirming what this account can create." tone="info" />
     );
   }
   if (check.status === 'error') {
@@ -274,7 +274,7 @@ function refineSummary(refining: boolean, instruction: string) {
 }
 
 function refineActionLabel(refining: boolean) {
-  return refining ? 'Refining...' : 'Refine with AI';
+  return refining ? 'Refining…' : 'Refine with AI';
 }
 
 export function AiShaderControlsSection({
