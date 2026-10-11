@@ -8,6 +8,7 @@ import type {
 import { useCallback, useEffect, useRef } from 'react';
 import type { CanvasGraph, GraphEdge } from '../../../types/config';
 import type { AddAction } from '../../../utils/addActions';
+import { isEditableKeyTarget } from '../../../utils/editableKeyTarget';
 import { EXPORT_NODE_ID, graphUtilityNodeKind, removeGraphEdge } from '../../../utils/nodeGraph';
 import type { NodeCanvasMachineEvent } from '../machine';
 import type { ContextMenuState, InsertConnectionConfig } from '../types';
@@ -38,13 +39,6 @@ export interface UseNodeContextMenusResult {
   onConnectStart: (event: MouseEvent | TouchEvent, params: OnConnectStartParams) => void;
   onConnectEnd: (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => void;
   handleAddFromMenu: (action: AddAction, flowPos: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
-}
-
-const EDITABLE_KEYBOARD_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
-
-function isEditableKeyboardTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  return EDITABLE_KEYBOARD_TAGS.has(target.tagName) || target.isContentEditable;
 }
 
 function getDeletableNodeIds(ids: string[], canDeleteNode: ((id: string) => boolean) | undefined) {
@@ -153,7 +147,7 @@ function handleDeleteShortcut(
   },
 ) {
   if (!isDeleteShortcutKey(event.key)) return;
-  if (isEditableKeyboardTarget(event.target)) return;
+  if (isEditableKeyTarget(event.target)) return;
   if (deleteSelectedCanvasItems(options)) event.preventDefault();
 }
 

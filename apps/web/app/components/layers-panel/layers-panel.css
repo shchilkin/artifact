@@ -1935,6 +1935,52 @@
   }
 }
 
+/*
+ * Touch: row actions have no hover to reveal them, so they stay visible. Every row control gets a
+ * 44 px hit area (style-guide touch target) from a centered pseudo-element, so its visual size
+ * stays the same. Leaf carets are spacers, not controls.
+ */
+@media (pointer: coarse) {
+  .layer-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  .layer-row-action,
+  .layer-row-drag-handle,
+  .layer-tree-caret:not(.layer-tree-caret-leaf),
+  .layer-area-folder-toggle,
+  .layer-area-rename,
+  .layer-area-remove,
+  .layer-area-visibility {
+    position: relative;
+  }
+
+  .layer-row-action::before,
+  .layer-row-drag-handle::before,
+  .layer-tree-caret:not(.layer-tree-caret-leaf)::before,
+  .layer-area-folder-toggle::before,
+  .layer-area-rename::before,
+  .layer-area-remove::before,
+  .layer-area-visibility::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, var(--touch));
+    height: max(100%, var(--touch));
+    transform: translate(-50%, -50%);
+  }
+
+  .layer-area-folder-header,
+  .layer-tree-folder-row,
+  .layer-tree-node-row,
+  .layer-tree-reference-row {
+    min-height: var(--touch);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .layer-tree-caret {
     transition: none;
