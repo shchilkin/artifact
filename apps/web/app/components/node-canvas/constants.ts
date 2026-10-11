@@ -8,6 +8,8 @@ export const NODE_W = 320;
 export const NODE_H = 360;
 export const THUMB_SIZE = 280;
 export const EDGE_INTERCEPT_THRESHOLD = 56;
+/** Fit options that center one node, shared by Edit in Nodes and the toolbar Output action. */
+export const FOCUS_NODE_FIT_OPTIONS = { padding: 0.42, maxZoom: 0.95 };
 export const THUMB_DEBOUNCE_MS = 120;
 
 export const KIND_COLOR: Record<string, string> = {

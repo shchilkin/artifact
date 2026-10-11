@@ -121,10 +121,10 @@ export default function Editor() {
   const [documentImportBusy, setDocumentImportBusy] = useState(false);
   const [recoveryCopyFailed, setRecoveryCopyFailed] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
-  // Node that Edit in Nodes centers on entry; switching modes from the view switch clears it.
-  const [nodeEntryFocusId, setNodeEntryFocusId] = useState<string | null>(null);
+  // Node that Edit in Nodes centers on entry, for the document it was chosen in. The view switch clears it.
+  const [nodeEntryFocus, setNodeEntryFocus] = useState<{ sessionId: number; nodeId: string } | null>(null);
   const handleViewModeChange = useCallback((mode: ViewMode) => {
-    setNodeEntryFocusId(null);
+    setNodeEntryFocus(null);
     setViewMode(mode);
   }, []);
   const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
@@ -359,10 +359,10 @@ export default function Editor() {
   const handleEditInNodes = useCallback(
     (nodeId: string) => {
       setSelectedLayerId(nodeId);
-      setNodeEntryFocusId(nodeId);
+      setNodeEntryFocus({ sessionId: documentSessionId, nodeId });
       setViewMode('nodes');
     },
-    [setSelectedLayerId],
+    [documentSessionId, setSelectedLayerId],
   );
 
   const handleStartAiImage = useCallback(() => {
@@ -609,7 +609,7 @@ export default function Editor() {
                   key={documentSessionId}
                   doc={doc}
                   initialViewport={nodeViewport?.sessionId === documentSessionId ? nodeViewport.viewport : null}
-                  entryFocusNodeId={nodeEntryFocusId}
+                  entryFocusNodeId={nodeEntryFocus?.sessionId === documentSessionId ? nodeEntryFocus.nodeId : null}
                   onViewportChange={handleNodeViewportChange}
                   imageCache={imageCache}
                   initialPrimitiveViewStates={effectivePrimitiveViewStates}

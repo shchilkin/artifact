@@ -9,7 +9,7 @@ export interface EntryLayoutRect {
   height: number;
 }
 
-const UNPOSITIONED_BLOCK_GAP = 96;
+const PLACED_BLOCK_GAP = 96;
 
 /**
  * Positions for graph nodes that have none, decided before Nodes first paints. Returns null when every node already
@@ -23,21 +23,51 @@ export function layoutUnpositionedNodes(graph: CanvasGraph, layers: Layer[], asp
   const organized = organizeGraph(graph, layers, aspect).positions;
   const stored = nodeIds.flatMap((id) => graph.positions[id] ?? []);
   if (stored.length === 0) return { ...graph, positions: organized };
+  return placeBelow(graph, organized, missing, {
+    left: Math.min(...stored.map((p) => p.x)),
+    bottom: Math.max(...stored.map((p) => p.y)) + estimateNodeHeight(aspect),
+  });
+}
 
-  const placed = missing.flatMap((id) => (organized[id] ? [{ id, position: organized[id] }] : []));
-  const offsetX = Math.min(...stored.map((p) => p.x)) - Math.min(...placed.map(({ position }) => position.x));
-  const top = Math.max(...stored.map((p) => p.y)) + estimateNodeHeight(aspect) + UNPOSITIONED_BLOCK_GAP;
-  const offsetY = top - Math.min(...placed.map(({ position }) => position.y));
+/**
+ * Moves only measured node cards that intersect a card already kept in place. Cards are kept in render order, so a
+ * card that overlaps nothing never moves. Moved cards keep their auto-layout arrangement and are placed below the
+ * kept cards. Returns null when no cards intersect.
+ */
+export function resolveOverlappingNodes(
+  graph: CanvasGraph,
+  layers: Layer[],
+  aspect: AspectRatio,
+  rects: EntryLayoutRect[],
+): CanvasGraph | null {
+  const kept: EntryLayoutRect[] = [];
+  const moved: string[] = [];
+  for (const rect of rects) {
+    if (kept.some((other) => rectsIntersect(rect, other))) moved.push(rect.id);
+    else kept.push(rect);
+  }
+  if (moved.length === 0) return null;
+  return placeBelow(graph, organizeGraph(graph, layers, aspect).positions, moved, {
+    left: Math.min(...kept.map((rect) => rect.x)),
+    bottom: Math.max(...kept.map((rect) => rect.y + rect.height)),
+  });
+}
+
+function placeBelow(
+  graph: CanvasGraph,
+  organized: CanvasGraph['positions'],
+  ids: string[],
+  anchor: { left: number; bottom: number },
+): CanvasGraph {
+  const placed = ids.flatMap((id) => (organized[id] ? [{ id, position: organized[id] }] : []));
+  const offsetX = anchor.left - Math.min(...placed.map(({ position }) => position.x));
+  const offsetY = anchor.bottom + PLACED_BLOCK_GAP - Math.min(...placed.map(({ position }) => position.y));
   const positions = { ...graph.positions };
   for (const { id, position } of placed) positions[id] = { x: position.x + offsetX, y: position.y + offsetY };
   return { ...graph, positions };
 }
 
-/** True when any two node rectangles share area. Touching edges do not count. */
-export function nodeRectsIntersect(rects: EntryLayoutRect[]): boolean {
-  return rects.some((a, index) => rects.slice(index + 1).some((b) => rectsIntersect(a, b)));
-}
-
+/** Touching edges do not count as intersecting. */
 function rectsIntersect(a: EntryLayoutRect, b: EntryLayoutRect) {
   return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 }

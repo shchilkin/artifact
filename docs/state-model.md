@@ -270,11 +270,16 @@ Expected behavior:
 - A wheel-scale gesture creates one undo entry after idle.
 - Graph node movement creates one undo entry on drag stop.
 - Selection, hover, menus, camera lock toggles, and gallery view changes do not need undo unless promoted to durable document features.
-- Auto layout on Nodes entry (nodes with no stored position, or measured cards that
-  intersect) is `silent`: it persists the positions but adds no undo entry, like
-  graph bootstrap. It repairs an unreadable first view rather than recording a
-  creative decision, and undo past it only returns to a state that is laid out
-  again on the next entry. The toolbar Layout action stays an undoable edit.
+- Node placement on Nodes entry (nodes with no stored position, and measured
+  cards that intersect a card kept in place) is `silent`: it adds no undo entry,
+  like graph bootstrap, because it repairs an unreadable first view rather than
+  recording a creative decision. Cards that overlap nothing never move. The
+  toolbar Layout action stays an undoable edit.
+- Entry placement is document content. It writes `graph.positions` into the
+  document and its autosaved `doc` copy, and a stack document that had no
+  `graph` gains one through the existing bootstrap. The persistence format does
+  not change. Undo to a snapshot taken before an entry can bring back
+  unplaced or overlapping positions; the next entry places them again.
 
 ## Thumbnail invalidation rules
 

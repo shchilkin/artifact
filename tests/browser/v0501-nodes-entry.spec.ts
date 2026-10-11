@@ -1,6 +1,14 @@
 import { expect, type Page, test } from '@playwright/test';
 import type { CanvasDocument } from '../../apps/web/app/types/config';
-import { expectNoBrowserIssues, gotoDocument, setupBrowserTestPage, switchToNodeView } from './helpers';
+import {
+  clickEditorControl,
+  editorDocumentFixture,
+  expectNoBrowserIssues,
+  fillLayerFixture,
+  gotoDocument,
+  setupBrowserTestPage,
+  switchToNodeView,
+} from './helpers';
 import { layersTreeDocument } from './layersTreeFixture';
 
 // v0.50.1 #442 (EP-01, EP-03): Nodes opens as a readable, clickable graph and ships no debug chrome.
@@ -26,6 +34,36 @@ function withPositions(positions: Record<string, { x: number; y: number }>): Can
 
 function flowNode(page: Page, id: string) {
   return page.locator(`.react-flow__node[data-id="${id}"]`);
+}
+
+async function nodeSizes(page: Page) {
+  return page
+    .locator('.react-flow__node')
+    .evaluateAll((nodes) =>
+      nodes.map((node) => `${node.getAttribute('data-id')} ${node.getBoundingClientRect().height}`),
+    );
+}
+
+function storedPositionsOf(page: Page, ids: string[]) {
+  return storedPositions(page).then((positions) => Object.fromEntries(ids.map((id) => [id, positions[id]])));
+}
+
+/** Every node card lies inside the visible graph pane. */
+async function expectGraphFitted(page: Page) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const pane = document.querySelector('.react-flow')?.getBoundingClientRect();
+          if (!pane) return -1;
+          return [...document.querySelectorAll('.react-flow__node')].filter((node) => {
+            const rect = node.getBoundingClientRect();
+            return rect.left < pane.left || rect.right > pane.right || rect.top < pane.top || rect.bottom > pane.bottom;
+          }).length;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(0);
 }
 
 async function intersectingNodePairs(page: Page) {
@@ -76,12 +114,60 @@ test('entering Nodes lays out a graph without stored positions, with no overlap 
   await expect(page.getByRole('button', { name: 'Undo' }).first()).toBeDisabled();
 });
 
-test('entering Nodes relays out stored positions whose cards intersect', async ({ page }) => {
+/** Records each graph viewport transform that is shown while the viewport is visible. */
+function recordVisibleViewportTransforms(page: Page) {
+  return page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { __visibleViewportTransforms: string[] }).__visibleViewportTransforms = seen;
+    const record = () => {
+      const viewport = document.querySelector<HTMLElement>('.react-flow__viewport');
+      if (!viewport || getComputedStyle(viewport).visibility === 'hidden') return;
+      if (seen.at(-1) !== viewport.style.transform) seen.push(viewport.style.transform);
+    };
+    new MutationObserver(record).observe(document.body, { attributes: true, childList: true, subtree: true });
+  });
+}
+
+test('entering Nodes relays out stored positions whose cards intersect, with one visible fit', async ({ page }) => {
   await gotoDocument(page, withPositions(Object.fromEntries(NODE_IDS.map((id) => [id, { x: 0, y: 0 }]))));
+  await recordVisibleViewportTransforms(page);
   await switchToNodeView(page);
 
   await expectReadableGraph(page);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __visibleViewportTransforms: string[] }).__visibleViewportTransforms,
+    ),
+  ).toHaveLength(1);
   await expect(page.getByRole('button', { name: 'Undo' }).first()).toBeDisabled();
+});
+
+test('entering Nodes moves only overlapping cards and keeps the rest of a mixed graph in place', async ({ page }) => {
+  const fine = NODE_IDS.slice(0, 7);
+  const stacked = NODE_IDS.slice(7);
+  const positions = Object.fromEntries([
+    ...fine.map((id, index) => [id, { x: (index % 4) * 520, y: Math.floor(index / 4) * 620 }] as const),
+    ...stacked.map((id) => [id, { x: 2600, y: 0 }] as const),
+  ]);
+  await gotoDocument(page, withPositions(positions));
+  await switchToNodeView(page);
+
+  await expectReadableGraph(page);
+  await expectGraphFitted(page);
+  expect(await storedPositionsOf(page, fine)).toEqual(Object.fromEntries(fine.map((id) => [id, positions[id]])));
+  await expect(page.getByRole('button', { name: 'Undo' }).first()).toBeDisabled();
+});
+
+test('node cards keep their measured size after previews settle, so the entry check holds', async ({ page }) => {
+  await gotoDocument(page, layersTreeDocument);
+  await switchToNodeView(page);
+  await expectReadableGraph(page);
+
+  const sizes = await nodeSizes(page);
+  await expect(page.locator('.node-thumbnail-canvas').first()).toBeAttached({ timeout: 15_000 });
+  await page.waitForTimeout(1_500);
+  expect(await nodeSizes(page)).toEqual(sizes);
+  expect(await intersectingNodePairs(page)).toEqual([]);
 });
 
 test('entering Nodes never moves stored positions that do not overlap', async ({ page }) => {
@@ -134,22 +220,58 @@ test('Edit in Nodes selects and centers the target node, uncovered', async ({ pa
   await expectNodeUncovered(page, 'tree-glow');
 });
 
+test('loading another document in Nodes after Edit in Nodes fits the new graph', async ({ page }) => {
+  // Wider than the pane at 100%, so only a fit shows every node.
+  const other = editorDocumentFixture(
+    Array.from({ length: 6 }, (_, index) =>
+      fillLayerFixture({ id: `other-${index}`, name: `Other ${index}`, color: '#224466' }),
+    ),
+  );
+  await gotoDocument(page, other);
+  await clickEditorControl(page.locator('.project-workspace-button').first());
+  const projects = page.getByRole('dialog', { name: 'PROJECTS' });
+  await projects.getByLabel('Project name').fill('Entry Other');
+  await projects.getByRole('button', { name: 'CREATE PROJECT' }).click();
+  await expect(projects.getByRole('button', { name: 'Load Entry Other' })).toHaveCount(1);
+  await projects.getByRole('button', { name: 'Close projects' }).click();
+
+  await gotoDocument(page, layersTreeDocument);
+  const glow = page.getByRole('tree', { name: 'Layer tree' }).getByRole('treeitem', { name: /^Glow, merge group/ });
+  await expect(glow).toBeVisible({ timeout: 15_000 });
+  await glow.click();
+  await glow.focus();
+  await page.keyboard.press('Shift+F10');
+  await page.getByRole('menuitem', { name: 'Edit in Nodes' }).click();
+  await expect(flowNode(page, 'tree-glow')).toHaveClass(/selected/, { timeout: 15_000 });
+
+  await clickEditorControl(page.locator('.project-workspace-button').first());
+  await page.getByRole('dialog', { name: 'PROJECTS' }).getByRole('button', { name: 'Load Entry Other' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Open Entry Other?' })
+    .getByRole('button', { name: 'Open project' })
+    .click();
+
+  await expect(flowNode(page, 'other-5')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.react-flow__node')).toHaveCount(7);
+  await expectGraphFitted(page);
+});
+
 test('the Nodes toolbar has no debug controls without ?debug and keeps the account action apart', async ({ page }) => {
   await gotoDocument(page, layersTreeDocument);
   await switchToNodeView(page);
 
   const toolbar = page.getByRole('toolbar', { name: 'Node editor actions' });
-  await expect(toolbar.getByRole('button', { name: 'Add node' })).toBeVisible();
+  await expect(
+    toolbar.getByRole('group', { name: 'Build actions' }).getByRole('button', { name: 'Add node' }),
+  ).toBeVisible();
+  await expect(toolbar.getByRole('group', { name: 'Debug actions' })).toHaveCount(0);
   await expect(toolbar.getByText(/Metrics|Debug/)).toHaveCount(0);
   await expect(toolbar.locator('[aria-label*="debug" i], [aria-label*="metrics" i]')).toHaveCount(0);
   await expect(toolbar.locator('.node-toolbar-group-debug')).toHaveCount(0);
   await expect(page.locator('.node-perf-grid')).toHaveCount(0);
   const account = toolbar.locator('.node-toolbar-account');
   if ((await account.count()) > 0) {
-    await expect(account.locator('xpath=ancestor::div[contains(@class, "node-toolbar-group")][1]')).toHaveAttribute(
-      'aria-label',
-      'Account',
-    );
+    await expect(toolbar.getByRole('group', { name: 'Account' }).locator('.node-toolbar-account')).toHaveCount(1);
   }
 });
 
@@ -157,7 +279,9 @@ test('?debug keeps the performance overlay toggle', async ({ page }) => {
   await gotoDocument(page, layersTreeDocument, 'debug=perf');
   await switchToNodeView(page);
 
-  const debugGroup = page.getByRole('toolbar', { name: 'Node editor actions' }).locator('[aria-label="Debug actions"]');
+  const debugGroup = page
+    .getByRole('toolbar', { name: 'Node editor actions' })
+    .getByRole('group', { name: 'Debug actions' });
   await expect(debugGroup.getByRole('button', { name: /performance debug overlay/ })).toBeVisible();
   await expect(debugGroup.locator('.node-toolbar-account')).toHaveCount(0);
 });

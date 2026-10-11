@@ -132,9 +132,11 @@ passes.
 
 The node editor also has a local debug overlay:
 
-- Open the generator with `?debug=perf` / `?perf=1`.
-- With any `?debug` value, click `Metrics` in the node-canvas toolbar. The
-  toggle is not shown without `?debug`.
+- Open the generator with `?debug=perf` or `?perf=1` to start with the overlay
+  on.
+- With any `?debug` value or `?perf=1`, click `Metrics` in the node-canvas
+  toolbar. Without either, the toggle is not shown and a stored
+  `artifact-debug-perf=1` preference has no effect.
 
 The overlay shows FPS, p95/max frame time, long-task count, node count, browser
 heap when available, thumbnail queue timing, and render-worker timing. When

@@ -1398,6 +1398,11 @@
   pointer-events: none;
 }
 
+/* Nodes entry places overlapping nodes and fits once; the graph stays hidden until then. */
+.node-canvas-flow-entry-pending .react-flow__viewport {
+  visibility: hidden;
+}
+
 .node-toolbar-group {
   pointer-events: all;
   display: flex;

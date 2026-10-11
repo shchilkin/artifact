@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { type CanvasGraph, makeFillLayer, makeGraphMergeNode } from '../../types/config';
 import { EXPORT_NODE_ID, estimateNodeHeight, organizeGraph } from '../../utils/nodeGraph';
-import { layoutUnpositionedNodes, nodeRectsIntersect } from './entryLayout';
+import { layoutUnpositionedNodes, resolveOverlappingNodes } from './entryLayout';
 
 const layers = [makeFillLayer({ id: 'a', name: 'A' }), makeFillLayer({ id: 'b', name: 'B' })];
 
@@ -47,14 +47,28 @@ describe('layoutUnpositionedNodes', () => {
   });
 });
 
-describe('nodeRectsIntersect', () => {
-  const rect = (id: string, x: number, y: number) => ({ id, x, y, width: 100, height: 100 });
-
-  it('detects overlapping rectangles', () => {
-    expect(nodeRectsIntersect([rect('a', 0, 0), rect('b', 50, 50)])).toBe(true);
+describe('resolveOverlappingNodes', () => {
+  const card = (id: string, x: number, y: number) => ({ id, x, y, width: 320, height: 400 });
+  const stored = graph({
+    a: { x: 0, y: 0 },
+    b: { x: 100, y: 100 },
+    m: { x: 600, y: 0 },
+    [EXPORT_NODE_ID]: { x: 1200, y: 0 },
   });
 
-  it('ignores separate and edge-touching rectangles', () => {
-    expect(nodeRectsIntersect([rect('a', 0, 0), rect('b', 100, 0), rect('c', 0, 200)])).toBe(false);
+  it('returns null when no cards intersect', () => {
+    const rects = [card('a', 0, 0), card('b', 0, 500), card('m', 600, 0), card(EXPORT_NODE_ID, 1200, 0)];
+    expect(resolveOverlappingNodes(stored, layers, '1:1', rects)).toBeNull();
+  });
+
+  it('moves only the card that overlaps a kept card, below every kept card', () => {
+    const rects = [card('a', 0, 0), card('b', 100, 100), card('m', 600, 0), card(EXPORT_NODE_ID, 1200, 0)];
+    const positions = resolveOverlappingNodes(stored, layers, '1:1', rects)?.positions;
+
+    expect(positions?.a).toEqual({ x: 0, y: 0 });
+    expect(positions?.m).toEqual({ x: 600, y: 0 });
+    expect(positions?.[EXPORT_NODE_ID]).toEqual({ x: 1200, y: 0 });
+    expect(positions?.b?.x).toBe(0);
+    expect(positions?.b?.y).toBeGreaterThanOrEqual(400);
   });
 });

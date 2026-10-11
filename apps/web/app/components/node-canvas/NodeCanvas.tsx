@@ -39,7 +39,6 @@ import {
   connectedPortIds,
   EXPORT_NODE_ID,
   inferLinearGraph,
-  organizeGraph,
   removeGraphEdge,
   resolveOutputPath,
 } from '../../utils/nodeGraph';
@@ -57,12 +56,13 @@ import { Toolbar, ToolbarButton } from '../ui/Toolbar';
 import { getEmptyGraphAreas } from './areas/areaBounds';
 import { GraphAreaEmptyStateOverlay, GraphAreaOverlay } from './areas/GraphAreaOverlay';
 import { buildRFNodes } from './buildRFNodes';
-import { EDGE_INTERCEPT_THRESHOLD } from './constants';
+import { EDGE_INTERCEPT_THRESHOLD, FOCUS_NODE_FIT_OPTIONS } from './constants';
 import { NodeCanvasActionsContext, NodeCanvasPreviewContext, useNodeCanvasPreview } from './context';
 import { NodePerformanceOverlay } from './debug/NodePerformanceOverlay';
 import { resolveNearestEdgeInsertionTarget, resolveNodeInsertionTarget } from './graphInsertion';
 import { useNodeAddLibraryDropHint } from './hooks/useNodeAddLibraryDropHint';
 import { useNodeAreaActions } from './hooks/useNodeAreaActions';
+import { useNodeCanvasEntry } from './hooks/useNodeCanvasEntry';
 import { useNodeContextMenus } from './hooks/useNodeContextMenus';
 import { useNodeDragState } from './hooks/useNodeDragState';
 import { useNodeGallery } from './hooks/useNodeGallery';
@@ -74,7 +74,7 @@ import { nodeCanvasMachine } from './machine';
 import { EdgeContextMenu } from './menus/EdgeContextMenu';
 import { NodeContextMenu } from './menus/NodeContextMenu';
 import { PaneContextMenu } from './menus/PaneContextMenu';
-import { FOCUS_NODE_FIT_OPTIONS, NodeEntryViewport, useUnpositionedNodeLayout } from './NodeEntryViewport';
+import { NodeEntryViewport } from './NodeEntryViewport';
 import type { NodeAlignmentGuide } from './nodeAlignment';
 import {
   ColorNodeComponent,
@@ -184,7 +184,6 @@ export function NodeCanvas({
   useLayoutEffect(() => {
     graphRef.current = graph;
   }, [graph]);
-  useUnpositionedNodeLayout(doc, graph, onGraphChange);
 
   const connected = useMemo(() => connectedPortIds(graph), [graph]);
   const outputPath = useMemo(() => resolveOutputPath(graph), [graph]);
@@ -312,11 +311,16 @@ export function NodeCanvas({
     [graph, outputPath.edgeIds, selectedEdgeId],
   );
   const graphEmpty = baseNodes.every((node) => node.id === EXPORT_NODE_ID);
-  // Decided once per entry. A graph with only the Output node is not fitted, so the fit does not stay queued and
-  // jump the viewport when the first node is added.
-  const [entryViewport] = useState(() => initialViewport ?? undefined);
-  const [fitOnEntry] = useState(() => !initialViewport && !graphEmpty);
-  const [focusNodeIdOnEntry] = useState(() => entryFocusNodeId ?? null);
+  const { entryViewport, entryPending, entryViewportProps } = useNodeCanvasEntry({
+    doc,
+    graph,
+    graphRef,
+    baseNodes,
+    graphEmpty,
+    initialViewport,
+    entryFocusNodeId,
+    onGraphChange,
+  });
 
   const {
     dragNodes,
@@ -513,11 +517,6 @@ export function NodeCanvas({
   const handleJumpToOutput = useCallback(() => {
     void rfInstanceRef.current?.fitView({ ...FOCUS_NODE_FIT_OPTIONS, nodes: [{ id: EXPORT_NODE_ID }], duration: 220 });
   }, []);
-  const relayoutOnEntry = useCallback(() => {
-    const organized = organizeGraph(graphRef.current, doc.layers, doc.global.aspect);
-    onGraphChange(organized, 'silent');
-    return organized.positions;
-  }, [doc.global.aspect, doc.layers, onGraphChange]);
 
   const handleToggleSelectedLayerVisibility = useCallback(() => {
     const selectedLayers = selectedNodeIds
@@ -626,7 +625,7 @@ export function NodeCanvas({
             <NodePreviewProgress />
 
             <ReactFlow
-              className="node-canvas-flow"
+              className={entryPending ? 'node-canvas-flow node-canvas-flow-entry-pending' : 'node-canvas-flow'}
               nodes={dragNodes}
               edges={displayedDragEdges}
               onNodesChange={handleNodesChange}
@@ -646,7 +645,6 @@ export function NodeCanvas({
               onEdgeClick={onEdgeClick}
               isValidConnection={isValidConnection}
               onInit={onRFInit}
-              fitView={fitOnEntry && !focusNodeIdOnEntry}
               fitViewOptions={RF_FIT_VIEW_OPTIONS}
               defaultViewport={entryViewport}
               onMove={onMove}
@@ -680,12 +678,7 @@ export function NodeCanvas({
                 <NodeAlignmentGuideOverlay guides={alignmentGuides} />
               </ViewportPortal>
               <Controls className="node-canvas-viewport-controls" showInteractive={false} />
-              <NodeEntryViewport
-                focusNodeId={focusNodeIdOnEntry}
-                fitViewOptions={RF_FIT_VIEW_OPTIONS}
-                nodes={dragNodes}
-                onRelayout={relayoutOnEntry}
-              />
+              <NodeEntryViewport {...entryViewportProps} fitViewOptions={RF_FIT_VIEW_OPTIONS} nodes={dragNodes} />
             </ReactFlow>
             {graphEmpty ? (
               <div className="node-canvas-empty-overlay" data-canvas-chrome-state="empty-graph">
@@ -1347,7 +1340,7 @@ function NodeCanvasToolbar({
 }) {
   return (
     <Toolbar className="node-canvas-toolbar" aria-label="Node editor actions" data-canvas-chrome-state="toolbar">
-      <div className="node-toolbar-group node-toolbar-group-build" aria-label="Build actions">
+      <div className="node-toolbar-group node-toolbar-group-build" role="group" aria-label="Build actions">
         <span className="node-toolbar-group-label" aria-hidden="true">
           Build
         </span>
@@ -1367,7 +1360,7 @@ function NodeCanvasToolbar({
           />
         ) : null}
       </div>
-      <div className="node-toolbar-group" aria-label="View actions">
+      <div className="node-toolbar-group" role="group" aria-label="View actions">
         <span className="node-toolbar-group-label" aria-hidden="true">
           View
         </span>
@@ -1377,7 +1370,7 @@ function NodeCanvasToolbar({
         </ToolbarButton>
       </div>
       {perfDebugAvailable ? (
-        <div className="node-toolbar-group node-toolbar-group-debug" aria-label="Debug actions">
+        <div className="node-toolbar-group node-toolbar-group-debug" role="group" aria-label="Debug actions">
           <span className="node-toolbar-group-label" aria-hidden="true">
             Debug
           </span>
@@ -1438,7 +1431,7 @@ function NodeToolbarAccountGroup({ auth }: { auth: ReturnType<typeof useArtifact
   if (!auth.configured) return null;
   const copy = accountButtonCopy(auth);
   return (
-    <div className="node-toolbar-group" aria-label="Account">
+    <div className="node-toolbar-group" role="group" aria-label="Account">
       <ToolbarButton className="node-toolbar-account" onClick={copy.onClick} disabled={!auth.loaded}>
         {copy.label}
       </ToolbarButton>
