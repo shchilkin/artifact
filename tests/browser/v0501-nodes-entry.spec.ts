@@ -292,6 +292,20 @@ test('the Nodes toolbar has no debug controls without ?debug and keeps the accou
   }
 });
 
+test('the ?doc link notice leaves the Nodes toolbar clickable with the inspector open', async ({ page }) => {
+  await gotoDocument(page, layersTreeDocument);
+  await switchToNodeView(page);
+  await flowNode(page, 'tree-glow').click();
+  await expect(page.locator('.node-props-panel-open')).toBeVisible();
+
+  const notice = page.getByRole('status').filter({ hasText: 'Opened from link.' });
+  await expect(notice).toBeVisible();
+  const toolbar = page.getByRole('toolbar', { name: 'Node editor actions' });
+  const [noticeBox, toolbarBox] = await Promise.all([notice.boundingBox(), toolbar.boundingBox()]);
+  expect(noticeBox && toolbarBox && noticeBox.x + noticeBox.width <= toolbarBox.x).toBe(true);
+  await toolbar.getByRole('button', { name: 'Add node' }).click({ trial: true, timeout: 5_000 });
+});
+
 test('?debug keeps the performance overlay toggle', async ({ page }) => {
   await gotoDocument(page, layersTreeDocument, 'debug=perf');
   await switchToNodeView(page);

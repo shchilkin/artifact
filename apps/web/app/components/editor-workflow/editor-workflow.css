@@ -227,6 +227,14 @@
   transform: translateX(-50%);
 }
 
+/* In desktop Nodes the right-anchored toolbar can reach the center, so the notice sits at the top left of the graph. */
+@media (min-width: 768px) {
+  .app-nodes > .editor-workflow-notice--link {
+    left: var(--space-4);
+    transform: none;
+  }
+}
+
 .editor-workflow-notice--link.ui-inline-notice--info {
   color: var(--text-secondary);
 }
