@@ -26,7 +26,7 @@ export function getLayerGuardrailState(layer: Layer | null | undefined): LayerGu
     canReorder: !locked,
     canEditControls: true,
     canToggleVisibility: true,
-    reason: locked ? 'Locked layer targets are protected from delete actions and layer-stack reorder.' : null,
+    reason: locked ? "Locked layers can't be moved or deleted." : null,
   };
 }
 

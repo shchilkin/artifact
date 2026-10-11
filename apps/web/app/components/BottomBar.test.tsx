@@ -35,6 +35,9 @@ describe('BottomBar command semantics', () => {
     expect(html).toContain('aria-label="Project and export actions"');
     expect(html).toContain('aria-label="Exporting artwork"');
     expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('Exporting…');
+    expect(html).not.toContain('bottom-command-badge');
+    expect(html).toContain('title="Undo (Cmd+Z), 2 steps available"');
     expect(html).toContain('aria-label="Projects. Local workspace has warnings. WARN"');
   });
 });

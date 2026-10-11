@@ -1,3 +1,4 @@
+import { Button } from '@artifact/ui';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   type AspectRatio,
@@ -275,7 +276,13 @@ function selectedGraphOnlyNode(doc: CanvasDocument, id: string | null) {
   return found && found.kind !== 'scene3d' ? found.node : null;
 }
 
-function GraphNodeInspectorNotice({ node }: { node: { name: string } | null }) {
+function GraphNodeInspectorNotice({
+  node,
+  onEditInNodes,
+}: {
+  node: { id: string; name: string } | null;
+  onEditInNodes?: (nodeId: string) => void;
+}) {
   if (!node) return null;
   return (
     <>
@@ -284,6 +291,13 @@ function GraphNodeInspectorNotice({ node }: { node: { name: string } | null }) {
         className="layer-inspector-empty-state"
         title={node.name}
         body="This node's settings are edited in Nodes."
+        actions={
+          onEditInNodes ? (
+            <Button variant="primary" onClick={() => onEditInNodes(node.id)}>
+              Edit in Nodes
+            </Button>
+          ) : undefined
+        }
       />
     </>
   );
@@ -393,7 +407,7 @@ export function Sidebar({
       >
         {!hasInspectorContent && <InspectorEmptyState hasLayers={doc.layers.length > 0} />}
         {/* The notice stands in for the empty state; an open AI panel is the relevant content instead. */}
-        <GraphNodeInspectorNotice node={showAiGeneration ? null : selectedGraphNode} />
+        <GraphNodeInspectorNotice node={showAiGeneration ? null : selectedGraphNode} onEditInNodes={onEditInNodes} />
         <AiImageSection
           aspect={doc.global.aspect ?? '1:1'}
           show={showAiGeneration}

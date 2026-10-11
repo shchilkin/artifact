@@ -74,7 +74,7 @@ test('mobile Layers commands and Add Library filters keep 44px targets and reada
   await expectMinimumTarget(page.getByRole('button', { name: /Change canvas aspect ratio/ }));
   await expectMinimumTarget(page.getByRole('button', { name: 'Add layer' }));
 
-  const newProject = page.getByRole('button', { name: 'Create new project' });
+  const newProject = page.getByRole('button', { name: 'New blank canvas' });
   const randomize = page.getByRole('button', { name: 'Randomize document' });
   expect(await renderedContrastRatio(newProject)).toBeGreaterThanOrEqual(4.5);
   expect(await renderedContrastRatio(randomize)).toBeGreaterThanOrEqual(4.5);

@@ -15,7 +15,7 @@ Artifact's print-like visual language.
 | --- | --- |
 | One source of truth | Reused control sizing, typography, borders, focus rings, shadows, and state colors belong in tokens or shared primitives. |
 | Product-shaped primitives | Prefer Foundation `Button` / `ButtonLink` plus product-owned `SearchField`, `Panel`, `LayerRow`, `NodeFrame`, and `InspectorField` over generic wrappers that callers restyle each time. |
-| Explicit variants | Use named variants such as `primary`, `secondary`, `quiet`, `danger`, `selected`, `locked`, and `hidden`; avoid ad hoc boolean combinations. |
+| Explicit variants | Use named variants such as `primary`, `secondary`, `quiet`, `danger`, `danger-filled`, `selected`, `locked`, and `hidden`; avoid ad hoc boolean combinations. |
 | Accessible mechanics, Artifact visuals | Radix/shadcn can provide behavior and accessibility, but Artifact tokens define the appearance. |
 | Style guide before broad migration | New or migrated primitives should be visible in a deterministic style-guide route before broad editor adoption. |
 | UI copy is product copy | Internal migration plans, QA strategy, release-plan notes, and agent workflow text live in `docs/`, not in app surfaces. |
@@ -180,7 +180,12 @@ still consume the same tokens:
 - `EditorTargetHeader`
 - `EditorConfirmDialog` (replacing and destructive editor actions; modal,
   Cancel takes initial focus, Escape cancels; `useEditorConfirm` for
-  promise-style callers)
+  promise-style callers). Use `tone: 'danger'` for deletes (a project, a
+  shared node) and for replacing work that neither undo nor a recovery copy
+  brings back (opening a project over unsaved changes); it confirms with the
+  shared `danger-filled` Button variant. Replacements that undo or a recovery
+  copy restore, such as Randomize or New blank canvas, keep the default tone. `--state-danger` stays
+  at least 10° of hue from the flare accent.
 - `EditorWorkflowNotice` laid over a panel (`LayerTreeEditStatus`): the
   shared `InlineNotice` used as a non-shifting overlay for transient edit
   feedback. It stays mounted while empty, so its status live region is
@@ -190,13 +195,17 @@ still consume the same tokens:
   Numeric entry's clamp message ("Max 100%", `InspectorSlider`) uses the same
   overlay, laid over the slider track inside the row so a section's clipped
   edge never cuts it off.
+- `EditorExportStatus`: export feedback laid over the workspace. A success
+  `EditorWorkflowNotice` stays mounted as the status region and announces the
+  downloaded file name; an export error stays until Dismiss or Retry. The
+  `EXPORT` button keeps one width for its idle and busy ("Exporting…") labels.
 
 ### Route-Level Style Guide
 
 The deterministic internal route for the visual UI catalog is
 `/docs/style-guide`. It should show:
 
-- buttons: primary, secondary, quiet, danger, disabled, icon-only
+- buttons: primary, secondary, quiet, danger, danger filled, disabled, icon-only
 - inputs: default, search, focused, disabled, error
 - tabs and segmented controls
 - sheets/dialogs/floating menus

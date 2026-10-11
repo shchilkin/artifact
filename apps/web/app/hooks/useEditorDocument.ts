@@ -71,7 +71,7 @@ import {
 import {
   createBlankDocument,
   createDocumentShareUrl,
-  getInitialDocument,
+  getInitialDocumentState,
   isBlankDocument,
   normalizeDocument,
   removeDocParamFromUrl,
@@ -100,7 +100,8 @@ function isUndoShortcut(event: KeyboardEvent) {
 }
 
 export function useEditorDocument(nodeModeEnabled: boolean) {
-  const [doc, _setDoc] = useState<CanvasDocument>(getInitialDocument);
+  const [initialDocumentState] = useState(getInitialDocumentState);
+  const [doc, _setDoc] = useState<CanvasDocument>(initialDocumentState.doc);
   // Changes when the whole document is replaced (load, starter, new blank), so per-document UI state can reset.
   const [documentSessionId, setDocumentSessionId] = useState(0);
   const [documentSaveStatus, setDocumentSaveStatus] = useState<DocumentSaveStatus>({ ok: true });
@@ -640,6 +641,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     canRedo: future.length > 0,
     undoCount: past.length,
     fromDocParam,
+    documentLinkStatus: initialDocumentState.linkStatus,
     fromBlankParam,
     isBlank: isBlankDocument(doc),
     documentSaveStatus,

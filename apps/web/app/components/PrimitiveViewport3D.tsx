@@ -562,7 +562,7 @@ function PrimitiveViewportShell({
       />
       <Viewport3DStatusOverlay
         status={status}
-        label={status === 'loading' ? 'Loading 3D preview' : '3D preview unavailable'}
+        label={status === 'loading' ? 'Loading 3D preview…' : '3D preview unavailable'}
         recovery="The source frame stays available. Check WebGL support to restore the live camera."
       />
     </div>

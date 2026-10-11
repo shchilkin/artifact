@@ -227,6 +227,7 @@ export function FontPicker({
             accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"
             className="sr-only"
             aria-label="Import font"
+            tabIndex={-1}
             onChange={(event) => void handleImportFont(event.target.files?.[0])}
           />
           <button className="font-picker-import" type="button" onClick={() => importInputRef.current?.click()}>
@@ -237,7 +238,7 @@ export function FontPicker({
               className="font-picker-search node-field"
               value={googleFontInput}
               aria-label="Import Google font"
-              placeholder="Google family or CSS URL..."
+              placeholder="Google family or CSS URL…"
               onChange={(event) => setGoogleFontInput(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') void handleImportGoogleFont();
@@ -260,7 +261,7 @@ export function FontPicker({
             className="font-picker-search node-field"
             value={query}
             aria-label="Search fonts"
-            placeholder="Search fonts..."
+            placeholder="Search fonts…"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Escape') setOpen(false);
