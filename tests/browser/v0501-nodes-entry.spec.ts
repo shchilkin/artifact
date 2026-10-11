@@ -91,6 +91,27 @@ async function expectReadableGraph(page: Page) {
   for (const id of NODE_IDS) await flowNode(page, id).click({ trial: true, timeout: 5_000 });
 }
 
+async function expectNodeSelectedAndCentered(page: Page, id: string) {
+  const node = flowNode(page, id);
+  await expect(node).toHaveClass(/selected/, { timeout: 15_000 });
+  await expect
+    .poll(
+      async () => {
+        const pane = await page.locator('.react-flow').boundingBox();
+        const box = await node.boundingBox();
+        if (!pane || !box) return Number.POSITIVE_INFINITY;
+        return Math.max(
+          Math.abs(box.x + box.width / 2 - (pane.x + pane.width / 2)),
+          Math.abs(box.y + box.height / 2 - (pane.y + pane.height / 2)),
+        );
+      },
+      { timeout: 15_000 },
+    )
+    .toBeLessThan(24);
+  expect(await intersectingNodePairs(page)).toEqual([]);
+  await expectNodeUncovered(page, id);
+}
+
 /** The node's center is on screen and hits the node itself, not a node drawn over it. */
 async function expectNodeUncovered(page: Page, id: string) {
   const hitsNode = await flowNode(page, id).evaluate((node) => {
@@ -200,24 +221,20 @@ test('Edit in Nodes selects and centers the target node, uncovered', async ({ pa
   await page.keyboard.press('Shift+F10');
   await page.getByRole('menuitem', { name: 'Edit in Nodes' }).click();
 
-  const node = flowNode(page, 'tree-glow');
-  await expect(node).toHaveClass(/selected/, { timeout: 15_000 });
-  await expect
-    .poll(
-      async () => {
-        const pane = await page.locator('.react-flow').boundingBox();
-        const box = await node.boundingBox();
-        if (!pane || !box) return Number.POSITIVE_INFINITY;
-        return Math.max(
-          Math.abs(box.x + box.width / 2 - (pane.x + pane.width / 2)),
-          Math.abs(box.y + box.height / 2 - (pane.y + pane.height / 2)),
-        );
-      },
-      { timeout: 15_000 },
-    )
-    .toBeLessThan(24);
-  expect(await intersectingNodePairs(page)).toEqual([]);
-  await expectNodeUncovered(page, 'tree-glow');
+  await expectNodeSelectedAndCentered(page, 'tree-glow');
+});
+
+test('Edit in Nodes from the Layers inspector selects and centers the node', async ({ page }) => {
+  await gotoDocument(page, layersTreeDocument);
+  const pattern = page.getByRole('tree', { name: 'Layer tree' }).getByRole('treeitem', { name: 'Pattern, repeat' });
+  await expect(pattern).toBeVisible({ timeout: 15_000 });
+  await pattern.click();
+  await page
+    .getByRole('complementary', { name: 'Layer settings' })
+    .getByRole('button', { name: 'Edit in Nodes' })
+    .click();
+
+  await expectNodeSelectedAndCentered(page, 'tree-pattern');
 });
 
 test('loading another document in Nodes after Edit in Nodes fits the new graph', async ({ page }) => {
@@ -231,7 +248,7 @@ test('loading another document in Nodes after Edit in Nodes fits the new graph',
   await clickEditorControl(page.locator('.project-workspace-button').first());
   const projects = page.getByRole('dialog', { name: 'PROJECTS' });
   await projects.getByLabel('Project name').fill('Entry Other');
-  await projects.getByRole('button', { name: 'CREATE PROJECT' }).click();
+  await projects.getByRole('button', { name: 'SAVE CURRENT CANVAS' }).click();
   await expect(projects.getByRole('button', { name: 'Load Entry Other' })).toHaveCount(1);
   await projects.getByRole('button', { name: 'Close projects' }).click();
 
