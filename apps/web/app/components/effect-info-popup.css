@@ -2,10 +2,10 @@
 
 /* ─── EFFECT INFO POPUP ──────────────────────────── */
 
-.ui-popover-content.artifact-inspector-help {
-  width: min(240px, calc(100vw - 24px));
-  padding: 0;
-  overflow: hidden;
+/* Slider help sizes the shared popover through its theme properties rather than overriding the foundation class. */
+.artifact-inspector-help {
+  --ui-popover-width: 240px;
+  --ui-popover-padding: 0;
 }
 
 .effect-popup__image-wrap {

@@ -182,7 +182,7 @@ export const EFFECT_META: Record<string, EffectMeta> = {
   speedLines: {
     title: 'Speed Lines',
     description:
-      'Thin white manga motion streaks from center. Type up to 300 for denser bursts; the slider stops at 140.',
+      'Thin white manga motion streaks from center. Type a Speed Lines value up to 300 for denser bursts; the slider stops at 140.',
     valueLabel: 'density 90',
     cfgOverride: { speedLines: 90 },
   },

@@ -1,7 +1,5 @@
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@artifact/ui';
 import {
   type ComponentPropsWithoutRef,
-  createContext,
   type ReactNode,
   useContext,
   useEffect,
@@ -9,13 +7,13 @@ import {
   useRef,
   useState,
 } from 'react';
-
 import { createCoalescedCommit } from '../../../../utils/coalescedCommit';
 import { PREVIEW_FRAME_INTERVAL_MS } from '../../../../utils/interactionTiming';
+import { EditorWorkflowNotice } from '../../../editor-workflow/EditorWorkflowNotice';
 import { PropertyRow } from '../../../inspector-system';
 import { stopNodeEvent } from '../../helpers';
-import { NoPan } from '../../nodes/NoPan';
 import { InspectorTargetContext } from './inspectorTargetContext';
+import { SliderHelp, SliderHelpTrigger } from './SliderHelp';
 import { entryLimitMessage, formatEntry, parseEntry } from './sliderEntry';
 
 /**
@@ -103,92 +101,6 @@ export function InspectorSlider({
   );
 }
 
-type HelpOpen = 'hover' | 'pinned' | null;
-
-const HELP_HOVER_CLOSE_MS = 150;
-
-/**
- * Help beside a slider row. Hovering the "About …" button previews it; a click, Enter, or Space keeps it open until
- * the button is pressed again, Escape, or a press outside. It is anchored to the whole row, so it sits beside the
- * control it explains instead of over it.
- */
-function SliderHelp({ label, content, children }: { label: string; content: ReactNode; children: ReactNode }) {
-  const [open, setOpen] = useState<HelpOpen>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(closeTimer.current), []);
-  const hover = {
-    enter: () => {
-      clearTimeout(closeTimer.current);
-      setOpen((current) => current ?? 'hover');
-    },
-    leave: () => {
-      clearTimeout(closeTimer.current);
-      closeTimer.current = setTimeout(
-        () => setOpen((current) => (current === 'hover' ? null : current)),
-        HELP_HOVER_CLOSE_MS,
-      );
-    },
-  };
-  return (
-    <SliderHelpContext.Provider value={{ open, setOpen, hover }}>
-      <Popover open={open !== null} onOpenChange={(next) => setOpen(next ? 'pinned' : null)}>
-        <PopoverAnchor asChild>{children}</PopoverAnchor>
-        <PopoverContent
-          className="artifact-inspector-help"
-          side={helpSide()}
-          align="start"
-          aria-label={`About ${label}`}
-          onOpenAutoFocus={(event) => {
-            // A hover preview must not take focus from where the person is working.
-            if (open === 'hover') event.preventDefault();
-          }}
-          onEscapeKeyDown={(event) => {
-            // Escape closes the help only, not the selection or panel around it.
-            event.stopPropagation();
-          }}
-          onMouseEnter={hover.enter}
-          onMouseLeave={hover.leave}
-        >
-          {content}
-        </PopoverContent>
-      </Popover>
-    </SliderHelpContext.Provider>
-  );
-}
-
-const SliderHelpContext = createContext<{
-  open: HelpOpen;
-  setOpen: (open: HelpOpen) => void;
-  hover: { enter: () => void; leave: () => void };
-} | null>(null);
-
-/** Beside the row where there is room; below it on narrow screens, where the side would cover the row. */
-function helpSide(): 'left' | 'bottom' {
-  if (typeof window === 'undefined') return 'left';
-  return window.matchMedia('(max-width: 767px)').matches ? 'bottom' : 'left';
-}
-
-function SliderHelpTrigger({ label }: { label: string }) {
-  const help = useContext(SliderHelpContext);
-  if (!help) return null;
-  return (
-    <PopoverTrigger
-      asChild
-      onClick={(event) => {
-        // A press pins the help, or closes it when it is already pinned; it never closes a hover preview.
-        event.preventDefault();
-        help.setOpen(help.open === 'pinned' ? null : 'pinned');
-      }}
-      onMouseEnter={help.hover.enter}
-      onMouseLeave={help.hover.leave}
-    >
-      <NoPan as="button" type="button" className="artifact-inspector-info" aria-label={`About ${label}`}>
-        i
-      </NoPan>
-    </PopoverTrigger>
-  );
-}
-
 function SliderInputs({
   id,
   'aria-describedby': ariaDescribedBy,
@@ -219,6 +131,7 @@ function SliderInputs({
   value: number;
   valueText?: string;
 }) {
+  const limit = useEntryLimitMessage();
   return (
     <div className="node-slider-row">
       <input
@@ -253,7 +166,17 @@ function SliderInputs({
         disabled={disabled}
         onChange={onChange}
         onCommit={onCommit}
+        onLimit={limit.show}
       />
+      {/* Laid over the slider track, so the message never moves the rows or gets clipped by a section edge. It stays
+          mounted while empty so its live region is registered before the first message. */}
+      <EditorWorkflowNotice
+        className="artifact-inspector-entry-limit"
+        variant="info"
+        data-visible={limit.message ? 'true' : 'false'}
+      >
+        {limit.message ?? ''}
+      </EditorWorkflowNotice>
     </div>
   );
 }
@@ -276,6 +199,7 @@ function NumericEntry({
   disabled,
   onChange,
   onCommit,
+  onLimit,
 }: {
   label: string;
   value: number;
@@ -286,27 +210,21 @@ function NumericEntry({
   disabled?: boolean;
   onChange: (value: number) => void;
   onCommit: () => void;
+  /** Reports the limit a committed value was clamped to, or `null` when it was in range. */
+  onLimit: (message: string | null) => void;
 }) {
   const [text, setText] = useState<string | null>(null);
-  const limit = useEntryLimitMessage();
   const range = { min, max, step };
   const commit = () => {
     if (text === null) return;
     const next = parseEntry(text, range);
     if (next !== null && next !== value) onChange(next);
-    limit.show(entryLimitMessage(text, range, unit));
+    onLimit(entryLimitMessage(text, range, unit));
     setText(null);
     onCommit();
   };
   return (
     <span className="artifact-inspector-number">
-      <span
-        className="artifact-inspector-number__limit"
-        role="status"
-        data-visible={limit.message ? 'true' : undefined}
-      >
-        {limit.message}
-      </span>
       <input
         className="node-slider-number nodrag nopan nowheel"
         type="number"
@@ -343,6 +261,9 @@ function NumericEntry({
   );
 }
 
+/** Gap between clearing the live region and the next message, so the same limit typed twice is announced twice. */
+const ENTRY_LIMIT_REANNOUNCE_MS = 50;
+
 function useEntryLimitMessage() {
   const [message, setMessage] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -351,8 +272,12 @@ function useEntryLimitMessage() {
     message,
     show: (next: string | null) => {
       clearTimeout(timer.current);
-      setMessage(next);
-      if (next) timer.current = setTimeout(() => setMessage(null), ENTRY_LIMIT_MESSAGE_MS);
+      setMessage(null);
+      if (!next) return;
+      timer.current = setTimeout(() => {
+        setMessage(next);
+        timer.current = setTimeout(() => setMessage(null), ENTRY_LIMIT_MESSAGE_MS);
+      }, ENTRY_LIMIT_REANNOUNCE_MS);
     },
   };
 }

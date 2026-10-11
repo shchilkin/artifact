@@ -671,7 +671,7 @@ function AccessBanner({
   const checking = !access && !failed;
   return (
     <InspectorStatus
-      className={accessBannerClassName(accessCheck)}
+      className="ai-generation-access-banner"
       id="ai-generation-status"
       loading={checking}
       title={accessBannerTitle(access, accessBlockReason, accessCheck)}
@@ -680,12 +680,6 @@ function AccessBanner({
       {accessBannerBody(access, accessBlockReason, accessCheck, authSignedIn)}
     </InspectorStatus>
   );
-}
-
-function accessBannerClassName(accessCheck: AccessCheckState) {
-  return accessCheck.state === 'failed'
-    ? 'ai-generation-access-banner ai-generation-access-banner--failed'
-    : 'ai-generation-access-banner';
 }
 
 function accessBannerTitle(

@@ -45,6 +45,17 @@ const helpDocument = editorDocumentFixture([
     rayInt: 40,
     rays: 12,
   },
+  {
+    id: 'h-bloom',
+    name: 'Bloom',
+    kind: 'effect',
+    visible: true,
+    locked: false,
+    opacity: 100,
+    blendMode: 'normal',
+    preset: 'bloom',
+    bloom: 30,
+  },
 ]);
 
 test.beforeEach(async ({ page }) => {
@@ -68,7 +79,46 @@ async function selectLayer(page: Page, id: string): Promise<Locator> {
   return inspector;
 }
 
-function overlaps(a: { x: number; y: number; width: number; height: number }, b: typeof a) {
+type Box = { x: number; y: number; width: number; height: number };
+
+/** Whether the element is drawn in full: inside the viewport and not cut off by any ancestor that clips. */
+function fullyVisible(locator: Locator) {
+  return locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return false;
+    if (rect.left < 0 || rect.top < 0 || rect.right > innerWidth || rect.bottom > innerHeight) return false;
+    for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+      const style = getComputedStyle(parent);
+      if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+      const clip = parent.getBoundingClientRect();
+      if (rect.left < clip.left || rect.top < clip.top || rect.right > clip.right || rect.bottom > clip.bottom) {
+        return false;
+      }
+    }
+    return Number(getComputedStyle(element).opacity) > 0;
+  });
+}
+
+async function expectHelpBesideRow(page: Page, inspector: Locator, label: string) {
+  const help = page.getByRole('dialog', { name: `About ${label}` });
+  await expect(help).toBeVisible();
+  const row = inspector
+    .locator('[data-inspector-property-row="true"]')
+    .filter({ has: page.getByRole('button', { name: `About ${label}` }) });
+  const [helpBox, rowBox, inspectorBox] = await Promise.all([
+    help.boundingBox(),
+    row.boundingBox(),
+    inspector.boundingBox(),
+  ]);
+  if (!helpBox || !rowBox || !inspectorBox) throw new Error('help, row, or inspector has no box');
+  expect(overlaps(helpBox, rowBox), 'help must not cover its own row').toBe(false);
+  expect(helpBox.x + helpBox.width, 'help must open beside the inspector, not over it').toBeLessThanOrEqual(
+    inspectorBox.x + 1,
+  );
+  expect(helpBox.x).toBeGreaterThanOrEqual(0);
+}
+
+function overlaps(a: Box, b: Box) {
   return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 }
 
@@ -76,9 +126,6 @@ test('effect help opens on click, Enter, and Space, closes on Escape, and sits b
   await gotoDocument(page, helpDocument);
   const inspector = await selectLayer(page, 'h-rays');
   const trigger = inspector.getByRole('button', { name: 'About Intensity' });
-  const row = inspector
-    .locator('[data-inspector-property-row="true"]')
-    .filter({ has: page.getByRole('button', { name: 'About Intensity' }) });
   const help = page.getByRole('dialog', { name: 'About Intensity' });
 
   await trigger.focus();
@@ -86,10 +133,7 @@ test('effect help opens on click, Enter, and Space, closes on Escape, and sits b
   await expect(help).toBeVisible();
   await expect(help).toContainText('Ray Intensity');
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-
-  const helpBox = await help.boundingBox();
-  const rowBox = await row.boundingBox();
-  expect(helpBox && rowBox && overlaps(helpBox, rowBox), 'help must not cover its own row').toBe(false);
+  await expectHelpBesideRow(page, inspector, 'Intensity');
 
   await page.keyboard.press('Escape');
   await expect(help).toBeHidden();
@@ -127,6 +171,7 @@ test('numeric entry names the limit it clamped to and records one undo step', as
   await entry.press('Enter');
   await expect(entry).toHaveValue('100');
   await expect(limit).toHaveText('Max 100%');
+  expect(await fullyVisible(limit)).toBe(true);
   await expectStoredLayerField(page, { key: 'id', value: 'h-rays' }, 'rayInt', 100);
   await page.waitForTimeout(1500);
   await expect(limit).toHaveText('Max 100%');
@@ -157,6 +202,67 @@ test('numeric entry names the limit it clamped to and records one undo step', as
   await expect(limit).toHaveText('Min 0%');
   await expectStoredLayerField(page, { key: 'id', value: 'h-rays' }, 'rayInt', 0);
   await expectStoredLayerField(page, { key: 'id', value: 'h-rays' }, 'rays', 240);
+});
+
+test('effect help sits beside its row at 1024 px wide', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await gotoDocument(page, helpDocument);
+  const inspector = await selectLayer(page, 'h-rays');
+  await inspector.getByRole('button', { name: 'About Count' }).click();
+  await expectHelpBesideRow(page, inspector, 'Count');
+});
+
+test('effect help opens below its row on a narrow screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoDocument(page, helpDocument);
+  await page.locator('.layer-row[data-layer-id="h-rays"] .layer-row-name-button').click();
+  const trigger = page.getByRole('button', { name: 'About Intensity' });
+  await trigger.scrollIntoViewIfNeeded();
+  await trigger.click();
+  const help = page.getByRole('dialog', { name: 'About Intensity' });
+  await expect(help).toBeVisible();
+  const row = page
+    .locator('[data-inspector-property-row="true"]')
+    .filter({ has: page.getByRole('button', { name: 'About Intensity' }) });
+  const [helpBox, rowBox] = await Promise.all([help.boundingBox(), row.boundingBox()]);
+  if (!helpBox || !rowBox) throw new Error('help or row has no box');
+  expect(overlaps(helpBox, rowBox), 'help must not cover its own row').toBe(false);
+  expect(helpBox.x).toBeGreaterThanOrEqual(0);
+  expect(helpBox.x + helpBox.width).toBeLessThanOrEqual(390);
+  await page.keyboard.press('Escape');
+  await expect(help).toBeHidden();
+});
+
+test("the clamp message is fully visible on a section's first row and repeats for the same value", async ({ page }) => {
+  await gotoDocument(page, helpDocument);
+  const inspector = await selectLayer(page, 'h-bloom');
+  const entry = inspector.getByRole('spinbutton', { name: 'Bloom value' });
+  const bloomEntry = page.getByRole('spinbutton', { name: 'Bloom value' });
+  const row = inspector.locator('[data-inspector-property-row="true"]').filter({ has: bloomEntry });
+  const section = inspector.locator('[data-inspector-section="true"]').filter({ has: bloomEntry });
+  // The row is the first in its section, right under the section header.
+  await expect(section.locator('[data-inspector-property-row="true"]').first()).toContainText('Bloom');
+  const limit = row.getByRole('status');
+
+  await entry.fill('500');
+  await entry.press('Enter');
+  await expect(limit).toHaveText('Max 100%');
+  expect(await fullyVisible(limit)).toBe(true);
+
+  // The same out-of-range value again clears the live region and sets it once more, so it is announced again.
+  await limit.evaluate((status) => {
+    const seen: string[] = [];
+    new MutationObserver(() => seen.push(status.textContent ?? '')).observe(status, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    Reflect.set(window, '__limitTexts', seen);
+  });
+  await entry.fill('500');
+  await entry.press('Enter');
+  await expect(limit).toHaveText('Max 100%');
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, '__limitTexts'))).toEqual(['', 'Max 100%']);
 });
 
 test('effect descriptions only promise typing past the slider where the entry accepts it', async ({ page }) => {

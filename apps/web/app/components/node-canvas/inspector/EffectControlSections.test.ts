@@ -205,12 +205,14 @@ describe('effect help limits', () => {
   );
   const helpFor = (control: EffectSliderControl) => EFFECT_META[control.effectKey ?? control.field]?.description ?? '';
 
-  it('promises typing past the slider only for controls whose entry accepts it, with their real limits', () => {
+  it('promises typing past the slider only for controls whose entry accepts it, naming the control and its limits', () => {
     for (const control of sliders) {
       const description = helpFor(control);
+      if (!/\btyp(e|ing)\b|\bbeyond\b|\bpast\b|\bmanual\b|\bslider\b|\brange\b/i.test(description)) continue;
+      expect(description.toLowerCase(), `${control.field} help must name its control`).toContain(
+        control.label.toLowerCase(),
+      );
       const promise = description.match(/up to (\d+).*slider stops at (\d+)/);
-      const mentionsSlider = /slider|manual field/i.test(description);
-      if (!mentionsSlider) continue;
       expect(promise, `${control.field}: ${description}`).not.toBeNull();
       expect(control.overrideMax, control.field).toBe(Number(promise?.[1]));
       expect(control.max, control.field).toBe(Number(promise?.[2]));
