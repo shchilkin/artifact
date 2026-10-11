@@ -131,6 +131,12 @@ export default function Editor() {
   const [documentImportBusy, setDocumentImportBusy] = useState(false);
   const [recoveryCopyFailed, setRecoveryCopyFailed] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
+  // Node that Edit in Nodes centers on entry, for the document it was chosen in. The view switch clears it.
+  const [nodeEntryFocus, setNodeEntryFocus] = useState<{ sessionId: number; nodeId: string } | null>(null);
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setNodeEntryFocus(null);
+    setViewMode(mode);
+  }, []);
   const [environmentFileError, setEnvironmentFileError] = useState<string | null>(null);
   const [modelFileError, setModelFileError] = useState<string | null>(null);
   const [aiPanelRequested, setAiPanelRequested] = useState(false);
@@ -367,9 +373,10 @@ export default function Editor() {
   const handleEditInNodes = useCallback(
     (nodeId: string) => {
       setSelectedLayerId(nodeId);
+      setNodeEntryFocus({ sessionId: documentSessionId, nodeId });
       setViewMode('nodes');
     },
-    [setSelectedLayerId],
+    [documentSessionId, setSelectedLayerId],
   );
 
   const handleStartAiImage = useCallback(() => {
@@ -520,7 +527,7 @@ export default function Editor() {
         ariaLabel="Editor navigation"
         solid
         compact
-        compactSlot={<EditorChromeSlot viewMode={viewMode} onViewModeChange={setViewMode} />}
+        compactSlot={<EditorChromeSlot viewMode={viewMode} onViewModeChange={handleViewModeChange} />}
       />
       <input
         ref={fileInputRef}
@@ -615,6 +622,7 @@ export default function Editor() {
                   key={documentSessionId}
                   doc={doc}
                   initialViewport={nodeViewport?.sessionId === documentSessionId ? nodeViewport.viewport : null}
+                  entryFocusNodeId={nodeEntryFocus?.sessionId === documentSessionId ? nodeEntryFocus.nodeId : null}
                   onViewportChange={handleNodeViewportChange}
                   imageCache={imageCache}
                   initialPrimitiveViewStates={effectivePrimitiveViewStates}
