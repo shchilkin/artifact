@@ -33,12 +33,6 @@ interface CopyViolation {
 // finding, so remove it once the string is gone.
 const ALLOWLIST: ReadonlyArray<{ file: string; rule: CopyRule; text: string; reason: string }> = [
   {
-    file: 'components/ProjectsPanel.tsx',
-    rule: 'three-dots',
-    text: 'Name this project...',
-    reason: 'Projects sheet copy is rewritten in #445; remove this entry when that lands.',
-  },
-  {
     file: 'utils/randomConfig.ts',
     rule: 'version',
     text: 'V0.29',
