@@ -35,6 +35,7 @@ import {
   deleteTreeNode,
   deleteTreeNodes,
   graphNodeConsumerCount,
+  graphNodeHasSourceBelow,
   moveTreeRow,
   stepTreeRow,
   type TreeEditResult,
@@ -722,11 +723,13 @@ describe('delete', () => {
     const doc = fanOutDoc();
     expect(graphNodeConsumerCount(doc, 'shared')).toBe(2);
     expect(graphNodeConsumerCount(doc, 'move')).toBe(1);
+    expect(graphNodeHasSourceBelow(doc, 'shared')).toBe(false);
 
     const middle = documentOf([...doc.layers, fill('under')], {
       ...doc.graph!,
       edges: [...doc.graph!.edges, edge('under', 'shared', 'bg')],
     });
+    expect(graphNodeHasSourceBelow(middle, 'shared')).toBe(true);
     const next = edited(deleteTreeNode(middle, 'shared'));
     expect(edgeDiff(middle, next)).toEqual({
       removed: ['shared>merge.b', 'shared>move.in', 'under>shared.bg'],

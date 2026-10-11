@@ -12,6 +12,7 @@ import {
   useState,
 } from 'react';
 import type { CanvasDocument, GraphArea, GraphMergeNode, Layer } from '../../types/config';
+import { isEditableKeyTarget } from '../../utils/editableKeyTarget';
 import {
   buildGraphLayerTree,
   type GraphLayerTree,
@@ -574,12 +575,18 @@ export function GraphLayerTreeView({
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      const target = event.target as HTMLElement;
-      if (target.getAttribute('role') !== 'treeitem') return;
-      const index = items.findIndex((item) => item.key === target.dataset.treeKey);
+      const origin = event.target as HTMLElement;
+      // Text fields keep their own keys; any other control in a row (the name button after a click,
+      // the actions button) acts for its row.
+      if (isEditableKeyTarget(origin)) return;
+      const row = origin.closest<HTMLElement>('[role="treeitem"]');
+      if (!row) return;
+      const index = items.findIndex((item) => item.key === row.dataset.treeKey);
       const item = items[index];
       if (!item) return;
       if (editing && handleEditKey(event, item)) return;
+      // Enter and Space on a row control press that control.
+      if (origin !== row && (event.key === 'Enter' || event.key === ' ')) return;
 
       const moveTo = nextFocusKey(items, index, event.key);
       if (moveTo) {
@@ -613,12 +620,12 @@ export function GraphLayerTreeView({
       const opensMenu = event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey);
       if (opensMenu && isLayerRow) {
         event.preventDefault();
-        onOpenLayerContextMenuAt(item.row.nodeId, rowMenuPosition(target), target);
+        onOpenLayerContextMenuAt(item.row.nodeId, rowMenuPosition(row), row);
         return;
       }
       if (opensMenu && editing && item.type === 'row') {
         event.preventDefault();
-        editing.actions.openNodeMenu(item.row.nodeId, rowMenuPosition(target), target, item.row.reference);
+        editing.actions.openNodeMenu(item.row.nodeId, rowMenuPosition(row), row, item.row.reference);
         return;
       }
       if (isTypeAheadKey(event)) {

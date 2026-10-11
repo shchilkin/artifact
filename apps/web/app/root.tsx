@@ -33,8 +33,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="UTF-8" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="manifest" href="/manifest.webmanifest" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="theme-color" content="#ff6a5f" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        {/* Matches --surface-app (oklch(7.5% 0.012 42)) so the browser chrome blends with the app background. */}
+        <meta name="theme-color" content="#030101" />
+        <meta name="color-scheme" content="dark" />
         <meta name="artifact-build-sha" content={build.commitHash} />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="Artifact" />

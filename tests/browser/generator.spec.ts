@@ -2238,7 +2238,7 @@ test('local projects preserve imported image and font assets across save and loa
 
   await page.getByRole('button', { name: 'PROJECTS' }).click();
   await page.getByLabel('Project name').fill('Portable Project');
-  await page.getByRole('button', { name: 'CREATE PROJECT', exact: true }).click();
+  await page.getByRole('button', { name: 'SAVE CURRENT CANVAS', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Load Portable Project' })).toBeVisible({ timeout: 15_000 });
 
   await startBlankEditor(page);
@@ -2573,7 +2573,7 @@ test('current document can be saved into local projects', async ({ page }) => {
   await gotoDocument(page, lightDocument);
   await page.getByRole('button', { name: 'PROJECTS' }).click();
   await page.getByLabel('Project name').fill('Browser Project');
-  await page.getByRole('button', { name: 'CREATE PROJECT', exact: true }).click();
+  await page.getByRole('button', { name: 'SAVE CURRENT CANVAS', exact: true }).click();
 
   await expect(page.getByRole('button', { name: 'Save active project Browser Project' })).toBeVisible({
     timeout: 15_000,
@@ -2810,10 +2810,10 @@ test('new blank canvas action confirms before replacing current work', async ({ 
   await gotoDocument(page, lightDocument);
   await expectLayerCanvasToHavePixels(page);
 
-  await page.getByRole('button', { name: 'Create new project' }).click();
-  const confirm = page.getByRole('alertdialog', { name: 'Create a new project?' });
+  await page.getByRole('button', { name: 'New blank canvas' }).click();
+  const confirm = page.getByRole('alertdialog', { name: 'Start a new blank canvas?' });
   await expect(confirm).toContainText('recovery copy');
-  await confirm.getByRole('button', { name: 'Create new project' }).click();
+  await confirm.getByRole('button', { name: 'New blank canvas' }).click();
 
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expectCanvasCenterAlpha(page, 0);

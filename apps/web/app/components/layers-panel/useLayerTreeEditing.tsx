@@ -9,6 +9,7 @@ import {
   checkTreeRowMovable,
   deleteTreeNodes,
   graphNodeConsumerCount,
+  graphNodeHasSourceBelow,
   type LayerAddPlacement,
   moveTreeRow,
   stepTreeRow,
@@ -33,6 +34,26 @@ export interface LayerTreeEditStatus {
   tone: 'done' | 'blocked';
 }
 
+/**
+ * A status and the document it describes. `awaitsCommit` marks a tree edit whose document has not
+ * rendered yet: the next document change is that edit and the status moves onto it. Any other
+ * document change, such as Undo, Redo or an inspector edit, retires the status. This does not rely
+ * on the committed document being the same object as `TreeEditResult.doc`.
+ */
+export interface DocumentTreeEditStatus extends LayerTreeEditStatus {
+  doc: CanvasDocument;
+  awaitsCommit: boolean;
+}
+
+/** The status to show with the rendered document `doc`; see `DocumentTreeEditStatus`. */
+export function settleTreeEditStatus(
+  status: DocumentTreeEditStatus | null,
+  doc: CanvasDocument,
+): DocumentTreeEditStatus | null {
+  if (!status || status.doc === doc) return status;
+  return status.awaitsCommit ? { ...status, doc, awaitsCommit: false } : null;
+}
+
 export function useLayerTreeEditing({
   doc,
   tree,
@@ -53,7 +74,7 @@ export function useLayerTreeEditing({
   const helpId = useId();
   const { confirm, confirmDialog } = useEditorConfirm();
   const [movingNodeId, setMovingNodeId] = useState<string | null>(null);
-  const [status, setStatus] = useState<LayerTreeEditStatus | null>(null);
+  const [status, setStatus] = useState<DocumentTreeEditStatus | null>(null);
 
   const index = useMemo(
     () => (tree && onApplyTreeEdit ? buildGraphTreeEditIndex(doc, tree) : null),
@@ -66,10 +87,21 @@ export function useLayerTreeEditing({
     return () => window.clearTimeout(timer);
   }, [status]);
 
-  const announce = useCallback((message: string, tone: LayerTreeEditStatus['tone'] = 'done') => {
-    setStatus({ message, tone });
-  }, []);
+  const announce = useCallback(
+    (message: string, tone: LayerTreeEditStatus['tone'] = 'done', awaitsCommit = false) => {
+      setStatus({ message, tone, doc, awaitsCommit });
+    },
+    [doc],
+  );
   const announceBlocked = useCallback((reason: string) => announce(reason, 'blocked'), [announce]);
+  // Settled during render, so a stale message never shows and a Redo back to the same document
+  // can't revive it.
+  const settled = settleTreeEditStatus(status, doc);
+  if (settled !== status) setStatus(settled);
+  const visibleStatus = useMemo<LayerTreeEditStatus | null>(
+    () => (status ? { message: status.message, tone: status.tone } : null),
+    [status],
+  );
 
   const nameOf = useCallback(
     (nodeId: string) => index?.places.get(nodeId)?.row.name ?? doc.layers.find((layer) => layer.id === nodeId)?.name,
@@ -81,11 +113,11 @@ export function useLayerTreeEditing({
     (edit: (current: CanvasDocument) => TreeEditResult, success: string) => {
       if (!onApplyTreeEdit) return null;
       const result = onApplyTreeEdit(edit);
-      if (result.ok) announce(success);
+      if (result.ok) announce(success, 'done', result.doc !== doc);
       else announceBlocked(result.reason);
       return result.ok ? result.doc : null;
     },
-    [announce, announceBlocked, onApplyTreeEdit],
+    [announce, announceBlocked, doc, onApplyTreeEdit],
   );
 
   const move = useCallback(
@@ -120,7 +152,7 @@ export function useLayerTreeEditing({
         const one = shared.length === 1;
         const confirmed = await confirm({
           title: one ? `Delete shared ${sharedNames}?` : 'Delete shared nodes?',
-          description: `${sharedNames} ${one ? 'is' : 'are'} used in more than one place. Each of those places will use what was under ${one ? 'it' : 'them'} instead, so that source becomes shared.`,
+          description: sharedDeleteDescription(doc, shared, sharedNames),
           confirmLabel: 'Delete',
           tone: 'danger',
         });
@@ -217,5 +249,21 @@ export function useLayerTreeEditing({
     [index, selectedLayerId],
   );
 
-  return { editing, menuItems, deleteRows, addPlacement, helpId, status, confirmDialog };
+  return { editing, menuItems, deleteRows, addPlacement, helpId, status: visibleStatus, confirmDialog };
+}
+
+/** Plain copy for deleting shared nodes: where they are used, what each place gets instead, and that it can be undone. */
+function sharedDeleteDescription(doc: CanvasDocument, shared: string[], sharedNames: string) {
+  const withSource = shared.filter((id) => graphNodeHasSourceBelow(doc, id)).length;
+  if (shared.length === 1) {
+    const effect = withSource ? 'reconnects each place to the layer below it' : 'leaves those inputs empty';
+    return `${sharedNames} is used in ${graphNodeConsumerCount(doc, shared[0])} places. Deleting it ${effect}. You can undo this.`;
+  }
+  const effect =
+    withSource === shared.length
+      ? 'reconnects each place to the layer below it'
+      : withSource === 0
+        ? 'leaves those inputs empty'
+        : 'reconnects each place to the layer below it, or leaves the input empty where there is none';
+  return `${sharedNames} are each used in more than one place. Deleting them ${effect}. You can undo this.`;
 }

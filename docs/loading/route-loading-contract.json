@@ -162,7 +162,7 @@
           "jsGzipKiB": 370,
           "cssGzipKiB": 50
         },
-        "prohibitedFamilies": ["react-flow", "pixi", "three", "node-canvas"],
+        "prohibitedFamilies": ["react-flow", "pixi", "three", "motion", "node-canvas"],
         "baselineV0481": {
           "jsGzipKiB": 414.4,
           "cssGzipKiB": 44.2
@@ -172,10 +172,6 @@
         {
           "family": "pixi",
           "reason": "Allowed once the open document has a layer that needs the WebGL pass; the blank document must not load it."
-        },
-        {
-          "family": "motion",
-          "reason": "Editor panels animate with Framer Motion."
         },
         {
           "family": "renderer",

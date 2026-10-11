@@ -89,6 +89,11 @@ export function graphNodeConsumerCount(doc: CanvasDocument, nodeId: string): num
   return consumerEdges(documentGraph(doc), nodeId).length;
 }
 
+/** Whether deleting the node reconnects its consumers to something under it, rather than leaving their inputs empty. */
+export function graphNodeHasSourceBelow(doc: CanvasDocument, nodeId: string): boolean {
+  return Boolean(primaryInputEdge(doc, documentGraph(doc).edges, nodeId));
+}
+
 function isRunRow(graph: CanvasGraph, stack: TreeStack, index: number) {
   const row = stack.rows[index];
   if (row.reference) return false;

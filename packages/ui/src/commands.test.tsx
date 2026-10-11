@@ -13,6 +13,22 @@ describe('UI Foundation commands', () => {
     expect(markup).toContain('>Create</button>');
   });
 
+  it('swaps in a busy label without a spinner while keeping both labels in one cell', () => {
+    const idle = renderToStaticMarkup(<Button busyLabel="Exporting…">Export</Button>);
+    const busy = renderToStaticMarkup(
+      <Button busyLabel="Exporting…" loading>
+        Export
+      </Button>,
+    );
+
+    expect(idle).toContain('<span class="ui-command__label" data-active="true">Export</span>');
+    expect(idle).toContain('<span class="ui-command__label" data-active="false">Exporting…</span>');
+    expect(busy).toContain('<span class="ui-command__label" data-active="false">Export</span>');
+    expect(busy).toContain('<span class="ui-command__label" data-active="true">Exporting…</span>');
+    expect(busy).toContain('aria-busy="true"');
+    expect(busy).not.toContain('ui-command__progress');
+  });
+
   it('removes a disabled ButtonLink from keyboard navigation', () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter>
@@ -68,9 +84,11 @@ describe('UI Foundation commands', () => {
       'button-secondary',
       'button-quiet',
       'button-danger',
+      'button-danger-filled',
       'button-active',
       'button-disabled',
       'button-loading',
+      'button-busy-label',
       'button-link-primary',
       'button-link-disabled',
       'icon-button-default',
