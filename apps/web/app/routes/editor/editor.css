@@ -886,18 +886,6 @@
   color: var(--text-primary);
 }
 
-.bottom-command-badge {
-  min-width: 12px;
-  padding: 1px 3px;
-  border: 1px solid color-mix(in oklch, var(--line-strong) 48%, transparent);
-  border-radius: var(--control-radius);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: var(--type-editor-meta);
-  font-weight: var(--weight-strong);
-  line-height: 1;
-}
-
 @media (max-width: 767px) {
   .app-nodes > .bottom-bar {
     position: absolute;

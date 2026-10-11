@@ -22,6 +22,9 @@ export function FoundationCommandMatrix() {
       <CommandSpecimen id="button-danger" label="Button / danger">
         <Button variant="danger">Delete</Button>
       </CommandSpecimen>
+      <CommandSpecimen id="button-danger-filled" label="Button / danger filled">
+        <Button variant="danger-filled">Delete project</Button>
+      </CommandSpecimen>
       <CommandSpecimen id="button-active" label="Button / active">
         <Button data-active="true">Selected</Button>
       </CommandSpecimen>
@@ -30,6 +33,11 @@ export function FoundationCommandMatrix() {
       </CommandSpecimen>
       <CommandSpecimen id="button-loading" label="Button / loading">
         <Button loading>Saving</Button>
+      </CommandSpecimen>
+      <CommandSpecimen id="button-busy-label" label="Button / busy label">
+        <Button variant="primary" busyLabel="Exporting…" loading>
+          Export
+        </Button>
       </CommandSpecimen>
       <CommandSpecimen id="button-link-primary" label="ButtonLink / primary">
         <ButtonLink to="#foundation-command-matrix" variant="primary">

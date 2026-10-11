@@ -209,7 +209,7 @@ until the migration is complete.
 ### Button
 
 - **Anatomy**: label, optional icon, optional loading indicator.
-- **Variants**: primary, secondary, quiet, danger, icon-only.
+- **Variants**: primary, secondary, quiet, danger, danger filled (the confirm of a destructive dialog), icon-only.
 - **States**: default, hover, active, focus-visible, disabled, loading.
 - **Accessibility**: 44px minimum target for touch workflows; visible focus;
   icon-only buttons require an accessible label.

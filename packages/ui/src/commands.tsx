@@ -2,16 +2,22 @@ import type { ComponentPropsWithRef, MouseEventHandler, ReactNode } from 'react'
 import { Link } from 'react-router';
 import { commandClassName } from './command-class-name';
 
-export type CommandVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
+export type CommandVariant = 'primary' | 'secondary' | 'quiet' | 'danger' | 'danger-filled';
 export type CommandSize = 'default' | 'compact';
 
 export interface ButtonProps extends ComponentPropsWithRef<'button'> {
+  /**
+   * Text shown instead of the label while `loading`, in place of the spinner. Both labels share one cell, so the
+   * command keeps the wider label's width and nothing around it moves.
+   */
+  busyLabel?: ReactNode;
   loading?: boolean;
   size?: CommandSize;
   variant?: CommandVariant;
 }
 
 export function Button({
+  busyLabel,
   children,
   className,
   disabled,
@@ -29,8 +35,21 @@ export function Button({
       className={commandClassName(variant, className, size)}
       disabled={disabled || loading}
     >
-      {loading ? <span className="ui-command__progress" aria-hidden="true" /> : null}
-      {children}
+      {busyLabel === undefined ? (
+        <>
+          {loading ? <span className="ui-command__progress" aria-hidden="true" /> : null}
+          {children}
+        </>
+      ) : (
+        <span className="ui-command__labels">
+          <span className="ui-command__label" data-active={!loading}>
+            {children}
+          </span>
+          <span className="ui-command__label" data-active={loading}>
+            {busyLabel}
+          </span>
+        </span>
+      )}
     </button>
   );
 }

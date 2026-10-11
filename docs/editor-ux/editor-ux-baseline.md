@@ -51,6 +51,7 @@ speed, so their budgets are marked `deterministic`.
 | `nodesOutsideViewport` | `nodes-entry` | Nodes not fully inside the node canvas on first entry. |
 | `obscuredCommands` | `command-bar` | Command-bar buttons whose center is covered by another element. |
 | `overlappingCommands` | `command-bar` | Pairs of command-bar buttons whose boxes overlap. |
+| `firstEditMovePx` | `command-bar` | Largest change in the x position of any command-bar button across the first edit, one arrow-key step on the first visible slider that makes Undo available. A button that appears or disappears counts as moving by its whole offset. Since #445. |
 | `sliderWidthDeltaPx` | `inspector` | Width difference of the first Layers inspector slider before and after visiting Nodes. |
 
 ### Latency pass
@@ -118,6 +119,7 @@ the CI run is the one that decides.
 | `nodesOutsideViewport` | 0 | desktop |
 | `obscuredCommands` | 0 | desktop, mobile |
 | `overlappingCommands` | 0 | desktop, mobile |
+| `firstEditMovePx` | 0 px | desktop, mobile |
 | `sliderWidthDeltaPx` | 1 px | desktop, mobile |
 | `inputToPreviewMs` | 50 ms | desktop |
 | `slider-drag/mainThreadMs` | 160 ms | desktop |
@@ -152,6 +154,12 @@ drag that an unblocked main thread delivers in 340 ms. The v0.49.0 run did not
 measure main-thread time; on the CI container image (Apple Silicon host,
 calibration about 120 ms), v0.49.0 spent 515 / 1008 ms of main-thread time on
 the drag.
+
+`command-bar/firstEditMovePx` was added by
+[#445](https://github.com/shchilkin/artifact/issues/445) with a budget of 0 px
+and no exception: the undo-count badge that moved RANDOM, OPEN and SHARE about
+20 px after the first edit was removed, so the command bar keeps every button
+in place. The v0.49.0 baseline did not measure it.
 
 Metrics a delivery issue fixed are listed under `fixed` in the contract with the
 baseline value they replaced. The v0.49.0 baseline still exceeds their budgets;

@@ -96,6 +96,12 @@ export async function expectCommandMatrixConformance(page: Page, matrix: Locator
     token: '--ui-command-danger',
   });
   await expectSemanticStyle(matrix, theme.name, {
+    specimen: 'button-danger-filled',
+    selector: '.ui-command',
+    property: 'background-color',
+    token: '--ui-command-danger',
+  });
+  await expectSemanticStyle(matrix, theme.name, {
     specimen: 'button-disabled',
     selector: '.ui-command',
     property: 'opacity',

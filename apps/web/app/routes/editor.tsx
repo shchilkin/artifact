@@ -5,6 +5,7 @@ import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { EditorConfirmDialog } from '../components/editor-workflow/EditorConfirmDialog';
+import { EditorExportStatus } from '../components/editor-workflow/EditorExportStatus';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
 import { useEditorConfirm } from '../components/editor-workflow/useEditorConfirm';
 import type { NodeCanvasViewport } from '../components/node-canvas';
@@ -286,7 +287,11 @@ export default function Editor() {
     docRef,
     onGraphChange: handleGraphChange,
   });
-  const { exportBusy, exportError, handleNodeExport } = useEditorExport(docRef, imageCache, exportRenderOptions);
+  const { exportBusy, exportFeedback, dismissExportFeedback, handleNodeExport, retryExport } = useEditorExport(
+    docRef,
+    imageCache,
+    exportRenderOptions,
+  );
   const {
     showProjects,
     projects,
@@ -379,9 +384,9 @@ export default function Editor() {
     if (
       !isBlank &&
       !(await confirm({
-        title: 'Create a new project?',
+        title: 'Start a new blank canvas?',
         description: 'Current work is kept as a recovery copy in Projects before the canvas is cleared.',
-        confirmLabel: 'Create new project',
+        confirmLabel: 'New blank canvas',
       }))
     ) {
       return;
@@ -423,6 +428,7 @@ export default function Editor() {
           title: `Open ${project.name}?`,
           description: 'Unsaved changes on the canvas will be replaced. Save them as a project first to keep them.',
           confirmLabel: 'Open project',
+          tone: 'danger',
         }))
       ) {
         return;
@@ -657,11 +663,12 @@ export default function Editor() {
           />
           {confirmDialog}
 
-          {(dropError || exportError || documentFileError || modelFileError || environmentFileError) && (
+          {(dropError || documentFileError || modelFileError || environmentFileError) && (
             <EditorWorkflowNotice className="editor-workflow-notice--error" variant="danger">
-              {dropError ?? exportError ?? documentFileError ?? modelFileError ?? environmentFileError}
+              {dropError ?? documentFileError ?? modelFileError ?? environmentFileError}
             </EditorWorkflowNotice>
           )}
+          <EditorExportStatus feedback={exportFeedback} onRetry={retryExport} onDismiss={dismissExportFeedback} />
         </main>
 
         <BottomBar {...bottomBarProps} />
