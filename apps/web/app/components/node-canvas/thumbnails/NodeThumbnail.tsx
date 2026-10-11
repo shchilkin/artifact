@@ -66,7 +66,7 @@ function NodeThumbnailOverlays({
   return (
     <>
       {showSkeleton && !renderFailed && <Skeleton className="node-thumbnail-skeleton" shape="block" />}
-      {showPreparing && !renderFailed && <div className="node-thumbnail-preparing">Preparing</div>}
+      {showPreparing && !renderFailed && <div className="node-thumbnail-preparing">Preparing…</div>}
       {renderFailed && (
         <div className="node-thumbnail-failed" role="status">
           Preview unavailable

@@ -32,7 +32,7 @@ export function InspectorStatus({
       {loading ? (
         <ProgressIndicator
           className="artifact-inspector-status__progress"
-          label={typeof title === 'string' ? title : 'Working'}
+          label={typeof title === 'string' ? title : 'Working…'}
         />
       ) : null}
       <span className="artifact-inspector-status__copy">

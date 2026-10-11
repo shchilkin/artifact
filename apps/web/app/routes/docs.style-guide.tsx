@@ -498,7 +498,7 @@ export default function DocsStyleGuide() {
               <EditorWorkflowNotice variant="danger" title="Source unavailable">
                 The source preview could not be loaded. Choose a replacement to continue.
               </EditorWorkflowNotice>
-              <EditorWorkflowNotice aria-busy="true" title="Saving recovery copy">
+              <EditorWorkflowNotice aria-busy="true" title="Saving recovery copy…">
                 Saving the current document before opening the imported file.
               </EditorWorkflowNotice>
             </Specimen>
@@ -724,7 +724,7 @@ export default function DocsStyleGuide() {
             <AddLibraryPanel
               surface="layers"
               searchLabel="Search style-guide layers and effects"
-              placeholder="Add layer..."
+              placeholder="Add layer…"
               onAdd={handleAddLibrary}
               onClose={noop}
               autoFocusSearch={false}
@@ -734,7 +734,7 @@ export default function DocsStyleGuide() {
             />
           </div>
           <div className="style-guide-add-library-state-grid" aria-label="Add Library preview state specimens">
-            <AddLibraryPreviewSpecimen label="Loading" state={{ status: 'loading' }} />
+            <AddLibraryPreviewSpecimen label="Loading…" state={{ status: 'loading' }} />
             <AddLibraryPreviewSpecimen label="Ready" state={{ status: 'ready', url: STYLE_GUIDE_READY_PREVIEW }} />
             <AddLibraryPreviewSpecimen
               label="Fallback"

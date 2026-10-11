@@ -140,8 +140,8 @@ export function CanvasPreviewRenderStatus({
   if (renderState.isRendering && !renderState.hasFrame) {
     return (
       <div className="canvas-preview-status canvas-preview-status--loading" data-canvas-preview-status="loading">
-        <span>Preparing preview</span>
-        <ProgressIndicator label="Preparing canvas preview" />
+        <span>Preparing preview…</span>
+        <ProgressIndicator label="Preparing canvas preview…" />
       </div>
     );
   }

@@ -116,7 +116,7 @@ describe('editor target summaries', () => {
 
     expect(summary.badges).toContainEqual({ label: 'Locked', tone: 'warning' });
     expect(summary.notes).toContainEqual({
-      text: 'Locked layer targets are protected from delete actions and layer-stack reorder.',
+      text: "Locked layers can't be moved or deleted.",
       tone: 'warning',
     });
   });

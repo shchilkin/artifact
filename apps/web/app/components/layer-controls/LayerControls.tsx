@@ -644,7 +644,7 @@ const SOURCE_NOTES: Partial<Record<SourceLayer['kind'], string>> = {
   primitive: 'Camera framing is set on the node preview in Nodes: drag rotates, wheel zooms. Spin and depth stay here.',
   noise: 'Noise fills the canvas. Placement controls are unavailable; tune the pattern here or branch it in Nodes.',
   lineField: 'Line Field fills the frame automatically. Tune density, spacing, stroke, and distortion in Pattern.',
-  model: 'Model framing is node-owned. GLB rendering will use the source viewport path as this node matures.',
+  model: 'Frame the model on its node in Nodes.',
 };
 
 function sourceContentFallback(layer: SourceLayer): LayerControlSection {

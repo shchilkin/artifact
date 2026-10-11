@@ -119,7 +119,7 @@ function aiGenerationPreviewOverlayModel(generation: ImageLayer['aiGeneration'])
   return {
     state,
     loading: state === 'loading',
-    label: getAiGenerationStatusLabel(generation) ?? 'Generating',
+    label: getAiGenerationStatusLabel(generation) ?? 'Generating…',
     detail: getAiGenerationStatusDetail(generation),
   };
 }

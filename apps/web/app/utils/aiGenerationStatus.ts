@@ -5,17 +5,17 @@ export type AiGenerationUiState = 'loading' | 'failed' | 'done' | 'idle';
 const LOADING_GENERATION_STATUSES = new Set(['queued', 'running', 'importing']);
 const FAILED_GENERATION_STATUSES = new Set(['failed', 'cancelled', 'expired']);
 const GENERATION_STATUS_LABELS: Record<string, string> = {
-  queued: 'Waiting',
-  running: 'Generating',
-  importing: 'Finishing',
+  queued: 'Waiting…',
+  running: 'Generating…',
+  importing: 'Finishing…',
   failed: 'Failed',
   cancelled: 'Cancelled',
   expired: 'Expired',
 };
 const GENERATION_STATUS_DETAILS: Record<string, string> = {
   queued: 'Your creation will start shortly',
-  running: 'Creating your image',
-  importing: 'Preparing your image',
+  running: 'Creating your image…',
+  importing: 'Preparing your image…',
   cancelled: 'Creation was cancelled',
   expired: 'This creation is no longer available',
 };

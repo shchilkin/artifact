@@ -1256,7 +1256,7 @@ function DocsSearchPanel({
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
         onClear={() => onQueryChange('')}
-        placeholder="Search effects, export, fonts, nodes..."
+        placeholder="Search effects, export, fonts, nodes…"
       />
       <DocsTypeFilter activeFilter={activeFilter} onFilterChange={onFilterChange} />
       <DocsSearchContent

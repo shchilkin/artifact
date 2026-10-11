@@ -37,13 +37,13 @@ export function inspectorStateLabels({
   if (dirty) labels.push('Edited');
   if (locked) labels.push('Lock');
   if (disabled) labels.push('Unavailable');
-  if (loading) labels.push('Loading');
+  if (loading) labels.push('Loading…');
   if (validation !== 'idle') labels.push(inspectorValidationLabel(validation));
   return labels;
 }
 
 function inspectorValidationLabel(validation: Exclude<InspectorValidationState, 'idle'>) {
-  if (validation === 'validating') return 'Checking';
+  if (validation === 'validating') return 'Checking…';
   if (validation === 'valid') return 'Valid';
   return 'Error';
 }

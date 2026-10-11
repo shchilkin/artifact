@@ -46,6 +46,6 @@ describe('CanvasPreview chrome states', () => {
 
     expect(html).toContain('data-canvas-preview-status="loading"');
     expect(html).toContain('role="progressbar"');
-    expect(html).toContain('aria-label="Preparing canvas preview"');
+    expect(html).toContain('aria-label="Preparing canvas preview…"');
   });
 });
