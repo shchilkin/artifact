@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pixel Lettering Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Unbounded:wght@700&family=Oswald:wght@600&family=Russo+One&family=IBM+Plex+Mono:wght@500&family=PT+Serif&family=Playfair+Display:wght@700&family=Caveat:wght@700&family=Lobster&display=swap">
+<style>
+  /* Layout: tool sidebar on the left, editor on top of the main column, six algorithm cards below it. */
+  :root {
+    --bg: #eef0f4;
+    --surface: #ffffff;
+    --sunk: #e4e7ed;
+    --fg: #14171d;
+    --muted: #5b6272;
+    --line: #d3d8e1;
+    --accent: #1f55c8;
+    --accent-fg: #ffffff;
+    --warn: #b4361b;
+    --ui: "Geologica", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115; --surface: #171a21; --sunk: #1f232c; --fg: #e7e9ee; --muted: #8c94a4;
+      --line: #2b303b; --accent: #7aa2ff; --accent-fg: #0b1020; --warn: #ff8a6b; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1115; --surface: #171a21; --sunk: #1f232c; --fg: #e7e9ee; --muted: #8c94a4;
+    --line: #2b303b; --accent: #7aa2ff; --accent-fg: #0b1020; --warn: #ff8a6b; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--ui); font-size: 14px; line-height: 1.45; }
+  .app {
+    padding-block: 20px 40px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    max-width: 1480px; margin: 0 auto; display: grid; gap: 18px;
+  }
+  .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px; }
+  h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+  .top p { margin: 0; color: var(--muted); max-width: 70ch; }
+  .top a { color: var(--accent); }
+  .layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    display: grid; gap: 0; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px);
+    max-height: calc(100vh - 24px); overflow: auto;
+  }
+  @media (max-width: 900px) { .panel { position: static; max-height: none; } }
+  .group { padding: 14px 16px; display: grid; gap: 10px; border-top: 1px solid var(--line); }
+  .group:first-child { border-top: 0; }
+  .group h2 { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .field { display: grid; gap: 4px; }
+  .field-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  label { font-size: 13px; }
+  output, .num { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+  textarea, select, input[type="number"] {
+    font: inherit; color: var(--fg); background: var(--sunk); border: 1px solid var(--line);
+    border-radius: 6px; padding: 7px 9px; width: 100%;
+  }
+  textarea { resize: vertical; min-height: 58px; font-size: 16px; }
+  .hint { margin: 0; color: var(--muted); font-size: 12px; }
+  .error { margin: 0; color: var(--warn); font-size: 12px; }
+  .drop {
+    border: 1px dashed var(--line); border-radius: 6px; padding: 10px; text-align: center; color: var(--muted);
+    font-size: 12px; cursor: pointer; background: transparent; font-family: inherit; width: 100%;
+  }
+  .drop:hover, .drop.is-over, body.is-dragging .drop { border-color: var(--accent); color: var(--fg); }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button {
+    flex: 1; font: inherit; font-size: 12px; padding: 6px 4px; background: transparent; color: var(--fg);
+    border: 0; border-left: 1px solid var(--line); cursor: pointer;
+  }
+  .seg button:first-child { border-left: 0; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row > * { min-width: 0; }
+  .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch {
+    font: inherit; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px 4px 5px;
+    border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--fg); cursor: pointer;
+  }
+  .swatch i { width: 16px; height: 16px; border-radius: 50%; display: block; box-shadow: inset 0 0 0 1px rgba(127,127,127,.35); }
+  input[type="color"] { width: 36px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+  .btn {
+    font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--fg); cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+  .check input { accent-color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .main { display: grid; gap: 18px; min-width: 0; }
+  .editor { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: grid; min-width: 0; }
+  .editor-bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .editor-bar h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .editor-bar select { width: auto; padding: 5px 8px; font-size: 13px; }
+  .spacer { flex: 1; }
+  .stage { overflow: hidden; display: block; min-width: 0; }
+  .stage canvas { display: block; width: 100%; }
+  #editorCanvas { touch-action: none; cursor: crosshair; }
+  .editor-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .editor-foot p { margin: 0; color: var(--muted); font-size: 12px; max-width: 80ch; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: grid; grid-template-rows: auto auto 1fr auto; min-width: 0; overflow: hidden; }
+  .card.is-editing { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .card header { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 14px 0; }
+  .card h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .card .desc { margin: 4px 14px 10px; color: var(--muted); font-size: 12px; min-height: 2.9em; }
+  .card .stage { cursor: pointer; align-self: center; }
+  .card .meta { padding: 8px 14px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .card .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); transform: translateX(-50%);
+    background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 999px; font-size: 13px;
+  }
+  @media (prefers-reduced-motion: no-preference) { .toast { transition: opacity .2s; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <h1>Pixel Lettering Lab</h1>
+    <p>Type a line, pick a font, compare six ways to turn it into cell-grid lettering, then fix cells by hand. Prototype for Artifact issues <a href="https://github.com/shchilkin/artifact/issues/469" target="_blank" rel="noopener">#469</a> and <a href="https://github.com/shchilkin/artifact/issues/468" target="_blank" rel="noopener">#468</a>.</p>
+  </header>
+
+  <div class="layout">
+    <aside class="panel" aria-label="Controls">
+      <section class="group">
+        <h2>Text</h2>
+        <div class="field">
+          <label for="text">Lettering (one grid per line)</label>
+          <textarea id="text" rows="2" spellcheck="false">ХОЛОДА</textarea>
+        </div>
+        <div class="field">
+          <label for="font">Font</label>
+          <select id="font"></select>
+        </div>
+        <button class="drop" id="dropZone" type="button">Drop a TTF, OTF, WOFF or WOFF2 file here, or click to choose</button>
+        <input id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" hidden>
+        <p class="error" id="fontError" hidden></p>
+      </section>
+
+      <section class="group">
+        <h2>Grid</h2>
+        <div class="field">
+          <div class="field-row"><label for="rows">Rows per cap height</label><output id="rowsOut"></output></div>
+          <input id="rows" type="range" min="5" max="24" step="1" value="9">
+        </div>
+        <div class="field">
+          <div class="field-row"><label for="track">Letter spacing</label><output id="trackOut"></output></div>
+          <input id="track" type="range" min="-1" max="4" step="1" value="1">
+        </div>
+        <div class="field">
+          <div class="field-row"><label for="lineGap">Extra line gap</label><output id="lineGapOut"></output></div>
+          <input id="lineGap" type="range" min="0" max="6" step="1" value="0">
+        </div>
+        <p class="hint">The grid is anchored to each line's start and baseline, so cap height always spans the same rows.</p>
+      </section>
+
+      <section class="group">
+        <h2>Algorithms</h2>
+        <div class="field">
+          <div class="field-row"><label for="thr">Coverage threshold</label><output id="thrOut"></output></div>
+          <input id="thr" type="range" min="10" max="90" step="1" value="50">
+        </div>
+        <div class="field">
+          <div class="field-row"><label for="stroke">Stroke width</label><output id="strokeOut"></output></div>
+          <input id="stroke" type="range" min="1" max="4" step="1" value="2">
+        </div>
+        <div class="field">
+          <div class="field-row"><label for="prune">Trim spurs up to</label><output id="pruneOut"></output></div>
+          <input id="prune" type="range" min="0" max="6" step="1" value="2">
+        </div>
+        <div class="field">
+          <span id="ditherLabel" class="field-row"><span>Dither pattern</span></span>
+          <div class="seg" role="group" aria-labelledby="ditherLabel" data-key="dither">
+            <button type="button" data-value="bayer">Bayer 4×4</button>
+            <button type="button" data-value="fs">Floyd–Steinberg</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-row"><label for="rough">Rough block bite</label><output id="roughOut"></output></div>
+          <input id="rough" type="range" min="0" max="100" step="1" value="35">
+        </div>
+        <p class="hint">Threshold drives Coverage, Outline, Dither and Rough. Stroke width drives Stroke and Outline.</p>
+      </section>
+
+      <section class="group">
+        <h2>Render</h2>
+        <div class="field">
+          <span id="shapeLabel">Cell shape</span>
+          <div class="seg" role="group" aria-labelledby="shapeLabel" data-key="shape">
+            <button type="button" data-value="square">Square</button>
+            <button type="button" data-value="rounded">Rounded</button>
+            <button type="button" data-value="dot">Dot</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-row"><label for="gap">Cell gap</label><output id="gapOut"></output></div>
+          <input id="gap" type="range" min="0" max="45" step="1" value="0">
+        </div>
+        <div class="field">
+          <div class="field-row"><label for="chip">Chipped edges</label><output id="chipOut"></output></div>
+          <input id="chip" type="range" min="0" max="100" step="1" value="40">
+        </div>
+        <div class="field">
+          <label for="seed">Seed</label>
+          <div class="row">
+            <input id="seed" type="number" min="1" max="99999" value="7" style="flex:1">
+            <button class="btn" id="shuffle" type="button">Shuffle</button>
+          </div>
+        </div>
+        <p class="hint">Chipped edges bite into exposed cell sides on square cells. Same seed, same bites.</p>
+      </section>
+
+      <section class="group">
+        <h2>Colours</h2>
+        <div class="swatches" id="presets"></div>
+        <div class="row">
+          <label class="check" for="paper"><input id="paper" type="color" value="#1b4ea3"> Ground</label>
+          <label class="check" for="ink"><input id="ink" type="color" value="#f4f1e8"> Ink</label>
+        </div>
+      </section>
+    </aside>
+
+    <main class="main">
+      <section class="editor" aria-label="Cell editor">
+        <div class="editor-bar">
+          <h2>Editor</h2>
+          <label class="check" for="algoSelect">Source <select id="algoSelect"></select></label>
+          <div class="seg" role="group" aria-label="Brush" data-key="tool" style="min-width:210px">
+            <button type="button" data-value="toggle">Toggle</button>
+            <button type="button" data-value="draw">Draw</button>
+            <button type="button" data-value="erase">Erase</button>
+          </div>
+          <label class="check" for="guide"><input id="guide" type="checkbox" checked> Show glyph outline</label>
+          <span class="spacer"></span>
+          <button class="btn" id="resetEdits" type="button">Reset edits</button>
+          <button class="btn primary" id="copySvg" type="button">Copy SVG</button>
+        </div>
+        <div class="stage" id="editorStage"><canvas id="editorCanvas" aria-label="Pixel lettering editor. Click or drag to change cells."></canvas></div>
+        <div class="editor-foot">
+          <p>Click or drag cells. Edits sit on top of the source algorithm, so switching the source keeps them. Changing rows or letter spacing moves the grid under them.</p>
+          <span class="num" id="editorStatus"></span>
+        </div>
+      </section>
+
+      <section class="cards" id="cards" aria-label="Algorithms"></section>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const FONTS = [
+    { id: 'unbounded', family: 'Unbounded', weight: 700, kind: 'wide grotesk' },
+    { id: 'oswald', family: 'Oswald', weight: 600, kind: 'condensed' },
+    { id: 'russo', family: 'Russo One', weight: 400, kind: 'display' },
+    { id: 'plex', family: 'IBM Plex Mono', weight: 500, kind: 'mono' },
+    { id: 'ptserif', family: 'PT Serif', weight: 400, kind: 'text serif' },
+    { id: 'playfair', family: 'Playfair Display', weight: 700, kind: 'high-contrast serif' },
+    { id: 'caveat', family: 'Caveat', weight: 700, kind: 'handwriting' },
+    { id: 'lobster', family: 'Lobster', weight: 400, kind: 'script' },
+  ];
+  const PRESETS = [
+    { name: 'Cover blue', paper: '#1b4ea3', ink: '#f4f1e8' },
+    { name: 'Newsprint', paper: '#ebe5d6', ink: '#1d1b18' },
+    { name: 'Signal red', paper: '#c3321f', ink: '#fbe9d2' },
+    { name: 'Night', paper: '#121316', ink: '#ece8de' },
+  ];
+  const GUIDE = '#ff7a45';
+  const MARGIN = 2;
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
+  const S = {
+    text: 'ХОЛОДА', font: 'unbounded', rows: 9, track: 1, lineGap: 0,
+    thr: 50, stroke: 2, prune: 2, dither: 'bayer', rough: 35,
+    shape: 'square', gap: 0, chip: 40, seed: 7,
+    paper: '#1b4ea3', ink: '#f4f1e8', algo: 'stroke', tool: 'toggle', guide: true,
+  };
+  const overrides = new Map();
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- helpers ----------
+  function hash(a, b, c, d) {
+    let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263) ^ Math.imul(c | 0, 1274126177) ^ Math.imul(d | 0, 1103515245);
+    h = Math.imul(h ^ (h >>> 15), 2246822519);
+    h = Math.imul(h ^ (h >>> 13), 3266489917);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
+  const fontById = (id) => FONTS.find((f) => f.id === id) || FONTS[0];
+  const fontStr = (f, size) => `${f.weight} ${size}px "${f.family}", sans-serif`;
+
+  // ---------- rasterise one line onto its own grid ----------
+  const measureCtx = document.createElement('canvas').getContext('2d');
+  function rasterLine(text, f, R, track) {
+    const K = Math.max(4, Math.round(144 / R)); // sample pixels per cell
+    measureCtx.font = fontStr(f, 100);
+    let cap = measureCtx.measureText('H').actualBoundingBoxAscent;
+    if (!(cap > 5)) cap = measureCtx.measureText('Н').actualBoundingBoxAscent;
+    if (!(cap > 5)) cap = 70;
+    const size = (K * R) / (cap / 100);
+    measureCtx.font = fontStr(f, size);
+    const chars = Array.from(text);
+    let x = 0, minX = Infinity, maxX = -Infinity, asc = R * K, desc = 0;
+    const pos = [];
+    for (const ch of chars) {
+      const m = measureCtx.measureText(ch);
+      pos.push(x);
+      if (ch.trim()) {
+        minX = Math.min(minX, x - m.actualBoundingBoxLeft);
+        maxX = Math.max(maxX, x + m.actualBoundingBoxRight);
+        asc = Math.max(asc, m.actualBoundingBoxAscent);
+        desc = Math.max(desc, m.actualBoundingBoxDescent);
+      }
+      x += m.width + track * K;
+    }
+    if (minX === Infinity) { minX = 0; maxX = R * K * 0.6; }
+    const left = Math.floor(minX / K) - MARGIN;
+    const right = Math.ceil(maxX / K) + MARGIN;
+    const top = Math.floor(-asc / K) - MARGIN;
+    const bottom = Math.ceil(desc / K) + MARGIN;
+    const cols = right - left, rows = bottom - top, w = cols * K, h = rows * K;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const c = canvas.getContext('2d', { willReadFrequently: true });
+    c.font = fontStr(f, size);
+    c.fillStyle = '#000';
+    c.textBaseline = 'alphabetic';
+    chars.forEach((ch, i) => c.fillText(ch, pos[i] - left * K, -top * K));
+    const px = c.getImageData(0, 0, w, h).data;
+    const a = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) a[i] = px[i * 4 + 3];
+
+    const cov = new Float32Array(cols * rows);
+    const ctr = new Float32Array(cols * rows);
+    const half = Math.max(1, Math.round(K / 6));
+    for (let cy = 0; cy < rows; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        let sum = 0;
+        for (let y = cy * K; y < cy * K + K; y++) {
+          const row = y * w;
+          for (let xx = cx * K; xx < cx * K + K; xx++) sum += a[row + xx];
+        }
+        cov[cy * cols + cx] = sum / (255 * K * K);
+        const mx = cx * K + (K >> 1), my = cy * K + (K >> 1);
+        let cs = 0, cn = 0;
+        for (let y = my - half; y < my + half; y++) for (let xx = mx - half; xx < mx + half; xx++) { cs += a[y * w + xx]; cn++; }
+        ctr[cy * cols + cx] = cs / (255 * cn);
+      }
+    }
+    return { K, cols, rows, left, top, w, h, a, cov, ctr, canvas };
+  }
+
+  // ---------- grid operations ----------
+  function thin(img, w, h) { // Zhang–Suen, in place
+    const del = [];
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let step = 0; step < 2; step++) {
+        del.length = 0;
+        for (let y = 1; y < h - 1; y++) {
+          for (let x = 1; x < w - 1; x++) {
+            const i = y * w + x;
+            if (!img[i]) continue;
+            const p2 = img[i - w], p3 = img[i - w + 1], p4 = img[i + 1], p5 = img[i + w + 1];
+            const p6 = img[i + w], p7 = img[i + w - 1], p8 = img[i - 1], p9 = img[i - w - 1];
+            const B = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+            if (B < 2 || B > 6) continue;
+            const A = (!p2 && p3 ? 1 : 0) + (!p3 && p4 ? 1 : 0) + (!p4 && p5 ? 1 : 0) + (!p5 && p6 ? 1 : 0)
+              + (!p6 && p7 ? 1 : 0) + (!p7 && p8 ? 1 : 0) + (!p8 && p9 ? 1 : 0) + (!p9 && p2 ? 1 : 0);
+            if (A !== 1) continue;
+            if (step === 0) { if (p2 && p4 && p6) continue; if (p4 && p6 && p8) continue; }
+            else { if (p2 && p4 && p8) continue; if (p2 && p6 && p8) continue; }
+            del.push(i);
+          }
+        }
+        if (del.length) { changed = true; for (const i of del) img[i] = 0; }
+      }
+    }
+    return img;
+  }
+  function neighbours(g, w, h, i) {
+    const x = i % w, y = (i / w) | 0, out = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      const j = ny * w + nx;
+      if (g[j]) out.push(j);
+    }
+    return out;
+  }
+  function prune(g, w, h, L) {
+    if (L <= 0) return g;
+    const ends = [];
+    for (let i = 0; i < g.length; i++) if (g[i] && neighbours(g, w, h, i).length === 1) ends.push(i);
+    for (const e of ends) {
+      if (!g[e]) continue;
+      const path = [e], seen = new Set(path);
+      let cur = e, junction = false;
+      while (path.length <= L) {
+        const next = neighbours(g, w, h, cur).filter((j) => !seen.has(j));
+        if (next.length === 0) break;
+        if (next.length > 1) { path.pop(); junction = true; break; }
+        if (neighbours(g, w, h, next[0]).length >= 3) { junction = true; break; }
+        path.push(next[0]); seen.add(next[0]); cur = next[0];
+      }
+      if (junction && path.length <= L) for (const i of path) g[i] = 0;
+    }
+    return g;
+  }
+  function dilate(g, w, h, s) {
+    if (s <= 1) return g;
+    const lo = -Math.floor((s - 1) / 2), hi = Math.ceil((s - 1) / 2);
+    const o = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (!g[y * w + x]) continue;
+      for (let dy = lo; dy <= hi; dy++) for (let dx = lo; dx <= hi; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < w && ny < h) o[ny * w + nx] = 1;
+      }
+    }
+    return o;
+  }
+  function erode(g, w, h) {
+    const o = new Uint8Array(w * h);
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      o[i] = g[i] && g[i - 1] && g[i + 1] && g[i - w] && g[i + w] ? 1 : 0;
+    }
+    return o;
+  }
+  function threshold(r) {
+    const t = S.thr / 100, g = new Uint8Array(r.cols * r.rows);
+    for (let i = 0; i < g.length; i++) g[i] = r.cov[i] >= t ? 1 : 0;
+    return g;
+  }
+  function exposed4(g, w, h, x, y) {
+    return (x === 0 || !g[y * w + x - 1]) || (x === w - 1 || !g[y * w + x + 1])
+      || (y === 0 || !g[(y - 1) * w + x]) || (y === h - 1 || !g[(y + 1) * w + x]);
+  }
+  function skeletonCells(r) {
+    if (r.skel) return r.skel;
+    const img = new Uint8Array(r.w * r.h);
+    for (let i = 0; i < img.length; i++) img[i] = r.a[i] > 127 ? 1 : 0;
+    thin(img, r.w, r.h);
+    const g = new Uint8Array(r.cols * r.rows);
+    for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) {
+      if (img[y * r.w + x]) g[((y / r.K) | 0) * r.cols + ((x / r.K) | 0)] = 1;
+    }
+    thin(g, r.cols, r.rows);
+    r.skel = g;
+    return g;
+  }
+
+  const ALGOS = [
+    {
+      id: 'center', name: 'Center sample',
+      desc: 'A cell fills when the glyph covers its centre. Classic bitmap; hairlines can vanish.',
+      run: (r) => { const g = new Uint8Array(r.cols * r.rows); for (let i = 0; i < g.length; i++) g[i] = r.ctr[i] > 0.5 ? 1 : 0; return g; },
+    },
+    {
+      id: 'coverage', name: 'Coverage threshold',
+      desc: 'A cell fills when enough of it is covered. Lower the threshold for bolder letters.',
+      run: (r) => threshold(r),
+    },
+    {
+      id: 'stroke', name: 'Stroke / skeleton',
+      desc: 'Thins each glyph to its centre line, then redraws it at an even stroke width.',
+      run: (r) => dilate(prune(skeletonCells(r).slice(), r.cols, r.rows, S.prune), r.cols, r.rows, S.stroke),
+    },
+    {
+      id: 'outline', name: 'Outline',
+      desc: 'Keeps only the edge band of the filled shape, as wide as the stroke width.',
+      run: (r) => {
+        const base = threshold(r);
+        let inner = base;
+        for (let k = 0; k < S.stroke; k++) inner = erode(inner, r.cols, r.rows);
+        const g = new Uint8Array(base.length);
+        for (let i = 0; i < g.length; i++) g[i] = base[i] && !inner[i] ? 1 : 0;
+        return g;
+      },
+    },
+    {
+      id: 'dither', name: 'Dither',
+      desc: 'Softens the coverage edge, then breaks it into a dot pattern. Solid inside, textured edge.',
+      run: (r) => {
+        const w = r.cols, h = r.rows, b = new Float32Array(w * h);
+        const bias = (50 - S.thr) / 100;
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+          let s = 0, n = 0;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < w && ny < h) { s += r.cov[ny * w + nx]; n++; }
+          }
+          b[y * w + x] = 0.45 * r.cov[y * w + x] + 0.55 * (s / n) + bias;
+        }
+        const g = new Uint8Array(w * h);
+        if (S.dither === 'bayer') {
+          for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+            const t = (BAYER[((y + r.top) & 3) * 4 + ((x + r.left) & 3)] + 0.5) / 16;
+            g[y * w + x] = b[y * w + x] > t ? 1 : 0;
+          }
+        } else {
+          for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+            const i = y * w + x, v = b[i] >= 0.5 ? 1 : 0, err = b[i] - v;
+            g[i] = v;
+            if (x + 1 < w) b[i + 1] += err * 7 / 16;
+            if (y + 1 < h) {
+              if (x > 0) b[i + w - 1] += err * 3 / 16;
+              b[i + w] += err * 5 / 16;
+              if (x + 1 < w) b[i + w + 1] += err / 16;
+            }
+          }
+        }
+        return g;
+      },
+    },
+    {
+      id: 'rough', name: 'Rough block',
+      desc: 'Coverage cells with seeded bites taken out of the edge and a few bumps added.',
+      run: (r, li) => {
+        const w = r.cols, h = r.rows, base = threshold(r), g = base.slice(), amt = S.rough / 100;
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+          const i = y * w + x, gx = x + r.left, gy = y + r.top;
+          if (base[i]) {
+            if (exposed4(base, w, h, x, y) && hash(gx, gy, li, S.seed) < amt * 0.5) g[i] = 0;
+          } else {
+            const touches = (x > 0 && base[i - 1]) || (x < w - 1 && base[i + 1]) || (y > 0 && base[i - w]) || (y < h - 1 && base[i + w]);
+            if (touches && hash(gx, gy, li, S.seed + 101) < amt * 0.2) g[i] = 1;
+          }
+        }
+        return g;
+      },
+    },
+  ];
+
+  // ---------- state of the computation ----------
+  let rasterKey = '';
+  let rasters = [];
+  let results = new Map(); // algo id -> { grids, ms }
+
+  function computeRasters() {
+    const f = fontById(S.font);
+    const key = [S.text, f.family, f.weight, S.rows, S.track].join('|');
+    if (key === rasterKey) return;
+    rasters = S.text.split('\n').map((line) => rasterLine(line, f, S.rows, S.track));
+    rasterKey = key;
+  }
+  function computeAll() {
+    computeRasters();
+    results = new Map();
+    for (const a of ALGOS) {
+      const t0 = performance.now();
+      const grids = rasters.map((r, li) => a.run(r, li));
+      results.set(a.id, { grids, ms: performance.now() - t0 });
+    }
+  }
+  function layoutLines() {
+    const minLeft = Math.min(...rasters.map((r) => r.left));
+    const maxRight = Math.max(...rasters.map((r) => r.left + r.cols));
+    let y = 0;
+    const offs = rasters.map((r) => { const o = { x: r.left - minLeft, y }; y += r.rows + S.lineGap; return o; });
+    return { cols: maxRight - minLeft, rows: y - S.lineGap, offs };
+  }
+  function editedGrids() {
+    const base = results.get(S.algo).grids;
+    const grids = base.map((g) => g.slice());
+    for (const [key, val] of overrides) {
+      const [li, gx, gy] = key.split(':').map(Number);
+      const r = rasters[li];
+      if (!r) continue;
+      const x = gx - r.left, y = gy - r.top;
+      if (x < 0 || y < 0 || x >= r.cols || y >= r.rows) continue;
+      grids[li][y * r.cols + x] = val;
+    }
+    return grids;
+  }
+
+  // ---------- painting (shared by canvas and SVG) ----------
+  function paint(grids, lay, cell, ox, oy, emit) {
+    const gapPx = (cell * S.gap) / 100, sz = cell - gapPx, chipP = (S.chip / 100) * 0.55;
+    const useChips = S.shape === 'square' && chipP > 0;
+    const m = 4, ms = sz / m;
+    grids.forEach((g, li) => {
+      const r = rasters[li], off = lay.offs[li], w = r.cols, h = r.rows;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        if (!g[y * w + x]) continue;
+        const px = ox + (off.x + x) * cell + gapPx / 2, py = oy + (off.y + y) * cell + gapPx / 2;
+        if (!useChips) { emit(S.shape, px, py, sz, sz); continue; }
+        const L = x === 0 || !g[y * w + x - 1], Rt = x === w - 1 || !g[y * w + x + 1];
+        const T = y === 0 || !g[(y - 1) * w + x], B = y === h - 1 || !g[(y + 1) * w + x];
+        if (!L && !Rt && !T && !B) { emit('square', px, py, sz, sz); continue; }
+        const gx = x + r.left, gy = y + r.top;
+        for (let my = 0; my < m; my++) {
+          let runStart = -1;
+          for (let mx = 0; mx <= m; mx++) {
+            let keep = mx < m;
+            if (keep) {
+              const d = Math.min(L ? mx : 9, Rt ? m - 1 - mx : 9, T ? my : 9, B ? m - 1 - my : 9);
+              const p = d === 0 ? chipP : d === 1 ? chipP * 0.3 : 0;
+              if (p > 0 && hash(gx * m + mx, gy * m + my, li, S.seed + 7) < p) keep = false;
+            }
+            if (keep && runStart < 0) runStart = mx;
+            if (!keep && runStart >= 0) { emit('square', px + runStart * ms, py + my * ms, (mx - runStart) * ms, ms); runStart = -1; }
+          }
+        }
+      }
+    });
+  }
+  function countOn(grids) { let n = 0; for (const g of grids) for (let i = 0; i < g.length; i++) n += g[i]; return n; }
+
+  function drawTo(canvas, grids, maxCell, withGuide) {
+    const lay = layoutLines();
+    const cssW = canvas.parentElement.clientWidth || 300;
+    const cell = Math.max(1, Math.min(cssW / (lay.cols + 2), maxCell));
+    const cssH = Math.round((lay.rows + 2) * cell);
+    const drawW = (lay.cols + 2) * cell;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = S.paper;
+    ctx.fillRect(0, 0, cssW, cssH);
+    const ox = (cssW - drawW) / 2 + cell, oy = cell;
+    ctx.fillStyle = S.ink;
+    paint(grids, lay, cell, ox, oy, (shape, x, y, w, h) => {
+      if (shape === 'dot') { ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, w / 2, 0, Math.PI * 2); ctx.fill(); }
+      else if (shape === 'rounded') { ctx.beginPath(); ctx.roundRect(x, y, w, h, w * 0.3); ctx.fill(); }
+      else ctx.fillRect(x, y, w, h);
+    });
+    if (withGuide) {
+      ctx.save();
+      ctx.globalAlpha = 0.42;
+      rasters.forEach((r, li) => {
+        const off = lay.offs[li];
+        ctx.drawImage(tinted(r), ox + off.x * cell, oy + off.y * cell, r.cols * cell, r.rows * cell);
+      });
+      ctx.restore();
+    }
+    return { lay, cell, ox, oy };
+  }
+  function tinted(r) {
+    if (r.tint) return r.tint;
+    const c = document.createElement('canvas');
+    c.width = r.w; c.height = r.h;
+    const x = c.getContext('2d');
+    x.drawImage(r.canvas, 0, 0);
+    x.globalCompositeOperation = 'source-in';
+    x.fillStyle = GUIDE;
+    x.fillRect(0, 0, r.w, r.h);
+    r.tint = c;
+    return c;
+  }
+
+  // ---------- DOM: cards ----------
+  const cardsEl = $('cards');
+  const cardRefs = new Map();
+  for (const a of ALGOS) {
+    const art = document.createElement('article');
+    art.className = 'card';
+    art.innerHTML = `<header><h3>${a.name}</h3><button class="btn" type="button" aria-pressed="false">Edit</button></header>
+      <p class="desc">${a.desc}</p><div class="stage"><canvas aria-label="${a.name} result"></canvas></div><footer class="meta"></footer>`;
+    const pick = () => { S.algo = a.id; syncAlgo(); render(); };
+    art.querySelector('button').addEventListener('click', pick);
+    art.querySelector('.stage').addEventListener('click', pick);
+    cardsEl.appendChild(art);
+    cardRefs.set(a.id, { art, canvas: art.querySelector('canvas'), meta: art.querySelector('.meta'), btn: art.querySelector('button') });
+    const opt = document.createElement('option');
+    opt.value = a.id; opt.textContent = a.name;
+    $('algoSelect').appendChild(opt);
+  }
+  function syncAlgo() {
+    $('algoSelect').value = S.algo;
+    for (const [id, ref] of cardRefs) {
+      const on = id === S.algo;
+      ref.art.classList.toggle('is-editing', on);
+      ref.btn.setAttribute('aria-pressed', String(on));
+      ref.btn.textContent = on ? 'In editor' : 'Edit';
+    }
+  }
+
+  // ---------- render ----------
+  let editorView = null;
+  function render() {
+    if (!results.size) return;
+    const lay = layoutLines();
+    for (const a of ALGOS) {
+      const res = results.get(a.id), ref = cardRefs.get(a.id);
+      drawTo(ref.canvas, res.grids, 14, false);
+      ref.meta.textContent = `${lay.cols}×${lay.rows} cells · ${countOn(res.grids)} filled · ${res.ms < 1 ? '<1' : Math.round(res.ms)} ms`;
+    }
+    const grids = editedGrids();
+    editorView = drawTo($('editorCanvas'), grids, 34, S.guide);
+    $('editorStatus').textContent = `${countOn(grids)} filled · ${overrides.size} edited`;
+  }
+
+  let pending = 0, heavyTimer = 0;
+  function schedule(heavy) {
+    if (heavy) {
+      clearTimeout(heavyTimer);
+      heavyTimer = setTimeout(() => { computeAll(); render(); }, 120);
+      return;
+    }
+    if (pending) return;
+    pending = requestAnimationFrame(() => { pending = 0; computeAll(); render(); });
+  }
+  function renderOnly() { if (pending) return; pending = requestAnimationFrame(() => { pending = 0; render(); }); }
+
+  // ---------- controls ----------
+  const fontSel = $('font');
+  function fillFonts() {
+    fontSel.innerHTML = '';
+    for (const f of FONTS) {
+      const o = document.createElement('option');
+      o.value = f.id; o.textContent = `${f.family} · ${f.kind}`;
+      fontSel.appendChild(o);
+    }
+    fontSel.value = S.font;
+  }
+  fillFonts();
+  async function useFont(id) {
+    S.font = id;
+    fontSel.value = id;
+    const f = fontById(id);
+    try { await document.fonts.load(fontStr(f, 64), (S.text || 'H') + 'H'); } catch (e) { /* fallback face renders */ }
+    rasterKey = '';
+    schedule(false);
+  }
+  fontSel.addEventListener('change', () => useFont(fontSel.value));
+
+  $('text').addEventListener('input', (e) => { S.text = e.target.value; useFontTextLoad(); });
+  let textLoadTimer = 0;
+  function useFontTextLoad() {
+    clearTimeout(textLoadTimer);
+    textLoadTimer = setTimeout(async () => {
+      const f = fontById(S.font);
+      try { await document.fonts.load(fontStr(f, 64), S.text || 'H'); } catch (e) { /* ignore */ }
+      rasterKey = '';
+      schedule(true);
+    }, 80);
+  }
+
+  const ranges = {
+    rows: { heavy: true, fmt: (v) => `${v}` },
+    track: { heavy: true, fmt: (v) => `${v > 0 ? '+' : ''}${v} cell${Math.abs(v) === 1 ? '' : 's'}` },
+    lineGap: { heavy: false, fmt: (v) => `${v} cell${v === 1 ? '' : 's'}` },
+    thr: { heavy: false, fmt: (v) => `${v}%` },
+    stroke: { heavy: false, fmt: (v) => `${v} cell${v === 1 ? '' : 's'}` },
+    prune: { heavy: false, fmt: (v) => (v === 0 ? 'off' : `${v} cell${v === 1 ? '' : 's'}`) },
+    rough: { heavy: false, fmt: (v) => `${v}%` },
+    gap: { heavy: false, render: true, fmt: (v) => `${v}%` },
+    chip: { heavy: false, render: true, fmt: (v) => (v === 0 ? 'off' : `${v}%`) },
+  };
+  for (const [key, cfg] of Object.entries(ranges)) {
+    const input = $(key), out = $(key + 'Out');
+    input.value = S[key];
+    out.textContent = cfg.fmt(S[key]);
+    input.addEventListener('input', () => {
+      S[key] = Number(input.value);
+      out.textContent = cfg.fmt(S[key]);
+      if (cfg.render) renderOnly(); else schedule(cfg.heavy);
+    });
+  }
+  document.querySelectorAll('.seg[data-key]').forEach((seg) => {
+    const key = seg.dataset.key;
+    const sync = () => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === S[key])));
+    sync();
+    seg.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      S[key] = b.dataset.value;
+      sync();
+      if (key === 'dither') schedule(false); else renderOnly();
+    });
+  });
+  $('seed').addEventListener('input', (e) => { S.seed = Math.max(1, Number(e.target.value) || 1); schedule(false); });
+  $('shuffle').addEventListener('click', () => { S.seed = 1 + Math.floor(Math.random() * 99999); $('seed').value = S.seed; schedule(false); });
+  $('guide').addEventListener('change', (e) => { S.guide = e.target.checked; renderOnly(); });
+  $('algoSelect').addEventListener('change', (e) => { S.algo = e.target.value; syncAlgo(); render(); });
+  $('paper').addEventListener('input', (e) => { S.paper = e.target.value; renderOnly(); });
+  $('ink').addEventListener('input', (e) => { S.ink = e.target.value; renderOnly(); });
+  for (const p of PRESETS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'swatch';
+    b.innerHTML = `<i style="background:linear-gradient(135deg, ${p.paper} 50%, ${p.ink} 50%)"></i>${p.name}`;
+    b.addEventListener('click', () => { S.paper = p.paper; S.ink = p.ink; $('paper').value = p.paper; $('ink').value = p.ink; renderOnly(); });
+    $('presets').appendChild(b);
+  }
+  $('resetEdits').addEventListener('click', () => { overrides.clear(); render(); toast('Edits cleared'); });
+
+  // ---------- font files ----------
+  let dropped = 0;
+  async function loadFontFile(file) {
+    const err = $('fontError');
+    err.hidden = true;
+    if (!file) return;
+    if (!/\.(ttf|otf|woff2?)$/i.test(file.name) && !/^font\//.test(file.type)) {
+      err.textContent = `${file.name} is not a font file. Use TTF, OTF, WOFF or WOFF2.`;
+      err.hidden = false;
+      return;
+    }
+    try {
+      const buf = await file.arrayBuffer();
+      dropped += 1;
+      const family = `Dropped Font ${dropped}`;
+      const face = new FontFace(family, buf);
+      await face.load();
+      document.fonts.add(face);
+      const id = `dropped-${dropped}`;
+      FONTS.push({ id, family, weight: 400, kind: file.name.replace(/\.[^.]+$/, '') });
+      fillFonts();
+      await useFont(id);
+      toast(`Using ${file.name}`);
+    } catch (e) {
+      err.textContent = `Couldn't read ${file.name}. The file may be damaged or not a supported font.`;
+      err.hidden = false;
+    }
+  }
+  $('dropZone').addEventListener('click', () => $('fontFile').click());
+  $('fontFile').addEventListener('change', (e) => { loadFontFile(e.target.files[0]); e.target.value = ''; });
+  let dragDepth = 0;
+  window.addEventListener('dragenter', (e) => { if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) { dragDepth++; document.body.classList.add('is-dragging'); } });
+  window.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) document.body.classList.remove('is-dragging'); });
+  window.addEventListener('dragover', (e) => { e.preventDefault(); });
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragDepth = 0;
+    document.body.classList.remove('is-dragging');
+    const file = e.dataTransfer && e.dataTransfer.files[0];
+    if (file) loadFontFile(file);
+  });
+
+  // ---------- editor painting ----------
+  const ec = $('editorCanvas');
+  let brush = null;
+  function cellAt(ev) {
+    if (!editorView) return null;
+    const rect = ec.getBoundingClientRect();
+    const { lay, cell, ox, oy } = editorView;
+    const cx = Math.floor((ev.clientX - rect.left - ox) / cell);
+    const cy = Math.floor((ev.clientY - rect.top - oy) / cell);
+    for (let li = 0; li < rasters.length; li++) {
+      const r = rasters[li], off = lay.offs[li];
+      const x = cx - off.x, y = cy - off.y;
+      if (x >= 0 && y >= 0 && x < r.cols && y < r.rows) return { li, x, y, key: `${li}:${x + r.left}:${y + r.top}` };
+    }
+    return null;
+  }
+  function applyBrush(hit) {
+    if (!hit || brush.done.has(hit.key)) return;
+    brush.done.add(hit.key);
+    const base = results.get(S.algo).grids[hit.li][hit.y * rasters[hit.li].cols + hit.x];
+    if (brush.value === base) overrides.delete(hit.key); else overrides.set(hit.key, brush.value);
+    renderOnly();
+  }
+  ec.addEventListener('pointerdown', (ev) => {
+    const hit = cellAt(ev);
+    if (!hit) return;
+    ec.setPointerCapture(ev.pointerId);
+    let value;
+    if (S.tool === 'draw') value = 1;
+    else if (S.tool === 'erase') value = 0;
+    else value = editedGrids()[hit.li][hit.y * rasters[hit.li].cols + hit.x] ? 0 : 1;
+    brush = { value, done: new Set() };
+    applyBrush(hit);
+  });
+  ec.addEventListener('pointermove', (ev) => { if (brush) applyBrush(cellAt(ev)); });
+  const endBrush = () => { brush = null; };
+  ec.addEventListener('pointerup', endBrush);
+  ec.addEventListener('pointercancel', endBrush);
+
+  // ---------- SVG copy ----------
+  function buildSvg() {
+    const lay = layoutLines();
+    const W = lay.cols + 2, H = lay.rows + 2;
+    const parts = [];
+    const n = (v) => +v.toFixed(3);
+    paint(editedGrids(), lay, 1, 1, 1, (shape, x, y, w, h) => {
+      if (shape === 'dot') parts.push(`<circle cx="${n(x + w / 2)}" cy="${n(y + h / 2)}" r="${n(w / 2)}"/>`);
+      else if (shape === 'rounded') parts.push(`<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="${n(w * 0.3)}"/>`);
+      else parts.push(`<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}"/>`);
+    });
+    const scale = 24;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W * scale}" height="${H * scale}" shape-rendering="crispEdges">`
+      + `<rect width="${W}" height="${H}" fill="${S.paper}"/><g fill="${S.ink}">${parts.join('')}</g></svg>`;
+  }
+  $('copySvg').addEventListener('click', async () => {
+    const svg = buildSvg();
+    try {
+      await navigator.clipboard.writeText(svg);
+      toast('SVG copied. Paste it into Figma or a file.');
+    } catch (e) {
+      toast('Clipboard is blocked here. Copy failed.');
+    }
+  });
+
+  let toastTimer = 0;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+  }
+
+  // ---------- boot ----------
+  syncAlgo();
+  new ResizeObserver(() => renderOnly()).observe(document.querySelector('.main'));
+  useFont(S.font);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { rasterKey = ''; schedule(false); });
+  // Warm the other faces with the current text so switching is instant.
+  FONTS.forEach((f) => { document.fonts.load(fontStr(f, 64), 'ХОЛОДАH').catch(() => {}); });
+})();
+</script>
+</body>
+</html>
