@@ -11,6 +11,7 @@ import type {
   TextLayer,
 } from '../../../types/config';
 import { DEFAULT_EFFECT_LAYER_PROPS } from '../../../types/config';
+import { EFFECT_IDS, effectDefinition, effectsWithBackend, isEffectActive } from '../../../types/effectSchema';
 import { ensureCanvasFontLoaded, getCanvasFontStack } from '../../fontLoading';
 import { lcg } from '../../lcg';
 import { measurePerformancePhase } from '../../performanceMeasure';
@@ -1025,98 +1026,18 @@ async function runGpuPass(
   return gpuRenderToCanvas({ width: W, height: H, source: current, filters, recordCost: options.recordGpuCost });
 }
 
-/** Effect keys owned by the Canvas 2D pass. The GPU filter builder must not also handle them. */
-export const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
-  'glitch',
-  'badStream',
-  'rgbSplit',
-  'retroResolution',
-  'scanlines',
-  'grain',
-  'dotGrain',
-  'tintOp',
-  'sepia',
-  'infrared',
-  'ca',
-  'dither',
-  'indexedPalette',
-  'gradientMap',
-  'channelMixer',
-  'edgeCrush',
-  'silhouetteCrush',
-  'pixelStretch',
-  'bokehBlur',
-  'hatching',
-  'vhsTracking',
-  'matte',
-  'waveAmt',
-  'zoomBlur',
-  'neonGlow',
-  'overprint',
-  'solarize',
-  'bleachBypass',
-  'cyanotype',
-  'splitToneAmt',
-  'rippleAmt',
-  'patternRefraction',
-  'kaleidoscope',
-  'emboss',
-  'linocut',
-  'fog',
-  'gooeyMerge',
-  'speedLines',
-];
-const CANVAS_NONZERO_EFFECT_KEYS: Array<keyof EffectLayer> = ['squeezeX', 'squeezeY'];
-const GPU_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
-  'mirror',
-  'dataMosh',
-  'interlace',
-  'noiseWarp',
-  'morphAmt',
-  'vortex',
-  'barrel',
-  'tearAmt',
-  'pixelate',
-  'posterize',
-  'hueShift',
-  'duotone',
-  'halftone',
-  'risoShift',
-  'bloom',
-  'blurAmt',
-  'threshold',
-  'edgeDetect',
-  'gradMix',
-  'vignette',
-  'filmBurn',
-];
+const CANVAS_PASS_EFFECTS = EFFECT_IDS.filter((effect) => effectDefinition(effect).backend !== 'gpu');
+const GPU_PASS_EFFECTS = effectsWithBackend('gpu');
 
-function numericEffectValue(layer: EffectLayer, key: keyof EffectLayer) {
-  return Number(layer[key] ?? 0);
-}
-
-function hasAnyPositiveEffectValue(layer: EffectLayer, keys: Array<keyof EffectLayer>) {
-  return keys.some((key) => numericEffectValue(layer, key) > 0);
-}
-
-function hasAnyNonZeroEffectValue(layer: EffectLayer, keys: Array<keyof EffectLayer>) {
-  return keys.some((key) => numericEffectValue(layer, key) !== 0);
-}
-
-function hasRayEffect(layer: EffectLayer) {
-  return layer.rayInt > 0 && layer.rays > 0;
-}
+/** Amount keys of effects owned by the Canvas 2D pass (main thread or pixel worker). The GPU filter builder must not handle them. */
+export const CANVAS_EFFECT_AMOUNT_KEYS = CANVAS_PASS_EFFECTS.flatMap((effect) => effectDefinition(effect).amounts);
 
 function hasCanvas2DEffect(layer: EffectLayer): boolean {
-  return (
-    hasRayEffect(layer) ||
-    hasAnyPositiveEffectValue(layer, CANVAS_POSITIVE_EFFECT_KEYS) ||
-    hasAnyNonZeroEffectValue(layer, CANVAS_NONZERO_EFFECT_KEYS)
-  );
+  return CANVAS_PASS_EFFECTS.some((effect) => isEffectActive(layer, effect));
 }
 
 function hasGpuEffect(layer: EffectLayer): boolean {
-  return hasAnyPositiveEffectValue(layer, GPU_POSITIVE_EFFECT_KEYS);
+  return GPU_PASS_EFFECTS.some((effect) => isEffectActive(layer, effect));
 }
 
 export function isGpuOnlyEffectLayer(layer: EffectLayer): boolean {

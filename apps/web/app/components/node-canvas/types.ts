@@ -1,5 +1,4 @@
 import type { MutableRefObject, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from 'react';
-
 import type {
   AspectRatio,
   CanvasDocument,
@@ -11,6 +10,7 @@ import type {
   PrimitiveLayer,
   TextLayer,
 } from '../../types/config';
+import type { EffectControlSectionId } from '../../types/effectSchema';
 import type { AddAction } from '../../utils/addActions';
 import type { DocumentUpdateMode } from '../../utils/documentHistory';
 import type { GraphNodePatch } from '../../utils/nodeKinds';
@@ -196,7 +196,7 @@ export interface PortRowProps {
   connected: ConnectedNodePorts;
 }
 
-export type EffectSectionId = 'node' | 'rays' | 'glitch' | 'texture' | 'tint' | 'warp' | 'color' | 'riso' | 'graphic';
+export type EffectSectionId = 'node' | EffectControlSectionId;
 
 export interface PaneMenuProps {
   x: number;

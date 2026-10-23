@@ -1,5 +1,5 @@
 import { DEFAULT_EFFECT_LAYER_PROPS, EFFECT_PRESETS, type EffectLayer, type EffectPreset } from '../../types/config';
-import { activeEffectPatchPresets, splitEffectPatchIntoPresetLayers } from '../effectPresetPatch';
+import { activeEffectPatchPresets, splitEffectPatchIntoPresetLayers } from './legacyEffectSplit';
 import { isRecord, replacementShaderKind, type StoredDocument } from './shared';
 
 /**

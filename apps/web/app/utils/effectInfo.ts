@@ -1,5 +1,13 @@
 import type { CanvasDocument, EffectLayer, EffectPreset } from '../types/config';
 import { DEFAULT_EXPORT, makeDocument, makeEmojiLayer, ZERO_EFFECT } from '../types/config';
+import {
+  EFFECT_PARAMS,
+  type EffectFamilyId,
+  type EffectParamKey,
+  effectDefinition,
+  effectParam,
+  isEffectId,
+} from '../types/effectSchema';
 import { splitEffectPatchIntoPresetLayers } from './effectPresetPatch';
 import { renderDocument } from './renderer';
 
@@ -30,8 +38,6 @@ const BASE_EFFECT: Partial<EffectLayer> = {
   tintOp: 20,
 };
 
-export type EffectFamilyId = 'light' | 'signal' | 'texture' | 'warp' | 'tone' | 'print';
-
 const EFFECT_FAMILY_META: Record<EffectFamilyId, { label: string; goodFor: string }> = {
   light: { label: 'Light', goodFor: 'glow, atmosphere, stage energy' },
   signal: { label: 'Signal', goodFor: 'glitch, analog video, damaged media' },
@@ -41,96 +47,17 @@ const EFFECT_FAMILY_META: Record<EffectFamilyId, { label: string; goodFor: strin
   print: { label: 'Print', goodFor: 'poster, riso, screen-print finishes' },
 };
 
-const EFFECT_CONTROL_FAMILIES: Record<EffectFamilyId, string[]> = {
-  light: ['rayInt', 'rays', 'bloom', 'filmBurn', 'neonGlow', 'fog', 'speedLines'],
-  signal: [
-    'glitch',
-    'rgbSplit',
-    'ca',
-    'interlace',
-    'dataMosh',
-    'vhsTracking',
-    'pixelStretch',
-    'pixelStretchLength',
-    'pixelStretchAngle',
-  ],
-  texture: [
-    'grain',
-    'dotGrain',
-    'dotGrainSize',
-    'dotGrainDensity',
-    'dotGrainJitter',
-    'scanlines',
-    'scanlineWidth',
-    'matte',
-    'dither',
-    'emboss',
-    'linocut',
-  ],
-  warp: [
-    'noiseWarp',
-    'morphAmt',
-    'morphFreq',
-    'vortex',
-    'barrel',
-    'tearAmt',
-    'tearSize',
-    'mirror',
-    'waveAmt',
-    'waveFreq',
-    'zoomBlur',
-    'rippleAmt',
-    'rippleFreq',
-    'patternRefraction',
-    'patternRefractionScale',
-    'patternRefractionAngle',
-    'kaleidoscope',
-    'squeezeX',
-    'squeezeY',
-  ],
-  tone: [
-    'tintOp',
-    'hueShift',
-    'vignette',
-    'retroResolution',
-    'pixelate',
-    'posterize',
-    'indexedPalette',
-    'indexedPaletteCount',
-    'gradientMap',
-    'channelMixer',
-    'sepia',
-    'infrared',
-    'solarize',
-    'bleachBypass',
-    'cyanotype',
-    'splitToneAmt',
-  ],
-  print: [
-    'duotone',
-    'halftone',
-    'risoShift',
-    'risoAngle',
-    'overprint',
-    'blur',
-    'threshold',
-    'edgeCrush',
-    'silhouetteCrush',
-    'bokehBlur',
-    'hatching',
-    'gooeyMerge',
-    'gooeyRadius',
-    'gooeyThreshold',
-    'edgeDetect',
-    'gradientOverlay',
-  ],
-};
+/** The family of a help key: an effect id, or a parameter key whose effect has a family. */
+function effectFamilyOf(key: string): EffectFamilyId | undefined {
+  if (isEffectId(key)) return effectDefinition(key).family;
+  if (key in EFFECT_PARAMS) return effectDefinition(effectParam(key as EffectParamKey).effect).family;
+  return undefined;
+}
 
 export function getEffectFamilyMeta(key: string) {
-  const family =
-    Object.entries(EFFECT_CONTROL_FAMILIES).find(([, keys]) => keys.includes(key))?.[0] ?? EFFECT_META[key]?.family;
+  const family = effectFamilyOf(key) ?? EFFECT_META[key]?.family;
   if (!family) return null;
-  return EFFECT_FAMILY_META[family as EffectFamilyId];
+  return EFFECT_FAMILY_META[family];
 }
 
 /** Whether an effect control has help to show. */

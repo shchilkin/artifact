@@ -1,4 +1,5 @@
 import type { GraphNode } from '../utils/nodeKinds';
+import { EFFECT_PARAM_DEFAULTS, type EffectParamValues } from './effectSchema';
 import { inferLinearGraph } from './linearGraph';
 import type { TextFontRef } from './typography';
 
@@ -349,124 +350,13 @@ export type EffectPreset =
   | 'fog'
   | 'speedLines';
 
-export interface EffectLayer extends BaseLayer {
+/** An effect layer: one focused effect preset. Its parameters are declared in `EFFECT_PARAMS` (`types/effectSchema.ts`). */
+export interface EffectLayer extends BaseLayer, EffectParamValues {
   kind: 'effect';
   preset?: EffectPreset; // which preset created this layer (drives panel icon)
   /** Composites the effect result over its input; defaults to normal (replace). */
   blendMode?: string;
   maskAlpha: boolean;
-  grain: number;
-  dotGrain: number;
-  dotGrainSize: number;
-  dotGrainDensity: number;
-  dotGrainJitter: number;
-  scanlines: number;
-  scanlineWidth: number;
-  rgbSplit: number;
-  glitch: number;
-  badStream: number;
-  badStreamBlockSize: number;
-  badStreamDetail: number;
-  badStreamSmear: number;
-  badStreamChroma: number;
-  badStreamDarkness: number;
-  pixelStretch: number;
-  pixelStretchLength: number;
-  pixelStretchAngle: number;
-  tint: string;
-  tintOp: number;
-  rays: number;
-  rayInt: number;
-  rayColor: string;
-  morphAmt: number;
-  morphFreq: number;
-  tearAmt: number;
-  tearSize: number;
-  noiseWarp: number;
-  vortex: number;
-  barrel: number;
-  mirror: number;
-  dataMosh: number;
-  interlace: number;
-  retroResolution: number;
-  pixelate: number;
-  hueShift: number;
-  vignette: number;
-  bloom: number;
-  posterize: number;
-  indexedPalette: number;
-  indexedPaletteCount: number;
-  indexedColorA: string;
-  indexedColorB: string;
-  indexedColorC: string;
-  indexedColorD: string;
-  indexedColorE: string;
-  indexedColorF: string;
-  gradientMap: number;
-  gradientMapShadow: string;
-  gradientMapMid: string;
-  gradientMapHighlight: string;
-  channelMixer: number;
-  channelRedMix: number;
-  channelGreenMix: number;
-  channelBlueMix: number;
-  filmBurn: number;
-  duotone: number;
-  duoA: string;
-  duoB: string;
-  halftone: number;
-  risoShift: number;
-  risoAngle: number;
-  blurAmt: number;
-  threshold: number;
-  edgeCrush: number;
-  silhouetteCrush: number;
-  edgeDetect: number;
-  bokehBlur: number;
-  bokehThreshold: number;
-  hatching: number;
-  hatchScale: number;
-  hatchAngle: number;
-  gooeyMerge: number;
-  gooeyRadius: number;
-  gooeyThreshold: number;
-  gradMix: number;
-  gradA: string;
-  gradB: string;
-  gradAngle: number;
-  // new effects (batch 1)
-  sepia: number;
-  neonGlow: number;
-  neonColor: string;
-  zoomBlur: number;
-  vhsTracking: number;
-  dither: number;
-  infrared: number;
-  ca: number;
-  waveAmt: number;
-  waveFreq: number;
-  matte: number;
-  overprint: number;
-  // new effects (batch 2)
-  solarize: number;
-  bleachBypass: number;
-  cyanotype: number;
-  splitToneAmt: number;
-  splitShadow: string;
-  splitHighlight: string;
-  rippleAmt: number;
-  rippleFreq: number;
-  patternRefraction: number;
-  patternRefractionScale: number;
-  patternRefractionAngle: number;
-  kaleidoscope: number;
-  squeezeX: number;
-  squeezeY: number;
-  emboss: number;
-  linocut: number;
-  fog: number;
-  fogColor: string;
-  speedLines: number;
   seedOffset: number;
 }
 
@@ -715,116 +605,7 @@ export const MATERIAL_PRESETS: Record<MaterialPreset, MaterialConfig> = {
 export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked'> = {
   kind: 'effect',
   maskAlpha: false,
-  grain: 0,
-  dotGrain: 0,
-  dotGrainSize: 4,
-  dotGrainDensity: 62,
-  dotGrainJitter: 35,
-  scanlines: 0,
-  scanlineWidth: 1,
-  rgbSplit: 0,
-  glitch: 0,
-  badStream: 0,
-  badStreamBlockSize: 48,
-  badStreamDetail: 42,
-  badStreamSmear: 35,
-  badStreamChroma: 28,
-  badStreamDarkness: 38,
-  pixelStretch: 0,
-  pixelStretchLength: 24,
-  pixelStretchAngle: 0,
-  tint: '#350055',
-  tintOp: 0,
-  rays: 0,
-  rayInt: 0,
-  rayColor: '#bb00ff',
-  morphAmt: 0,
-  morphFreq: 5,
-  tearAmt: 0,
-  tearSize: 3,
-  noiseWarp: 0,
-  vortex: 0,
-  barrel: 0,
-  mirror: 0,
-  dataMosh: 0,
-  interlace: 0,
-  retroResolution: 0,
-  pixelate: 0,
-  hueShift: 0,
-  vignette: 0,
-  bloom: 0,
-  posterize: 0,
-  indexedPalette: 0,
-  indexedPaletteCount: 6,
-  indexedColorA: '#12002b',
-  indexedColorB: '#3b1590',
-  indexedColorC: '#d400b8',
-  indexedColorD: '#ff1d1d',
-  indexedColorE: '#f6c400',
-  indexedColorF: '#fff1df',
-  gradientMap: 0,
-  gradientMapShadow: '#0d0033',
-  gradientMapMid: '#9c5a13',
-  gradientMapHighlight: '#00e6cc',
-  channelMixer: 0,
-  channelRedMix: 45,
-  channelGreenMix: 35,
-  channelBlueMix: 25,
-  filmBurn: 0,
-  duotone: 0,
-  duoA: '#0a0020',
-  duoB: '#ff6ec7',
-  halftone: 0,
-  risoShift: 0,
-  risoAngle: 15,
-  blurAmt: 0,
-  threshold: 0,
-  edgeCrush: 0,
-  silhouetteCrush: 0,
-  edgeDetect: 0,
-  bokehBlur: 0,
-  bokehThreshold: 68,
-  hatching: 0,
-  hatchScale: 9,
-  hatchAngle: 35,
-  gooeyMerge: 0,
-  gooeyRadius: 8,
-  gooeyThreshold: 46,
-  gradMix: 0,
-  gradA: '#0a0020',
-  gradB: '#ff6ec7',
-  gradAngle: 0,
-  sepia: 0,
-  neonGlow: 0,
-  neonColor: '#ff00ff',
-  zoomBlur: 0,
-  vhsTracking: 0,
-  dither: 0,
-  infrared: 0,
-  ca: 0,
-  waveAmt: 0,
-  waveFreq: 3,
-  matte: 0,
-  overprint: 0,
-  solarize: 0,
-  bleachBypass: 0,
-  cyanotype: 0,
-  splitToneAmt: 0,
-  splitShadow: '#001a4f',
-  splitHighlight: '#ff8040',
-  rippleAmt: 0,
-  rippleFreq: 3,
-  patternRefraction: 0,
-  patternRefractionScale: 16,
-  patternRefractionAngle: 35,
-  kaleidoscope: 0,
-  squeezeX: 0,
-  squeezeY: 0,
-  emboss: 0,
-  linocut: 0,
-  fog: 0,
-  fogColor: '#c8d8e8',
-  speedLines: 0,
+  ...EFFECT_PARAM_DEFAULTS,
   seedOffset: 0,
 };
 

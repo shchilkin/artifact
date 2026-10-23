@@ -81,9 +81,11 @@ The release gate is the command list in `docs/production-readiness.md`
   stores the linear graph of its layers (`isLayerStackGraph`), and Layers edits
   keep it in sync. Renderer internals live under `apps/web/app/utils/render/`.
 - Effect layers run a Canvas 2D / worker pass, then an optional PixiJS filter
-  pass. Each effect key belongs to exactly one backend: the canvas list in
-  `render/layers/index.ts` (`CANVAS_POSITIVE_EFFECT_KEYS`) or the GPU filters in
-  `utils/pixiFilters.ts`. `pixiFilters.test.ts` enforces this.
+  pass. Effect parameters are declared once in `apps/web/app/types/effectSchema.ts`
+  (`EFFECT_PARAMS`, `EFFECTS`): defaults, inspector controls, backend, docs
+  ranges, and randomizer ranges are derived from it. Each effect has exactly one
+  backend (`canvas`, `worker`, or `gpu`); `effectSchema.test.ts` renders every
+  effect to enforce this. See `docs/effect-development.md`.
 - Document state lives in `apps/web/app/hooks/useEditorDocument.ts`. Updates go
   through `snapshot`, `debounce`, or `silent` modes; history is
   `apps/web/app/utils/documentHistory.ts` (max 50 entries). Durable mutations
@@ -113,7 +115,7 @@ The release gate is the command list in `docs/production-readiness.md`
   registries; never switch on a node kind outside a kind's own modules
   (`nodeKindLocality.test.ts` checks this with grime shadow).
 
-Known core debt (flat `EffectLayer`, scattered update paths) is tracked in
+Known core debt (scattered update paths, large files) is tracked in
 `docs/version-plans/v0.53.md`. Do not add new parallel paths on top of it.
 
 ## Invariants
