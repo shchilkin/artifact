@@ -38,7 +38,7 @@ The interactive frame is sized to the device's GPU (v0.50, #324): on a GPU
 where one effect pass at the draft size would take longer than the preview's
 budget (12 ms, typically software WebGL), it renders at 3/4 or 1/2 of the draft
 size, from the GPU bridge's running cost per megapixel
-(`apps/web/app/utils/gpuPassCost.ts`). It also sets `mergeGpuPasses`. The
+(`apps/web/app/utils/gpuPassCost.ts`). The
 full-quality pass that follows is unchanged, so the frame the preview settles
 on, thumbnails, and export match as before. The display canvas takes each
 frame's own size and CSS scales it to the preview box.
@@ -474,7 +474,6 @@ interface RenderOptions {
   draft?: boolean;
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
   effectResolution?: { width: number; height: number };
-  mergeGpuPasses?: boolean;
 }
 ```
 
@@ -486,13 +485,10 @@ Guidelines:
 - `effectResolution` is used by export so scale 2/3 increases file
   resolution without changing procedural effect density from the base cover
   size.
-- `mergeGpuPasses` is for interactive preview frames only. An effect layer that
-  is not masked or blended runs its GPU filters in the same GPU pass as the
-  GPU-only effect layers above it, which saves a canvas upload and readback.
-  Opaque pixels are identical
-  (`tests/browser/v050-gpu-readback-parity.spec.ts`); translucent pixels can
-  differ by readback rounding, so full-quality previews, thumbnails, and export
-  never set it.
+- Two or more GPU-only effect layers in a row run their filters in one GPU
+  pass in every render. The v0.50 option that also merged a mixed Canvas 2D and
+  GPU layer into that pass was removed in v0.53: focused effect presets have
+  one backend each, so no document reached it.
 - UI render hooks should avoid painting stale async results when a newer
   document, image-cache, or render-option change is already queued.
 

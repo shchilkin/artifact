@@ -3,14 +3,7 @@ import { EXPORT_NODE_ID, findGraphNode, findGraphNodeOfKind } from '../nodeGraph
 import type { GraphNodeKind, GraphNodeOfKind } from '../nodeKinds';
 import { createCanvas, drawBackground, isDrawableCanvas } from './canvas';
 import { findIncomingSource, graphLayerInputPort } from './graphInputs';
-import {
-  applyEffectLayerCanvas2DPass,
-  applyGpuOnlyEffectLayerChain,
-  applyLayerToCanvas,
-  canMergeTrailingGpuPass,
-  isGpuOnlyEffectLayer,
-  type RenderOptions,
-} from './layers';
+import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 import {
   findLayer,
   type GraphNodeRenderContext,
@@ -30,17 +23,11 @@ export interface GraphRenderCache {
 
 interface GpuEffectChain {
   baseSourceId: string | null;
-  /** An effect layer below the chain whose Canvas 2D effects run first and whose GPU filters join the chain's pass. */
-  mergedLayer: EffectLayer | null;
   layers: EffectLayer[];
 }
 
-function collectGpuOnlyEffectChain(
-  doc: CanvasDocument,
-  graph: CanvasGraph,
-  nodeId: string,
-  mergeGpuPasses: boolean,
-): GpuEffectChain | null {
+/** Two or more GPU-only effect layers in a row: their filters run in one GPU pass. */
+function collectGpuOnlyEffectChain(doc: CanvasDocument, graph: CanvasGraph, nodeId: string): GpuEffectChain | null {
   const layers: EffectLayer[] = [];
   let currentId: string | null = nodeId;
   let baseSourceId: string | null = null;
@@ -61,11 +48,7 @@ function collectGpuOnlyEffectChain(
     currentId = sourceId;
   }
 
-  const baseLayer = baseSourceId ? findLayer(doc, baseSourceId) : undefined;
-  if (mergeGpuPasses && layers.length > 0 && baseLayer?.kind === 'effect' && canMergeTrailingGpuPass(baseLayer)) {
-    return { baseSourceId: findIncomingSource(graph, baseLayer.id, 'in'), mergedLayer: baseLayer, layers };
-  }
-  return layers.length > 1 ? { baseSourceId, mergedLayer: null, layers } : null;
+  return layers.length > 1 ? { baseSourceId, layers } : null;
 }
 
 function normalizeRenderedCanvas(canvas: HTMLCanvasElement, W: number, H: number): HTMLCanvasElement {
@@ -102,16 +85,14 @@ async function renderGpuOnlyLayerChain(
   layer: Layer,
   context: GraphNodeRenderContext,
 ): Promise<HTMLCanvasElement | null> {
-  const { doc, graph, W, H, imageCache, options, renderDependency } = context;
+  const { doc, graph, W, H, options, renderDependency } = context;
   if (layer.kind !== 'effect' || options.skipEffects || options.effectResolution) return null;
-  const gpuEffectChain = collectGpuOnlyEffectChain(doc, graph, nodeId, options.mergeGpuPasses ?? false);
+  const gpuEffectChain = collectGpuOnlyEffectChain(doc, graph, nodeId);
   if (!gpuEffectChain) return null;
-  const { baseSourceId, mergedLayer, layers } = gpuEffectChain;
+  const { baseSourceId, layers } = gpuEffectChain;
   const source = baseSourceId ? await renderDependency(baseSourceId) : createCanvas(W, H);
   throwIfRenderAborted(options);
-  if (!mergedLayer) return applyGpuOnlyEffectLayerChain(source, layers, doc, W, H, options);
-  const base = await applyEffectLayerCanvas2DPass(source, mergedLayer, doc, W, H, imageCache, options);
-  return applyGpuOnlyEffectLayerChain(base, [mergedLayer, ...layers], doc, W, H, options);
+  return applyGpuOnlyEffectLayerChain(source, layers, doc, W, H, options);
 }
 
 function graphLayerRenderOptions(layer: Layer, options: RenderOptions): RenderOptions {

@@ -121,7 +121,7 @@ function normalizeShaderNode(node: Record<string, unknown> & { id: string }): Gr
 }
 
 /** Fill shaders create their own pixels; effect shaders (and code/AI shaders in the effect role) read `bg`. */
-export function shaderFollowsBackdrop(shader: GraphShaderNode): boolean {
+function shaderFollowsBackdrop(shader: GraphShaderNode): boolean {
   if (shader.shaderKind === 'customCode' || shader.shaderKind === 'aiShader') return shader.role === 'effect';
   return shader.role !== 'fill';
 }

@@ -29,7 +29,6 @@ import {
   setLayersVisibilityInDocument,
   toggleLayerVisibilityInDocument,
   updateDocumentExportConfig,
-  updateGlobalInDocument,
   updateGraphNodeInDocument,
   updateLayerInDocument,
 } from './documentCommands';
@@ -881,7 +880,6 @@ describe('documentCommands', () => {
     ).toBe(70);
     expect(setDocumentSeed(doc, 99).global.seed).toBe(99);
     expect(setDocumentAspect(doc, '16:9').global.aspect).toBe('16:9');
-    expect(updateGlobalInDocument(doc, { bg: '#ffffff' }).global.bg).toBe('#ffffff');
     expect(updateDocumentExportConfig(doc, { scale: 3 }).export.scale).toBe(3);
     expect(setDocumentGraph(doc, graph).graph).toBe(graph);
     expect(doc.global.seed).toBe(12);
@@ -920,5 +918,26 @@ describe('documentCommands', () => {
 
     expect(result.doc).toBe(doc);
     expect(result.layer).toBeNull();
+  });
+});
+
+describe('inserting an environment node on a connection', () => {
+  it('feeds the connection into the input the environment node renders', () => {
+    const fill = makeFillLayer({ id: 'env-source' });
+    const doc = makeDocument({
+      global: { bg: 'transparent', seed: 1, aspect: '1:1' },
+      layers: [fill],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+    const edge = doc.graph.edges.find((item) => item.fromId === fill.id)!;
+    const result = addNodeAtDocument(
+      doc,
+      { kind: 'environment' },
+      { x: 0, y: 0 },
+      { sourceId: fill.id, targetId: edge.toId, targetPort: edge.toPort, replaceEdgeId: edge.id },
+    );
+    const environment = graphNodesOfKind(result.doc.graph, 'environment')[0]!;
+    const incoming = result.doc.graph.edges.filter((item) => item.toId === environment.id);
+    expect(incoming.map((item) => [item.fromId, item.toPort])).toEqual([[fill.id, 'in']]);
   });
 });

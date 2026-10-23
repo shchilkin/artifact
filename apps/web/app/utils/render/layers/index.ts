@@ -55,12 +55,6 @@ export interface RenderOptions {
   sourceLayout?: 'document' | 'full-frame';
   /** Optional stable effect pass resolution so export scale changes density, not the effect recipe. */
   effectResolution?: { width: number; height: number };
-  /**
-   * Interactive previews only: an effect layer's GPU filters run in the same GPU pass as the GPU-only effect layers
-   * right after it, saving one canvas upload and readback. Translucent pixels can differ from separate passes by
-   * readback rounding, so full-quality, thumbnail, and export renders leave this off.
-   */
-  mergeGpuPasses?: boolean;
   /** Layer preview only: its GPU passes feed the device's GPU cost estimate, which sizes interactive frames. */
   recordGpuCost?: boolean;
   /** Transient render cancellation signal. Never store this in document state. */
@@ -120,9 +114,6 @@ async function runGpuPass(
 const CANVAS_PASS_EFFECTS = EFFECT_IDS.filter((effect) => effectDefinition(effect).backend !== 'gpu');
 const GPU_PASS_EFFECTS = effectsWithBackend('gpu');
 
-/** Amount keys of effects owned by the Canvas 2D pass (main thread or pixel worker). The GPU filter builder must not handle them. */
-export const CANVAS_EFFECT_AMOUNT_KEYS = CANVAS_PASS_EFFECTS.flatMap((effect) => effectDefinition(effect).amounts);
-
 function hasCanvas2DEffect(layer: EffectLayer): boolean {
   return CANVAS_PASS_EFFECTS.some((effect) => isEffectActive(layer, effect));
 }
@@ -135,14 +126,6 @@ export function isGpuOnlyEffectLayer(layer: EffectLayer): boolean {
   return (
     layer.visible && !layer.maskAlpha && !hasEffectBlendMode(layer) && hasGpuEffect(layer) && !hasCanvas2DEffect(layer)
   );
-}
-
-/**
- * An effect layer whose GPU filters (if any) can run after its Canvas 2D effects in a later, shared GPU pass: its
- * output is not masked or blended over its input, so nothing needs the pixels between the two parts.
- */
-export function canMergeTrailingGpuPass(layer: EffectLayer): boolean {
-  return layer.visible && !layer.maskAlpha && !hasEffectBlendMode(layer);
 }
 
 function hasEffectBlendMode(layer: EffectLayer): boolean {
@@ -186,7 +169,7 @@ export async function applyGpuOnlyEffectLayerChain(
   return runGpuPass(cloneCanvas(base, W, H), W, H, filters, options);
 }
 
-/** The Canvas 2D part of an effect layer whose GPU filters run later, in a merged GPU pass. */
+/** The Canvas 2D part of an effect layer alone, without its GPU filters. */
 export async function applyEffectLayerCanvas2DPass(
   base: HTMLCanvasElement,
   layer: EffectLayer,

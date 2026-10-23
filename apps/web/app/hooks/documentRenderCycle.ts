@@ -177,14 +177,11 @@ function interactiveRenderDimensions(refs: DocumentRendererRefs): [number, numbe
 function frameRenderOptions(
   refs: DocumentRendererRefs,
   draftQuality: boolean,
-  interactive: boolean,
   abortController: AbortController,
 ): RenderOptions {
   return {
     skipEffects: draftQuality,
     draft: draftQuality,
-    // Interactive passes are replaced by the full-quality pass, which keeps separate GPU passes.
-    mergeGpuPasses: interactive,
     recordGpuCost: true,
     primitiveViewStates: refs.primitiveViewStatesRef.current,
     signal: abortController.signal,
@@ -208,7 +205,7 @@ export function currentRenderPolicy(refs: DocumentRendererRefs, abortController:
     targetWidth,
     targetHeight,
     interactive: usePreviewSize,
-    renderOptions: frameRenderOptions(refs, useDraftQuality, usePreviewSize, abortController),
+    renderOptions: frameRenderOptions(refs, useDraftQuality, abortController),
   };
 }
 
@@ -241,7 +238,7 @@ export function scheduleInteractiveWarmup(refs: DocumentRendererRefs) {
     const abortController = new AbortController();
     refs.warmupRef.current.abort = abortController;
     const draftQuality = refs.fastRef.current || refs.deferredPreviewQualityRef.current === 'draft';
-    renderDocumentFrame(refs, width, height, frameRenderOptions(refs, draftQuality, true, abortController))
+    renderDocumentFrame(refs, width, height, frameRenderOptions(refs, draftQuality, abortController))
       .then(() => {
         if (!abortController.signal.aborted) refs.warmInteractiveSizeRef.current = size;
       })

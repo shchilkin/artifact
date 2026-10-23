@@ -6,9 +6,7 @@ import {
   addGraphEdge,
   addGraphNode,
   addNodesToGraphArea,
-  appendNodeToExportPath,
   assignNodesToGraphArea,
-  collectDownstreamNodeIds,
   collectUpstreamNodeIds,
   connectedPortIds,
   EXPORT_NODE_ID,
@@ -21,8 +19,6 @@ import {
   removeLayerFromGraph,
   removeNodesFromGraphArea,
   resolveOutputPath,
-  resolveRenderOrder,
-  resolveUpstreamRenderLayers,
   splitEdgeWithNode,
   updateGraphArea,
   updateGraphNode,
@@ -95,34 +91,6 @@ describe('graph mutations', () => {
 
     expect(next.edges).toEqual([{ id: 'keep-me', fromId: 'b', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }]);
     expect(graph.edges).toHaveLength(2);
-  });
-
-  it('appends a new node into the export path', () => {
-    const graph = emptyGraph({
-      edges: [{ id: 'old-export', fromId: 'text-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
-    });
-
-    const next = appendNodeToExportPath(graph, 'effect-1', 'in', (fromId, toId, index) => {
-      return `edge-${index}-${fromId}-${toId}`;
-    });
-
-    expect(next.edges).toEqual([
-      { id: 'edge-0-text-1-effect-1', fromId: 'text-1', fromPort: 'out', toId: 'effect-1', toPort: 'in' },
-      { id: 'edge-1-effect-1-__export__', fromId: 'effect-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-    ]);
-    expect(graph.edges).toEqual([
-      { id: 'old-export', fromId: 'text-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-    ]);
-  });
-
-  it('connects the first appended node directly to export', () => {
-    const next = appendNodeToExportPath(emptyGraph(), 'fill-1', 'bg', (fromId, toId, index) => {
-      return `edge-${index}-${fromId}-${toId}`;
-    });
-
-    expect(next.edges).toEqual([
-      { id: 'edge-0-fill-1-__export__', fromId: 'fill-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-    ]);
   });
 
   it('adds and removes merge nodes with positions and connected edges', () => {
@@ -468,31 +436,6 @@ describe('graph mutations', () => {
   });
 });
 
-describe('resolveUpstreamRenderLayers', () => {
-  it('returns only the layers reachable from a target merge node in render order', () => {
-    const fill = makeFillLayer({ id: 'fill-1' });
-    const text = makeTextLayer({ id: 'text-1' });
-    const emoji = makeEmojiLayer({ id: 'emoji-1' });
-    const graph: CanvasGraph = {
-      edges: [
-        { id: 'e-fill-merge', fromId: fill.id, fromPort: 'out', toId: 'merge-1', toPort: 'a' },
-        { id: 'e-text-emoji', fromId: text.id, fromPort: 'out', toId: emoji.id, toPort: 'bg' },
-        { id: 'e-emoji-merge', fromId: emoji.id, fromPort: 'out', toId: 'merge-1', toPort: 'b' },
-      ],
-      positions: {},
-      nodes: graphNodesById(
-        makeGraphMergeNode({ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 }),
-      ),
-    };
-
-    expect(resolveUpstreamRenderLayers('merge-1', graph, [fill, text, emoji]).map((layer) => layer.id)).toEqual([
-      fill.id,
-      text.id,
-      emoji.id,
-    ]);
-  });
-});
-
 describe('collectUpstreamNodeIds', () => {
   it('returns a target and all upstream nodes, including graph-only nodes', () => {
     const graph = mergeColorExportGraph();
@@ -500,48 +443,6 @@ describe('collectUpstreamNodeIds', () => {
     expect([...collectUpstreamNodeIds(EXPORT_NODE_ID, graph)].sort()).toEqual(
       [EXPORT_NODE_ID, 'color-1', 'fill-1', 'merge-1', 'text-1'].sort(),
     );
-  });
-});
-
-describe('collectDownstreamNodeIds', () => {
-  it('returns a source and all downstream nodes, including graph-only nodes', () => {
-    const graph = mergeColorExportGraph();
-
-    expect([...collectDownstreamNodeIds('text-1', graph)].sort()).toEqual(
-      [EXPORT_NODE_ID, 'color-1', 'merge-1', 'text-1'].sort(),
-    );
-  });
-
-  it('does not collect unrelated branches', () => {
-    const graph = emptyGraph({
-      edges: [
-        { id: 'e-a-merge', fromId: 'a', fromPort: 'out', toId: 'merge', toPort: 'a' },
-        { id: 'e-b-merge', fromId: 'b', fromPort: 'out', toId: 'merge', toPort: 'b' },
-        { id: 'e-merge-export', fromId: 'merge', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-        { id: 'e-orphan-child', fromId: 'orphan', fromPort: 'out', toId: 'orphan-child', toPort: 'bg' },
-      ],
-    });
-
-    const downstream = collectDownstreamNodeIds('a', graph);
-
-    expect(downstream.has('a')).toBe(true);
-    expect(downstream.has('merge')).toBe(true);
-    expect(downstream.has(EXPORT_NODE_ID)).toBe(true);
-    expect(downstream.has('b')).toBe(false);
-    expect(downstream.has('orphan')).toBe(false);
-    expect(downstream.has('orphan-child')).toBe(false);
-  });
-
-  it('is safe for legacy cyclic graphs', () => {
-    const graph = emptyGraph({
-      edges: [
-        { id: 'e-a-b', fromId: 'a', fromPort: 'out', toId: 'b', toPort: 'bg' },
-        { id: 'e-b-c', fromId: 'b', fromPort: 'out', toId: 'c', toPort: 'bg' },
-        { id: 'e-c-a', fromId: 'c', fromPort: 'out', toId: 'a', toPort: 'bg' },
-      ],
-    });
-
-    expect([...collectDownstreamNodeIds('a', graph)].sort()).toEqual(['a', 'b', 'c']);
   });
 });
 
@@ -557,28 +458,6 @@ describe('resolveOutputPath', () => {
     expect([...outputPath.edgeIds].sort()).toEqual(
       ['e-color-merge', 'e-fill-merge', 'e-merge-export', 'e-text-color'].sort(),
     );
-  });
-});
-
-describe('resolveRenderOrder', () => {
-  it('ignores disconnected layers when walking the export path', () => {
-    const fill = makeFillLayer({ id: 'fill-1' });
-    const emoji = makeEmojiLayer({ id: 'emoji-1' });
-    const orphan = makeTextLayer({ id: 'text-1' });
-    const graph: CanvasGraph = {
-      edges: [
-        { id: 'e-fill-emoji', fromId: fill.id, fromPort: 'out', toId: emoji.id, toPort: 'bg' },
-        { id: 'e-emoji-export', fromId: emoji.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-      ],
-      positions: {},
-      nodes: graphNodesById(),
-    };
-
-    expect(
-      resolveRenderOrder(graph, [fill, emoji, orphan])
-        .slice(0, 2)
-        .map((layer) => layer.id),
-    ).toEqual([fill.id, emoji.id]);
   });
 });
 

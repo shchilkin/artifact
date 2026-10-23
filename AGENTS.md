@@ -118,8 +118,9 @@ The release gate is the command list in `docs/production-readiness.md`
   registries; never switch on a node kind outside a kind's own modules
   (`nodeKindLocality.test.ts` checks this with grime shadow).
 
-Known core debt (scattered update paths, large files) is tracked in
-`docs/version-plans/v0.53.md`. Do not add new parallel paths on top of it.
+The v0.53 core reset (`docs/version-plans/v0.53.md`) removed the parallel
+paths: one topology source, node-kind and effect registries, one command
+dispatcher. Extend those instead of adding new parallel paths.
 
 ## Invariants
 

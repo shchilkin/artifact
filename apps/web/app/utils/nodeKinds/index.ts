@@ -27,7 +27,7 @@ export { makeGraphRepeatNode } from './repeat';
 export type { GraphScene3DNode } from './scene3d';
 export { makeGraphScene3DNode } from './scene3d';
 export type { GraphShaderNode } from './shader';
-export { makeGraphShaderNode, shaderFollowsBackdrop } from './shader';
+export { makeGraphShaderNode } from './shader';
 export type { GraphTransformNode } from './transform';
 export { makeGraphTransformNode } from './transform';
 export * from './types';

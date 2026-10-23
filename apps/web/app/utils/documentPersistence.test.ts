@@ -17,8 +17,6 @@ import {
   createBlankDocument,
   createDocumentShareUrl,
   DOC_KEY,
-  deletePreBlankDraft,
-  getInitialDocumentFromSources,
   isBlankDocument,
   loadPreBlankDraft,
   normalizeDocument,
@@ -27,7 +25,6 @@ import {
   removeDocParamFromUrl,
   resolveInitialDocumentFromSources,
   saveDocumentToStorage,
-  savePreBlankDraft,
   serializeArtifactDocument,
   serializeDocument,
 } from './documentPersistence';
@@ -786,7 +783,7 @@ describe('normalizeDocument', () => {
   });
 });
 
-describe('getInitialDocumentFromSources', () => {
+describe('resolveInitialDocumentFromSources', () => {
   const storedDoc: CanvasDocument = makeDocument({
     global: { bg: '#101010', seed: 10, aspect: '1:1' },
     layers: [makeFillLayer({ id: 'stored-fill' })],
@@ -800,7 +797,7 @@ describe('getInitialDocumentFromSources', () => {
   });
 
   it('prefers a valid URL document over stored local state', () => {
-    const doc = getInitialDocumentFromSources({
+    const { doc } = resolveInitialDocumentFromSources({
       search: `?doc=${encodeURIComponent(encodeDoc(linkedDoc))}`,
       storageValue: encodeDoc(storedDoc),
     });
@@ -810,7 +807,7 @@ describe('getInitialDocumentFromSources', () => {
   });
 
   it('prefers an explicit blank start over stored local state', () => {
-    const doc = getInitialDocumentFromSources({
+    const { doc } = resolveInitialDocumentFromSources({
       search: '?new=blank',
       storageValue: encodeDoc(storedDoc),
     });
@@ -821,7 +818,7 @@ describe('getInitialDocumentFromSources', () => {
   });
 
   it('falls back to stored local state when the URL document is invalid', () => {
-    const doc = getInitialDocumentFromSources({
+    const { doc } = resolveInitialDocumentFromSources({
       search: '?doc=%7Bbad-json',
       storageValue: encodeDoc(storedDoc),
     });
@@ -831,8 +828,8 @@ describe('getInitialDocumentFromSources', () => {
   });
 
   it('returns independent default document clones when no source can be read', () => {
-    const first = getInitialDocumentFromSources({});
-    const second = getInitialDocumentFromSources({});
+    const first = resolveInitialDocumentFromSources({}).doc;
+    const second = resolveInitialDocumentFromSources({}).doc;
 
     first.layers.pop();
 
@@ -907,26 +904,25 @@ describe('document serialization helpers', () => {
     expect(didSave).toBe(false);
   });
 
-  it('saves and deletes a recoverable pre-blank draft', () => {
-    const writes = new Map<string, string>();
-    const storage = {
-      getItem: (key: string) => writes.get(key) ?? null,
-      setItem: (key: string, value: string) => writes.set(key, value),
-      removeItem: (key: string) => writes.delete(key),
-    };
-
-    expect(savePreBlankDraft(doc, storage, new Date('2026-05-15T12:00:00.000Z'), 'data:image/webp;base64,thumb')).toBe(
-      true,
-    );
-    expect(writes.has(PRE_BLANK_DRAFT_KEY)).toBe(true);
+  it('loads a recoverable pre-blank draft left by an earlier version', () => {
+    const writes = new Map<string, string>([
+      [
+        PRE_BLANK_DRAFT_KEY,
+        JSON.stringify({
+          reason: 'before-blank',
+          savedAt: '2026-05-15T12:00:00.000Z',
+          doc,
+          thumbnail: 'data:image/webp;base64,thumb',
+        }),
+      ],
+    ]);
+    const storage = { getItem: (key: string) => writes.get(key) ?? null };
 
     const draft = loadPreBlankDraft(storage);
     expect(draft?.savedAt).toBe('2026-05-15T12:00:00.000Z');
     expect(draft?.doc.layers[0]?.id).toBe('share-text');
     expect(draft?.thumbnail).toBe('data:image/webp;base64,thumb');
-
-    expect(deletePreBlankDraft(storage)).toBe(true);
-    expect(loadPreBlankDraft(storage)).toBeNull();
+    expect(loadPreBlankDraft({ getItem: () => null })).toBeNull();
   });
 
   it('creates share URLs that round-trip through the doc query param', () => {

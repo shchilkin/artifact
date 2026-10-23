@@ -36,8 +36,7 @@ export const environmentNodeModel: GraphNodeKindModel<GraphEnvironmentNode> = {
     kind: 'environment',
   }),
   inputs: () => SINGLE_INPUT,
-  // Existing behavior: the dropped-on connection feeds `env`, which the renderer does not read for this node.
-  insertion: () => ({ through: 'env' }),
+  insertion: () => ({ through: 'in' }),
   look: {
     canvasSymbol: '◇',
     accent: 'var(--node-kind-color)',

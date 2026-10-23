@@ -665,10 +665,6 @@ export function setDocumentAspect(doc: CanvasDocument, aspect: AspectRatio): Can
   return { ...doc, global: { ...doc.global, aspect } };
 }
 
-export function updateGlobalInDocument(doc: CanvasDocument, patch: Partial<CanvasDocument['global']>): CanvasDocument {
-  return { ...doc, global: { ...doc.global, ...patch } };
-}
-
 export function setDocumentGraph(doc: CanvasDocument, graph: CanvasGraph): CanvasDocument {
   return { ...doc, graph };
 }

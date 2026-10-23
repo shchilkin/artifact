@@ -57,46 +57,6 @@ export function removeGraphEdge(graph: CanvasGraph, edgeId: string): CanvasGraph
   return { ...graph, edges: graph.edges.filter((e) => e.id !== edgeId) };
 }
 
-function defaultAppendEdgeId(fromId: string, toId: string, index: number): string {
-  return `e-${fromId}-${toId}-${index}`;
-}
-
-export function appendNodeToExportPath(
-  graph: CanvasGraph,
-  nodeId: string,
-  nodeInputPort: GraphEdge['toPort'],
-  createEdgeId: (fromId: string, toId: string, index: number) => string = defaultAppendEdgeId,
-): CanvasGraph {
-  const previousExportEdge = graph.edges.findLast((edge) => edge.toId === EXPORT_NODE_ID && edge.toPort === 'in');
-
-  if (!previousExportEdge) {
-    return addGraphEdge(graph, {
-      id: createEdgeId(nodeId, EXPORT_NODE_ID, 0),
-      fromId: nodeId,
-      fromPort: 'out',
-      toId: EXPORT_NODE_ID,
-      toPort: 'in',
-    });
-  }
-
-  let next = removeGraphEdge(graph, previousExportEdge.id);
-  next = addGraphEdge(next, {
-    id: createEdgeId(previousExportEdge.fromId, nodeId, 0),
-    fromId: previousExportEdge.fromId,
-    fromPort: previousExportEdge.fromPort,
-    toId: nodeId,
-    toPort: nodeInputPort,
-  });
-  next = addGraphEdge(next, {
-    id: createEdgeId(nodeId, EXPORT_NODE_ID, 1),
-    fromId: nodeId,
-    fromPort: 'out',
-    toId: EXPORT_NODE_ID,
-    toPort: 'in',
-  });
-  return next;
-}
-
 /** Ids for the two halves of a split edge: the edge into the inserted node, then the edge out of it. */
 function splitEdgeIds(edgeId: string) {
   return { before: `${edgeId}__before`, after: `${edgeId}__after` };
@@ -400,18 +360,9 @@ function upstreamNodeForEdge(edge: GraphEdge, id: string): string | null {
   return edge.toId === id ? edge.fromId : null;
 }
 
-function downstreamNodeForEdge(edge: GraphEdge, id: string): string | null {
-  return edge.fromId === id ? edge.toId : null;
-}
-
 /** BFS backwards from nodeId, return every node id (layer/merge/color) that feeds into it, including itself. */
 export function collectUpstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
   return collectConnectedNodeIds(nodeId, graph, upstreamNodeForEdge);
-}
-
-/** BFS forwards from nodeId, return every node id affected by it, including itself. */
-export function collectDownstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
-  return collectConnectedNodeIds(nodeId, graph, downstreamNodeForEdge);
 }
 
 export function resolveOutputPath(graph: CanvasGraph, targetId: string = EXPORT_NODE_ID) {
@@ -420,26 +371,6 @@ export function resolveOutputPath(graph: CanvasGraph, targetId: string = EXPORT_
     graph.edges.filter((edge) => nodeIds.has(edge.fromId) && nodeIds.has(edge.toId)).map((edge) => edge.id),
   );
   return { nodeIds, edgeIds };
-}
-
-/** Resolve only the layers that feed into nodeId, in graph render order. */
-export function resolveUpstreamRenderLayers(nodeId: string, graph: CanvasGraph, layers: Layer[]): Layer[] {
-  const layerById = new Map(layers.map((layer) => [layer.id, layer]));
-  const visited = new Set<string>();
-  const result: Layer[] = [];
-
-  function visit(currentNodeId: string) {
-    if (visited.has(currentNodeId)) return;
-    visited.add(currentNodeId);
-    for (const edge of graph.edges) {
-      if (edge.toId === currentNodeId) visit(edge.fromId);
-    }
-    const layer = layerById.get(currentNodeId);
-    if (layer) result.push(layer);
-  }
-
-  visit(nodeId);
-  return result;
 }
 
 /** Add a new layer's position to the graph without connecting edges. */
@@ -727,40 +658,6 @@ export function connectedPortIds(graph: CanvasGraph): {
     targets.add(`${e.toId}::${e.toPort}`);
   }
   return { sources, targets };
-}
-
-/**
- * Resolve the layer render order from the graph topology.
- * Does a DFS post-order traversal backwards from EXPORT_NODE_ID,
- * following edges in reverse (predecessor-first), returning only Layer nodes.
- * Merge nodes are traversed but not included in the output (they're not layers).
- * Falls back to original doc.layers order for any unconnected layers appended last.
- */
-export function resolveRenderOrder(graph: CanvasGraph, layers: Layer[]): Layer[] {
-  const layerById = new Map(layers.map((l) => [l.id, l]));
-  const visited = new Set<string>();
-  const result: Layer[] = [];
-
-  function visit(nodeId: string) {
-    if (visited.has(nodeId)) return;
-    visited.add(nodeId);
-    // Follow edges backwards: find all nodes that feed INTO nodeId
-    for (const edge of graph.edges) {
-      if (edge.toId === nodeId) visit(edge.fromId);
-    }
-    // Post-order: add after all predecessors
-    const layer = layerById.get(nodeId);
-    if (layer) result.push(layer);
-  }
-
-  visit(EXPORT_NODE_ID);
-
-  // Append any orphan layers (not connected to the export path) at the end
-  for (const layer of layers) {
-    if (!visited.has(layer.id)) result.push(layer);
-  }
-
-  return result;
 }
 
 /** Returns true if adding an edge source→target would create a cycle. */

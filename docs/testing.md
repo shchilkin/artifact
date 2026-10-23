@@ -104,8 +104,10 @@ markup.
 | `apps/web/app/utils/documentPackage.test.ts` | editable package manifest, schema-v3 serialization, clean-storage asset restoration, and legacy missing-3D-payload compatibility |
 | `apps/web/app/utils/randomConfig.test.ts` | `randomDocument`, `randomEffectLayer` |
 | `apps/web/app/types/effectSchema.test.ts` | effect parameter schema: one control per parameter, consistent ranges, every preset mapped to an effect, and each effect rendered on exactly its declared backend (GPU filters, pixel-worker operations, or Canvas 2D pixels) |
-| `apps/web/app/utils/nodeGraph.test.ts` | graph mutation helpers, traversal, render order, cycle prevention, layout, connected ports |
-| `apps/web/app/components/node-canvas/reducer.test.ts` | Graph reducer: add/remove/connect/disconnect nodes |
+| `apps/web/app/utils/nodeGraph.test.ts` | graph mutation helpers, cycle prevention, layout, connected ports |
+| `apps/web/app/utils/documentHistory.test.ts` | history reducer: snapshots, gestures, undo/redo around unsettled gestures, silent amendments, history cap |
+| `apps/web/app/utils/documentDispatch.test.ts` | command history policies, selection results, stale asset storage, history amendments for placement and stored images |
+| `apps/web/app/utils/sourceFileSize.test.ts` | no production file in `utils/`, `types/`, or `hooks/` over 800 lines |
 | `apps/web/app/components/node-canvas/helpers.test.ts` | Node canvas helper utilities |
 | `apps/web/app/components/node-canvas/thumbnails/renderSignature.test.ts` | thumbnail invalidation signatures for layers, graph nodes, and edges |
 

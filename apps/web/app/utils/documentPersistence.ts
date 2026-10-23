@@ -340,46 +340,10 @@ export function loadPreBlankDraft(storage: Pick<DocumentStorage, 'getItem'>): Pr
   }
 }
 
-export function savePreBlankDraft(
-  doc: CanvasDocument,
-  storage: Pick<DocumentStorage, 'setItem'> = localStorage,
-  date = new Date(),
-  thumbnail?: string,
-) {
-  if (isBlankDocument(doc)) return true;
-  try {
-    storage.setItem(
-      PRE_BLANK_DRAFT_KEY,
-      JSON.stringify({
-        reason: 'before-blank',
-        savedAt: date.toISOString(),
-        doc,
-        ...(thumbnail ? { thumbnail } : {}),
-      }),
-    );
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function deletePreBlankDraft(storage: Pick<DocumentStorage, 'removeItem'> = localStorage) {
-  try {
-    storage.removeItem?.(PRE_BLANK_DRAFT_KEY);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function createArtifactFileName(doc: CanvasDocument, date = new Date()) {
   const seed = Number.isFinite(doc.global.seed) ? doc.global.seed : 'untitled';
   const stamp = date.toISOString().slice(0, 10);
   return `artifact-${seed}-${stamp}${ARTIFACT_FILE_EXTENSION}`;
-}
-
-export function getInitialDocumentFromSources(sources: InitialDocumentSources) {
-  return resolveInitialDocumentFromSources(sources).doc;
 }
 
 /** Query value that marks a `?doc` link opened from the docs pages. */
