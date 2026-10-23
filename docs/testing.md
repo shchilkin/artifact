@@ -164,7 +164,12 @@ scales are a nearest-neighbour upscale of that canvas).
   emoji rasterize differently per OS, so pixel hashes are only valid inside the
   Playwright image pinned in `.github/workflows/ci.yml`. The script runs that
   image as `linux/amd64` with Docker and keeps Linux dependencies in Docker
-  volumes. Changed renders are written to `test-results/render-golden/`.
+  volumes. Editor fonts come from Google Fonts and are absent in Node, and
+  the system fallback Skia picks differed between local Docker and CI, so
+  `pinGoldenFonts.ts` maps every font-stack family to the image's Liberation
+  fonts and emoji to Noto Color Emoji. The run also builds `@artifact/shared`
+  first, since a clean checkout has no build output. Changed renders are
+  written to `test-results/render-golden/`.
   `__golden__/thumbs/` holds 128px previews so a baseline change is visible in
   PR review.
 

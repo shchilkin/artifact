@@ -26,6 +26,7 @@ import { normalizeDocument } from '../../../utils/documentPersistence';
 import { renderCoverExportCanvas } from '../../../utils/exportCanvas';
 import { renderDocument } from '../../../utils/renderer';
 import { collectGoldenCases, documentForMode, type GoldenMode, previewSize } from './goldenCases';
+import { pinGoldenFonts } from './pinGoldenFonts';
 
 interface RecordedFilter {
   frag?: string;
@@ -67,6 +68,8 @@ vi.mock('../../../utils/gpuRender', () => ({
 }));
 
 const PIXELS = process.env.GOLDEN_PIXELS === '1';
+if (PIXELS && !pinGoldenFonts())
+  throw new Error('Golden pixels run only in the pinned Playwright image (npm run test:golden).');
 const UPDATE = process.env.GOLDEN_UPDATE === '1';
 const GOLDEN_DIR = fileURLToPath(new URL('./__golden__/', import.meta.url));
 const RECIPE_DIR = `${GOLDEN_DIR}recipes/`;
