@@ -5,16 +5,6 @@ import {
   type CanvasDocument,
   type CanvasGraph,
   type EffectPreset,
-  type GraphColorNode,
-  type GraphEnvironmentNode,
-  type GraphGrimeShadowNode,
-  type GraphMaskNode,
-  type GraphMaterialNode,
-  type GraphMergeNode,
-  type GraphRepeatNode,
-  type GraphScene3DNode,
-  type GraphShaderNode,
-  type GraphTransformNode,
   type ImageLayer,
   type Layer,
   type LayerKind,
@@ -75,6 +65,7 @@ import {
   type TreeEditResult,
 } from '../utils/graphTreeEdits';
 import { graphUtilityNodeKind } from '../utils/nodeGraph';
+import type { GraphEnvironmentNode, GraphNodePatch } from '../utils/nodeKinds';
 import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
@@ -396,71 +387,8 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     [updateDocument],
   );
 
-  const updateMergeNode = useCallback(
-    (id: string, patch: Partial<GraphMergeNode>) => {
-      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateColorNode = useCallback(
-    (id: string, patch: Partial<GraphColorNode>) => {
-      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateRepeatNode = useCallback(
-    (id: string, patch: Partial<GraphRepeatNode>) => {
-      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateMaterialNode = useCallback(
-    (id: string, patch: Partial<GraphMaterialNode>) => {
-      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateMaskNode = useCallback(
-    (id: string, patch: Partial<GraphMaskNode>) => {
-      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateTransformNode = useCallback(
-    (id: string, patch: Partial<GraphTransformNode>) => {
-      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateGrimeShadowNode = useCallback(
-    (id: string, patch: Partial<GraphGrimeShadowNode>) => {
-      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateScene3DNode = useCallback(
-    (id: string, patch: Partial<GraphScene3DNode>) => {
-      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateEnvironmentNode = useCallback(
-    (id: string, patch: Partial<GraphEnvironmentNode>) => {
-      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateShaderNode = useCallback(
-    (id: string, patch: Partial<GraphShaderNode>) => {
+  const updateGraphNode = useCallback(
+    (id: string, patch: GraphNodePatch) => {
       updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
@@ -593,16 +521,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     deleteNodeSelection,
     updateLayer,
     storeImageAssetSource,
-    updateMergeNode,
-    updateColorNode,
-    updateRepeatNode,
-    updateMaterialNode,
-    updateMaskNode,
-    updateTransformNode,
-    updateGrimeShadowNode,
-    updateScene3DNode,
-    updateEnvironmentNode,
-    updateShaderNode,
+    updateGraphNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,

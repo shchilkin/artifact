@@ -4,17 +4,7 @@ import type {
   AspectRatio,
   CanvasDocument,
   CanvasGraph,
-  GraphColorNode,
   GraphEdge,
-  GraphEnvironmentNode,
-  GraphGrimeShadowNode,
-  GraphMaskNode,
-  GraphMaterialNode,
-  GraphMergeNode,
-  GraphRepeatNode,
-  GraphScene3DNode,
-  GraphShaderNode,
-  GraphTransformNode,
   ImageLayer,
   Layer,
   ModelLayer,
@@ -23,6 +13,7 @@ import type {
 } from '../../types/config';
 import type { AddAction } from '../../utils/addActions';
 import type { DocumentUpdateMode } from '../../utils/documentHistory';
+import type { GraphNodePatch } from '../../utils/nodeKinds';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 
 export type GalleryEligibleLayer =
@@ -61,16 +52,7 @@ export interface NodeCanvasProps {
   entryFocusNodeId?: string | null;
   onGraphChange: (graph: CanvasGraph, mode?: DocumentUpdateMode) => void;
   onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
-  onUpdateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
-  onUpdateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
-  onUpdateRepeatNode: (id: string, patch: Partial<GraphRepeatNode>) => void;
-  onUpdateMaterialNode: (id: string, patch: Partial<GraphMaterialNode>) => void;
-  onUpdateMaskNode: (id: string, patch: Partial<GraphMaskNode>) => void;
-  onUpdateTransformNode: (id: string, patch: Partial<GraphTransformNode>) => void;
-  onUpdateGrimeShadowNode: (id: string, patch: Partial<GraphGrimeShadowNode>) => void;
-  onUpdateScene3DNode: (id: string, patch: Partial<GraphScene3DNode>) => void;
-  onUpdateEnvironmentNode: (id: string, patch: Partial<GraphEnvironmentNode>) => void;
-  onUpdateShaderNode: (id: string, patch: Partial<GraphShaderNode>) => void;
+  onUpdateGraphNode: (id: string, patch: GraphNodePatch) => void;
   onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   onUpdateAspectRatio: (aspect: AspectRatio) => void;
   exportBusy: boolean;
@@ -118,107 +100,6 @@ export type LayerNodeData = {
   primitiveRenderMode?: PrimitiveRenderMode;
 };
 
-export type MergeNodeData = {
-  mergeNode: GraphMergeNode;
-  previewTargetId: string;
-  selected: boolean;
-  outputPath: boolean;
-  editing: boolean;
-  connected: ConnectedNodePorts;
-};
-
-export type ColorNodeData = {
-  colorNode: GraphColorNode;
-  previewTargetId: string;
-  selected: boolean;
-  outputPath: boolean;
-  editing: boolean;
-  connected: ConnectedNodePorts;
-};
-
-export type RepeatNodeData = {
-  repeatNode: GraphRepeatNode;
-  previewTargetId: string;
-  selected: boolean;
-  outputPath: boolean;
-  editing: boolean;
-  connected: ConnectedNodePorts;
-};
-
-export type MaskNodeData = {
-  maskNode: GraphMaskNode;
-  previewTargetId: string;
-  selected: boolean;
-  outputPath: boolean;
-  editing: boolean;
-  connected: ConnectedNodePorts;
-};
-
-export type MaterialNodeData = {
-  materialNode: GraphMaterialNode;
-  previewTargetId: string;
-  selected: boolean;
-  outputPath: boolean;
-  editing: boolean;
-  connected: ConnectedNodePorts;
-};
-
-export type TransformNodeData = {
-  transformNode: GraphTransformNode;
-  previewTargetId: string;
-  sourcePreviewTargetId: string | null;
-  selected: boolean;
-  outputPath: boolean;
-  editing: boolean;
-  connected: ConnectedNodePorts;
-};
-
-export type GrimeShadowNodeData = {
-  grimeShadowNode: GraphGrimeShadowNode;
-  previewTargetId: string;
-  selected: boolean;
-  outputPath: boolean;
-  editing: boolean;
-  connected: ConnectedNodePorts;
-};
-
-export type Scene3DNodeData = {
-  scene3dNode: GraphScene3DNode;
-  previewTargetId: string;
-  modelPreviewTargetId: string | null;
-  modelLayer: ModelLayer | PrimitiveLayer | null;
-  materialNode: GraphMaterialNode | null;
-  backdropPreviewTargetId: string | null;
-  environmentPreviewTargetId: string | null;
-  environmentSource: string | null;
-  selected: boolean;
-  outputPath: boolean;
-  editing: boolean;
-  connected: ConnectedNodePorts;
-  sceneViewState?: PrimitiveViewportState;
-};
-
-export type EnvironmentNodeData = {
-  environmentNode: GraphEnvironmentNode;
-  previewTargetId: string;
-  sourcePreviewTargetId: string | null;
-  selected: boolean;
-  outputPath: boolean;
-  editing: boolean;
-  connected: ConnectedNodePorts;
-};
-
-export type ShaderNodeData = {
-  shaderNode: GraphShaderNode;
-  previewTargetId: string;
-  backdropPreviewTargetId: string | null;
-  generationStatus: ShaderNodeGenerationStatus | null;
-  selected: boolean;
-  outputPath: boolean;
-  editing: boolean;
-  connected: ConnectedNodePorts;
-};
-
 export type ExportNodeData = {
   exportConfig: CanvasDocument['export'];
   aspect: AspectRatio;
@@ -250,16 +131,7 @@ export interface NodeCanvasActionsContextValue {
   selectNode: (id: string, event?: ReactMouseEvent) => void;
   toggleNodeEditor: (id: string) => void;
   updateLayer: (id: string, patch: Partial<Layer>) => void;
-  updateMergeNode: (id: string, patch: Partial<GraphMergeNode>) => void;
-  updateColorNode: (id: string, patch: Partial<GraphColorNode>) => void;
-  updateRepeatNode: (id: string, patch: Partial<GraphRepeatNode>) => void;
-  updateMaterialNode: (id: string, patch: Partial<GraphMaterialNode>) => void;
-  updateMaskNode: (id: string, patch: Partial<GraphMaskNode>) => void;
-  updateTransformNode: (id: string, patch: Partial<GraphTransformNode>) => void;
-  updateGrimeShadowNode: (id: string, patch: Partial<GraphGrimeShadowNode>) => void;
-  updateScene3DNode: (id: string, patch: Partial<GraphScene3DNode>) => void;
-  updateEnvironmentNode: (id: string, patch: Partial<GraphEnvironmentNode>) => void;
-  updateShaderNode: (id: string, patch: Partial<GraphShaderNode>) => void;
+  updateGraphNode: (id: string, patch: GraphNodePatch) => void;
   setShaderNodeGenerationStatus: (id: string, status: ShaderNodeGenerationStatus | null) => void;
   updateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
   updateAspectRatio: (aspect: AspectRatio) => void;

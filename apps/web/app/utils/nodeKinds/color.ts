@@ -28,5 +28,26 @@ export const colorNodeModel: GraphNodeKindModel<GraphColorNode> = {
   normalize: (stored) => ({ ...stored, kind: 'color' }) as GraphColorNode,
   inputs: () => SINGLE_INPUT,
   insertion: () => ({ through: 'in' }),
+  look: {
+    canvasSymbol: '◐',
+    accent: 'var(--node-kind-color)',
+    edgeColor: 'oklch(72% 0.18 195)',
+    layersIcon: '◐',
+    layersLabel: 'grade',
+  },
+  library: {
+    intent: 'color',
+    colorKind: 'color',
+    resultLabel: 'Adds color node',
+    entry: {
+      label: 'Color',
+      symbol: '◐',
+      description: 'Grade hue, contrast, and tonal balance.',
+      group: 'utility',
+      surfaces: ['nodes'],
+      tags: ['utility', 'tone'],
+      keywords: 'grade tone contrast saturation hue',
+    },
+  },
   renderSignature: (node) => JSON.stringify([node.contrast, node.brightness, node.saturation, node.hue]),
 };

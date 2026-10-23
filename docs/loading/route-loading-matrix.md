@@ -109,13 +109,13 @@ run.
 | State | URL | Owning shell | Delivery | v0.48.1 | Current | Budget |
 | --- | --- | --- | --- | --- | --- | --- |
 | Home, before render | `/` | public | prerender | 423.6 | 131.1 | 170 |
-| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +183.0 | +185 |
+| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +187.1 | +188 |
 | Docs | `/docs` | public | prerender | 240.4 | 119.2 | 170 |
 | Account recovery | `/reset-password` | public | SPA fallback | 239.6 | 119.6 | 170 |
 | Projects | `/projects` | account | SPA fallback | 312.8 | 221.0 | 230 |
 | Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 | 336.0 | 370 |
 | Nodes activation | Nodes tab | NodeCanvas | — | +65.4 | +119.9 | +135 |
-| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 367.3 | 370 |
+| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 368.3 | 370 |
 | First 3D activation | add Primitive | primitive scene renderer | — | +206.7 | +182.5 | +215 |
 
 The editor stopped loading `motion` in #446: its only use was an unused
@@ -123,6 +123,14 @@ The editor stopped loading `motion` in #446: its only use was an unused
 337.5 to 336.0 KiB before render (347,388 to 345,903 bytes gzip, -1.5 KiB,
 measured against `development` at 8591980), and `motion` is now prohibited
 before render on the editor.
+
+The home hero renders through the graph renderer, which reads each node kind's
+model from the v0.53 node-kind registry. The models now also carry their
+canvas look and Add Library data, so the hero after-render bundle went from
++183.0 to +187.1 KiB (renderer registry split +2.5, model look and library data
++1.6). The budget moved from +185 to +188 for that one source of truth instead of
+three per-kind tables. The style guide stays under 370 because the Properties
+panel loads only the inspector registry, not the React Flow node components.
 
 The Nodes activation grew because React Flow now loads with the node canvas
 instead of on every route. The style guide budget is 370 rather than the

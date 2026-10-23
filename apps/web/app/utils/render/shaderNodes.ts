@@ -1,4 +1,4 @@
-import type { GraphShaderNode } from '../../types/config';
+import type { GraphShaderNode } from '../../utils/nodeKinds';
 import { lcg } from '../lcg';
 import { normalizeShaderPalette } from '../shaderPalette';
 import { createCanvas } from './canvas';

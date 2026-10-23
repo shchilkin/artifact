@@ -1,5 +1,6 @@
-import type { GraphShaderNode, ShaderKind, ShaderRole } from '../../../types/config';
+import type { ShaderKind, ShaderRole } from '../../../types/config';
 import { makeDefaultCodeShaderInstance } from '../../../utils/customShaderCode';
+import type { GraphShaderNode } from '../../../utils/nodeKinds';
 import { defaultShaderPalette } from '../../../utils/shaderPalette';
 import { useNodeCanvasActions } from '../context';
 import { AiShaderInspector } from './AiShaderInspector';

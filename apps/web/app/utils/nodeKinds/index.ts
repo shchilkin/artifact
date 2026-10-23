@@ -49,21 +49,18 @@ export type GraphNodeKind = GraphNode['kind'];
 
 export type GraphNodeOfKind<K extends GraphNodeKind> = Extract<GraphNode, { kind: K }>;
 
-/**
- * The model of every graph-only node kind. The order is the classification order when a stored document has two
- * nodes with the same id (the first kind wins), and the order kinds are listed in.
- */
+/** The model of every graph-only node kind, in Add Library order. */
 export const GRAPH_NODE_MODELS: { [K in GraphNodeKind]: GraphNodeKindModel<GraphNodeOfKind<K>> } = {
   merge: mergeNodeModel,
   color: colorNodeModel,
-  repeat: repeatNodeModel,
-  material: materialNodeModel,
   mask: maskNodeModel,
   transform: transformNodeModel,
   grimeShadow: grimeShadowNodeModel,
-  shader: shaderNodeModel,
-  environment: environmentNodeModel,
   scene3d: scene3dNodeModel,
+  environment: environmentNodeModel,
+  repeat: repeatNodeModel,
+  material: materialNodeModel,
+  shader: shaderNodeModel,
 };
 
 /** A patch for any one node kind (only that kind's own fields). */

@@ -17,7 +17,7 @@ v0.50.0 Editor UX was released on 2026-10-05
 | v0.50.1 | Editor Polish Patch ([#448](https://github.com/shchilkin/artifact/issues/448)) | [v0.50](./version-plans/v0.50.md) | in progress |
 | v0.51 | One control grammar across editor surfaces | [v0.51](./version-plans/v0.51.md) | planned |
 | v0.52 | AI-Assisted Creation | [v0.52](./version-plans/v0.52.md) | planned |
-| v0.53 | Core Reset: one topology source, node and effect registries | [v0.53](./version-plans/v0.53.md) | in progress (Phases 0-3 done) |
+| v0.53 | Core Reset: one topology source, node and effect registries | [v0.53](./version-plans/v0.53.md) | in progress (Phases 0-4 done) |
 
 Sequencing note (2026-10-23): the owner started the Core Reset ahead of its
 version number. Whether v0.53 phases run before, alongside, or after v0.51 and

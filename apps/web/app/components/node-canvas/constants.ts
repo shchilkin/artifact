@@ -1,8 +1,5 @@
 import type { EffectPreset } from '../../types/config';
-import type { AddAction } from '../../utils/addActions';
-import { ARRAY_PRESET_IDS, ARRAY_PRESETS } from '../../utils/arrayPresets';
-import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
-import { REPEAT_PRESET_IDS, REPEAT_PRESETS } from '../../utils/repeatPresets';
+import { GRAPH_NODE_KINDS, GRAPH_NODE_MODELS } from '../../utils/nodeKinds';
 
 export const NODE_W = 320;
 export const NODE_H = 360;
@@ -23,17 +20,8 @@ export const KIND_COLOR: Record<string, string> = {
   noise: 'var(--node-kind-noise)',
   array: 'var(--node-kind-array)',
   lineField: 'var(--node-kind-array)',
-  merge: 'var(--node-kind-merge)',
-  color: 'var(--node-kind-color)',
-  repeat: 'var(--node-kind-array)',
-  mask: 'var(--node-kind-effect)',
-  material: 'var(--node-kind-primitive)',
-  shader: 'var(--node-kind-noise)',
-  transform: 'var(--node-kind-color)',
-  grimeShadow: 'var(--node-kind-effect)',
-  scene3d: 'var(--node-kind-primitive)',
-  environment: 'var(--node-kind-color)',
   export: 'var(--node-kind-export)',
+  ...Object.fromEntries(GRAPH_NODE_KINDS.map((kind) => [kind, GRAPH_NODE_MODELS[kind].look.accent])),
 };
 
 export const KIND_SYMBOL: Record<string, string> = {
@@ -47,176 +35,9 @@ export const KIND_SYMBOL: Record<string, string> = {
   noise: '░',
   array: '▦',
   lineField: '≋',
-  merge: '⊕',
-  color: '◐',
-  repeat: '⧉',
-  mask: '◒',
-  material: '◒',
-  shader: '◉',
-  transform: '↻',
-  grimeShadow: '◖',
-  scene3d: '◌',
-  environment: '◇',
   export: '↗',
+  ...Object.fromEntries(GRAPH_NODE_KINDS.map((kind) => [kind, GRAPH_NODE_MODELS[kind].look.canvasSymbol])),
 };
-
-export type AddNodeGroupId = 'layers' | 'generators' | 'utilities';
-
-export const ADD_NODE_ITEMS: Array<{
-  label: string;
-  description: string;
-  symbol: string;
-  group: AddNodeGroupId;
-  action: AddAction;
-}> = [
-  {
-    label: 'Fill',
-    symbol: '◼',
-    description: 'Lay down a flat color field or wash.',
-    group: 'layers',
-    action: { kind: 'layer', layerKind: 'fill' },
-  },
-  {
-    label: 'Image',
-    symbol: '◧',
-    description: 'Place uploaded art, scans, or textures.',
-    group: 'layers',
-    action: { kind: 'layer', layerKind: 'image' },
-  },
-  {
-    label: 'AI Image',
-    symbol: '◧',
-    description: 'Generate a private alpha image asset, then pipe it through the graph.',
-    group: 'generators',
-    action: { kind: 'aiImage' },
-  },
-  {
-    label: 'Text',
-    symbol: 'T',
-    description: 'Set titles, credits, or typographic shapes.',
-    group: 'layers',
-    action: { kind: 'layer', layerKind: 'text' },
-  },
-  {
-    label: 'Emoji',
-    symbol: '✦',
-    description: 'Scatter repeated glyphs into the composition.',
-    group: 'layers',
-    action: { kind: 'layer', layerKind: 'emoji' },
-  },
-  {
-    label: 'Primitive',
-    symbol: '◍',
-    description: 'Render a lit 3D form as a source layer.',
-    group: 'generators',
-    action: { kind: 'layer', layerKind: 'primitive' },
-  },
-  {
-    label: 'Noise',
-    symbol: '░',
-    description: 'Generate a procedural noise texture from scratch.',
-    group: 'generators',
-    action: { kind: 'layer', layerKind: 'noise' },
-  },
-  ...NOISE_PRESET_IDS.map((preset) => ({
-    label: NOISE_PRESETS[preset].name,
-    symbol: '░',
-    description: NOISE_PRESETS[preset].description,
-    group: 'generators' as const,
-    action: { kind: 'noisePreset', preset } as AddAction,
-  })),
-  {
-    label: 'Array',
-    symbol: '▦',
-    description: 'Repeat a source into a structured pattern.',
-    group: 'generators',
-    action: { kind: 'layer', layerKind: 'array' },
-  },
-  ...ARRAY_PRESET_IDS.map((preset) => ({
-    label: ARRAY_PRESETS[preset].name,
-    symbol: '▦',
-    description: ARRAY_PRESETS[preset].description,
-    group: 'generators' as const,
-    action: { kind: 'arrayPreset', preset } as AddAction,
-  })),
-  {
-    label: 'Line Field',
-    symbol: '≋',
-    description: 'Draw editable optical, contour, and warped line fields.',
-    group: 'generators',
-    action: { kind: 'layer', layerKind: 'lineField' },
-  },
-  {
-    label: 'Shader Fill',
-    symbol: '◉',
-    description: 'Generate a standalone procedural texture.',
-    group: 'generators',
-    action: { kind: 'shader', role: 'fill' },
-  },
-  {
-    label: 'Merge',
-    symbol: '⊕',
-    description: 'Blend two branches into one result.',
-    group: 'utilities',
-    action: { kind: 'merge' },
-  },
-  {
-    label: 'Color',
-    symbol: '◐',
-    description: 'Grade hue, contrast, and tonal balance.',
-    group: 'utilities',
-    action: { kind: 'color' },
-  },
-  {
-    label: 'Mask',
-    symbol: '◒',
-    description: 'Cut a source branch by alpha or brightness from another branch.',
-    group: 'utilities',
-    action: { kind: 'mask' },
-  },
-  {
-    label: 'Transform',
-    symbol: '↻',
-    description: 'Move, scale, rotate, and fade a completed upstream branch.',
-    group: 'utilities',
-    action: { kind: 'transform' },
-  },
-  {
-    label: 'Grime Shadow',
-    symbol: '◖',
-    description: 'Build a layered dirty shadow from an upstream alpha shape.',
-    group: 'utilities',
-    action: { kind: 'grimeShadow' },
-  },
-  {
-    label: '3D Scene',
-    symbol: '◌',
-    description: 'Render imported models through camera, lights, material, and environment.',
-    group: 'utilities',
-    action: { kind: 'scene3d' },
-  },
-  {
-    label: 'Environment Map',
-    symbol: '◇',
-    description: 'Provide an EXR or HDR environment map to a 3D Scene.',
-    group: 'utilities',
-    action: { kind: 'environment' },
-  },
-  {
-    label: 'Repeater',
-    symbol: '⧉',
-    description: 'Repeat any source branch into line, grid, or radial patterns.',
-    group: 'utilities',
-    action: { kind: 'repeat' },
-  },
-  ...REPEAT_PRESET_IDS.map((preset) => ({
-    label: REPEAT_PRESETS[preset].name,
-    symbol: '⧉',
-    description: REPEAT_PRESETS[preset].description,
-    group: 'utilities' as const,
-    action: { kind: 'repeatPreset', preset } as AddAction,
-  })),
-];
 
 export const HANDLE_STYLE = {
   background: 'transparent',

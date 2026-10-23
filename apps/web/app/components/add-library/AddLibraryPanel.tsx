@@ -1,5 +1,6 @@
 import { Button } from '@artifact/ui';
 import { forwardRef, type KeyboardEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { GRAPH_NODE_MODELS, isGraphNodeKind } from '../../utils/nodeKinds';
 import { Badge } from '../ui/Badge';
 import { EmptyState } from '../ui/EmptyState';
 import { SearchField } from '../ui/SearchField';
@@ -139,15 +140,15 @@ function itemMatchesIntent(item: AddLibraryItem, intentId: AddLibraryIntentId) {
         item.action.kind === 'textPreset' ||
         item.action.kind === 'noisePreset' ||
         item.action.kind === 'arrayPreset' ||
-        item.action.kind === 'shader'
+        graphNodeLibrary(item)?.intent === 'sources'
       );
     case 'effects':
       return item.action.kind === 'effect';
     case 'structure':
-      return ['merge', 'repeat', 'repeatPreset', 'mask', 'transform', 'grimeShadow'].includes(item.action.kind);
+      return item.action.kind === 'repeatPreset' || graphNodeLibrary(item)?.intent === 'structure';
     case 'color':
       return (
-        item.action.kind === 'color' ||
+        graphNodeLibrary(item)?.intent === 'color' ||
         item.group === 'tone' ||
         item.id === 'effect:duotone' ||
         item.id === 'effect:splitTone' ||
@@ -156,9 +157,7 @@ function itemMatchesIntent(item: AddLibraryItem, intentId: AddLibraryIntentId) {
     case 'threeD':
       return (
         item.group === 'material' ||
-        item.action.kind === 'material' ||
-        item.action.kind === 'scene3d' ||
-        item.action.kind === 'environment' ||
+        graphNodeLibrary(item)?.intent === 'threeD' ||
         (item.action.kind === 'layer' && ['primitive', 'model'].includes(item.action.layerKind))
       );
   }
@@ -166,6 +165,11 @@ function itemMatchesIntent(item: AddLibraryItem, intentId: AddLibraryIntentId) {
 
 function favoriteClassName(favorite: boolean) {
   return `add-library-favorite${favorite ? ' add-library-favorite-active' : ''}`;
+}
+
+/** Library data of a graph-only node kind, for items that add one. */
+function graphNodeLibrary(item: AddLibraryItem) {
+  return isGraphNodeKind(item.action.kind) ? GRAPH_NODE_MODELS[item.action.kind].library : null;
 }
 
 function addLibraryColorKind(item: AddLibraryItem) {
@@ -177,25 +181,14 @@ function addLibraryColorKind(item: AddLibraryItem) {
     case 'aiImage':
       return 'image';
     case 'noisePreset':
-    case 'shader':
       return 'noise';
     case 'arrayPreset':
-    case 'repeat':
     case 'repeatPreset':
       return 'array';
     case 'effect':
       return 'effect';
-    case 'merge':
-    case 'mask':
-    case 'grimeShadow':
-      return 'merge';
-    case 'color':
-    case 'transform':
-    case 'environment':
-      return 'color';
-    case 'material':
-    case 'scene3d':
-      return 'primitive';
+    default:
+      return GRAPH_NODE_MODELS[item.action.kind].library.colorKind;
   }
 }
 
@@ -213,27 +206,10 @@ function addLibraryResultLabel(item: AddLibraryItem) {
       return 'Adds array source';
     case 'effect':
       return 'Adds effect';
-    case 'merge':
-      return 'Adds merge node';
-    case 'color':
-      return 'Adds color node';
-    case 'repeat':
     case 'repeatPreset':
       return 'Adds repeat node';
-    case 'material':
-      return 'Adds material node';
-    case 'mask':
-      return 'Adds mask node';
-    case 'transform':
-      return 'Adds transform node';
-    case 'grimeShadow':
-      return 'Adds grime shadow node';
-    case 'scene3d':
-      return 'Adds 3D scene';
-    case 'environment':
-      return 'Adds environment node';
-    case 'shader':
-      return 'Adds shader fill';
+    default:
+      return GRAPH_NODE_MODELS[item.action.kind].library.resultLabel;
   }
 }
 

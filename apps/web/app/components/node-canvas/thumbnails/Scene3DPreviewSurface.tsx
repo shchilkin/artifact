@@ -3,13 +3,12 @@ import type { CanvasGraph } from '../../../types/config';
 
 import {
   DEFAULT_MATERIAL_CONFIG,
-  type GraphMaterialNode,
-  type GraphScene3DNode,
   type MaterialConfig,
   type ModelLayer,
   type PrimitiveLayer,
 } from '../../../types/config';
 import { graphNodesOfKind } from '../../../utils/nodeGraph';
+import type { GraphMaterialNode, GraphScene3DNode } from '../../../utils/nodeKinds';
 import { renderGraphTarget } from '../../../utils/renderer';
 import { Viewport3DControlStrip, Viewport3DStatusOverlay } from '../../canvas-chrome/Viewport3DChrome';
 import { LazyModelViewport3D } from '../../LazyViewport3D';

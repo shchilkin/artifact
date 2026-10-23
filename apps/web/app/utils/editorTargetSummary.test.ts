@@ -145,7 +145,7 @@ describe('editor target summaries', () => {
     };
 
     const summary = buildGraphTargetSummary(
-      { kind: 'merge', node: graphNodesOfKind(graph, 'merge')[0] },
+      { kind: 'graphNode', node: graphNodesOfKind(graph, 'merge')[0]! },
       { surface: 'nodes', graph, layers: [] },
     );
 

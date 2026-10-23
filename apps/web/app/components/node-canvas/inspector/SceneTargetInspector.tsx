@@ -1,12 +1,7 @@
 import { useState } from 'react';
 
-import type {
-  CanvasDocument,
-  GraphEnvironmentNode,
-  GraphScene3DNode,
-  ModelLayer,
-  PrimitiveLayer,
-} from '../../../types/config';
+import type { CanvasDocument, ModelLayer, PrimitiveLayer } from '../../../types/config';
+import type { GraphEnvironmentNode, GraphScene3DNode } from '../../../utils/nodeKinds';
 import { getSceneEnvironmentNode, getSceneModelLayer } from '../../../utils/scene3DInputs';
 import { EnvironmentInspector } from './EnvironmentInspector';
 import { InspectorReadout, InspectorSection } from './fields';

@@ -1,12 +1,5 @@
-import {
-  type CanvasDocument,
-  type GraphEnvironmentNode,
-  type GraphMaterialNode,
-  type GraphScene3DNode,
-  type ImageLayer,
-  MATERIAL_TEXTURE_SOURCE_FIELDS,
-  type ModelLayer,
-} from '../types/config';
+import { type CanvasDocument, type ImageLayer, MATERIAL_TEXTURE_SOURCE_FIELDS, type ModelLayer } from '../types/config';
+import type { GraphEnvironmentNode, GraphMaterialNode, GraphScene3DNode } from '../utils/nodeKinds';
 import { mapGraphNodesAsync } from './nodeGraph';
 
 type SourceMapper = (source: string) => Promise<string>;

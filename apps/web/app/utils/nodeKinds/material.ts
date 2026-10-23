@@ -42,6 +42,18 @@ export const materialNodeModel: GraphNodeKindModel<GraphMaterialNode> = {
   normalize: (stored) => makeGraphMaterialNode(clampMaterialFractions(stored as Partial<GraphMaterialNode>)),
   inputs: () => [{ port: 'albedo', role: 'primary', mode: 'render' }],
   insertion: () => 'material',
+  look: {
+    canvasSymbol: '◒',
+    accent: 'var(--node-kind-primitive)',
+    edgeColor: 'oklch(82% 0.14 78)',
+    layersIcon: '◒',
+    layersLabel: 'material',
+  },
+  library: {
+    intent: 'threeD',
+    colorKind: 'primitive',
+    resultLabel: 'Adds material node',
+  },
   renderSignature: (node) =>
     JSON.stringify([
       node.materialPreset,

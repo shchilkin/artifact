@@ -1,12 +1,6 @@
 import { Button } from '@artifact/ui';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import {
-  type AspectRatio,
-  type CanvasDocument,
-  type GraphScene3DNode,
-  type ImageLayer,
-  type Layer,
-} from '../types/config';
+import { type AspectRatio, type CanvasDocument, type ImageLayer, type Layer } from '../types/config';
 import {
   addLayersToGraphAreaInDocument,
   createGraphAreaInDocument,
@@ -25,6 +19,7 @@ import {
 } from '../utils/documentCommands';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../utils/editorTargetSummary';
 import { findGraphUtilityNode } from '../utils/nodeGraph';
+import type { GraphScene3DNode } from '../utils/nodeKinds';
 import { getScene3DTarget } from '../utils/scene3DInputs';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetOverview } from './editor-target/EditorTargetHeader';
@@ -112,7 +107,7 @@ function selectedLayerTargetSummary(doc: CanvasDocument, selectedLayer: Layer | 
 function selectedSceneTargetSummary(doc: CanvasDocument, scene: GraphScene3DNode | null) {
   if (!scene) return null;
   return buildGraphTargetSummary(
-    { kind: 'scene3d', node: scene },
+    { kind: 'graphNode', node: scene },
     { graph: doc.graph, layers: doc.layers, surface: 'layers' },
   );
 }

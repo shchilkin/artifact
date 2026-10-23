@@ -7,7 +7,6 @@ import type {
   CanvasDocument,
   EffectPreset,
   GraphArea,
-  GraphScene3DNode,
   Layer,
   LayerKind,
   ModelLayer,
@@ -19,6 +18,7 @@ import { buildGraphLayerTree, type GraphLayerTree } from '../../utils/graphLayer
 import type { LayerAddPlacement, TreeEditResult } from '../../utils/graphTreeEdits';
 import { getLayerAreaMap } from '../../utils/layerAreas';
 import { graphNodesOfKind } from '../../utils/nodeGraph';
+import type { GraphScene3DNode } from '../../utils/nodeKinds';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import { collectDocumentOutputNodeIds } from '../../utils/renderer';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';

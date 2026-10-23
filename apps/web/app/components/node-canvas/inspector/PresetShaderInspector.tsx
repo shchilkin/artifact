@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GraphShaderNode } from '../../../types/config';
+import type { GraphShaderNode } from '../../../utils/nodeKinds';
 import { normalizeShaderPalette, shaderPaletteConfig } from '../../../utils/shaderPalette';
 import { InspectorColorInput, InspectorSection, InspectorSlider } from './fields';
 import { ShaderCompositeSection } from './ShaderCompositeSection';

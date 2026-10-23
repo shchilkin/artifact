@@ -1,12 +1,5 @@
-import type {
-  CanvasDocument,
-  CanvasGraph,
-  GraphEnvironmentNode,
-  GraphScene3DNode,
-  Layer,
-  ModelLayer,
-  PrimitiveLayer,
-} from '../types/config';
+import type { CanvasDocument, CanvasGraph, Layer, ModelLayer, PrimitiveLayer } from '../types/config';
+import type { GraphEnvironmentNode, GraphScene3DNode } from '../utils/nodeKinds';
 import { graphNodesOfKind } from './nodeGraph';
 
 function getSceneModelInputLayerIds(graph: CanvasGraph | undefined): Set<string> {

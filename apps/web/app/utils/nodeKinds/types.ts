@@ -57,6 +57,47 @@ export interface GraphNodeKindModel<N extends GraphNodeBase<string>> {
   insertion(node: N): GraphNodeInsertion;
   /** Graph changes that must follow a patch to this node, if any. */
   afterUpdate?(graph: CanvasGraph, node: N, patch: Partial<N>): CanvasGraph;
+  /** How the editor shows the kind. Plain data, so it is safe on any route. */
+  look: GraphNodeLook;
+  /** How Add Library offers and describes the kind. */
+  library: GraphNodeLibrary;
+}
+
+export interface GraphNodeLook {
+  /** Symbol on the node canvas card. */
+  canvasSymbol: string;
+  /** Accent color token of the node card. */
+  accent: string;
+  /** Stroke of edges leaving the node; the default edge stroke when absent. */
+  edgeColor?: string;
+  /** Icon and short label of the node's row in the Layers panel. */
+  layersIcon: string;
+  layersLabel: string;
+  /** False when the node has no row inside a Layers area. */
+  inLayerAreas?: false;
+}
+
+/** Add Library sections a kind is listed under. */
+export type GraphNodeLibraryIntent = 'sources' | 'structure' | 'color' | 'threeD';
+
+export interface GraphNodeLibrary {
+  intent: GraphNodeLibraryIntent;
+  /** Node kind whose accent the library card uses. */
+  colorKind: string;
+  /** Short result line, e.g. "Adds mask node". */
+  resultLabel: string;
+  /** The kind's single library entry; kinds with preset catalogs (material, shader) list theirs separately. */
+  entry?: GraphNodeLibraryEntry;
+}
+
+export interface GraphNodeLibraryEntry {
+  label: string;
+  symbol: string;
+  description: string;
+  group: 'utility' | 'primitive';
+  surfaces: Array<'layers' | 'nodes'>;
+  tags: string[];
+  keywords: string;
 }
 
 /**

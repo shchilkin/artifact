@@ -1,13 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import {
-  type CanvasDocument,
-  type CanvasGraph,
-  type GraphMaterialNode,
-  MATERIAL_TEXTURE_INPUT_PORTS,
-} from '../../../types/config';
+import { type CanvasDocument, type CanvasGraph, MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
 import type { SceneMaterialTextureCanvases } from '../../../utils/modelRenderer';
 import { collectUpstreamNodeIds } from '../../../utils/nodeGraph';
+import type { GraphMaterialNode } from '../../../utils/nodeKinds';
 import { renderGraphTarget } from '../../../utils/renderer';
 import { edgeRenderSig, graphNodeRenderSig, layerRenderSig } from '../../../utils/renderSignature';
 import type { PrimitiveViewportState } from '../../PrimitiveViewportState';

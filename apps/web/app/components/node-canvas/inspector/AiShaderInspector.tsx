@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { AI_SHADER_PROMPT_MAX_LENGTH } from '../../../types/aiGeneration';
-import type { GraphShaderNode, ShaderPropertyValue } from '../../../types/config';
+import type { ShaderPropertyValue } from '../../../types/config';
+import type { GraphShaderNode } from '../../../utils/nodeKinds';
 import { compileCustomCodeShaderForDiagnostics } from '../../../utils/render/customCodeShader';
 import { aiShaderInspectorViewModel } from './AiShaderInspectorModel';
 import { AiShaderControlsSection, AiShaderPromptSection, AiShaderRefineSection } from './AiShaderInspectorSections';

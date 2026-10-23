@@ -38,6 +38,27 @@ export const environmentNodeModel: GraphNodeKindModel<GraphEnvironmentNode> = {
   inputs: () => SINGLE_INPUT,
   // Existing behavior: the dropped-on connection feeds `env`, which the renderer does not read for this node.
   insertion: () => ({ through: 'env' }),
+  look: {
+    canvasSymbol: '◇',
+    accent: 'var(--node-kind-color)',
+    edgeColor: 'oklch(74% 0.16 190)',
+    layersIcon: '◇',
+    layersLabel: 'env',
+  },
+  library: {
+    intent: 'threeD',
+    colorKind: 'color',
+    resultLabel: 'Adds environment node',
+    entry: {
+      label: 'Environment Map',
+      symbol: '◇',
+      description: 'Provide an EXR or HDR environment map to a 3D Scene.',
+      group: 'primitive',
+      surfaces: ['nodes'],
+      tags: ['utility', '3d', 'environment'],
+      keywords: 'environment env map hdri hdr exr lighting reflection panorama equirectangular',
+    },
+  },
   renderSignature: (node) =>
     JSON.stringify([node.environmentSrc, node.environmentName, node.environmentMime, node.environmentBytes]),
 };

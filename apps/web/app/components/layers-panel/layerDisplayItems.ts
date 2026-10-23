@@ -1,6 +1,7 @@
 import type { CanvasGraph, EffectLayer, GraphArea, Layer, LayerKind } from '../../types/config';
 import { EFFECT_PRESETS } from '../../types/config';
-import { EXPORT_NODE_ID, graphNodesOfKind } from '../../utils/nodeGraph';
+import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { GRAPH_NODE_KINDS, GRAPH_NODE_MODELS, type GraphNodeKind } from '../../utils/nodeKinds';
 
 const KIND_ICONS: Record<LayerKind, string> = {
   text: 'T',
@@ -15,17 +16,7 @@ const KIND_ICONS: Record<LayerKind, string> = {
   model: '⬡',
 };
 
-export type GraphHelperKind =
-  | 'merge'
-  | 'color'
-  | 'repeat'
-  | 'material'
-  | 'mask'
-  | 'transform'
-  | 'grimeShadow'
-  | 'environment'
-  | 'shader'
-  | 'export';
+export type GraphHelperKind = GraphNodeKind | 'export';
 
 export interface GraphHelperRowData {
   id: string;
@@ -45,15 +36,12 @@ export function getLayerIcon(layer: Layer): string {
 }
 
 export const GRAPH_HELPER_META: Record<GraphHelperKind, { icon: string; label: string }> = {
-  merge: { icon: '◇', label: 'merge' },
-  color: { icon: '◐', label: 'grade' },
-  repeat: { icon: '▦', label: 'repeat' },
-  material: { icon: '◒', label: 'material' },
-  mask: { icon: '◒', label: 'mask' },
-  transform: { icon: '↻', label: 'transform' },
-  grimeShadow: { icon: '◖', label: 'shadow' },
-  environment: { icon: '◇', label: 'env' },
-  shader: { icon: '◉', label: 'shader' },
+  ...(Object.fromEntries(
+    GRAPH_NODE_KINDS.map((kind) => [
+      kind,
+      { icon: GRAPH_NODE_MODELS[kind].look.layersIcon, label: GRAPH_NODE_MODELS[kind].look.layersLabel },
+    ]),
+  ) as Record<GraphNodeKind, { icon: string; label: string }>),
   export: { icon: '↗', label: 'output' },
 };
 
@@ -63,42 +51,10 @@ function getAreaGraphHelpers(graph: CanvasGraph | undefined, area: GraphArea): G
   const areaNodeIds = new Set(area.nodeIds);
   const helpersById = new Map<string, GraphHelperRowData>();
 
-  graphNodesOfKind(graph, 'merge').forEach((node) => {
-    if (!areaNodeIds.has(node.id)) return;
-    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'merge', ...GRAPH_HELPER_META.merge });
-  });
-  graphNodesOfKind(graph, 'color').forEach((node) => {
-    if (!areaNodeIds.has(node.id)) return;
-    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'color', ...GRAPH_HELPER_META.color });
-  });
-  graphNodesOfKind(graph, 'repeat').forEach((node) => {
-    if (!areaNodeIds.has(node.id)) return;
-    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'repeat', ...GRAPH_HELPER_META.repeat });
-  });
-  graphNodesOfKind(graph, 'material').forEach((node) => {
-    if (!areaNodeIds.has(node.id)) return;
-    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'material', ...GRAPH_HELPER_META.material });
-  });
-  graphNodesOfKind(graph, 'mask').forEach((node) => {
-    if (!areaNodeIds.has(node.id)) return;
-    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'mask', ...GRAPH_HELPER_META.mask });
-  });
-  graphNodesOfKind(graph, 'transform').forEach((node) => {
-    if (!areaNodeIds.has(node.id)) return;
-    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'transform', ...GRAPH_HELPER_META.transform });
-  });
-  graphNodesOfKind(graph, 'grimeShadow').forEach((node) => {
-    if (!areaNodeIds.has(node.id)) return;
-    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'grimeShadow', ...GRAPH_HELPER_META.grimeShadow });
-  });
-  graphNodesOfKind(graph, 'environment').forEach((node) => {
-    if (!areaNodeIds.has(node.id)) return;
-    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'environment', ...GRAPH_HELPER_META.environment });
-  });
-  graphNodesOfKind(graph, 'shader').forEach((node) => {
-    if (!areaNodeIds.has(node.id)) return;
-    helpersById.set(node.id, { id: node.id, name: node.name, kind: 'shader', ...GRAPH_HELPER_META.shader });
-  });
+  for (const node of Object.values(graph.nodes)) {
+    if (!areaNodeIds.has(node.id) || GRAPH_NODE_MODELS[node.kind].look.inLayerAreas === false) continue;
+    helpersById.set(node.id, { id: node.id, name: node.name, kind: node.kind, ...GRAPH_HELPER_META[node.kind] });
+  }
   if (areaNodeIds.has(EXPORT_NODE_ID)) {
     helpersById.set(EXPORT_NODE_ID, {
       id: EXPORT_NODE_ID,

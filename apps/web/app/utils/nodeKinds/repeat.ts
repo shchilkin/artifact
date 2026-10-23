@@ -58,6 +58,27 @@ export const repeatNodeModel: GraphNodeKindModel<GraphRepeatNode> = {
     { port: 'in', role: 'pattern', mode: 'render' },
   ],
   insertion: () => ({ through: 'in' }),
+  look: {
+    canvasSymbol: '⧉',
+    accent: 'var(--node-kind-array)',
+    edgeColor: 'oklch(76% 0.14 95)',
+    layersIcon: '▦',
+    layersLabel: 'repeat',
+  },
+  library: {
+    intent: 'structure',
+    colorKind: 'array',
+    resultLabel: 'Adds repeat node',
+    entry: {
+      label: 'Repeater',
+      symbol: '⧉',
+      description: 'Repeat any source branch into line, grid, or radial patterns.',
+      group: 'utility',
+      surfaces: ['nodes'],
+      tags: ['utility', 'repeat'],
+      keywords: 'repeat motif grid line radial branch',
+    },
+  },
   renderSignature: (node) =>
     JSON.stringify([
       node.pattern,

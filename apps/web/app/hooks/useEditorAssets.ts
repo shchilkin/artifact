@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CanvasDocument, GraphEnvironmentNode, ImageLayer, ModelLayer } from '../types/config';
+import type { CanvasDocument, ImageLayer, ModelLayer } from '../types/config';
 import { isAssetUri, isImageDataUrl, resolveImageSource, saveImageAsset } from '../utils/assetStore';
 import { environmentUriFromId, isSupportedEnvironmentFile, saveEnvironmentFileAsset } from '../utils/envAssetStore';
 import { isSupportedModelFile, modelUriFromId, saveModelFileAsset } from '../utils/modelAssetStore';
+import type { GraphEnvironmentNode } from '../utils/nodeKinds';
 
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024; // 25 MB
 const MAX_MODEL_BYTES = 50 * 1024 * 1024; // 50 MB

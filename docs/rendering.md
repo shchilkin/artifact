@@ -68,7 +68,8 @@ Rule:
 > UI surfaces may wrap these functions, but they should not reimplement artwork rendering.
 
 Reachability has one home, `render/graphInputs.ts`: one walk
-(`collectGraphRenderReachModes`) over per-kind input tables (`graphNodeRenderInputs`). `collectGraphRenderReach`,
+(`collectGraphRenderReachModes`) over each node kind's declared inputs (`inputs` on its model in
+`utils/nodeKinds/`; layers have their own table in `graphInputs.ts`). `collectGraphRenderReach`,
 `collectDocumentOutputNodeIds` (Layers row status), and the Layers tree (`buildGraphLayerTree`) all derive from
 it. When a graph renderer starts or stops reading an input port, update the table in the same change; the
 shared fixtures in `test-fixtures/render/graphReachFixtures.ts` cover every branch of the table and are checked
@@ -566,7 +567,11 @@ Current implementation status:
 
 - `apps/web/app/utils/renderer.ts` re-exports the public facade.
 - `apps/web/app/utils/render/canvas.ts` owns shared Canvas 2D helpers.
-- `apps/web/app/utils/render/graph.ts` owns graph traversal rendering.
+- `apps/web/app/utils/render/graph.ts` owns graph traversal rendering: the
+  cache, layer nodes, and the Output node. Graph-only nodes render through
+  `GRAPH_NODE_RENDERERS` in `apps/web/app/utils/render/nodeKinds/`, one module
+  per kind. A kind's render signature (thumbnail and render-cache key) is
+  `renderSignature` on its model, read through `graphNodeRenderSig`.
 - `apps/web/app/utils/render/layers/index.ts` owns layer/effect passes while the
   remaining per-kind files are extracted.
 - Per-kind layer/effect files should be introduced incrementally only when they

@@ -22,7 +22,7 @@ import {
 } from '../types/config';
 import { serializeDocumentForLink } from './documentLink';
 import { migrateDocument } from './migrations';
-import { graphNodesOfKind } from './nodeGraph';
+import { hasGraphNodes } from './nodeGraph';
 import { clampMaterialFractions, graphNodeModel, isGraphNodeKind } from './nodeKinds';
 
 export const DOC_KEY = 'doc';
@@ -299,16 +299,7 @@ export function isBlankDocument(doc: CanvasDocument) {
   const graphIsEmpty =
     !graph ||
     (graph.edges.length === 0 &&
-      graphNodesOfKind(graph, 'merge').length === 0 &&
-      graphNodesOfKind(graph, 'color').length === 0 &&
-      graphNodesOfKind(graph, 'repeat').length === 0 &&
-      graphNodesOfKind(graph, 'material').length === 0 &&
-      graphNodesOfKind(graph, 'mask').length === 0 &&
-      graphNodesOfKind(graph, 'transform').length === 0 &&
-      graphNodesOfKind(graph, 'grimeShadow').length === 0 &&
-      graphNodesOfKind(graph, 'scene3d').length === 0 &&
-      graphNodesOfKind(graph, 'environment').length === 0 &&
-      graphNodesOfKind(graph, 'shader').length === 0 &&
+      !hasGraphNodes(graph) &&
       (graph.areas ?? []).length === 0 &&
       Object.keys(graph.positions).every((id) => id === '__export__'));
 

@@ -34,6 +34,27 @@ export const transformNodeModel: GraphNodeKindModel<GraphTransformNode> = {
   normalize: (stored) => ({ ...withDefaults<GraphTransformNode>(TRANSFORM_DEFAULTS, stored), kind: 'transform' }),
   inputs: () => SINGLE_INPUT,
   insertion: () => ({ through: 'in' }),
+  look: {
+    canvasSymbol: '↻',
+    accent: 'var(--node-kind-color)',
+    edgeColor: 'oklch(70% 0.17 265)',
+    layersIcon: '↻',
+    layersLabel: 'transform',
+  },
+  library: {
+    intent: 'structure',
+    colorKind: 'color',
+    resultLabel: 'Adds transform node',
+    entry: {
+      label: 'Transform',
+      symbol: '↻',
+      description: 'Move, scale, rotate, and fade a completed upstream branch.',
+      group: 'utility',
+      surfaces: ['nodes'],
+      tags: ['utility', 'transform'],
+      keywords: 'transform rotate rotation move offset position scale resize opacity branch token',
+    },
+  },
   renderSignature: (node) =>
     JSON.stringify([node.x, node.y, node.scaleX, node.scaleY, node.rotation, node.pivotMode ?? 'canvas', node.opacity]),
 };

@@ -54,6 +54,28 @@ export const scene3dNodeModel: GraphNodeKindModel<GraphScene3DNode> = {
     { port: 'env', role: 'side', mode: 'render' },
   ],
   insertion: () => ({ through: 'model' }),
+  look: {
+    canvasSymbol: '◌',
+    accent: 'var(--node-kind-primitive)',
+    edgeColor: 'oklch(72% 0.16 48)',
+    layersIcon: '◌',
+    layersLabel: '3d scene',
+    inLayerAreas: false,
+  },
+  library: {
+    intent: 'threeD',
+    colorKind: 'primitive',
+    resultLabel: 'Adds 3D scene',
+    entry: {
+      label: '3D Scene',
+      symbol: '◌',
+      description: 'Render imported models through scene camera, light, and environment controls.',
+      group: 'primitive',
+      surfaces: ['layers', 'nodes'],
+      tags: ['scene', '3d', 'light'],
+      keywords: '3d scene model hdri environment light lighting camera render glb ps1',
+    },
+  },
   renderSignature: (node) =>
     JSON.stringify([
       node.environmentSrc,

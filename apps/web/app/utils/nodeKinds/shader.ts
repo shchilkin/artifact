@@ -139,6 +139,12 @@ export const shaderNodeModel: GraphNodeKindModel<GraphShaderNode> = {
       : graph,
   inputs: (node) => (shaderFollowsBackdrop(node) ? [{ port: 'bg', role: 'primary', mode: 'render' }] : []),
   insertion: (node) => (node.role === 'effect' ? { through: 'bg' } : 'source'),
+  look: { canvasSymbol: '◉', accent: 'var(--node-kind-noise)', layersIcon: '◉', layersLabel: 'shader' },
+  library: {
+    intent: 'sources',
+    colorKind: 'noise',
+    resultLabel: 'Adds shader fill',
+  },
   renderSignature: (node) => {
     const shaderInstanceRenderState = node.shaderInstance
       ? [node.shaderInstance.definition.code, node.shaderInstance.definition.properties, node.shaderInstance.values]

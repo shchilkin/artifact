@@ -161,16 +161,7 @@ export default function Editor() {
     deleteNodeSelection,
     updateLayer,
     storeImageAssetSource,
-    updateMergeNode,
-    updateColorNode,
-    updateRepeatNode,
-    updateMaterialNode,
-    updateMaskNode,
-    updateTransformNode,
-    updateGrimeShadowNode,
-    updateScene3DNode,
-    updateEnvironmentNode,
-    updateShaderNode,
+    updateGraphNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
@@ -246,7 +237,7 @@ export default function Editor() {
       }
       try {
         const asset = await saveEnvironmentFileAsset(file);
-        updateEnvironmentNode(id, {
+        updateGraphNode(id, {
           environmentSrc: environmentUriFromId(asset.id),
           environmentName: asset.label,
           environmentMime: asset.mime,
@@ -256,7 +247,7 @@ export default function Editor() {
         setEnvironmentFileError('Could not read environment map.');
       }
     },
-    [updateEnvironmentNode],
+    [updateGraphNode],
   );
   const handleReplaceModelLayerFile = useCallback(
     async (id: string, file: File) => {
@@ -631,16 +622,7 @@ export default function Editor() {
                   onSelectLayer={setSelectedLayerId}
                   onGraphChange={handleGraphChange}
                   onUpdateLayer={updateLayer}
-                  onUpdateMergeNode={updateMergeNode}
-                  onUpdateColorNode={updateColorNode}
-                  onUpdateRepeatNode={updateRepeatNode}
-                  onUpdateMaterialNode={updateMaterialNode}
-                  onUpdateMaskNode={updateMaskNode}
-                  onUpdateTransformNode={updateTransformNode}
-                  onUpdateGrimeShadowNode={updateGrimeShadowNode}
-                  onUpdateScene3DNode={updateScene3DNode}
-                  onUpdateEnvironmentNode={updateEnvironmentNode}
-                  onUpdateShaderNode={updateShaderNode}
+                  onUpdateGraphNode={updateGraphNode}
                   onReplaceModelLayerFile={handleReplaceModelLayerFile}
                   onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
                   onUpdateExportConfig={handleExportConfigChange}

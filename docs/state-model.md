@@ -63,6 +63,15 @@ Rules:
   no areas or saved camera views, because the layers fully determine it;
   `normalizeDocument` rebuilds it on open. This keeps links within URL size
   limits. Saved files, projects, and local storage keep the full graph.
+- Graph-only nodes are stored in `graph.nodes` (schema 6, v0.53), a map from id
+  to node with a `kind` discriminant. The 5 -> 6 step moved the old per-kind
+  arrays (`mergeNodes`, `colorNodes`, …) into it; when two arrays held the same
+  id, the first in the old classification order won. Read nodes with the
+  `nodeGraph.ts` helpers (`findGraphNode`, `graphNodesOfKind`) and change them
+  with `addGraphNode`, `updateGraphNode`, and `removeGraphNode`. A kind's model
+  in `GRAPH_NODE_MODELS` normalizes it on load and may fix the graph after an
+  update (`afterUpdate`, for example a shader switched to fill drops its
+  backdrop edge).
 - Normalize unversioned documents to the current `DOCUMENT_SCHEMA_VERSION`.
   Documents without `schemaVersion` are schema 1.
 - Stored-format changes are one-shot steps in `apps/web/app/utils/migrations/`

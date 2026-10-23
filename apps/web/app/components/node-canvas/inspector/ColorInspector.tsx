@@ -1,4 +1,4 @@
-import type { GraphColorNode } from '../../../types/config';
+import type { GraphColorNode } from '../../../utils/nodeKinds';
 import { InspectorSlider, InspectorTextInput } from './fields';
 
 export function ColorInspector({

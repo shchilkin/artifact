@@ -4,7 +4,6 @@ import {
   type CanvasGraph,
   type EffectPreset,
   type GraphEdge,
-  type GraphEnvironmentNode,
   type Layer,
   type LayerKind,
   MATERIAL_TEXTURE_INPUT_PORTS,
@@ -16,6 +15,7 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
+import type { GraphEnvironmentNode } from '../utils/nodeKinds';
 import type { AddAction } from './addActions';
 import { makeArrayPresetLayer } from './arrayPresets';
 import { canDeleteLayer, canDeleteNodeFromDocument, canReorderDocumentLayers } from './editorGuardrails';

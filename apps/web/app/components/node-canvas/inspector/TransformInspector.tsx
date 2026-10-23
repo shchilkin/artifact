@@ -1,4 +1,4 @@
-import type { GraphTransformNode } from '../../../types/config';
+import type { GraphTransformNode } from '../../../utils/nodeKinds';
 import { InspectorSelect, InspectorSlider, InspectorTextInput, InspectorToggle } from './fields';
 
 function scalePatch(transformNode: GraphTransformNode, value: number): Partial<GraphTransformNode> {

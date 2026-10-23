@@ -592,20 +592,7 @@ export interface CanvasDocument {
   envAssets?: PortableEnvironmentAsset[];
 }
 
-export type {
-  GraphColorNode,
-  GraphEnvironmentNode,
-  GraphGrimeShadowNode,
-  GraphMaskNode,
-  GraphMaterialNode,
-  GraphMergeNode,
-  GraphNode,
-  GraphNodeKind,
-  GraphRepeatNode,
-  GraphScene3DNode,
-  GraphShaderNode,
-  GraphTransformNode,
-} from '../utils/nodeKinds';
+export type { GraphNode, GraphNodeKind } from '../utils/nodeKinds';
 
 export const DOCUMENT_SCHEMA_VERSION = 6;
 

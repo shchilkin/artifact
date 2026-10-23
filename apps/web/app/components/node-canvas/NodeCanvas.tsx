@@ -77,21 +77,8 @@ import { NodeContextMenu } from './menus/NodeContextMenu';
 import { PaneContextMenu } from './menus/PaneContextMenu';
 import { NodeEntryViewport } from './NodeEntryViewport';
 import type { NodeAlignmentGuide } from './nodeAlignment';
-import {
-  ColorNodeComponent,
-  EnvironmentNodeComponent,
-  ExportNodeComponent,
-  FallbackNodeComponent,
-  GrimeShadowNodeComponent,
-  LayerNodeComponent,
-  MaskNodeComponent,
-  MaterialNodeComponent,
-  MergeNodeComponent,
-  RepeatNodeComponent,
-  Scene3DNodeComponent,
-  ShaderNodeComponent,
-  TransformNodeComponent,
-} from './nodes/NodeTypes';
+import { GRAPH_NODE_RF_TYPES } from './nodeKinds';
+import { ExportNodeComponent, FallbackNodeComponent, LayerNodeComponent } from './nodes/NodeTypes';
 import { NodePropertiesPanel } from './panel/NodePropertiesPanel';
 import { toRFEdges } from './reactFlowEdges';
 import { useGeneratedMaterialTextureCanvases } from './thumbnails/materialTextureCanvases';
@@ -106,16 +93,7 @@ import type {
 
 const nodeTypes = {
   layerNode: LayerNodeComponent,
-  colorNode: ColorNodeComponent,
-  materialNode: MaterialNodeComponent,
-  mergeNode: MergeNodeComponent,
-  repeatNode: RepeatNodeComponent,
-  maskNode: MaskNodeComponent,
-  transformNode: TransformNodeComponent,
-  grimeShadowNode: GrimeShadowNodeComponent,
-  scene3dNode: Scene3DNodeComponent,
-  environmentNode: EnvironmentNodeComponent,
-  shaderNode: ShaderNodeComponent,
+  ...GRAPH_NODE_RF_TYPES,
   exportNode: ExportNodeComponent,
   fallbackNode: FallbackNodeComponent,
 };
@@ -155,16 +133,7 @@ export function NodeCanvas({
   onSelectLayer,
   onGraphChange,
   onUpdateLayer,
-  onUpdateMergeNode,
-  onUpdateColorNode,
-  onUpdateRepeatNode,
-  onUpdateMaterialNode,
-  onUpdateMaskNode,
-  onUpdateTransformNode,
-  onUpdateGrimeShadowNode,
-  onUpdateScene3DNode,
-  onUpdateEnvironmentNode,
-  onUpdateShaderNode,
+  onUpdateGraphNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   exportBusy,
@@ -553,16 +522,7 @@ export function NodeCanvas({
       selectNode: handleSelectNode,
       toggleNodeEditor: handleToggleEditor,
       updateLayer: onUpdateLayer,
-      updateMergeNode: onUpdateMergeNode,
-      updateColorNode: onUpdateColorNode,
-      updateRepeatNode: onUpdateRepeatNode,
-      updateMaterialNode: onUpdateMaterialNode,
-      updateMaskNode: onUpdateMaskNode,
-      updateTransformNode: onUpdateTransformNode,
-      updateGrimeShadowNode: onUpdateGrimeShadowNode,
-      updateScene3DNode: onUpdateScene3DNode,
-      updateEnvironmentNode: onUpdateEnvironmentNode,
-      updateShaderNode: onUpdateShaderNode,
+      updateGraphNode: onUpdateGraphNode,
       setShaderNodeGenerationStatus,
       updateExportConfig: onUpdateExportConfig,
       updateAspectRatio: onUpdateAspectRatio,
@@ -578,18 +538,9 @@ export function NodeCanvas({
       deleteUnlockedNodes,
       onExport,
       onUpdateAspectRatio,
-      onUpdateColorNode,
+      onUpdateGraphNode,
       onUpdateExportConfig,
       onUpdateLayer,
-      onUpdateMaterialNode,
-      onUpdateMergeNode,
-      onUpdateRepeatNode,
-      onUpdateMaskNode,
-      onUpdateTransformNode,
-      onUpdateGrimeShadowNode,
-      onUpdateScene3DNode,
-      onUpdateEnvironmentNode,
-      onUpdateShaderNode,
       setShaderNodeGenerationStatus,
       openGallery,
       setPrimitiveViewportActive,
@@ -720,16 +671,7 @@ export function NodeCanvas({
             graph={graph}
             exportBusy={exportBusy}
             onUpdateLayer={onUpdateLayer}
-            onUpdateMergeNode={onUpdateMergeNode}
-            onUpdateColorNode={onUpdateColorNode}
-            onUpdateRepeatNode={onUpdateRepeatNode}
-            onUpdateMaterialNode={onUpdateMaterialNode}
-            onUpdateMaskNode={onUpdateMaskNode}
-            onUpdateTransformNode={onUpdateTransformNode}
-            onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
-            onUpdateScene3DNode={onUpdateScene3DNode}
-            onUpdateEnvironmentNode={onUpdateEnvironmentNode}
-            onUpdateShaderNode={onUpdateShaderNode}
+            onUpdateGraphNode={onUpdateGraphNode}
             onReplaceModelLayerFile={onReplaceModelLayerFile}
             onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
             onUpdateExportConfig={onUpdateExportConfig}

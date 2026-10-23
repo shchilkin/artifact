@@ -101,8 +101,19 @@ The release gate is the command list in `docs/production-readiness.md`
   (`utils/projectStore.ts`).
 - Size values are authored at 540px (`REF = 540`) and scaled by `W / REF`.
 
-Known core debt (two topology sources, per-kind node arrays, flat
-`EffectLayer`, scattered update paths) is tracked in
+- Graph-only nodes (merge, color, mask, shader, …) live in
+  `CanvasGraph.nodes`, one map keyed by id with a `kind` discriminant. Each kind
+  is defined in three places, one module each: the document model
+  (`utils/nodeKinds/<kind>.ts`: type, factory, normalizer, render inputs, render
+  signature, insertion, canvas look, Add Library data), the renderer
+  (`utils/render/nodeKinds/<kind>.ts`), and the editor UI
+  (`components/node-canvas/nodeKinds/<kind>.tsx`: React Flow node). Each is
+  registered by one line in `GRAPH_NODE_MODELS`, `GRAPH_NODE_RENDERERS`,
+  `GRAPH_NODE_UIS`, and `GRAPH_NODE_INSPECTORS`. Generic code iterates the
+  registries; never switch on a node kind outside a kind's own modules
+  (`nodeKindLocality.test.ts` checks this with grime shadow).
+
+Known core debt (flat `EffectLayer`, scattered update paths) is tracked in
 `docs/version-plans/v0.53.md`. Do not add new parallel paths on top of it.
 
 ## Invariants
