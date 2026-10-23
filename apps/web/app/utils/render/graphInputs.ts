@@ -1,6 +1,7 @@
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../../types/config';
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../types/config';
-import { EXPORT_NODE_ID, type GraphUtilityNodeKind, graphNodesOfKind, graphUtilityNodeKind } from '../nodeGraph';
+import { EXPORT_NODE_ID, findGraphNode, type GraphUtilityNodeKind, graphUtilityNodeKind } from '../nodeGraph';
+import { type GraphInputRole, type GraphNodeInput, type GraphReachMode, modelOfNode, SINGLE_INPUT } from '../nodeKinds';
 
 // Pure description of which inputs the graph renderer follows. The renderer (`graph.ts`) shares the
 // port lookup below; the per-kind input tables restate what each `GRAPH_NODE_RENDERERS` entry reads,
@@ -33,24 +34,7 @@ export function graphRenderNodeKind(doc: GraphDocument, graph: CanvasGraph, node
   return doc.layers.some((layer) => layer.id === nodeId) ? 'layer' : 'missing';
 }
 
-/**
- * How the renderer uses a node:
- * - `render`: the node's pixels are rendered, so its own render inputs are followed;
- * - `material`: a material node on a `material` port: its settings are read and its texture ports rendered;
- * - `read`: the renderer reads the node's settings without rendering it (a Scene 3D model, or an
- *   environment node without a source), so none of its inputs are followed.
- */
-export type GraphReachMode = 'render' | 'material' | 'read';
-
-/**
- * What an input means to its consumer:
- * - `primary`: the stack the node continues (`in`, `bg`, merge `a`, a standalone material's albedo);
- * - `overlay`: the merge `b` stack;
- * - `mask`: the mask node's `mask` source;
- * - `pattern`: the repeat item on `in`;
- * - `side`: Scene 3D model/material/environment, primitive material, material texture maps.
- */
-export type GraphInputRole = 'primary' | 'overlay' | 'mask' | 'pattern' | 'side';
+export type { GraphInputRole, GraphReachMode } from '../nodeKinds';
 
 export interface GraphRenderInput {
   port: GraphInputPort;
@@ -59,7 +43,7 @@ export interface GraphRenderInput {
   mode: GraphReachMode;
 }
 
-type InputCandidate = { port: GraphInputPort; role: GraphInputRole; mode: GraphReachMode };
+type InputCandidate = GraphNodeInput;
 
 function environmentPortMode(doc: GraphDocument, graph: CanvasGraph, sourceId: string): GraphReachMode {
   if (graphRenderNodeKind(doc, graph, sourceId) !== 'environment') return 'render';
@@ -71,64 +55,20 @@ function modelPortMode(doc: GraphDocument, sourceId: string): GraphReachMode | n
   return layer?.kind === 'model' || layer?.kind === 'primitive' ? 'read' : null;
 }
 
-function shaderFollowsBackdrop(graph: CanvasGraph, nodeId: string) {
-  const shader = graphNodesOfKind(graph, 'shader').find((node) => node.id === nodeId);
-  if (!shader) return false;
-  if (shader.shaderKind === 'customCode' || shader.shaderKind === 'aiShader') return shader.role === 'effect';
-  return shader.role !== 'fill';
-}
-
 const TEXTURE_CANDIDATES: InputCandidate[] = MATERIAL_TEXTURE_INPUT_PORTS.map((port) => ({
   port,
   role: 'side',
   mode: 'render',
 }));
 
-const SINGLE_INPUT: InputCandidate[] = [{ port: 'in', role: 'primary', mode: 'render' }];
-
-function renderModeCandidates(doc: GraphDocument, graph: CanvasGraph, nodeId: string): InputCandidate[] {
-  switch (graphRenderNodeKind(doc, graph, nodeId)) {
-    case 'export':
-    case 'color':
-    case 'transform':
-    case 'grimeShadow':
-    case 'environment':
-      return SINGLE_INPUT;
-    case 'merge':
-      return [
-        { port: 'a', role: 'primary', mode: 'render' },
-        { port: 'b', role: 'overlay', mode: 'render' },
-      ];
-    case 'mask':
-      return [
-        { port: 'in', role: 'primary', mode: 'render' },
-        { port: 'mask', role: 'mask', mode: 'render' },
-      ];
-    case 'repeat':
-      return [
-        { port: 'bg', role: 'primary', mode: 'render' },
-        { port: 'in', role: 'pattern', mode: 'render' },
-      ];
-    case 'material':
-      return [{ port: 'albedo', role: 'primary', mode: 'render' }];
-    case 'shader':
-      return shaderFollowsBackdrop(graph, nodeId) ? [{ port: 'bg', role: 'primary', mode: 'render' }] : [];
-    case 'scene3d':
-      return [
-        { port: 'bg', role: 'primary', mode: 'render' },
-        { port: 'model', role: 'side', mode: 'read' },
-        { port: 'material', role: 'side', mode: 'material' },
-        { port: 'env', role: 'side', mode: 'render' },
-      ];
-    case 'layer': {
-      const layer = doc.layers.find((item) => item.id === nodeId);
-      if (!layer) return [];
-      const primary: InputCandidate = { port: graphLayerInputPort(layer), role: 'primary', mode: 'render' };
-      return layer.kind === 'primitive' ? [primary, { port: 'material', role: 'side', mode: 'material' }] : [primary];
-    }
-    default:
-      return [];
-  }
+function renderModeCandidates(doc: GraphDocument, graph: CanvasGraph, nodeId: string): readonly InputCandidate[] {
+  if (nodeId === EXPORT_NODE_ID) return SINGLE_INPUT;
+  const node = findGraphNode(graph, nodeId);
+  if (node) return modelOfNode(node).inputs(node);
+  const layer = doc.layers.find((item) => item.id === nodeId);
+  if (!layer) return [];
+  const primary: InputCandidate = { port: graphLayerInputPort(layer), role: 'primary', mode: 'render' };
+  return layer.kind === 'primitive' ? [primary, { port: 'material', role: 'side', mode: 'material' }] : [primary];
 }
 
 /**
