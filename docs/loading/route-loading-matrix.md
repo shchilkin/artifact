@@ -1,7 +1,7 @@
 # Route Loading Matrix
 
 Normative loading contract for
-[v0.49 Application Shell And Loading Boundaries](../version-plans/v0.49.md).
+[v0.49 Application Shell And Loading Boundaries](../archive/version-plans/v0.49.md).
 The machine-readable contract is
 [`route-loading-contract.json`](./route-loading-contract.json). Measurements:
 

@@ -1,7 +1,7 @@
 # Database
 
 Database files for the private AI generation API described in
-`docs/version-plans/v0.13-backend-contract.md`.
+`docs/archive/version-plans/v0.13-backend-contract.md`.
 
 ## Migrations
 

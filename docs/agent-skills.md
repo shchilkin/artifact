@@ -105,4 +105,4 @@ Rules for agents:
   workspace plumbing, or a known static-analysis false positive.
 
 The v0.31 baseline is documented in
-[`fallow-v0.31-baseline.md`](fallow-v0.31-baseline.md).
+[`fallow-v0.31-baseline.md`](archive/fallow-v0.31-baseline.md).

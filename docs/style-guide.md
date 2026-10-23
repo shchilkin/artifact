@@ -395,7 +395,7 @@ until the migration is complete.
 - **Source**: product-owned patterns live in
   `apps/web/app/components/inspector-system/*`; the closed surface assignment
   and migration boundary live in
-  [`inspector-system-inventory.md`](./inspector-system-inventory.md).
+  [`inspector-system-inventory.md`](./archive/inspector-system-inventory.md).
 - **Anatomy**: `InspectorSection` groups properties, `InspectorField` composes
   UI Foundation fields, `PropertyRow` carries dense label/value/control
   alignment, and `InspectorStatus` presents bounded feedback.

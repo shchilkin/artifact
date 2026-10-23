@@ -15,6 +15,11 @@ update data, rendering, controls, docs, and tests in one slice.
 - `apps/web/app/utils/effectDocs.ts`: add user-facing docs text, key parameters, and
   ranges for the node docs page.
 - `apps/web/app/utils/render/layers/index.ts`: implement or route the actual pixel pass.
+  Give the effect exactly one backend: add its key to
+  `CANVAS_POSITIVE_EFFECT_KEYS` (Canvas 2D or worker pass) or to
+  `GPU_POSITIVE_EFFECT_KEYS` with a filter in `apps/web/app/utils/pixiFilters.ts`,
+  never both. `pixiFilters.test.ts` fails if a canvas-owned key also builds a
+  GPU filter.
 - `apps/web/app/utils/randomConfig.ts`: include randomization/zeroing behavior if the
   effect can be randomized from the classic layer controls.
 - `apps/web/app/utils/effectLayerMigration.ts`: migrate legacy combined effect state if

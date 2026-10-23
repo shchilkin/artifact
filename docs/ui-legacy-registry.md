@@ -29,9 +29,9 @@ seven deleted compatibility files is recreated.
 | `/`, `/projects`, `/reset-password`, `/examples`, `/showcase`, unknown paths (`*`) | UI Foundation where primitives apply; Artifact Design System for composition and theme | Route entries in the JSON registry |
 | `/docs`, `/docs/nodes`, `/docs/recipes`, `/docs/reference`, `/docs/reference/:nodeId` | UI Foundation where primitives apply; Artifact Design System for documentation shells and product patterns | Route entries in the JSON registry |
 | `/docs/style-guide` | Artifact Product Theme plus the shared UI Foundation Matrix | Four identifier sets in the JSON registry |
-| `/app` shell, Layers, Add Library, commands, overlays | UI Foundation plus Artifact Design System | [`editor-workflow-inventory.md`](./editor-workflow-inventory.md) |
-| Inspector and property surfaces | UI Foundation fields and feedback plus Artifact Inspector System | [`inspector-system-inventory.md`](./inspector-system-inventory.md) |
-| Node canvas, preview, gallery, thumbnails, and 3D viewport chrome | Artifact Canvas Chrome System; UI Foundation for bounded controls and feedback | [`canvas-chrome-inventory.md`](./canvas-chrome-inventory.md) |
+| `/app` shell, Layers, Add Library, commands, overlays | UI Foundation plus Artifact Design System | [`editor-workflow-inventory.md`](./archive/editor-workflow-inventory.md) |
+| Inspector and property surfaces | UI Foundation fields and feedback plus Artifact Inspector System | [`inspector-system-inventory.md`](./archive/inspector-system-inventory.md) |
+| Node canvas, preview, gallery, thumbnails, and 3D viewport chrome | Artifact Canvas Chrome System; UI Foundation for bounded controls and feedback | [`canvas-chrome-inventory.md`](./archive/canvas-chrome-inventory.md) |
 
 ### Backoffice
 

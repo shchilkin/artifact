@@ -115,6 +115,9 @@ are source-layer state and therefore must match between node preview and export.
 ### Stack mode
 
 Stack mode renders `doc.layers` in order. Index 0 is bottom. This is the classic layer editor mental model.
+Internally it builds a linear graph from the layers with `inferLinearGraph` and
+renders it through the same graph renderer, so stack and graph output share one
+render path.
 
 ### Graph mode
 
@@ -274,7 +277,8 @@ render in classic stack mode.
 
 ## Layer rendering
 
-Layer rendering happens through `applyLayerToCanvas` in `renderer.ts`.
+Layer rendering happens through `applyLayerToCanvas` in
+`apps/web/app/utils/render/layers/index.ts`.
 
 | Layer kind | Renderer |
 | --- | --- |

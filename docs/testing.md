@@ -55,7 +55,7 @@ behalf of the user; setting `FALLOW_AGENT_SOURCE` only labels a run if telemetry
 was already enabled by the user. Run `fallow fix --dry-run --format json --quiet`
 and trace affected files, exports, or dependencies before any cleanup edit.
 The first v0.31 baseline and cleanup backlog live in
-[`fallow-v0.31-baseline.md`](fallow-v0.31-baseline.md).
+[`fallow-v0.31-baseline.md`](archive/fallow-v0.31-baseline.md).
 
 Current baseline, captured during the v0.27 planning slice:
 
@@ -401,4 +401,4 @@ npm run test:browser
 - [`docs/rendering.md`](rendering.md) — full pipeline walkthrough
 - [`docs/state-model.md`](state-model.md) — what state affects render output
 - [`docs/performance.md`](performance.md) — node-editor benchmark workflow
-- [`docs/improvement-plan.md`](improvement-plan.md) — phased quality checklist
+- [`docs/archive/improvement-plan.md`](archive/improvement-plan.md) — phased quality checklist
