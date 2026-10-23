@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import {
-  type CanvasGraph,
-  makeFillLayer,
-  makeGraphColorNode,
-  makeGraphMergeNode,
-  makeTextLayer,
-} from '../../types/config';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { type CanvasGraph, makeFillLayer, makeTextLayer } from '../../types/config';
+import { EXPORT_NODE_ID, graphNodesById } from '../../utils/nodeGraph';
+import { makeGraphColorNode, makeGraphMergeNode } from '../../utils/nodeKinds';
 import { buildLayerDisplayItems } from './layerDisplayItems';
 
 describe('buildLayerDisplayItems', () => {
@@ -22,8 +17,10 @@ describe('buildLayerDisplayItems', () => {
     const graph: CanvasGraph = {
       edges: [],
       positions: {},
-      mergeNodes: [makeGraphMergeNode({ id: 'merge-a', name: 'Merge A' })],
-      colorNodes: [makeGraphColorNode({ id: 'color-a', name: 'Color A' })],
+      nodes: graphNodesById(
+        makeGraphMergeNode({ id: 'merge-a', name: 'Merge A' }),
+        makeGraphColorNode({ id: 'color-a', name: 'Color A' }),
+      ),
       areas: [area],
     };
     const items = buildLayerDisplayItems([text, fill], new Map([['text-a', [area]]]), graph);

@@ -96,7 +96,7 @@ import {
   type TextFontRef,
 } from '../types/config';
 import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
-import { EXPORT_NODE_ID } from '../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById } from '../utils/nodeGraph';
 import './docs.style-guide.css';
 
 export const meta: MetaFunction = () =>
@@ -354,9 +354,7 @@ const styleGuidePanelGraph: CanvasGraph = {
     [styleGuidePanelEffectLayer.id]: { x: 360, y: 0 },
     [EXPORT_NODE_ID]: { x: 720, y: 0 },
   },
-  mergeNodes: [],
-  colorNodes: [],
-  repeatNodes: [],
+  nodes: graphNodesById(),
 };
 
 const styleGuidePanelDoc: CanvasDocument = {
@@ -1380,16 +1378,7 @@ function NodePropertiesPanelSpecimens() {
           graph={styleGuidePanelGraph}
           exportBusy={false}
           onUpdateLayer={noop}
-          onUpdateMergeNode={noop}
-          onUpdateColorNode={noop}
-          onUpdateRepeatNode={noop}
-          onUpdateMaterialNode={noop}
-          onUpdateMaskNode={noop}
-          onUpdateTransformNode={noop}
-          onUpdateGrimeShadowNode={noop}
-          onUpdateScene3DNode={noop}
-          onUpdateEnvironmentNode={noop}
-          onUpdateShaderNode={noop}
+          onUpdateGraphNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -1404,16 +1393,7 @@ function NodePropertiesPanelSpecimens() {
           graph={styleGuidePanelGraph}
           exportBusy={false}
           onUpdateLayer={noop}
-          onUpdateMergeNode={noop}
-          onUpdateColorNode={noop}
-          onUpdateRepeatNode={noop}
-          onUpdateMaterialNode={noop}
-          onUpdateMaskNode={noop}
-          onUpdateTransformNode={noop}
-          onUpdateGrimeShadowNode={noop}
-          onUpdateScene3DNode={noop}
-          onUpdateEnvironmentNode={noop}
-          onUpdateShaderNode={noop}
+          onUpdateGraphNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -1428,16 +1408,7 @@ function NodePropertiesPanelSpecimens() {
           graph={styleGuidePanelGraph}
           exportBusy={false}
           onUpdateLayer={noop}
-          onUpdateMergeNode={noop}
-          onUpdateColorNode={noop}
-          onUpdateRepeatNode={noop}
-          onUpdateMaterialNode={noop}
-          onUpdateMaskNode={noop}
-          onUpdateTransformNode={noop}
-          onUpdateGrimeShadowNode={noop}
-          onUpdateScene3DNode={noop}
-          onUpdateEnvironmentNode={noop}
-          onUpdateShaderNode={noop}
+          onUpdateGraphNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}
@@ -1452,16 +1423,7 @@ function NodePropertiesPanelSpecimens() {
           graph={styleGuidePanelGraph}
           exportBusy={false}
           onUpdateLayer={noop}
-          onUpdateMergeNode={noop}
-          onUpdateColorNode={noop}
-          onUpdateRepeatNode={noop}
-          onUpdateMaterialNode={noop}
-          onUpdateMaskNode={noop}
-          onUpdateTransformNode={noop}
-          onUpdateGrimeShadowNode={noop}
-          onUpdateScene3DNode={noop}
-          onUpdateEnvironmentNode={noop}
-          onUpdateShaderNode={noop}
+          onUpdateGraphNode={noop}
           onUpdateExportConfig={noop}
           onUpdateAspectRatio={noop}
           onExport={noop}

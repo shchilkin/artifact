@@ -1,6 +1,6 @@
 import { type ChangeEvent, useRef, useState } from 'react';
 
-import type { GraphEnvironmentNode } from '../../../types/config';
+import type { GraphEnvironmentNode } from '../../../utils/nodeKinds';
 import { NoPan } from '../nodes/NoPan';
 import { InspectorReadout, InspectorSection, InspectorTextInput } from './fields';
 

@@ -161,16 +161,7 @@ export default function Editor() {
     deleteNodeSelection,
     updateLayer,
     storeImageAssetSource,
-    updateMergeNode,
-    updateColorNode,
-    updateRepeatNode,
-    updateMaterialNode,
-    updateMaskNode,
-    updateTransformNode,
-    updateGrimeShadowNode,
-    updateScene3DNode,
-    updateEnvironmentNode,
-    updateShaderNode,
+    updateGraphNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
@@ -179,12 +170,12 @@ export default function Editor() {
     handleRandomize,
     handleNewBlank,
     saveRecoveryDraft,
-    handleGraphChange,
+    handleGraphEdit,
     handleExportConfigChange,
     handleCopyLink,
     loadDocument,
     documentSessionId,
-    setDoc,
+    dispatch,
     setAspect,
     undo,
     redo,
@@ -246,7 +237,7 @@ export default function Editor() {
       }
       try {
         const asset = await saveEnvironmentFileAsset(file);
-        updateEnvironmentNode(id, {
+        updateGraphNode(id, {
           environmentSrc: environmentUriFromId(asset.id),
           environmentName: asset.label,
           environmentMime: asset.mime,
@@ -256,7 +247,7 @@ export default function Editor() {
         setEnvironmentFileError('Could not read environment map.');
       }
     },
-    [updateEnvironmentNode],
+    [updateGraphNode],
   );
   const handleReplaceModelLayerFile = useCallback(
     async (id: string, file: File) => {
@@ -291,7 +282,7 @@ export default function Editor() {
   } = useEditorPrimitiveExportState({
     doc,
     docRef,
-    onGraphChange: handleGraphChange,
+    onGraphEdit: handleGraphEdit,
   });
   const { exportBusy, exportFeedback, dismissExportFeedback, handleNodeExport, retryExport } = useEditorExport(
     docRef,
@@ -629,18 +620,9 @@ export default function Editor() {
                   onPrimitiveViewStatesChange={handlePrimitiveViewStatesChange}
                   selectedLayerId={selectedLayerId}
                   onSelectLayer={setSelectedLayerId}
-                  onGraphChange={handleGraphChange}
+                  onGraphEdit={handleGraphEdit}
                   onUpdateLayer={updateLayer}
-                  onUpdateMergeNode={updateMergeNode}
-                  onUpdateColorNode={updateColorNode}
-                  onUpdateRepeatNode={updateRepeatNode}
-                  onUpdateMaterialNode={updateMaterialNode}
-                  onUpdateMaskNode={updateMaskNode}
-                  onUpdateTransformNode={updateTransformNode}
-                  onUpdateGrimeShadowNode={updateGrimeShadowNode}
-                  onUpdateScene3DNode={updateScene3DNode}
-                  onUpdateEnvironmentNode={updateEnvironmentNode}
-                  onUpdateShaderNode={updateShaderNode}
+                  onUpdateGraphNode={updateGraphNode}
                   onReplaceModelLayerFile={handleReplaceModelLayerFile}
                   onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
                   onUpdateExportConfig={handleExportConfigChange}
@@ -684,7 +666,7 @@ export default function Editor() {
         {viewMode === 'layers' && (
           <Sidebar
             doc={doc}
-            onDocChange={setDoc}
+            onDocCommand={dispatch}
             selectedLayerId={selectedLayerId}
             onSelectLayer={setSelectedLayerId}
             onAddLayer={addLayer}

@@ -1,4 +1,4 @@
-import type { GraphRepeatNode } from '../../../types/config';
+import type { GraphRepeatNode } from '../../../utils/nodeKinds';
 import { ARRAY_PATTERN_OPTIONS } from '../../layer-controls/fieldDefs';
 import { BLEND_OPTIONS } from '../constants';
 import { BlendModeNote, InspectorSelect, InspectorSlider, InspectorTextInput } from './fields';

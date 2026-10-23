@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { type CanvasDocument, makeSourceLayer } from '../types/config';
+import { type CanvasDocument, makeDocument, makeSourceLayer } from '../types/config';
 import { estimateGpuPassMs, recordGpuPass, resetGpuPassCost } from '../utils/gpuPassCost';
 import { chooseInteractiveScale, getRenderDimensions, isLikelyBlankRender } from './useDocumentRenderer';
 
 function makeDoc(layers: CanvasDocument['layers']): CanvasDocument {
-  return {
+  return makeDocument({
     global: { bg: '#120020', seed: 1, aspect: '1:1' },
     layers,
     export: { format: 'png', scale: 1, target: 'cover' },
-  };
+  });
 }
 
 function makeCanvas(fill: string): HTMLCanvasElement {

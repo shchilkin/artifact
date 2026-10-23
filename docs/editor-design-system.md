@@ -242,13 +242,13 @@ their behavior remains covered by browser/render tests.
 
 The release ownership, state matrix, keyboard requirements, responsive
 requirements, and five bounded source-owned patterns for the editor are closed
-in the [Artifact editor-workflow inventory](editor-workflow-inventory.md).
+in the [Artifact editor-workflow inventory](archive/editor-workflow-inventory.md).
 That inventory is the contract for v0.45 and the editor-pattern dependency used
 by v0.46 and v0.47. It also keeps the future Chat mode and assistant surfaces in
 v0.52 rather than treating them as current editor navigation.
 
 The v0.46 property boundary is closed in the
-[Artifact inspector-system inventory](inspector-system-inventory.md). Its
+[Artifact inspector-system inventory](archive/inspector-system-inventory.md). Its
 source-owned `InspectorSection`, `InspectorField`, `PropertyRow`, and
 `InspectorStatus` patterns are represented by ordinary and dense live
 specimens. Production forms consume the contract directly through the
@@ -477,7 +477,7 @@ Already represented in `/docs/style-guide`:
 - canvas-chrome reference surfaces: reduced deterministic `NodeCanvas`,
   `CanvasPreview`, `NodeGalleryCanvas`, and `PrimitiveViewport3D` fixtures.
   Their closed state map and semantic invariants live in
-  [`docs/canvas-chrome-inventory.md`](canvas-chrome-inventory.md).
+  [`docs/archive/canvas-chrome-inventory.md`](archive/canvas-chrome-inventory.md).
 
 High-priority follow-up specimens:
 

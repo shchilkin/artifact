@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-
-import type { GraphEnvironmentNode } from '../../../types/config';
 import { resolveEnvironmentSource } from '../../../utils/envAssetStore';
+import type { GraphEnvironmentNode } from '../../../utils/nodeKinds';
 import { renderGraphTarget } from '../../../utils/renderer';
 import { Viewport3DStatusOverlay } from '../../canvas-chrome/Viewport3DChrome';
 import { useNodeCanvasPreview } from '../context';

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasGraph } from '../../types/config';
+import { graphNodesById } from '../../utils/nodeGraph';
+import { makeGraphColorNode, makeGraphMergeNode } from '../../utils/nodeKinds';
 import { toRFEdges } from './reactFlowEdges';
 
 function makeGraph(): CanvasGraph {
@@ -10,8 +12,10 @@ function makeGraph(): CanvasGraph {
       { id: 'e-color-export', fromId: 'color-a', fromPort: 'out', toId: '__export__', toPort: 'in' },
     ],
     positions: {},
-    mergeNodes: [{ id: 'merge-a', name: 'Merge', blendMode: 'source-over', opacity: 100 }],
-    colorNodes: [{ id: 'color-a', name: 'Color', contrast: 100, brightness: 100, saturation: 100, hue: 0 }],
+    nodes: graphNodesById(
+      makeGraphMergeNode({ id: 'merge-a', name: 'Merge', blendMode: 'source-over', opacity: 100 }),
+      makeGraphColorNode({ id: 'color-a', name: 'Color', contrast: 100, brightness: 100, saturation: 100, hue: 0 }),
+    ),
   };
 }
 

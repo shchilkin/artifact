@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   AiGenerationApiError,
-  cancelAiGenerationJob,
   createAiGenerationJob,
   createAiShader,
   getAiGenerationAccess,
@@ -465,19 +464,6 @@ describe('ai generation client', () => {
         init: expect.objectContaining({ method: 'GET', cache: 'no-store' }),
       },
     ]);
-  });
-
-  it('cancels jobs through the cancel endpoint', async () => {
-    const calls: Array<{ url: string; method?: string }> = [];
-    const fetcher = async (url: RequestInfo | URL, init?: RequestInit) => {
-      calls.push({ url: String(url), method: init?.method });
-      return jsonResponse({ ...job, status: 'cancelled' });
-    };
-
-    const result = await cancelAiGenerationJob('job-1', { fetcher });
-
-    expect(result.status).toBe('cancelled');
-    expect(calls).toEqual([{ url: '/api/ai/generations/job-1/cancel', method: 'POST' }]);
   });
 
   it('throws API errors with server-provided codes', async () => {

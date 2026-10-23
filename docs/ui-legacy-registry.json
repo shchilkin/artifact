@@ -87,9 +87,9 @@
         }
       ],
       "inventoryDocuments": [
-        "docs/editor-workflow-inventory.md",
-        "docs/inspector-system-inventory.md",
-        "docs/canvas-chrome-inventory.md"
+        "docs/archive/editor-workflow-inventory.md",
+        "docs/archive/inspector-system-inventory.md",
+        "docs/archive/canvas-chrome-inventory.md"
       ]
     },
     "backoffice": {

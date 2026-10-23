@@ -9,6 +9,8 @@ npm run test:coverage                  # web + API Vitest coverage baseline
 npm run test:coverage:web              # web Vitest coverage baseline
 npm run test:coverage:api              # API Vitest coverage baseline
 npm run check                          # format, lint, web/API typecheck, web/API tests
+npm run test:golden                    # golden render pixel hashes in the pinned CI container (needs Docker)
+npm run test:golden:update             # rewrite golden pixel hashes, thumbnails, and GPU recipes
 npm run test:browser                   # Playwright smoke/regression tests in Chromium, Firefox, WebKit, plus mobile smoke
 npm run test:browser:chromium          # focused Chromium browser tests
 npm run test:browser:firefox           # focused Firefox browser tests
@@ -55,7 +57,7 @@ behalf of the user; setting `FALLOW_AGENT_SOURCE` only labels a run if telemetry
 was already enabled by the user. Run `fallow fix --dry-run --format json --quiet`
 and trace affected files, exports, or dependencies before any cleanup edit.
 The first v0.31 baseline and cleanup backlog live in
-[`fallow-v0.31-baseline.md`](fallow-v0.31-baseline.md).
+[`fallow-v0.31-baseline.md`](archive/fallow-v0.31-baseline.md).
 
 Current baseline, captured during the v0.27 planning slice:
 
@@ -97,11 +99,15 @@ markup.
 | --- | --- |
 | `apps/web/app/types/config.test.ts` | Factory functions, `cloneDocument`, `migrateFromV1`, layer defaults |
 | `apps/web/app/utils/documentPersistence.test.ts` | document normalization, URL import precedence, localStorage fallback, storage save/link helpers |
+| `apps/web/app/utils/migrations/*.test.ts` | one fixture test per schema migration step, the step registry, and the pinned legacy AI-shader GLSL |
 | `apps/web/app/utils/documentAssets.test.ts` | imported image/font/model/environment dependency inventory, portable document hydration/storage boundaries, stable 3D asset ids, storage-unavailable fallback |
 | `apps/web/app/utils/documentPackage.test.ts` | editable package manifest, schema-v3 serialization, clean-storage asset restoration, and legacy missing-3D-payload compatibility |
-| `apps/web/app/utils/randomConfig.test.ts` | `randomDocument`, `randomEffectLayer`, `zeroLayerSection` |
-| `apps/web/app/utils/nodeGraph.test.ts` | graph mutation helpers, traversal, render order, cycle prevention, layout, connected ports |
-| `apps/web/app/components/node-canvas/reducer.test.ts` | Graph reducer: add/remove/connect/disconnect nodes |
+| `apps/web/app/utils/randomConfig.test.ts` | `randomDocument` and its formulas |
+| `apps/web/app/types/effectSchema.test.ts` | effect parameter schema: one control per parameter, consistent ranges, every preset mapped to an effect, and each effect rendered on exactly its declared backend (GPU filters, pixel-worker operations, or Canvas 2D pixels) |
+| `apps/web/app/utils/nodeGraph.test.ts` | graph mutation helpers, cycle prevention, layout, connected ports |
+| `apps/web/app/utils/documentHistory.test.ts` | history reducer: snapshots, gestures, undo/redo around unsettled gestures, silent amendments, history cap |
+| `apps/web/app/utils/documentDispatch.test.ts` | command history policies, selection results, stale asset storage, history amendments for placement and stored images |
+| `apps/web/app/utils/sourceFileSize.test.ts` | no production file in `utils/`, `types/`, or `hooks/` over 800 lines |
 | `apps/web/app/components/node-canvas/helpers.test.ts` | Node canvas helper utilities |
 | `apps/web/app/components/node-canvas/thumbnails/renderSignature.test.ts` | thumbnail invalidation signatures for layers, graph nodes, and edges |
 
@@ -128,6 +134,48 @@ in the Node test environment.
 - repeat renders are pixel-identical for deterministic fixtures
 - seeded emoji output changes when the seed changes
 - selected centre pixels remain stable across preview/export sizes
+
+### Golden render fixtures
+
+Pin the rendered output of every shipped document so engine refactors cannot
+change pixels unnoticed.
+
+**Location:** `apps/web/app/test-fixtures/render/golden/` (baselines under
+`__golden__/`)
+
+**Documents:** every layer starter, graph recipe starter, curated example, and
+landing hero frame, listed once (`goldenCases.ts`). Stack documents are rendered
+twice: as a stack, and with the graph the editor creates when the user opens
+Nodes (`bootstrapDocumentGraph`). Each mode renders at preview size (540px long
+side) and at export size (`renderCoverExportCanvas`, scale 1; larger export
+scales are a nearest-neighbour upscale of that canvas).
+
+**What is checked:**
+
+- **GPU recipes** (every `npm test`, any OS): a `pixi.js` mock records the
+  filters and uniforms each render requests. Compared with
+  `__golden__/recipes/<case>.json`. GPU passes return their input unchanged, so
+  this is the only place GPU effect parameters are pinned in Node.
+- **Stack/graph parity** (every `npm test`): `stackMatchesGraph` in the recipe
+  file records whether opening Nodes changes a stack document's pixels.
+  v0.53 Phase 3 must make this `true` for every case.
+- **Pixels** (`npm run test:golden`, CI job `render-golden`): SHA-256 of the
+  RGBA output of every render, compared with `__golden__/pixels.json`. Text and
+  emoji rasterize differently per OS, so pixel hashes are only valid inside the
+  Playwright image pinned in `.github/workflows/ci.yml`. The script runs that
+  image as `linux/amd64` with Docker and keeps Linux dependencies in Docker
+  volumes. Editor fonts come from Google Fonts and are absent in Node, and
+  the system fallback Skia picks differed between local Docker and CI, so
+  `pinGoldenFonts.ts` maps every font-stack family to the image's Liberation
+  fonts and emoji to Noto Color Emoji. The run also builds `@artifact/shared`
+  first, since a clean checkout has no build output. Changed renders are
+  written to `test-results/render-golden/`.
+  `__golden__/thumbs/` holds 128px previews so a baseline change is visible in
+  PR review.
+
+**Updating baselines:** only when a pixel change is intended and approved. Run
+`npm run test:golden:update` and commit `pixels.json`, the thumbnails, and the
+recipe files together. Bumping the Playwright image tag also requires an update.
 
 ### Graph render tests
 
@@ -314,7 +362,7 @@ only when a fixture needs them.
 
 | Concern | Reason | Manual approach |
 | --- | --- | --- |
-| Detailed PixiJS shader visual output | Needs stable GPU visual snapshots | Browser smoke test + manual visual pass |
+| Detailed PixiJS shader visual output | Needs stable GPU visual snapshots; filter recipes are pinned by golden fixtures | Browser smoke test + manual visual pass |
 | Detailed Three.js primitive visual output | Needs stable GPU visual snapshots | Browser smoke test + manual visual pass |
 | Complex drag/connect gestures | Browser event timing can be brittle | Add targeted Playwright regressions for known bugs |
 | Preset thumbnails in the UI | Visual | Load presets page and eyeball |
@@ -359,6 +407,8 @@ For primitive regressions, keep the test centered on the live viewport:
 This project does not use Jest/Vitest snapshot tests for UI components.
 The output is visual; pixel diff tests on the render pipeline give more
 signal with less maintenance cost than component snapshots.
+The only file snapshots are the golden render recipes, which pin renderer
+inputs rather than UI markup.
 
 ---
 
@@ -371,6 +421,8 @@ CI separates validation from artifact building:
 - Browser change detection starts the Playwright matrix for code and workflow
   changes. Chromium, Firefox, WebKit, mobile Chromium, and mobile WebKit run in
   parallel.
+- `render-golden` runs the golden pixel hashes in the pinned Playwright
+  container on every run and uploads changed renders on failure.
 - Container change detection feeds a non-matrix container gate. The gate fails
   when quality or a required browser matrix fails, skips cleanly when no
   container-relevant files changed, and only then expands the API, Worker, Bull
@@ -401,4 +453,4 @@ npm run test:browser
 - [`docs/rendering.md`](rendering.md) — full pipeline walkthrough
 - [`docs/state-model.md`](state-model.md) — what state affects render output
 - [`docs/performance.md`](performance.md) — node-editor benchmark workflow
-- [`docs/improvement-plan.md`](improvement-plan.md) — phased quality checklist
+- [`docs/archive/improvement-plan.md`](archive/improvement-plan.md) — phased quality checklist

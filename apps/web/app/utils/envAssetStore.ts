@@ -1,6 +1,7 @@
-import type { CanvasDocument, GraphEnvironmentNode, GraphScene3DNode, PortableEnvironmentAsset } from '../types/config';
+import type { CanvasDocument, PortableEnvironmentAsset } from '../types/config';
 import { mapDocumentEnvironmentSources } from './documentSourceMapping';
 import { openIndexedDatabase, requestToPromise, withIndexedDbStore } from './indexedDb';
+import { mapGraphNodesAsync } from './nodeGraph';
 import { markRenderAssetFallback } from './renderAssetEpoch';
 import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes, randomStorageId } from './storagePrimitives';
 
@@ -142,44 +143,23 @@ export async function hydrateDocumentEnvironmentAssets(
   const loadAsset = options.loadEnvironmentAsset ?? loadEnvironmentAsset;
   const loadedSrcByEnvironment = new Map<string, StoredEnvironmentAsset | null>();
   let changed = false;
-  const graph = doc.graph;
-  if (!graph?.environmentNodes?.length && !graph?.scene3dNodes?.length) return doc;
-  const environmentNodes = await Promise.all(
-    (graph.environmentNodes ?? []).map(async (node) => {
-      if (!isEnvironmentUri(node.environmentSrc)) return node;
-      if (!loadedSrcByEnvironment.has(node.environmentSrc)) {
-        loadedSrcByEnvironment.set(node.environmentSrc, await loadAsset(node.environmentSrc));
-      }
-      const loaded = loadedSrcByEnvironment.get(node.environmentSrc);
-      if (!loaded) return node;
-      changed = true;
-      return {
-        ...node,
-        environmentSrc: loaded.dataUrl,
-        environmentName: loaded.label,
-        environmentMime: loaded.mime,
-        environmentBytes: loaded.bytes,
-      } satisfies GraphEnvironmentNode;
-    }),
-  );
-  const scene3dNodes = await Promise.all(
-    (graph.scene3dNodes ?? []).map(async (node) => {
-      if (!isEnvironmentUri(node.environmentSrc)) return node;
-      if (!loadedSrcByEnvironment.has(node.environmentSrc)) {
-        loadedSrcByEnvironment.set(node.environmentSrc, await loadAsset(node.environmentSrc));
-      }
-      const loaded = loadedSrcByEnvironment.get(node.environmentSrc);
-      if (!loaded) return node;
-      changed = true;
-      return {
-        ...node,
-        environmentSrc: loaded.dataUrl,
-        environmentName: loaded.label,
-        environmentMime: loaded.mime,
-        environmentBytes: loaded.bytes,
-      } satisfies GraphScene3DNode;
-    }),
-  );
+  const graph = await mapGraphNodesAsync(doc.graph, async (node) => {
+    if (node.kind !== 'environment' && node.kind !== 'scene3d') return node;
+    if (!isEnvironmentUri(node.environmentSrc)) return node;
+    if (!loadedSrcByEnvironment.has(node.environmentSrc)) {
+      loadedSrcByEnvironment.set(node.environmentSrc, await loadAsset(node.environmentSrc));
+    }
+    const loaded = loadedSrcByEnvironment.get(node.environmentSrc);
+    if (!loaded) return node;
+    changed = true;
+    return {
+      ...node,
+      environmentSrc: loaded.dataUrl,
+      environmentName: loaded.label,
+      environmentMime: loaded.mime,
+      environmentBytes: loaded.bytes,
+    };
+  });
   const existingAssets = doc.envAssets ?? [];
   const hydratedAssets = Array.from(loadedSrcByEnvironment.values()).filter((asset): asset is StoredEnvironmentAsset =>
     Boolean(asset),
@@ -187,7 +167,7 @@ export async function hydrateDocumentEnvironmentAssets(
   const assetsById = new Map([...existingAssets, ...hydratedAssets].map((asset) => [asset.id, asset]));
   const envAssets = Array.from(assetsById.values());
   return changed || envAssets.length !== existingAssets.length
-    ? { ...doc, graph: { ...graph, environmentNodes, scene3dNodes }, ...(envAssets.length > 0 ? { envAssets } : {}) }
+    ? { ...doc, graph, ...(envAssets.length > 0 ? { envAssets } : {}) }
     : doc;
 }
 

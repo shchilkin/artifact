@@ -1,12 +1,7 @@
 import { useState } from 'react';
 
-import type {
-  CanvasDocument,
-  GraphEnvironmentNode,
-  GraphScene3DNode,
-  ModelLayer,
-  PrimitiveLayer,
-} from '../../../types/config';
+import type { CanvasDocument, ModelLayer, PrimitiveLayer } from '../../../types/config';
+import type { GraphEnvironmentNode, GraphScene3DNode } from '../../../utils/nodeKinds';
 import { getSceneEnvironmentNode, getSceneModelLayer } from '../../../utils/scene3DInputs';
 import { EnvironmentInspector } from './EnvironmentInspector';
 import { InspectorReadout, InspectorSection } from './fields';
@@ -31,7 +26,7 @@ export function SceneTargetInspector({
 }) {
   const model = getSceneModelLayer(doc.graph, doc.layers, scene.id);
   const environment = getSceneEnvironmentNode(doc.graph, scene.id);
-  const materialInputConnected = (doc.graph?.edges ?? []).some(
+  const materialInputConnected = (doc.graph.edges ?? []).some(
     (edge) => edge.toId === scene.id && edge.toPort === 'material',
   );
   return (

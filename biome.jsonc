@@ -6,7 +6,9 @@
     "useIgnoreFile": true
   },
   "files": {
-    "ignoreUnknown": true
+    "ignoreUnknown": true,
+    // Golden render baselines are written by the test suite; keep its output byte-for-byte.
+    "includes": ["**", "!**/__golden__"]
   },
   "formatter": {
     "enabled": true,

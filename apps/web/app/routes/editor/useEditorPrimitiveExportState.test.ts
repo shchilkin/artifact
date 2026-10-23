@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasGraph } from '../../types/config';
-import { makeGraphScene3DNode } from '../../types/config';
+import { graphNodesById } from '../../utils/nodeGraph';
+import { makeGraphScene3DNode } from '../../utils/nodeKinds';
 import { prunePrimitiveViewStates } from './useEditorPrimitiveExportState';
 
 const viewState = {
@@ -16,8 +17,7 @@ function emptyGraph(partial: Partial<CanvasGraph> = {}): CanvasGraph {
   return {
     edges: [],
     positions: {},
-    mergeNodes: [],
-    colorNodes: [],
+    nodes: graphNodesById(),
     ...partial,
   };
 }
@@ -25,7 +25,7 @@ function emptyGraph(partial: Partial<CanvasGraph> = {}): CanvasGraph {
 describe('useEditorPrimitiveExportState', () => {
   it('persists camera state for primitive, model, and 3D scene viewport ids', () => {
     const graph = emptyGraph({
-      scene3dNodes: [makeGraphScene3DNode({ id: 'scene-a' })],
+      nodes: graphNodesById(makeGraphScene3DNode({ id: 'scene-a' })),
     });
 
     expect(

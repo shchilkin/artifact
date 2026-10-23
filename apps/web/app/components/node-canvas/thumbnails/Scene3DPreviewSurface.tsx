@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { CanvasGraph } from '../../../types/config';
 
 import {
   DEFAULT_MATERIAL_CONFIG,
-  type GraphMaterialNode,
-  type GraphScene3DNode,
-  type GraphShaderNode,
   type MaterialConfig,
   type ModelLayer,
   type PrimitiveLayer,
 } from '../../../types/config';
+import { graphNodesOfKind } from '../../../utils/nodeGraph';
+import type { GraphMaterialNode, GraphScene3DNode } from '../../../utils/nodeKinds';
 import { renderGraphTarget } from '../../../utils/renderer';
 import { Viewport3DControlStrip, Viewport3DStatusOverlay } from '../../canvas-chrome/Viewport3DChrome';
 import { LazyModelViewport3D } from '../../LazyViewport3D';
@@ -198,16 +198,13 @@ function SelectedScene3DPreviewSurface({
 }
 
 function sceneMaterialSource(
-  graph: {
-    edges: { toId: string; toPort: string; fromId: string }[];
-    shaderNodes?: GraphShaderNode[];
-  },
+  graph: Pick<CanvasGraph, 'edges' | 'nodes'>,
   sceneId: string,
   materialNode: GraphMaterialNode | null,
 ) {
   const materialSourceId = graph.edges.find((edge) => edge.toId === sceneId && edge.toPort === 'material')?.fromId;
   const shaderNode = materialSourceId
-    ? (graph.shaderNodes ?? []).find((node) => node.id === materialSourceId)
+    ? graphNodesOfKind(graph, 'shader').find((node) => node.id === materialSourceId)
     : undefined;
   return {
     materialNode,

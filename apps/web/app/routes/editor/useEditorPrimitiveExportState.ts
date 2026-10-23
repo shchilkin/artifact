@@ -1,26 +1,27 @@
 import { type RefObject, useCallback, useMemo, useState } from 'react';
 import { type PrimitiveViewportState, primitiveViewStateMapsEqual } from '../../components/PrimitiveViewportState';
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
+import type { GraphEditKind } from '../../utils/documentDispatch';
 import type { DocumentUpdateMode } from '../../utils/documentHistory';
-import { inferLinearGraph } from '../../utils/nodeGraph';
+import { graphNodesOfKind } from '../../utils/nodeGraph';
 
 export function useEditorPrimitiveExportState({
   doc,
   docRef,
-  onGraphChange,
+  onGraphEdit,
 }: {
   doc: CanvasDocument;
   docRef: RefObject<CanvasDocument>;
-  onGraphChange: (graph: CanvasGraph, mode?: DocumentUpdateMode) => void;
+  onGraphEdit: (graph: CanvasGraph, edit: GraphEditKind) => void;
 }) {
   const [primitiveViewStates, setPrimitiveViewStates] = useState<Record<string, PrimitiveViewportState>>({});
 
   const effectivePrimitiveViewStates = useMemo(
     () => ({
-      ...(doc.graph?.primitiveViewStates ?? {}),
+      ...(doc.graph.primitiveViewStates ?? {}),
       ...primitiveViewStates,
     }),
-    [doc.graph?.primitiveViewStates, primitiveViewStates],
+    [doc.graph.primitiveViewStates, primitiveViewStates],
   );
   const exportRenderOptions = useMemo(
     () => ({ primitiveViewStates: effectivePrimitiveViewStates }),
@@ -31,12 +32,15 @@ export function useEditorPrimitiveExportState({
     (next: Record<string, PrimitiveViewportState>, mode: DocumentUpdateMode = 'debounce') => {
       setPrimitiveViewStates((current) => (primitiveViewStateMapsEqual(current, next) ? current : next));
       const currentDoc = docRef.current;
-      const graph = currentDoc.graph ?? inferLinearGraph(currentDoc.layers);
+      const graph = currentDoc.graph;
       const currentPersisted = graph.primitiveViewStates ?? {};
       if (primitiveViewStateMapsEqual(currentPersisted, next)) return;
-      onGraphChange({ ...graph, primitiveViewStates: prunePrimitiveViewStates(next, currentDoc.layers, graph) }, mode);
+      onGraphEdit(
+        { ...graph, primitiveViewStates: prunePrimitiveViewStates(next, currentDoc.layers, graph) },
+        mode === 'snapshot' ? 'cameraCommit' : 'cameraDrag',
+      );
     },
-    [docRef, onGraphChange],
+    [docRef, onGraphEdit],
   );
 
   const resetPrimitiveViewStates = useCallback(() => setPrimitiveViewStates({}), []);
@@ -52,11 +56,11 @@ export function useEditorPrimitiveExportState({
 export function prunePrimitiveViewStates(
   viewStates: Record<string, PrimitiveViewportState>,
   layers: Array<{ id: string; kind: string }>,
-  graph: Pick<CanvasGraph, 'scene3dNodes'>,
+  graph: Pick<CanvasGraph, 'nodes'>,
 ) {
   const viewportIds = new Set([
     ...layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id),
-    ...(graph.scene3dNodes ?? []).map((node) => node.id),
+    ...graphNodesOfKind(graph, 'scene3d').map((node) => node.id),
   ]);
   const entries = Object.entries(viewStates).filter(([id]) => viewportIds.has(id));
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;

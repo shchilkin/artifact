@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react';
 
-import type { GraphScene3DNode } from '../../../types/config';
+import type { GraphScene3DNode } from '../../../utils/nodeKinds';
 import { NoPan } from '../nodes/NoPan';
 import {
   InspectorReadout,

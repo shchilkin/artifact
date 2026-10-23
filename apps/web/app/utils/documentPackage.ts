@@ -25,6 +25,7 @@ import {
   stripDocumentFontAssets,
 } from './fontStore';
 import { modelUriFromId } from './modelAssetStore';
+import { graphNodesOfKind } from './nodeGraph';
 
 export const ARTIFACT_PROJECT_PACKAGE_KIND = 'artifact-project-package';
 const ARTIFACT_PROJECT_PACKAGE_VERSION = 1;
@@ -154,7 +155,7 @@ function modelSources(doc: CanvasDocument) {
 }
 
 function environmentSources(doc: CanvasDocument) {
-  return [...(doc.graph?.environmentNodes ?? []), ...(doc.graph?.scene3dNodes ?? [])].flatMap((node) =>
+  return [...graphNodesOfKind(doc.graph, 'environment'), ...graphNodesOfKind(doc.graph, 'scene3d')].flatMap((node) =>
     node.environmentSrc
       ? [
           [

@@ -44,7 +44,6 @@ export function CanvasPreview({
   const viewStateCacheKey = useMemo(() => primitiveViewStatesSignature(primitiveViewStates), [primitiveViewStates]);
   const { frameRef, previewSize } = useContainedPreviewSize(pw, ph);
   const { containerRef, renderState, retryRender } = useDocumentRenderer(doc, imageCache, pw, ph, {
-    graphMode: doc.graph ? 'graph' : 'stack',
     primitiveViewStates,
     cacheKey: `layer-preview:${viewStateCacheKey}`,
     renderScale: PREVIEW_RENDER_SCALE,

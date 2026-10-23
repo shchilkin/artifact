@@ -16,9 +16,9 @@ The node editor should not become a second document model.
 | State machine | `apps/web/app/components/node-canvas/machine.ts` |
 | Context | `apps/web/app/components/node-canvas/context.ts` |
 | Node construction | `apps/web/app/components/node-canvas/buildRFNodes.ts` |
-| Node components | `apps/web/app/components/node-canvas/nodes/NodeTypes.tsx`, `NodeShell.tsx` |
+| Node components | Layer, Output, and fallback nodes: `nodes/NodeTypes.tsx`, `NodeShell.tsx`. Graph-only node kinds: `nodeKinds/<kind>.tsx`, registered in `GRAPH_NODE_UIS` (`nodeKinds/index.ts`) |
 | Node previews | `apps/web/app/components/node-canvas/thumbnails/*` |
-| Inspectors | `apps/web/app/components/node-canvas/inspector/*`, `panel/NodePropertiesPanel.tsx` |
+| Inspectors | `apps/web/app/components/node-canvas/inspector/*`, `panel/NodePropertiesPanel.tsx`. Graph-only kinds are wired in `GRAPH_NODE_INSPECTORS` (`nodeKinds/inspectors.tsx`), kept apart from `GRAPH_NODE_UIS` so the Properties panel does not load the React Flow node components |
 | AI shader lifecycle | `inspector/useAiShaderGeneration.ts`, `inspector/aiShaderGenerationController.ts`, `inspector/shaderGenerationMachine.ts` |
 | Menus | `apps/web/app/components/node-canvas/menus/*` |
 | Graph helpers | `apps/web/app/utils/nodeGraph.ts` |

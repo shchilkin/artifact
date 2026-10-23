@@ -1,24 +1,25 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasDocument, CanvasGraph, Layer } from '../../types/config';
+import { makeDocument } from '../../types/config';
+import { graphNodesById } from '../../utils/nodeGraph';
 import { buildRFNodes } from './buildRFNodes';
 
 function graphFixture(): CanvasGraph {
   return {
     edges: [],
     positions: { future: { x: 12, y: 34 } },
-    mergeNodes: [],
-    colorNodes: [],
+    nodes: graphNodesById(),
   };
 }
 
 function documentWithLayer(layer: Layer): CanvasDocument {
-  return {
+  return makeDocument({
     schemaVersion: 1,
     global: { bg: 'transparent', seed: 1, aspect: '1:1' },
     layers: [layer],
     export: { format: 'png', scale: 1, target: 'cover' },
-  };
+  });
 }
 
 describe('buildRFNodes', () => {

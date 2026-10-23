@@ -1,20 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { InsertConnectionConfig } from '../components/node-canvas';
 import {
   type AspectRatio,
   type CanvasDocument,
   type CanvasGraph,
   type EffectPreset,
-  type GraphColorNode,
-  type GraphEnvironmentNode,
-  type GraphGrimeShadowNode,
-  type GraphMaskNode,
-  type GraphMaterialNode,
-  type GraphMergeNode,
-  type GraphRepeatNode,
-  type GraphScene3DNode,
-  type GraphShaderNode,
-  type GraphTransformNode,
   type ImageLayer,
   type Layer,
   type LayerKind,
@@ -29,44 +19,24 @@ import {
   stripPortableDocumentAssets,
 } from '../utils/documentAssets';
 import {
-  addEnvironmentMapToDocument,
-  addLayerToDocument,
-  addLooseLayerNodeToDocument,
-  addNodeAtDocument,
-  bootstrapDocumentGraph,
   createEffectPresetLayer,
   createImageLayerFromSource,
   createLayerOfKind,
   createModelLayerFromAsset,
   createTextPresetLayer,
-  deleteNodesFromDocument,
-  duplicateLayerInDocument,
-  removeLayerFromDocument,
-  reorderDocumentLayers,
-  setDocumentAspect,
-  setDocumentGraph,
-  setDocumentSeed,
-  updateColorNodeInDocument,
-  updateDocumentExportConfig,
-  updateEnvironmentNodeInDocument,
-  updateGrimeShadowNodeInDocument,
-  updateLayerInDocument,
-  updateMaskNodeInDocument,
-  updateMaterialNodeInDocument,
-  updateMergeNodeInDocument,
-  updateRepeatNodeInDocument,
-  updateScene3DNodeInDocument,
-  updateShaderNodeInDocument,
-  updateTransformNodeInDocument,
 } from '../utils/documentCommands';
 import {
-  clearPendingDocumentHistory,
-  commitDocumentWithHistory,
-  type DocumentHistoryCommit,
-  type DocumentUpdateMode,
-  type HistoryEntry,
-  redoHistory,
-  undoHistory,
+  type DocumentCommand,
+  type DocumentCommandOutcome,
+  type GraphEditKind,
+  runDocumentCommand,
+} from '../utils/documentDispatch';
+import {
+  createDocumentHistoryState,
+  type DocumentHistoryEvent,
+  type DocumentHistoryState,
+  documentHistoryReducer,
+  HISTORY_DEBOUNCE_MS,
 } from '../utils/documentHistory';
 import {
   createBlankDocument,
@@ -78,13 +48,9 @@ import {
   saveDocumentToStorage,
   takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
-import {
-  addLayerWithPlacement,
-  addNodeAboveTreeRow,
-  type LayerAddPlacement,
-  type TreeEditResult,
-} from '../utils/graphTreeEdits';
+import type { LayerAddPlacement, TreeEditResult } from '../utils/graphTreeEdits';
 import { graphUtilityNodeKind } from '../utils/nodeGraph';
+import type { GraphEnvironmentNode, GraphNodePatch } from '../utils/nodeKinds';
 import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
@@ -101,7 +67,10 @@ function isUndoShortcut(event: KeyboardEvent) {
 
 export function useEditorDocument(nodeModeEnabled: boolean) {
   const [initialDocumentState] = useState(getInitialDocumentState);
-  const [doc, _setDoc] = useState<CanvasDocument>(initialDocumentState.doc);
+  const [history, setHistory] = useState<DocumentHistoryState>(() =>
+    createDocumentHistoryState(initialDocumentState.doc),
+  );
+  const { doc, past, future } = history;
   // Changes when the whole document is replaced (load, starter, new blank), so per-document UI state can reset.
   const [documentSessionId, setDocumentSessionId] = useState(0);
   const [documentSaveStatus, setDocumentSaveStatus] = useState<DocumentSaveStatus>({ ok: true });
@@ -114,25 +83,23 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     return ['blank', '1'].includes(params.get('new') ?? '') || params.get('blank') === '1';
   });
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
-  const [past, setPast] = useState<HistoryEntry[]>([]);
-  const [future, setFuture] = useState<HistoryEntry[]>([]);
 
   const safeSelectedLayerId =
     selectedLayerId &&
     (doc.layers.some((layer) => layer.id === selectedLayerId) ||
-      Boolean(doc.graph && graphUtilityNodeKind(doc.graph, selectedLayerId)))
+      Boolean(graphUtilityNodeKind(doc.graph, selectedLayerId)))
       ? selectedLayerId
       : null;
 
+  // The history state is applied synchronously, so commands that run in the same tick see each other's results.
+  const historyRef = useRef(history);
   const docRef = useRef(doc);
   const selectedLayerIdRef = useRef(selectedLayerId);
-  const histDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const preChangeRef = useRef<HistoryEntry | null>(null);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useLayoutEffect(() => {
-    docRef.current = doc;
     selectedLayerIdRef.current = safeSelectedLayerId;
-  }, [doc, safeSelectedLayerId]);
+  }, [safeSelectedLayerId]);
 
   // Clean up ?doc= param from URL after loading — prevents stale deep-link on refresh/share
   useEffect(() => {
@@ -151,84 +118,61 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     });
   }, [fromBlankParam]);
 
-  const historyCommit = useMemo<DocumentHistoryCommit>(
-    () => ({
-      docRef,
-      pendingRef: preChangeRef,
-      timerRef: histDebounceRef,
-      setDoc: _setDoc,
-      setPast,
-      setFuture,
-    }),
-    [],
-  );
-  const clearPendingHistory = useCallback(() => clearPendingDocumentHistory(historyCommit), [historyCommit]);
+  const applyHistory = useCallback((event: DocumentHistoryEvent) => {
+    const commit = (next: DocumentHistoryState) => {
+      if (next === historyRef.current) return;
+      historyRef.current = next;
+      docRef.current = next.doc;
+      setHistory(next);
+      clearTimeout(settleTimerRef.current);
+      if (!next.pending) return;
+      settleTimerRef.current = setTimeout(
+        () => commit(documentHistoryReducer(historyRef.current, { type: 'settle' })),
+        HISTORY_DEBOUNCE_MS,
+      );
+    };
+    commit(documentHistoryReducer(historyRef.current, event));
+  }, []);
 
-  useEffect(() => () => clearTimeout(histDebounceRef.current), []);
+  useEffect(() => () => clearTimeout(settleTimerRef.current), []);
 
-  const commitDocument = useCallback(
-    (newDoc: CanvasDocument, mode: DocumentUpdateMode) => commitDocumentWithHistory(newDoc, mode, historyCommit),
-    [historyCommit],
-  );
-
-  const setDoc = useCallback(
-    (newDoc: CanvasDocument) => {
-      commitDocument(newDoc, 'debounce');
+  /** Runs one document command and records history with the policy the command declares. */
+  const dispatch = useCallback(
+    (command: DocumentCommand): DocumentCommandOutcome => {
+      const current = historyRef.current.doc;
+      const outcome = runDocumentCommand(current, command);
+      if (outcome.doc !== current) {
+        applyHistory(
+          outcome.mode === 'silent'
+            ? { type: 'commit', doc: outcome.doc, mode: 'silent', amend: outcome.amend }
+            : { type: 'commit', doc: outcome.doc, mode: outcome.mode },
+        );
+      }
+      if (outcome.select) setSelectedLayerId(outcome.select);
+      else if (outcome.removed && selectedLayerIdRef.current && outcome.removed.includes(selectedLayerIdRef.current)) {
+        setSelectedLayerId(null);
+      }
+      return outcome;
     },
-    [commitDocument],
-  );
-
-  const updateDocument = useCallback(
-    (mutate: (current: CanvasDocument) => CanvasDocument, mode: DocumentUpdateMode) => {
-      commitDocument(mutate(docRef.current), mode);
-    },
-    [commitDocument],
+    [applyHistory],
   );
 
   const replaceDocument = useCallback(
     (nextDoc: CanvasDocument) => {
       const loadedDoc = normalizeDocument(nextDoc);
-      commitDocument(loadedDoc, 'snapshot');
+      dispatch({ type: 'replaceDocument', doc: loadedDoc });
       setSelectedLayerId(null);
       setDocumentSessionId((id) => id + 1);
       return loadedDoc;
     },
-    [commitDocument],
+    [dispatch],
   );
 
-  const setSeed = useCallback(
-    (seed: number) => {
-      commitDocument(setDocumentSeed(docRef.current, seed), 'snapshot');
-    },
-    [commitDocument],
-  );
+  const setSeed = useCallback((seed: number) => dispatch({ type: 'setSeed', seed }), [dispatch]);
+  const setAspect = useCallback((aspect: AspectRatio) => dispatch({ type: 'setAspect', aspect }), [dispatch]);
 
-  const setAspect = useCallback(
-    (aspect: AspectRatio) => {
-      updateDocument((current) => setDocumentAspect(current, aspect), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const applyHistoryNavigation = useCallback(
-    (navigate: typeof undoHistory | typeof redoHistory) => {
-      clearPendingHistory();
-      const result = navigate({ past, future }, docRef.current);
-      if (!result) return;
-      setPast(result.past);
-      setFuture(result.future);
-      _setDoc(result.doc);
-    },
-    [clearPendingHistory, future, past],
-  );
-
-  const undo = useCallback(() => {
-    applyHistoryNavigation(undoHistory);
-  }, [applyHistoryNavigation]);
-
-  const redo = useCallback(() => {
-    applyHistoryNavigation(redoHistory);
-  }, [applyHistoryNavigation]);
+  const undo = useCallback(() => applyHistory({ type: 'undo' }), [applyHistory]);
+  const redo = useCallback(() => applyHistory({ type: 'redo' }), [applyHistory]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -260,66 +204,46 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     let cancelled = false;
     void storePortableDocumentAssets(sourceDoc)
       .then((storedDoc) => {
-        if (!cancelled && docRef.current === sourceDoc) commitDocument(storedDoc, 'silent');
+        if (!cancelled) dispatch({ type: 'storeDocumentAssets', source: sourceDoc, stored: storedDoc });
       })
       .catch(() => {
-        if (!cancelled && docRef.current === sourceDoc)
-          commitDocument(stripPortableDocumentAssets(docRef.current), 'silent');
+        if (!cancelled) {
+          dispatch({ type: 'storeDocumentAssets', source: sourceDoc, stored: stripPortableDocumentAssets(sourceDoc) });
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [commitDocument, doc]);
-
-  useEffect(() => {
-    if (nodeModeEnabled && !docRef.current.graph) {
-      commitDocument(bootstrapDocumentGraph(docRef.current), 'silent');
-    }
-  }, [commitDocument, nodeModeEnabled]);
+  }, [dispatch, doc]);
 
   const addLayer = useCallback(
-    (kind: Exclude<LayerKind, 'effect'>, placement?: LayerAddPlacement) => {
-      const layer = createLayerOfKind(kind);
-      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
-      setSelectedLayerId(layer.id);
-    },
-    [updateDocument],
+    (kind: Exclude<LayerKind, 'effect'>, placement?: LayerAddPlacement) =>
+      dispatch({ type: 'addLayer', layer: createLayerOfKind(kind), placement }),
+    [dispatch],
   );
 
   const addEffectPreset = useCallback(
-    (preset: EffectPreset, placement?: LayerAddPlacement) => {
-      const layer = createEffectPresetLayer(preset);
-      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
-      setSelectedLayerId(layer.id);
-    },
-    [updateDocument],
+    (preset: EffectPreset, placement?: LayerAddPlacement) =>
+      dispatch({ type: 'addLayer', layer: createEffectPresetLayer(preset), placement }),
+    [dispatch],
   );
 
   const addTextPreset = useCallback(
-    (preset: TextPresetId, placement?: LayerAddPlacement) => {
-      const layer = createTextPresetLayer(preset);
-      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
-      setSelectedLayerId(layer.id);
-    },
-    [updateDocument],
+    (preset: TextPresetId, placement?: LayerAddPlacement) =>
+      dispatch({ type: 'addLayer', layer: createTextPresetLayer(preset), placement }),
+    [dispatch],
   );
 
   const addNoisePreset = useCallback(
-    (preset: NoisePresetId, placement?: LayerAddPlacement) => {
-      const layer = makeNoisePresetLayer(preset);
-      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
-      setSelectedLayerId(layer.id);
-    },
-    [updateDocument],
+    (preset: NoisePresetId, placement?: LayerAddPlacement) =>
+      dispatch({ type: 'addLayer', layer: makeNoisePresetLayer(preset), placement }),
+    [dispatch],
   );
 
   const addArrayPreset = useCallback(
-    (preset: ArrayPresetId, placement?: LayerAddPlacement) => {
-      const layer = makeArrayPresetLayer(preset);
-      updateDocument((current) => addLayerWithPlacement(current, layer, placement), 'snapshot');
-      setSelectedLayerId(layer.id);
-    },
-    [updateDocument],
+    (preset: ArrayPresetId, placement?: LayerAddPlacement) =>
+      dispatch({ type: 'addLayer', layer: makeArrayPresetLayer(preset), placement }),
+    [dispatch],
   );
 
   const addImageFromSource = useCallback(
@@ -329,16 +253,9 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
         aiGeneration,
         ...(aiGeneration ? { aiGenerationHistory: [{ src, aiGeneration }], aiGenerationHistoryIndex: 0 } : {}),
       };
-      updateDocument(
-        (current) =>
-          nodeModeEnabled
-            ? addLooseLayerNodeToDocument(current, layer, nodePosition)
-            : addLayerToDocument(current, layer),
-        'snapshot',
-      );
-      setSelectedLayerId(layer.id);
+      dispatch({ type: 'addImportedLayer', layer, asNode: nodeModeEnabled, position: nodePosition });
     },
-    [nodeModeEnabled, updateDocument],
+    [dispatch, nodeModeEnabled],
   );
 
   const addModelFromAsset = useCallback(
@@ -352,196 +269,75 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
         mime: asset.modelMime,
         bytes: asset.modelBytes,
       });
-      updateDocument(
-        (current) =>
-          nodeModeEnabled
-            ? addLooseLayerNodeToDocument(current, layer, nodePosition)
-            : addLayerToDocument(current, layer),
-        'snapshot',
-      );
-      setSelectedLayerId(layer.id);
+      dispatch({ type: 'addImportedLayer', layer, asNode: nodeModeEnabled, position: nodePosition });
     },
-    [nodeModeEnabled, updateDocument],
+    [dispatch, nodeModeEnabled],
   );
 
   const addEnvironmentFromAsset = useCallback(
     (
       asset: Pick<GraphEnvironmentNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,
       nodePosition?: { x: number; y: number },
-    ) => {
-      updateDocument((current) => addEnvironmentMapToDocument(current, asset, nodePosition).doc, 'snapshot');
-    },
-    [updateDocument],
+    ) => dispatch({ type: 'addEnvironmentMap', asset, position: nodePosition }),
+    [dispatch],
   );
 
-  const removeLayer = useCallback(
-    (id: string) => {
-      updateDocument((current) => removeLayerFromDocument(current, id), 'snapshot');
-      if (selectedLayerIdRef.current === id) setSelectedLayerId(null);
-    },
-    [updateDocument],
-  );
+  const removeLayer = useCallback((id: string) => dispatch({ type: 'removeLayer', id }), [dispatch]);
 
   const deleteNodeSelection = useCallback(
     (ids: string[]) => {
-      if (ids.length === 0) return;
-      const idSet = new Set(ids);
-      updateDocument((current) => deleteNodesFromDocument(current, ids), 'snapshot');
-      if (selectedLayerIdRef.current && idSet.has(selectedLayerIdRef.current)) setSelectedLayerId(null);
+      if (ids.length > 0) dispatch({ type: 'deleteNodes', ids });
     },
-    [updateDocument],
+    [dispatch],
   );
 
   const updateLayer = useCallback(
-    (id: string, patch: Partial<Layer>) => {
-      updateDocument((current) => updateLayerInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
+    (id: string, patch: Partial<Layer>) => dispatch({ type: 'updateLayer', id, patch }),
+    [dispatch],
   );
 
   const storeImageAssetSource = useCallback(
-    (id: string, src: string, previousSrc: string) => {
-      updateDocument((current) => {
-        const layer = current.layers.find((item): item is ImageLayer => item.id === id && item.kind === 'image');
-        const aiGenerationHistory = layer?.aiGenerationHistory?.map((variant) =>
-          variant.src === previousSrc ? { ...variant, src } : variant,
-        );
-        return updateLayerInDocument(current, id, { src, aiGenerationHistory } as Partial<Layer>);
-      }, 'silent');
-    },
-    [updateDocument],
+    (id: string, src: string, previousSrc: string) => dispatch({ type: 'storeImageAsset', id, src, previousSrc }),
+    [dispatch],
   );
 
-  const updateMergeNode = useCallback(
-    (id: string, patch: Partial<GraphMergeNode>) => {
-      updateDocument((current) => updateMergeNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
+  const updateGraphNode = useCallback(
+    (id: string, patch: GraphNodePatch) => dispatch({ type: 'updateGraphNode', id, patch }),
+    [dispatch],
   );
 
-  const updateColorNode = useCallback(
-    (id: string, patch: Partial<GraphColorNode>) => {
-      updateDocument((current) => updateColorNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
+  const reorderLayers = useCallback((layers: Layer[]) => dispatch({ type: 'reorderLayers', layers }), [dispatch]);
 
-  const updateRepeatNode = useCallback(
-    (id: string, patch: Partial<GraphRepeatNode>) => {
-      updateDocument((current) => updateRepeatNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateMaterialNode = useCallback(
-    (id: string, patch: Partial<GraphMaterialNode>) => {
-      updateDocument((current) => updateMaterialNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateMaskNode = useCallback(
-    (id: string, patch: Partial<GraphMaskNode>) => {
-      updateDocument((current) => updateMaskNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateTransformNode = useCallback(
-    (id: string, patch: Partial<GraphTransformNode>) => {
-      updateDocument((current) => updateTransformNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateGrimeShadowNode = useCallback(
-    (id: string, patch: Partial<GraphGrimeShadowNode>) => {
-      updateDocument((current) => updateGrimeShadowNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateScene3DNode = useCallback(
-    (id: string, patch: Partial<GraphScene3DNode>) => {
-      updateDocument((current) => updateScene3DNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateEnvironmentNode = useCallback(
-    (id: string, patch: Partial<GraphEnvironmentNode>) => {
-      updateDocument((current) => updateEnvironmentNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const updateShaderNode = useCallback(
-    (id: string, patch: Partial<GraphShaderNode>) => {
-      updateDocument((current) => updateShaderNodeInDocument(current, id, patch), 'debounce');
-    },
-    [updateDocument],
-  );
-
-  const reorderLayers = useCallback(
-    (layers: Layer[]) => {
-      updateDocument((current) => reorderDocumentLayers(current, layers), 'snapshot');
-    },
-    [updateDocument],
-  );
-
-  const duplicateLayer = useCallback(
-    (id: string) => {
-      const result = duplicateLayerInDocument(docRef.current, id);
-      if (!result.layer) return;
-      commitDocument(result.doc, 'snapshot');
-      setSelectedLayerId(result.layer.id);
-    },
-    [commitDocument],
-  );
+  const duplicateLayer = useCallback((id: string) => dispatch({ type: 'duplicateLayer', id }), [dispatch]);
 
   const handleAddLayerAt = useCallback(
-    (action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) => {
-      let selectedLayerId: string | null = null;
-      updateDocument((current) => {
-        const result = addNodeAtDocument(current, action, position, insertion);
-        selectedLayerId = result.selectedLayerId;
-        return result.doc;
-      }, 'snapshot');
-      if (selectedLayerId) setSelectedLayerId(selectedLayerId);
-    },
-    [updateDocument],
+    (action: AddAction, position: { x: number; y: number }, insertion?: InsertConnectionConfig) =>
+      dispatch({ type: 'addNodeAt', action, position, insertion }),
+    [dispatch],
   );
 
   /** Adds a graph-only node from Layers, above the selected tree row when `placement` names one. */
   const addNodeFromLayers = useCallback(
-    (action: AddAction, position: { x: number; y: number }, placement?: LayerAddPlacement) => {
-      const placed = placement ? addNodeAboveTreeRow(docRef.current, action, placement.aboveNodeId) : null;
-      if (!placed) {
-        handleAddLayerAt(action, position);
-        return;
-      }
-      commitDocument(placed.doc, 'snapshot');
-      if (placed.selectedLayerId) setSelectedLayerId(placed.selectedLayerId);
-    },
-    [commitDocument, handleAddLayerAt],
+    (action: AddAction, position: { x: number; y: number }, placement?: LayerAddPlacement) =>
+      placement
+        ? dispatch({ type: 'addNodeAboveRow', action, anchorId: placement.aboveNodeId, position })
+        : dispatch({ type: 'addNodeAt', action, position }),
+    [dispatch],
   );
 
   /** Runs one Layers tree edit as one undo step. A blocked edit leaves the document as it is. */
   const applyTreeEdit = useCallback(
-    (edit: (current: CanvasDocument) => TreeEditResult): TreeEditResult => {
-      const result = edit(docRef.current);
-      if (result.ok && result.doc !== docRef.current) commitDocument(result.doc, 'snapshot');
-      return result;
-    },
-    [commitDocument],
+    (edit: (current: CanvasDocument) => TreeEditResult): TreeEditResult =>
+      dispatch({ type: 'treeEdit', edit }).treeEdit!,
+    [dispatch],
   );
 
   const handleRandomize = useCallback(() => {
     const nextDoc = randomDocument();
-    commitDocument(nextDoc, 'snapshot');
+    dispatch({ type: 'replaceDocument', doc: nextDoc });
     setSelectedLayerId(null);
     return nextDoc;
-  }, [commitDocument]);
+  }, [dispatch]);
 
   const handleNewBlank = useCallback(() => {
     const current = docRef.current;
@@ -552,10 +348,13 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
           // Recovery drafts are best-effort. The blank action should not be blocked by storage failure.
         });
     }
-    commitDocument(createBlankDocument({ aspect: current.global.aspect, seed: current.global.seed }), 'snapshot');
+    dispatch({
+      type: 'replaceDocument',
+      doc: createBlankDocument({ aspect: current.global.aspect, seed: current.global.seed }),
+    });
     setSelectedLayerId(null);
     setDocumentSessionId((id) => id + 1);
-  }, [commitDocument]);
+  }, [dispatch]);
 
   const saveRecoveryDraft = useCallback(async () => {
     const current = docRef.current;
@@ -564,18 +363,14 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     await saveStoredPreBlankDraft(storedDoc);
   }, []);
 
-  const handleGraphChange = useCallback(
-    (graph: CanvasGraph, mode: DocumentUpdateMode = 'debounce') => {
-      updateDocument((current) => setDocumentGraph(current, graph), mode);
-    },
-    [updateDocument],
+  const handleGraphEdit = useCallback(
+    (graph: CanvasGraph, edit: GraphEditKind) => dispatch({ type: 'editGraph', graph, edit }),
+    [dispatch],
   );
 
   const handleExportConfigChange = useCallback(
-    (patch: Partial<CanvasDocument['export']>) => {
-      updateDocument((current) => updateDocumentExportConfig(current, patch), 'debounce');
-    },
-    [updateDocument],
+    (patch: Partial<CanvasDocument['export']>) => dispatch({ type: 'updateExportConfig', patch }),
+    [dispatch],
   );
 
   const handleCopyLink = useCallback(() => {
@@ -609,16 +404,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     deleteNodeSelection,
     updateLayer,
     storeImageAssetSource,
-    updateMergeNode,
-    updateColorNode,
-    updateRepeatNode,
-    updateMaterialNode,
-    updateMaskNode,
-    updateTransformNode,
-    updateGrimeShadowNode,
-    updateScene3DNode,
-    updateEnvironmentNode,
-    updateShaderNode,
+    updateGraphNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
@@ -627,12 +413,12 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     handleRandomize,
     handleNewBlank,
     saveRecoveryDraft,
-    handleGraphChange,
+    handleGraphEdit,
     handleExportConfigChange,
     handleCopyLink,
     loadDocument: replaceDocument,
     documentSessionId,
-    setDoc,
+    dispatch,
     setSeed,
     setAspect,
     undo,

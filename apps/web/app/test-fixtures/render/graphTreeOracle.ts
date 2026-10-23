@@ -14,21 +14,7 @@ import { renderedNodeIds } from './graphReachFixtures';
 
 export function allNodeIds(doc: CanvasDocument): Set<string> {
   const graph = doc.graph!;
-  return new Set([
-    ...doc.layers.map((layer) => layer.id),
-    ...[
-      graph.mergeNodes,
-      graph.colorNodes,
-      graph.repeatNodes,
-      graph.materialNodes,
-      graph.maskNodes,
-      graph.transformNodes,
-      graph.grimeShadowNodes,
-      graph.shaderNodes,
-      graph.environmentNodes,
-      graph.scene3dNodes,
-    ].flatMap((nodes) => (nodes ?? []).map((node) => node.id)),
-  ]);
+  return new Set([...doc.layers.map((layer) => layer.id), ...Object.keys(graph.nodes)]);
 }
 
 /**

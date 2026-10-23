@@ -440,17 +440,3 @@ export async function getAiGenerationJob(
   );
   return parseAiGenerationJob(body);
 }
-
-export async function cancelAiGenerationJob(
-  id: string,
-  options: AiGenerationClientOptions = {},
-): Promise<AiGenerationJob> {
-  const body = await requestJson(
-    `/api/ai/generations/${encodeURIComponent(id)}/cancel`,
-    {
-      method: 'POST',
-    },
-    options,
-  );
-  return parseAiGenerationJob(body);
-}

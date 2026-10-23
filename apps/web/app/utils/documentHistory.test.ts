@@ -1,22 +1,22 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   type CanvasDocument,
   type CanvasGraph,
+  makeDocument,
   makeEffectLayer,
   makeFillLayer,
-  makeGraphMaterialNode,
-  makeGraphShaderNode,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
 import {
   appendHistoryEntry,
-  commitDocumentWithHistory,
+  createDocumentHistoryState,
   createHistoryEntry,
   createPendingHistoryEntry,
-  type DocumentHistoryCommit,
+  type DocumentHistoryEvent,
+  type DocumentHistoryState,
+  documentHistoryReducer,
   flushPendingHistory,
-  HISTORY_DEBOUNCE_MS,
   HISTORY_MAX,
   type HistoryEntry,
   pushSnapshotHistory,
@@ -24,20 +24,22 @@ import {
   undoHistory,
 } from './documentHistory';
 
+import { graphNodesById, graphNodesOfKind } from './nodeGraph';
+import { makeGraphMaterialNode, makeGraphShaderNode } from './nodeKinds';
+
 function makeDoc(seed: number): CanvasDocument {
-  return {
+  return makeDocument({
     global: { bg: '#000000', seed, aspect: '1:1' },
     layers: [seed % 2 === 0 ? makeFillLayer({ id: `fill-${seed}` }) : makeTextLayer({ id: `text-${seed}` })],
     export: { format: 'png', scale: 1, target: 'cover' },
-  };
+  });
 }
 
 function makeGraphDoc(x: number): CanvasDocument {
   const graph: CanvasGraph = {
     edges: [{ id: 'e-fill-export', fromId: 'fill-graph', fromPort: 'out', toId: '__export__', toPort: 'in' }],
     positions: { 'fill-graph': { x, y: 80 }, __export__: { x: 216, y: 80 } },
-    mergeNodes: [],
-    colorNodes: [],
+    nodes: graphNodesById(),
   };
 
   return {
@@ -73,10 +75,10 @@ function makeShaderMaterialGraphDoc(shaderKind: 'waterCaustic' | 'glowingWave'):
       { id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: '__export__', toPort: 'in' },
     ],
     positions: {},
-    mergeNodes: [],
-    colorNodes: [],
-    materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })],
-    shaderNodes: [makeGraphShaderNode({ id: 'shader-a', shaderKind, distortion: 54, grain: 0 })],
+    nodes: graphNodesById(
+      makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' }),
+      makeGraphShaderNode({ id: 'shader-a', shaderKind, distortion: 54, grain: 0 }),
+    ),
   };
 
   return {
@@ -169,7 +171,7 @@ describe('documentHistory', () => {
     const afterGraphEdit = makeShaderMaterialGraphDoc('glowingWave');
     const undoResult = undoHistory(pushSnapshotHistory({ past: [], future: [] }, beforeGraphEdit), afterGraphEdit);
 
-    expect(undoResult?.doc.graph?.shaderNodes?.[0]?.shaderKind).toBe('waterCaustic');
+    expect(graphNodesOfKind(undoResult?.doc.graph ?? { nodes: {} }, 'shader')?.[0]?.shaderKind).toBe('waterCaustic');
     expect(undoResult?.doc.graph?.edges.map((edge) => edge.toPort)).toEqual([
       'albedo',
       'in',
@@ -186,8 +188,8 @@ describe('documentHistory', () => {
       undoResult?.doc ?? beforeGraphEdit,
     );
 
-    expect(redoResult?.doc.graph?.shaderNodes?.[0]?.shaderKind).toBe('glowingWave');
-    expect(redoResult?.doc.graph?.materialNodes?.[0]?.materialPreset).toBe('plastic');
+    expect(graphNodesOfKind(redoResult?.doc.graph ?? { nodes: {} }, 'shader')?.[0]?.shaderKind).toBe('glowingWave');
+    expect(graphNodesOfKind(redoResult?.doc.graph ?? { nodes: {} }, 'material')?.[0]?.materialPreset).toBe('plastic');
     expect(redoResult?.doc.layers.find((layer) => layer.id === 'shader-effect-a')).toMatchObject({
       preset: 'gradientMap',
       gradientMap: 85,
@@ -220,57 +222,95 @@ describe('documentHistory', () => {
   });
 });
 
-describe('commitDocumentWithHistory', () => {
-  // React may run a state updater after the call that queued it, once refs have moved on. This harness keeps the
-  // updaters queued until `flush`, the way React does while another update is pending.
-  function harness(initial: CanvasDocument) {
-    let past: HistoryEntry[] = [];
-    const queued: Array<(items: HistoryEntry[]) => HistoryEntry[]> = [];
-    const commit: DocumentHistoryCommit = {
-      docRef: { current: initial },
-      pendingRef: { current: null },
-      timerRef: { current: undefined },
-      setDoc: (doc) => {
-        commit.docRef.current = doc;
-      },
-      setPast: (update) => queued.push(update),
-      setFuture: () => undefined,
-    };
-    return {
-      commit,
-      flush() {
-        for (const update of queued.splice(0)) past = update(past);
-        return past;
-      },
-    };
+describe('documentHistoryReducer', () => {
+  const docWithSeed = (seed: number): CanvasDocument =>
+    makeDocument({
+      global: { bg: '#000000', seed, aspect: '1:1' },
+      layers: [],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+  const seeds = (entries: HistoryEntry[]) => entries.map((entry) => entry.doc.global.seed);
+
+  function run(events: DocumentHistoryEvent[], initial = docWithSeed(1)): DocumentHistoryState {
+    return events.reduce(documentHistoryReducer, createDocumentHistoryState(initial));
   }
 
-  const docWithSeed = (seed: number): CanvasDocument => ({
-    global: { bg: '#000000', seed, aspect: '1:1' },
-    layers: [],
-    export: { format: 'png', scale: 1, target: 'cover' },
+  it('records one undo step per snapshot', () => {
+    const state = run([
+      { type: 'commit', doc: docWithSeed(2), mode: 'snapshot' },
+      { type: 'commit', doc: docWithSeed(3), mode: 'snapshot' },
+    ]);
+    expect(seeds(state.past)).toEqual([1, 2]);
+    expect(state.doc.global.seed).toBe(3);
   });
 
-  it('records the document before a snapshot even when the updater runs after later commits', () => {
-    const { commit, flush } = harness(docWithSeed(1));
-
-    commitDocumentWithHistory(docWithSeed(2), 'snapshot', commit);
-    commitDocumentWithHistory(docWithSeed(3), 'silent', commit);
-
-    expect(flush().map((entry) => entry.doc.global.seed)).toEqual([1]);
+  it('records one undo step for a gesture once it settles', () => {
+    const gesture = [2, 3, 4].map(
+      (seed): DocumentHistoryEvent => ({ type: 'commit', doc: docWithSeed(seed), mode: 'debounce' }),
+    );
+    const pending = run(gesture);
+    expect(pending.past).toEqual([]);
+    expect(pending.pending?.doc.global.seed).toBe(1);
+    expect(seeds(documentHistoryReducer(pending, { type: 'settle' }).past)).toEqual([1]);
   });
 
-  it('records one entry for a debounced gesture even when the updater runs after the pending entry resets', () => {
-    vi.useFakeTimers();
-    try {
-      const { commit, flush } = harness(docWithSeed(1));
-      for (let seed = 2; seed <= 20; seed += 1) commitDocumentWithHistory(docWithSeed(seed), 'debounce', commit);
+  it('keeps a gesture undoable when a snapshot follows before it settles', () => {
+    const state = run([
+      { type: 'commit', doc: docWithSeed(2), mode: 'debounce' },
+      { type: 'commit', doc: docWithSeed(3), mode: 'snapshot' },
+      { type: 'undo' },
+    ]);
+    expect(state.doc.global.seed).toBe(2);
+    expect(documentHistoryReducer(state, { type: 'undo' }).doc.global.seed).toBe(1);
+  });
 
-      vi.advanceTimersByTime(HISTORY_DEBOUNCE_MS);
-      expect(commit.pendingRef.current).toBeNull();
-      expect(flush().map((entry) => entry.doc.global.seed)).toEqual([1]);
-    } finally {
-      vi.useRealTimers();
-    }
+  it('undoes an unsettled gesture to its start, not one step further', () => {
+    const state = run([
+      { type: 'commit', doc: docWithSeed(2), mode: 'snapshot' },
+      { type: 'commit', doc: docWithSeed(3), mode: 'debounce' },
+      { type: 'undo' },
+    ]);
+    expect(state.doc.global.seed).toBe(2);
+    expect(seeds(state.future)).toEqual([3]);
+  });
+
+  it('redoes what undo took back and drops redo on a new edit', () => {
+    const undone = run([{ type: 'commit', doc: docWithSeed(2), mode: 'snapshot' }, { type: 'undo' }]);
+    const redone = documentHistoryReducer(undone, { type: 'redo' });
+    expect(redone.doc.global.seed).toBe(2);
+    const edited = documentHistoryReducer(undone, { type: 'commit', doc: docWithSeed(5), mode: 'debounce' });
+    expect(edited.future).toEqual([]);
+  });
+
+  it('applies a silent normalization to every history entry, so undo cannot bring the old form back', () => {
+    const withBg =
+      (bg: string) =>
+      (doc: CanvasDocument): CanvasDocument => ({ ...doc, global: { ...doc.global, bg } });
+    const state = run([
+      { type: 'commit', doc: docWithSeed(2), mode: 'snapshot' },
+      { type: 'commit', doc: docWithSeed(3), mode: 'debounce' },
+      { type: 'commit', doc: withBg('#ffffff')(docWithSeed(3)), mode: 'silent', amend: withBg('#ffffff') },
+    ]);
+    expect(state.doc.global.bg).toBe('#ffffff');
+    expect(state.pending?.doc.global.bg).toBe('#ffffff');
+    expect(state.past.map((entry) => entry.doc.global.bg)).toEqual(['#ffffff']);
+  });
+
+  it('records nothing for a silent write without an amendment', () => {
+    const state = run([{ type: 'commit', doc: docWithSeed(2), mode: 'silent' }]);
+    expect(state.past).toEqual([]);
+    expect(state.doc.global.seed).toBe(2);
+  });
+
+  it('caps past history at the configured limit', () => {
+    const events = Array.from(
+      { length: HISTORY_MAX + 5 },
+      (_, i): DocumentHistoryEvent => ({
+        type: 'commit',
+        doc: docWithSeed(i + 2),
+        mode: 'snapshot',
+      }),
+    );
+    expect(run(events).past).toHaveLength(HISTORY_MAX);
   });
 });

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { type CanvasGraph, makeGraphMaterialNode, makeGraphShaderNode } from '../../../types/config';
+import { type CanvasGraph } from '../../../types/config';
+import { graphNodesById } from '../../../utils/nodeGraph';
+import { makeGraphMaterialNode, makeGraphShaderNode } from '../../../utils/nodeKinds';
 import { isGraphPortConnectionAllowed } from './useNodeGraphEvents';
 
 function shaderMaterialGraph(role: 'fill' | 'effect', connected: boolean): CanvasGraph {
@@ -8,10 +10,7 @@ function shaderMaterialGraph(role: 'fill' | 'effect', connected: boolean): Canva
       ? [{ id: 'e-source-shader', fromId: 'source', fromPort: 'out', toId: 'shader', toPort: 'bg' }]
       : [],
     positions: {},
-    mergeNodes: [],
-    colorNodes: [],
-    shaderNodes: [makeGraphShaderNode({ id: 'shader', role })],
-    materialNodes: [makeGraphMaterialNode({ id: 'material' })],
+    nodes: graphNodesById(makeGraphShaderNode({ id: 'shader', role }), makeGraphMaterialNode({ id: 'material' })),
   };
 }
 

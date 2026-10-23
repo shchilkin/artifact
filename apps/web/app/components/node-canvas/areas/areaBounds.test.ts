@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasGraph } from '../../../types/config';
+import { graphNodesById } from '../../../utils/nodeGraph';
 import { getEmptyGraphAreas, getGraphAreaBounds } from './areaBounds';
 
 describe('getGraphAreaBounds', () => {
@@ -10,8 +11,7 @@ describe('getGraphAreaBounds', () => {
       a: { x: 100, y: 80 },
       b: { x: 520, y: 120 },
     },
-    mergeNodes: [],
-    colorNodes: [],
+    nodes: graphNodesById(),
     areas: [{ id: 'area-1', name: 'Main branch', color: '#ff705f', nodeIds: ['a', 'b'] }],
   };
 
@@ -94,8 +94,7 @@ describe('getEmptyGraphAreas', () => {
     const graph: CanvasGraph = {
       edges: [],
       positions: { placed: { x: 100, y: 80 } },
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
       areas: [
         { id: 'area-placed', name: 'Placed branch', color: '#ff705f', nodeIds: ['placed'] },
         { id: 'area-empty', name: 'Future branch', color: '#8d5cff', nodeIds: ['missing'] },

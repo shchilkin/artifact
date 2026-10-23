@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { graphNodesById, graphNodesOfKind } from '../utils/nodeGraph';
+import { makeGraphEnvironmentNode, makeGraphRepeatNode, makeGraphShaderNode } from '../utils/nodeKinds';
 import type { CanvasDocument } from './config';
 import {
   cloneDocument,
@@ -10,10 +12,9 @@ import {
   FONT_REGISTRY,
   FONT_STACKS,
   GOOGLE_FONT_STYLESHEET_URL,
+  makeDocument,
   makeEffectLayer,
   makeEmojiLayer,
-  makeGraphRepeatNode,
-  makeGraphShaderNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
@@ -21,12 +22,12 @@ import {
 } from './config';
 
 function cloneableDocument(): CanvasDocument {
-  return {
+  return makeDocument({
     schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { bg: '#120020', seed: 42, aspect: '1:1' },
     layers: [makeEmojiLayer({ id: 'test-emoji' })],
     export: { format: 'png', scale: 1, target: 'cover' },
-  };
+  });
 }
 
 describe('makeTextLayer', () => {
@@ -141,14 +142,12 @@ describe('cloneDocument shader state', () => {
       graph: {
         edges: [],
         positions: {},
-        mergeNodes: [],
-        colorNodes: [],
-        shaderNodes: [shader],
+        nodes: graphNodesById(shader),
       },
     };
 
     const cloned = cloneDocument(source);
-    const clonedShader = cloned.graph?.shaderNodes?.[0];
+    const clonedShader = graphNodesOfKind(cloned.graph, 'shader')?.[0];
     if (!clonedShader?.shaderInstance) throw new Error('Expected cloned shader state');
     clonedShader.palette[0] = '#ff0000';
     clonedShader.shaderInstance.definition.properties[0]!.label = 'Changed';
@@ -429,11 +428,11 @@ describe('cloneDocument', () => {
 
   it('deep-clones emoji layer emojis array independently', () => {
     const emojiLayer = makeEmojiLayer({ id: 'e1', emojis: ['😂', '💀'] });
-    const original: CanvasDocument = {
+    const original: CanvasDocument = makeDocument({
       global: { bg: '#120020', seed: 1, aspect: '1:1' },
       layers: [emojiLayer],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const cloned = cloneDocument(original);
     const clonedEmojiLayer = cloned.layers[0];
     if (clonedEmojiLayer.kind === 'emoji') {
@@ -443,22 +442,22 @@ describe('cloneDocument', () => {
   });
 
   it('deep-clones export settings independently', () => {
-    const original: CanvasDocument = {
+    const original: CanvasDocument = makeDocument({
       global: { bg: '#120020', seed: 1, aspect: '1:1' },
       layers: [makeEffectLayer({ id: 'fx-1' })],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const cloned = cloneDocument(original);
     cloned.export.scale = 3;
     expect(original.export.scale).toBe(1);
   });
 
   it('keeps source layer fields when cloning', () => {
-    const original: CanvasDocument = {
+    const original: CanvasDocument = makeDocument({
       global: { bg: '#120020', seed: 1, aspect: '1:1' },
       layers: [makeSourceLayer('array', { id: 'src-1', arrayCount: 9, arrayRows: 3 })],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const cloned = cloneDocument(original);
     expect(cloned.layers[0]).toEqual(original.layers[0]);
     expect(cloned.layers[0]).not.toBe(original.layers[0]);
@@ -492,24 +491,22 @@ describe('cloneDocument', () => {
       graph: {
         edges: [],
         positions: {},
-        mergeNodes: [],
-        colorNodes: [],
-        environmentNodes: [
-          {
+        nodes: graphNodesById(
+          makeGraphEnvironmentNode({
             id: 'env-node-a',
             name: 'Environment Map',
             environmentSrc: 'artifact-env://env-a',
             environmentName: 'studio.exr',
             environmentMime: 'image/x-exr',
             environmentBytes: 512,
-          },
-        ],
+          }),
+        ),
         areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['text-1'] }],
       },
     };
     const cloned = cloneDocument(original);
     cloned.graph?.areas?.[0]?.nodeIds.push('other');
-    cloned.graph?.environmentNodes?.push({
+    cloned.graph.nodes['env-node-b'] = makeGraphEnvironmentNode({
       id: 'env-node-b',
       name: 'Other Environment',
       environmentSrc: 'artifact-env://env-b',
@@ -534,7 +531,7 @@ describe('cloneDocument', () => {
       createdAt: '2026-06-13T00:00:00.000Z',
     });
     expect(original.graph?.areas?.[0]?.nodeIds).toEqual(['text-1']);
-    expect(original.graph?.environmentNodes).toHaveLength(1);
+    expect(graphNodesOfKind(original.graph, 'environment')).toHaveLength(1);
     expect(original.modelAssets).toHaveLength(1);
     expect(original.envAssets).toHaveLength(1);
   });

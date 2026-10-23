@@ -1,4 +1,4 @@
-import type { GraphMaskNode } from '../../../types/config';
+import type { GraphMaskNode } from '../../../utils/nodeKinds';
 import { InspectorSelect, InspectorSlider, InspectorTextInput, InspectorToggle } from './fields';
 
 const MASK_MODE_OPTIONS: GraphMaskNode['mode'][] = ['alpha', 'luma', 'threshold'];

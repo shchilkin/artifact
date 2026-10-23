@@ -1,4 +1,4 @@
-import type { EffectPreset, LayerKind, MaterialPreset, ShaderKind, ShaderRole } from '../types/config';
+import type { EffectPreset, GraphNodeKind, LayerKind, MaterialPreset, ShaderKind, ShaderRole } from '../types/config';
 import type { ArrayPresetId } from './arrayPresets';
 import type { NoisePresetId } from './noisePresets';
 import type { RepeatPresetId } from './repeatPresets';
@@ -11,14 +11,7 @@ export type AddAction =
   | { kind: 'noisePreset'; preset: NoisePresetId }
   | { kind: 'arrayPreset'; preset: ArrayPresetId }
   | { kind: 'effect'; preset: EffectPreset }
-  | { kind: 'merge' }
-  | { kind: 'color' }
-  | { kind: 'repeat' }
+  | { kind: Exclude<GraphNodeKind, 'material' | 'shader'> }
   | { kind: 'material'; preset?: MaterialPreset }
   | { kind: 'repeatPreset'; preset: RepeatPresetId }
-  | { kind: 'mask' }
-  | { kind: 'transform' }
-  | { kind: 'grimeShadow' }
-  | { kind: 'scene3d' }
-  | { kind: 'environment' }
   | { kind: 'shader'; shaderKind?: ShaderKind; role: ShaderRole };

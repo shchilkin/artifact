@@ -5,11 +5,11 @@ import {
   type CanvasGraph,
   makeEffectPresetLayer,
   makeFillLayer,
-  makeGraphColorNode,
   makeImageLayer,
 } from '../types/config';
 import { createGraphNodeRenderCache } from './graphNodeRenderCache';
-import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById, inferLinearGraph } from './nodeGraph';
+import { makeGraphColorNode } from './nodeKinds';
 import { markRenderAssetFallback } from './renderAssetEpoch';
 
 const SIZE = { width: 280, height: 280 };
@@ -46,8 +46,11 @@ describe('createGraphNodeRenderCache', () => {
   it('does not change keys for edits outside a node’s upstream branch', () => {
     const color = makeGraphColorNode({ id: 'color' });
     const graph = inferLinearGraph([fill, grain]);
-    const docBefore = makeDoc([fill, grain], { ...graph, colorNodes: [color] });
-    const docAfter = makeDoc([fill, grain], { ...graph, colorNodes: [{ ...color, hue: 40 }] });
+    const docBefore = makeDoc([fill, grain], { ...graph, nodes: graphNodesById(color) });
+    const docAfter = makeDoc([fill, grain], {
+      ...graph,
+      nodes: graphNodesById(makeGraphColorNode({ ...color, hue: 40 })),
+    });
 
     expect(keysFor(docAfter).key('grain')).toBe(keysFor(docBefore).key('grain'));
   });

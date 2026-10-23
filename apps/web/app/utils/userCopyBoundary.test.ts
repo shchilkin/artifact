@@ -39,7 +39,7 @@ const ALLOWLIST: ReadonlyArray<{ file: string; rule: CopyRule; text: string; rea
     reason: 'Artwork text drawn on the canvas by random documents, not UI copy.',
   },
   {
-    file: 'utils/starterDocuments.ts',
+    file: 'utils/starterLayerDocuments.ts',
     rule: 'version',
     text: 'V0.20',
     reason: 'Artwork text content of a starter document, not UI copy.',

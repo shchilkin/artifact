@@ -2,6 +2,7 @@ import type { EffectPreset, LayerKind } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS, LEGACY_SHADER_KINDS, SHADER_KINDS } from '../../types/config';
 import type { AddAction } from '../../utils/addActions';
 import { ARRAY_PRESET_IDS, ARRAY_PRESETS } from '../../utils/arrayPresets';
+import { GRAPH_NODE_KINDS, GRAPH_NODE_MODELS } from '../../utils/nodeKinds';
 import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
 import { REPEAT_PRESET_IDS, REPEAT_PRESETS } from '../../utils/repeatPresets';
 import { TEXT_PRESET_IDS, TEXT_PRESETS } from '../../utils/textPresets';
@@ -41,16 +42,9 @@ export type AddLibraryItem = {
 };
 
 export const ADD_LIBRARY_ACTION_MIME = 'application/x-artifact-add-library-action';
-const SIMPLE_ADD_ACTION_KINDS = new Set([
+const SIMPLE_ADD_ACTION_KINDS = new Set<string>([
   'aiImage',
-  'merge',
-  'color',
-  'repeat',
-  'mask',
-  'transform',
-  'grimeShadow',
-  'scene3d',
-  'environment',
+  ...GRAPH_NODE_KINDS.filter((kind) => GRAPH_NODE_MODELS[kind].library.entry),
 ]);
 const LAYER_ADD_KINDS = new Set([
   'text',
@@ -552,95 +546,14 @@ const effectItems: AddLibraryItem[] = EFFECT_PRESET_MENU_ORDER.map((preset) => {
   };
 });
 
+// Graph-only node kinds with a single library entry, in model registry order, then the repeat presets.
+const graphNodeItems: AddLibraryItem[] = GRAPH_NODE_KINDS.flatMap((kind) => {
+  const { entry } = GRAPH_NODE_MODELS[kind].library;
+  return entry ? [{ id: kind, ...entry, action: { kind } as AddLibraryAction }] : [];
+});
+
 const utilityItems: AddLibraryItem[] = [
-  {
-    id: 'merge',
-    label: 'Merge',
-    symbol: '⊕',
-    description: 'Blend two branches into one result.',
-    group: 'utility',
-    action: { kind: 'merge' },
-    surfaces: ['nodes'],
-    tags: ['utility', 'blend'],
-    keywords: 'blend combine branches graph recipe',
-  },
-  {
-    id: 'color',
-    label: 'Color',
-    symbol: '◐',
-    description: 'Grade hue, contrast, and tonal balance.',
-    group: 'utility',
-    action: { kind: 'color' },
-    surfaces: ['nodes'],
-    tags: ['utility', 'tone'],
-    keywords: 'grade tone contrast saturation hue',
-  },
-  {
-    id: 'mask',
-    label: 'Mask',
-    symbol: '◒',
-    description: 'Cut a source branch by alpha, luma, or threshold from another branch.',
-    group: 'utility',
-    action: { kind: 'mask' },
-    surfaces: ['nodes'],
-    tags: ['utility', 'mask'],
-    keywords: 'mask matte alpha luma threshold clip cut stencil reveal branch',
-  },
-  {
-    id: 'transform',
-    label: 'Transform',
-    symbol: '↻',
-    description: 'Move, scale, rotate, and fade a completed upstream branch.',
-    group: 'utility',
-    action: { kind: 'transform' },
-    surfaces: ['nodes'],
-    tags: ['utility', 'transform'],
-    keywords: 'transform rotate rotation move offset position scale resize opacity branch token',
-  },
-  {
-    id: 'grimeShadow',
-    label: 'Grime Shadow',
-    symbol: '◖',
-    description: 'Create layered dirty shadow from the alpha of a source branch.',
-    group: 'utility',
-    action: { kind: 'grimeShadow' },
-    surfaces: ['nodes'],
-    tags: ['utility', 'shadow', 'texture'],
-    keywords: 'shadow drop shadow grime dirty dirt layered volume depth alpha blur spread noise dust',
-  },
-  {
-    id: 'scene3d',
-    label: '3D Scene',
-    symbol: '◌',
-    description: 'Render imported models through scene camera, light, and environment controls.',
-    group: 'primitive',
-    action: { kind: 'scene3d' },
-    surfaces: ['layers', 'nodes'],
-    tags: ['scene', '3d', 'light'],
-    keywords: '3d scene model hdri environment light lighting camera render glb ps1',
-  },
-  {
-    id: 'environment',
-    label: 'Environment Map',
-    symbol: '◇',
-    description: 'Provide an EXR or HDR environment map to a 3D Scene.',
-    group: 'primitive',
-    action: { kind: 'environment' },
-    surfaces: ['nodes'],
-    tags: ['utility', '3d', 'environment'],
-    keywords: 'environment env map hdri hdr exr lighting reflection panorama equirectangular',
-  },
-  {
-    id: 'repeat',
-    label: 'Repeater',
-    symbol: '⧉',
-    description: 'Repeat any source branch into line, grid, or radial patterns.',
-    group: 'utility',
-    action: { kind: 'repeat' },
-    surfaces: ['nodes'],
-    tags: ['utility', 'repeat'],
-    keywords: 'repeat motif grid line radial branch',
-  },
+  ...graphNodeItems,
   ...REPEAT_PRESET_IDS.map((preset) => ({
     id: `repeatPreset:${preset}`,
     label: REPEAT_PRESETS[preset].name,

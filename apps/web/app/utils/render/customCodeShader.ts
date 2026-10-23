@@ -1,4 +1,5 @@
-import type { GraphShaderNode, ShaderDefinition, ShaderPropertyDefinition } from '../../types/config';
+import type { ShaderDefinition, ShaderPropertyDefinition } from '../../types/config';
+import type { GraphShaderNode } from '../../utils/nodeKinds';
 import { customShaderCodeHasBlockingIssues, validateCustomShaderCode } from '../customShaderCode';
 import { createCanvas, isDrawableCanvas } from './canvas';
 
