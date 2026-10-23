@@ -1,22 +1,7 @@
 import { Button } from '@artifact/ui';
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { type AspectRatio, type CanvasDocument, type ImageLayer, type Layer } from '../types/config';
-import {
-  addLayersToGraphAreaInDocument,
-  createGraphAreaInDocument,
-  removeGraphAreaInDocument,
-  removeNodesFromAllGraphAreasInDocument,
-  removeNodesFromGraphAreaInDocument,
-  renameGraphAreaInDocument,
-  renameLayerInDocument,
-  reorderDocumentLayersAndRemoveFromGraphArea,
-  replaceSelectedImageSourceInDocument,
-  setLayersVisibilityInDocument,
-  toggleLayerVisibilityInDocument,
-  updateGlobalInDocument,
-  updateGraphNodeInDocument,
-  updateLayerInDocument,
-} from '../utils/documentCommands';
+import type { DocumentCommand } from '../utils/documentDispatch';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../utils/editorTargetSummary';
 import { findGraphUtilityNode } from '../utils/nodeGraph';
 import type { GraphScene3DNode } from '../utils/nodeKinds';
@@ -50,7 +35,7 @@ type SidebarLayerPanelProps = Pick<
 
 interface Props extends SidebarLayerPanelProps {
   doc: CanvasDocument;
-  onDocChange: (doc: CanvasDocument) => void;
+  onDocCommand: (command: DocumentCommand) => void;
   onReorderLayers: (layers: Layer[]) => void;
   showAiGeneration?: boolean;
   onGeneratedImageSource?: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
@@ -87,14 +72,6 @@ function Section({ title, children, defaultOpen = false, hidden = false }: Secti
   );
 }
 
-function useDocumentRef(doc: CanvasDocument) {
-  const docRef = useRef(doc);
-  useLayoutEffect(() => {
-    docRef.current = doc;
-  }, [doc]);
-  return docRef;
-}
-
 function selectedLayerTargetSummary(doc: CanvasDocument, selectedLayer: Layer | null) {
   if (!selectedLayer) return null;
   return buildLayerTargetSummary(selectedLayer, {
@@ -113,47 +90,43 @@ function selectedSceneTargetSummary(doc: CanvasDocument, scene: GraphScene3DNode
 }
 
 function useLayerPanelHandlers({
-  docRef,
-  onDocChange,
+  onDocCommand,
   onReorderLayers,
 }: {
-  docRef: React.MutableRefObject<CanvasDocument>;
-  onDocChange: (doc: CanvasDocument) => void;
+  onDocCommand: (command: DocumentCommand) => void;
   onReorderLayers: (layers: Layer[]) => void;
 }) {
   const handleToggleVisible = useCallback(
-    (id: string) => onDocChange(toggleLayerVisibilityInDocument(docRef.current, id)),
-    [docRef, onDocChange],
+    (id: string) => onDocCommand({ type: 'toggleLayerVisibility', id }),
+    [onDocCommand],
   );
   const handleSetLayersVisible = useCallback(
-    (ids: string[], visible: boolean) => onDocChange(setLayersVisibilityInDocument(docRef.current, ids, visible)),
-    [docRef, onDocChange],
+    (ids: string[], visible: boolean) => onDocCommand({ type: 'setLayersVisibility', ids, visible }),
+    [onDocCommand],
   );
   const handleCreateAreaFromLayers = useCallback(
     (ids: string[]) => {
-      if (ids.length > 0) onDocChange(createGraphAreaInDocument(docRef.current, ids));
+      if (ids.length > 0) onDocCommand({ type: 'createArea', ids });
     },
-    [docRef, onDocChange],
+    [onDocCommand],
   );
   const handleAddLayersToArea = useCallback(
     (areaId: string, ids: string[]) => {
-      if (ids.length > 0) onDocChange(addLayersToGraphAreaInDocument(docRef.current, areaId, ids));
+      if (ids.length > 0) onDocCommand({ type: 'addToArea', areaId, ids });
     },
-    [docRef, onDocChange],
+    [onDocCommand],
   );
   const handleRemoveLayersFromAreas = useCallback(
     (ids: string[]) => {
-      if (ids.length === 0) return;
-      const next = removeNodesFromAllGraphAreasInDocument(docRef.current, ids);
-      if (next !== docRef.current) onDocChange(next);
+      if (ids.length > 0) onDocCommand({ type: 'removeFromAllAreas', ids });
     },
-    [docRef, onDocChange],
+    [onDocCommand],
   );
   const handleRemoveNodesFromArea = useCallback(
     (areaId: string, ids: string[]) => {
-      if (ids.length > 0) onDocChange(removeNodesFromGraphAreaInDocument(docRef.current, areaId, ids));
+      if (ids.length > 0) onDocCommand({ type: 'removeFromArea', areaId, ids });
     },
-    [docRef, onDocChange],
+    [onDocCommand],
   );
   const handleReorderLayers = useCallback(
     (layers: Layer[], areaSeparation?: { areaId: string; ids: string[] }) => {
@@ -161,11 +134,9 @@ function useLayerPanelHandlers({
         onReorderLayers(layers);
         return;
       }
-      onDocChange(
-        reorderDocumentLayersAndRemoveFromGraphArea(docRef.current, layers, areaSeparation.areaId, areaSeparation.ids),
-      );
+      onDocCommand({ type: 'reorderLayersOutOfArea', layers, areaId: areaSeparation.areaId, ids: areaSeparation.ids });
     },
-    [docRef, onDocChange, onReorderLayers],
+    [onDocCommand, onReorderLayers],
   );
 
   return {
@@ -175,33 +146,30 @@ function useLayerPanelHandlers({
     handleAddLayersToArea,
     handleRemoveLayersFromAreas,
     handleRemoveNodesFromArea,
-    handleRemoveArea: (areaId: string) => onDocChange(removeGraphAreaInDocument(docRef.current, areaId)),
-    handleRenameArea: (areaId: string, name: string) =>
-      onDocChange(renameGraphAreaInDocument(docRef.current, areaId, name)),
+    handleRemoveArea: (areaId: string) => onDocCommand({ type: 'removeArea', areaId }),
+    handleRenameArea: (areaId: string, name: string) => onDocCommand({ type: 'renameArea', areaId, name }),
     handleReorderLayers,
-    handleRenameLayer: (id: string, name: string) => onDocChange(renameLayerInDocument(docRef.current, id, name)),
+    handleRenameLayer: (id: string, name: string) => onDocCommand({ type: 'renameLayer', id, name }),
   };
 }
 
 function SelectedLayerSections({
   doc,
-  docRef,
   selectedLayer,
   selectedTargetSummary,
-  onDocChange,
+  onDocCommand,
   onReplaceModelLayerFile,
 }: {
   doc: CanvasDocument;
-  docRef: React.MutableRefObject<CanvasDocument>;
   selectedLayer: Layer | null;
   selectedTargetSummary: ReturnType<typeof buildLayerTargetSummary> | null;
-  onDocChange: (doc: CanvasDocument) => void;
+  onDocCommand: (command: DocumentCommand) => void;
   onReplaceModelLayerFile?: (id: string, file: File) => void;
 }) {
   if (!selectedLayer) return null;
   const layerId = selectedLayer.id;
   // Patches can arrive after an async step (an image read, an AI generation), so they apply to the current document.
-  const applyPatch = (patch: Partial<Layer>) => onDocChange(updateLayerInDocument(docRef.current, layerId, patch));
+  const applyPatch = (patch: Partial<Layer>) => onDocCommand({ type: 'updateLayer', id: layerId, patch });
 
   return (
     <div className="layer-inspector-sections artifact-inspector-sidebar artifact-inspector-scroll">
@@ -210,7 +178,7 @@ function SelectedLayerSections({
         layer={selectedLayer}
         aspect={doc.global.aspect ?? '1:1'}
         onChange={applyPatch}
-        onImageSource={(src) => onDocChange(replaceSelectedImageSourceInDocument(docRef.current, layerId, src))}
+        onImageSource={(src) => onDocCommand({ type: 'replaceImageSource', id: layerId, src })}
         onLoadModelFile={onReplaceModelLayerFile ? (file) => onReplaceModelLayerFile(layerId, file) : undefined}
       />
     </div>
@@ -219,17 +187,15 @@ function SelectedLayerSections({
 
 function SelectedScene3DSections({
   doc,
-  docRef,
   scene,
   selectedTargetSummary,
-  onDocChange,
+  onDocCommand,
   onReplaceEnvironmentNodeFile,
 }: {
   doc: CanvasDocument;
-  docRef: React.MutableRefObject<CanvasDocument>;
   scene: GraphScene3DNode | null;
   selectedTargetSummary: ReturnType<typeof selectedSceneTargetSummary>;
-  onDocChange: (doc: CanvasDocument) => void;
+  onDocCommand: (command: DocumentCommand) => void;
   onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
 }) {
   if (!scene) return null;
@@ -239,8 +205,8 @@ function SelectedScene3DSections({
       <SceneTargetInspector
         doc={doc}
         scene={scene}
-        onUpdateScene={(patch) => onDocChange(updateGraphNodeInDocument(docRef.current, scene.id, patch))}
-        onUpdateEnvironment={(id, patch) => onDocChange(updateGraphNodeInDocument(docRef.current, id, patch))}
+        onUpdateScene={(patch) => onDocCommand({ type: 'updateGraphNode', id: scene.id, patch })}
+        onUpdateEnvironment={(id, patch) => onDocCommand({ type: 'updateGraphNode', id, patch })}
         onLoadEnvironmentFile={onReplaceEnvironmentNodeFile}
       />
     </div>
@@ -320,7 +286,7 @@ function AiImageSection({
 
 export function Sidebar({
   doc,
-  onDocChange,
+  onDocCommand,
   selectedLayerId,
   onSelectLayer,
   onAddLayer,
@@ -347,12 +313,11 @@ export function Sidebar({
   const selectedGraphNode = selectedGraphOnlyNode(doc, selectedLayerId);
   const selectedTargetSummary = useMemo(() => selectedLayerTargetSummary(doc, selectedLayer), [doc, selectedLayer]);
   const selectedSceneSummary = useMemo(() => selectedSceneTargetSummary(doc, selectedScene), [doc, selectedScene]);
-  const docRef = useDocumentRef(doc);
-  const layerPanelHandlers = useLayerPanelHandlers({ docRef, onDocChange, onReorderLayers });
+  const layerPanelHandlers = useLayerPanelHandlers({ onDocCommand, onReorderLayers });
 
   const handleAspectChange = useCallback(
-    (aspect: AspectRatio) => onDocChange(updateGlobalInDocument(doc, { aspect })),
-    [doc, onDocChange],
+    (aspect: AspectRatio) => onDocCommand({ type: 'setAspect', aspect }),
+    [onDocCommand],
   );
 
   const hasInspectorContent = Boolean(showAiGeneration || selectedLayer || selectedScene || selectedGraphNode);
@@ -409,18 +374,16 @@ export function Sidebar({
         />
         <SelectedLayerSections
           doc={doc}
-          docRef={docRef}
           selectedLayer={selectedLayer}
           selectedTargetSummary={selectedTargetSummary}
-          onDocChange={onDocChange}
+          onDocCommand={onDocCommand}
           onReplaceModelLayerFile={onReplaceModelLayerFile}
         />
         <SelectedScene3DSections
           doc={doc}
-          docRef={docRef}
           scene={selectedScene}
           selectedTargetSummary={selectedSceneSummary}
-          onDocChange={onDocChange}
+          onDocCommand={onDocCommand}
           onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
         />
       </aside>

@@ -9,6 +9,7 @@ import {
 } from '@xyflow/react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CanvasGraph, GraphArea, GraphEdge, Layer } from '../../../types/config';
+import type { GraphEditKind } from '../../../utils/documentDispatch';
 import {
   EXPORT_NODE_ID,
   graphNodesOfKind,
@@ -56,7 +57,7 @@ export interface UseNodeDragStateOptions {
   graphRef: React.RefObject<CanvasGraph>;
   layers: Layer[];
   send: (event: NodeCanvasMachineEvent) => void;
-  onGraphChange: (graph: CanvasGraph) => void;
+  onGraphEdit: (graph: CanvasGraph, edit: GraphEditKind) => void;
   onDeleteNodes: (ids: string[]) => void;
   canDeleteNode?: (id: string) => boolean;
 }
@@ -412,7 +413,7 @@ export function useNodeDragState({
   graphRef,
   layers,
   send,
-  onGraphChange,
+  onGraphEdit,
   onDeleteNodes,
   canDeleteNode,
 }: UseNodeDragStateOptions): UseNodeDragStateResult {
@@ -468,9 +469,9 @@ export function useNodeDragState({
         position: node.position,
       }));
       if (moved.length === 0) return;
-      onGraphChange(separateMovedNodesFromAreas(updateGraphPositions(graphRef.current, moved), nodes));
+      onGraphEdit(separateMovedNodesFromAreas(updateGraphPositions(graphRef.current, moved), nodes), 'move');
     },
-    [onGraphChange, graphRef, separateMovedNodesFromAreas],
+    [onGraphEdit, graphRef, separateMovedNodesFromAreas],
   );
 
   const onNodeDragStart = useCallback(() => {
@@ -482,7 +483,7 @@ export function useNodeDragState({
     (_: unknown, node: RFNode) => {
       isDraggingRef.current = false;
       setAlignmentGuides([]);
-      onGraphChange(
+      onGraphEdit(
         graphAfterNodeDragCommit({
           node,
           dragNodes: dragNodesRef.current,
@@ -490,9 +491,10 @@ export function useNodeDragState({
           layers,
           separateMovedNodesFromAreas,
         }),
+        'move',
       );
     },
-    [onGraphChange, graphRef, layers, separateMovedNodesFromAreas],
+    [onGraphEdit, graphRef, layers, separateMovedNodesFromAreas],
   );
 
   const onSelectionDragStop = useCallback(

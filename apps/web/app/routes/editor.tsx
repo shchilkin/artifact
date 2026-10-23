@@ -170,12 +170,12 @@ export default function Editor() {
     handleRandomize,
     handleNewBlank,
     saveRecoveryDraft,
-    handleGraphChange,
+    handleGraphEdit,
     handleExportConfigChange,
     handleCopyLink,
     loadDocument,
     documentSessionId,
-    setDoc,
+    dispatch,
     setAspect,
     undo,
     redo,
@@ -282,7 +282,7 @@ export default function Editor() {
   } = useEditorPrimitiveExportState({
     doc,
     docRef,
-    onGraphChange: handleGraphChange,
+    onGraphEdit: handleGraphEdit,
   });
   const { exportBusy, exportFeedback, dismissExportFeedback, handleNodeExport, retryExport } = useEditorExport(
     docRef,
@@ -620,7 +620,7 @@ export default function Editor() {
                   onPrimitiveViewStatesChange={handlePrimitiveViewStatesChange}
                   selectedLayerId={selectedLayerId}
                   onSelectLayer={setSelectedLayerId}
-                  onGraphChange={handleGraphChange}
+                  onGraphEdit={handleGraphEdit}
                   onUpdateLayer={updateLayer}
                   onUpdateGraphNode={updateGraphNode}
                   onReplaceModelLayerFile={handleReplaceModelLayerFile}
@@ -666,7 +666,7 @@ export default function Editor() {
         {viewMode === 'layers' && (
           <Sidebar
             doc={doc}
-            onDocChange={setDoc}
+            onDocCommand={dispatch}
             selectedLayerId={selectedLayerId}
             onSelectLayer={setSelectedLayerId}
             onAddLayer={addLayer}

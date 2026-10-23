@@ -131,7 +131,7 @@ export function NodeCanvas({
   onPrimitiveViewStatesChange,
   selectedLayerId,
   onSelectLayer,
-  onGraphChange,
+  onGraphEdit,
   onUpdateLayer,
   onUpdateGraphNode,
   onUpdateExportConfig,
@@ -183,10 +183,10 @@ export function NodeCanvas({
   const { perfDebugAvailable, perfDebugEnabled, handleTogglePerfDebug } = useNodePerfDebug();
   const deleteEdge = useCallback(
     (edgeId: string) => {
-      onGraphChange(removeGraphEdge(graphRef.current, edgeId));
+      onGraphEdit(removeGraphEdge(graphRef.current, edgeId), 'disconnect');
       send({ type: 'EDGE_IDS_REMOVED', ids: [edgeId] });
     },
-    [graphRef, onGraphChange, send],
+    [graphRef, onGraphEdit, send],
   );
 
   // Focused hooks.
@@ -289,7 +289,7 @@ export function NodeCanvas({
     graphEmpty,
     initialViewport,
     entryFocusNodeId,
-    onGraphChange,
+    onGraphEdit,
   });
 
   const {
@@ -310,7 +310,7 @@ export function NodeCanvas({
     graphRef,
     layers: doc.layers,
     send,
-    onGraphChange,
+    onGraphEdit,
     onDeleteNodes: deleteUnlockedNodes,
     canDeleteNode,
   });
@@ -362,7 +362,7 @@ export function NodeCanvas({
     layers: doc.layers,
     send,
     rfInstanceRef,
-    onGraphChange,
+    onGraphEdit,
   });
 
   const {
@@ -387,7 +387,7 @@ export function NodeCanvas({
     graphRef,
     onDeleteNodes: deleteUnlockedNodes,
     canDeleteNode,
-    onGraphChange,
+    onGraphEdit,
     onAddLayerAt,
   });
 
@@ -405,7 +405,7 @@ export function NodeCanvas({
     graph,
     graphRef,
     selectedNodeIds,
-    onGraphChange,
+    onGraphEdit,
   });
 
   const onPaneClick = useCallback(() => {

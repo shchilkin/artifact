@@ -7,6 +7,7 @@ import {
   type Layer,
   MATERIAL_TEXTURE_INPUT_PORTS,
 } from '../../../types/config';
+import type { GraphEditKind } from '../../../utils/documentDispatch';
 import {
   addGraphEdge,
   EXPORT_NODE_ID,
@@ -23,7 +24,7 @@ export interface UseNodeGraphEventsOptions {
   layers: Layer[];
   send: (event: NodeCanvasMachineEvent) => void;
   rfInstanceRef: React.RefObject<ReactFlowInstance | null>;
-  onGraphChange: (graph: CanvasGraph) => void;
+  onGraphEdit: (graph: CanvasGraph, edit: GraphEditKind) => void;
 }
 
 export interface UseNodeGraphEventsResult {
@@ -44,7 +45,7 @@ export function useNodeGraphEvents({
   layers,
   send,
   rfInstanceRef,
-  onGraphChange,
+  onGraphEdit,
 }: UseNodeGraphEventsOptions): UseNodeGraphEventsResult {
   const isValidConnection = useCallback(
     (connection: Connection | RFEdge) => isGraphConnectionAllowed(connection, graphRef.current, layers),
@@ -61,9 +62,9 @@ export function useNodeGraphEvents({
         toId: connection.target,
         toPort: (connection.targetHandle ?? 'in') as GraphEdge['toPort'],
       };
-      onGraphChange(addGraphEdge(graphRef.current, edge));
+      onGraphEdit(addGraphEdge(graphRef.current, edge), 'connect');
     },
-    [onGraphChange, graphRef],
+    [onGraphEdit, graphRef],
   );
 
   const onEdgesDelete = useCallback(
@@ -71,9 +72,9 @@ export function useNodeGraphEvents({
       let g = graphRef.current;
       for (const e of deleted) g = removeGraphEdge(g, e.id);
       send({ type: 'EDGE_IDS_REMOVED', ids: deleted.map((edge) => edge.id) });
-      onGraphChange(g);
+      onGraphEdit(g, 'disconnect');
     },
-    [onGraphChange, graphRef, send],
+    [onGraphEdit, graphRef, send],
   );
 
   const onEdgeClick = useCallback(
@@ -87,12 +88,12 @@ export function useNodeGraphEvents({
 
   const handleOrganizeNodes = useCallback(
     (layers: Layer[]) => {
-      onGraphChange(organizeGraph(graphRef.current, layers, aspect));
+      onGraphEdit(organizeGraph(graphRef.current, layers, aspect), 'organize');
       requestAnimationFrame(() => {
         rfInstanceRef.current?.fitView({ padding: 0.2, duration: 220 });
       });
     },
-    [aspect, onGraphChange, rfInstanceRef, graphRef],
+    [aspect, onGraphEdit, rfInstanceRef, graphRef],
   );
 
   return {

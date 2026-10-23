@@ -285,13 +285,22 @@ Rules:
 
 Undo should represent creative decisions, not implementation details.
 
-Document commits use explicit update modes:
+Every durable edit is a named command in `apps/web/app/utils/documentDispatch.ts`
+(`DocumentCommand`). Each command declares its history policy; callers pick a
+command, never a mode. `useEditorDocument` runs commands with
+`runDocumentCommand` and records history with the pure
+`documentHistoryReducer` (`apps/web/app/utils/documentHistory.ts`); undo and
+redo are events of the same reducer. There is no other document setter.
 
-| Mode | Use |
+| Policy | Use |
 | --- | --- |
-| `snapshot` | Discrete creative actions such as add, delete, duplicate, randomize, or document import |
-| `debounce` | Continuous edits such as sliders, graph node movement, and inspector field drags |
-| `silent` | Internal normalization work, such as node placement on Nodes entry, that should persist but should not create undo history |
+| `snapshot` | Discrete actions: add, delete, duplicate, rename, visibility, areas, connect, disconnect, node moves, Layout, randomize, document import |
+| `debounce` | Continuous edits: sliders, inspector fields, canvas drags, aspect, export settings, camera orbit while dragging. Commits within 400 ms join one undo step |
+| `silent` | Writes that keep every visible result the same: asset references for embedded payloads, and node placement on Nodes entry. A silent command may amend every history entry the same way, so undo cannot bring the old form back |
+
+Node canvas graph edits name what the user did (`GraphEditKind`: connect,
+disconnect, move, organize, area, place, cameraDrag, cameraCommit);
+`GRAPH_EDIT_HISTORY` maps each kind to its policy.
 
 Expected behavior:
 
@@ -299,6 +308,8 @@ Expected behavior:
 - A text/image drag creates one undo entry.
 - A wheel-scale gesture creates one undo entry after idle.
 - Graph node movement creates one undo entry on drag stop.
+- A discrete action right after a gesture keeps the gesture as its own undo
+  step, and undo during a gesture returns to where the gesture started.
 - Selection, hover, menus, camera lock toggles, and gallery view changes do not need undo unless promoted to durable document features.
 - Node placement on Nodes entry (nodes with no stored position, and measured
   cards that intersect a card kept in place) is `silent`: it adds no undo entry,
@@ -306,8 +317,14 @@ Expected behavior:
   recording a creative decision. Cards that overlap nothing never move. The
   toolbar Layout action stays an undoable edit.
 - Entry placement is document content. It writes `graph.positions` into the
-  document and its autosaved `doc` copy. Undo to a snapshot taken before an entry can bring back
-  unplaced or overlapping positions; the next entry places them again.
+  document and its autosaved `doc` copy, and moves the same cards in every
+  history entry that has them, so undo keeps the placed layout.
+- Storing an embedded payload as a local asset swaps the source for a reference
+  to the same bytes. An image source is swapped in history entries too. When
+  storage fails, font, model, and environment payloads are dropped from the
+  current document only (`stripPortableDocumentAssets`); this is the one
+  silent write that can change output, and it happens only when the browser
+  cannot store the asset.
 
 ## Thumbnail invalidation rules
 

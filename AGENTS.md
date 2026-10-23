@@ -86,10 +86,13 @@ The release gate is the command list in `docs/production-readiness.md`
   ranges, and randomizer ranges are derived from it. Each effect has exactly one
   backend (`canvas`, `worker`, or `gpu`); `effectSchema.test.ts` renders every
   effect to enforce this. See `docs/effect-development.md`.
-- Document state lives in `apps/web/app/hooks/useEditorDocument.ts`. Updates go
-  through `snapshot`, `debounce`, or `silent` modes; history is
-  `apps/web/app/utils/documentHistory.ts` (max 50 entries). Durable mutations
-  belong in `apps/web/app/utils/documentCommands.ts` and graph helpers in
+- Document state lives in `apps/web/app/hooks/useEditorDocument.ts`. Every
+  durable edit is a named command in `apps/web/app/utils/documentDispatch.ts`
+  that declares its history policy (`snapshot`, `debounce`, or `silent`);
+  history is the pure reducer in `apps/web/app/utils/documentHistory.ts` (max
+  50 entries), and undo/redo go through it. Add a command instead of setting
+  the document. Pure document transforms live in
+  `apps/web/app/utils/documentCommands.ts` and graph helpers in
   `apps/web/app/utils/nodeGraph.ts`.
 - Loading goes through `normalizeDocument` in
   `apps/web/app/utils/documentPersistence.ts`. It first runs the one-shot schema
@@ -121,8 +124,8 @@ Known core debt (scattered update paths, large files) is tracked in
 ## Invariants
 
 1. Treat documents as immutable: clone (`cloneDocument`) before mutating and
-   commit through the document update flow. Never call the raw setter outside
-   `useEditorDocument`.
+   commit through a document command (`documentDispatch.ts`). A `silent`
+   command must not change any visible result.
 2. In a layer-stack document, layer order is render order. Never reorder layers except by an
    explicit user action.
 3. Keep `CanvasDocument` JSON-serializable. No DOM nodes, canvases, images,

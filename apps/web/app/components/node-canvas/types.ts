@@ -12,6 +12,7 @@ import type {
 } from '../../types/config';
 import type { EffectControlSectionId } from '../../types/effectSchema';
 import type { AddAction } from '../../utils/addActions';
+import type { GraphEditKind } from '../../utils/documentDispatch';
 import type { DocumentUpdateMode } from '../../utils/documentHistory';
 import type { GraphNodePatch } from '../../utils/nodeKinds';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
@@ -50,7 +51,7 @@ export interface NodeCanvasProps {
   onSelectLayer: (id: string | null) => void;
   /** Node to select and center on entry, set by Edit in Nodes. */
   entryFocusNodeId?: string | null;
-  onGraphChange: (graph: CanvasGraph, mode?: DocumentUpdateMode) => void;
+  onGraphEdit: (graph: CanvasGraph, edit: GraphEditKind) => void;
   onUpdateLayer: (id: string, patch: Partial<Layer>) => void;
   onUpdateGraphNode: (id: string, patch: GraphNodePatch) => void;
   onUpdateExportConfig: (patch: Partial<CanvasDocument['export']>) => void;
