@@ -1,15 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DOCUMENT_SCHEMA_VERSION, EFFECT_PRESETS } from '../types/config';
-import {
-  RANDOM_FORMULA_IDS,
-  randomDocument,
-  randomDocumentForFormula,
-  randomDocumentFromSeed,
-  randomEffectLayer,
-  randomEmojiLayer,
-  randomGlobal,
-  randomTextLayer,
-} from './randomConfig';
+import { RANDOM_FORMULA_IDS, randomDocument, randomDocumentForFormula } from './randomConfig';
 
 function expectValidTextAndEffectLayers(doc: ReturnType<typeof randomDocument>) {
   const textLayers = doc.layers.filter((layer) => layer.kind === 'text');
@@ -19,156 +10,6 @@ function expectValidTextAndEffectLayers(doc: ReturnType<typeof randomDocument>) 
     true,
   );
 }
-
-describe('randomGlobal', () => {
-  it('returns a valid GlobalConfig with hex bg and numeric seed in [0, 999999]', () => {
-    const config = randomGlobal();
-    expect(config).toHaveProperty('bg');
-    expect(config).toHaveProperty('seed');
-    expect(typeof config.bg).toBe('string');
-    expect(config.bg).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(typeof config.seed).toBe('number');
-    expect(config.seed).toBeGreaterThanOrEqual(0);
-    expect(config.seed).toBeLessThanOrEqual(999999);
-  });
-
-  it('accepts an optional baseHue and still returns valid config', () => {
-    const config = randomGlobal(180);
-    expect(config.bg).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(config.seed).toBeGreaterThanOrEqual(0);
-    expect(config.seed).toBeLessThanOrEqual(999999);
-  });
-});
-
-describe('randomEmojiLayer', () => {
-  it('returns a layer with kind: emoji', () => {
-    const layer = randomEmojiLayer();
-    expect(layer.kind).toBe('emoji');
-  });
-
-  it('returns a non-empty emojis array', () => {
-    const layer = randomEmojiLayer();
-    expect(Array.isArray(layer.emojis)).toBe(true);
-    expect(layer.emojis.length).toBeGreaterThan(0);
-  });
-
-  it('returns numeric density in [15, 70]', () => {
-    const layer = randomEmojiLayer();
-    expect(typeof layer.density).toBe('number');
-    expect(layer.density).toBeGreaterThanOrEqual(15);
-    expect(layer.density).toBeLessThanOrEqual(70);
-  });
-
-  it('returns numeric minSz in [10, 50]', () => {
-    const layer = randomEmojiLayer();
-    expect(typeof layer.minSz).toBe('number');
-    expect(layer.minSz).toBeGreaterThanOrEqual(10);
-    expect(layer.minSz).toBeLessThanOrEqual(50);
-  });
-
-  it('returns numeric maxSz greater than minSz', () => {
-    const layer = randomEmojiLayer();
-    expect(typeof layer.maxSz).toBe('number');
-    expect(layer.maxSz).toBeGreaterThan(layer.minSz);
-  });
-
-  it('returns numeric blur in [0, 80]', () => {
-    const layer = randomEmojiLayer();
-    expect(typeof layer.blur).toBe('number');
-    expect(layer.blur).toBeGreaterThanOrEqual(0);
-    expect(layer.blur).toBeLessThanOrEqual(80);
-  });
-});
-
-describe('randomEffectLayer', () => {
-  it('returns a layer with kind: effect', () => {
-    const layer = randomEffectLayer();
-    expect(layer.kind).toBe('effect');
-  });
-
-  it('returns all numeric fields >= 0', () => {
-    const layer = randomEffectLayer();
-    const numericFields = [
-      'grain',
-      'dotGrain',
-      'dotGrainSize',
-      'dotGrainDensity',
-      'dotGrainJitter',
-      'scanlines',
-      'scanlineWidth',
-      'rgbSplit',
-      'glitch',
-      'tintOp',
-      'rays',
-      'rayInt',
-      'morphAmt',
-      'morphFreq',
-      'tearAmt',
-      'tearSize',
-      'noiseWarp',
-      'vortex',
-      'barrel',
-      'mirror',
-      'dataMosh',
-      'interlace',
-      'pixelate',
-      'hueShift',
-      'rgbSplit',
-      'vignette',
-      'bloom',
-      'posterize',
-      'filmBurn',
-      'duotone',
-      'halftone',
-      'risoShift',
-      'risoAngle',
-    ] as const;
-
-    for (const field of numericFields) {
-      expect(typeof layer[field]).toBe('number');
-      expect(layer[field]).toBeGreaterThanOrEqual(0);
-    }
-  });
-
-  it('returns string color fields as hex strings', () => {
-    const layer = randomEffectLayer();
-    expect(layer.tint).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(layer.rayColor).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(layer.duoA).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(layer.duoB).toMatch(/^#[0-9a-f]{6}$/i);
-  });
-
-  it('accepts an optional baseHue parameter', () => {
-    const layer = randomEffectLayer(90);
-    expect(layer.kind).toBe('effect');
-  });
-
-  it('returns one focused preset instead of a combined FX layer', () => {
-    const layer = randomEffectLayer();
-    expect(layer.preset).toBeDefined();
-    expect(layer.preset && layer.preset in EFFECT_PRESETS).toBe(true);
-    expect(layer.preset).not.toBe('warp');
-    expect(layer.preset).not.toBe('color');
-    expect(layer.preset).not.toBe('riso');
-  });
-});
-
-describe('randomTextLayer', () => {
-  it('returns a text layer with cover-ready typography fields', () => {
-    const layer = randomTextLayer(120, 'poster');
-
-    expect(layer.kind).toBe('text');
-    expect(layer.name).toBe('Poster Type');
-    expect(layer.content).toBe('POSTER');
-    expect(['BUNGEE', 'ANTON', 'ARCHIVO_BLACK', 'RUBIK_MONO']).toContain(layer.font);
-    expect(layer.size).toBeGreaterThanOrEqual(92);
-    expect(layer.size).toBeLessThanOrEqual(142);
-    expect(layer.x).toBeGreaterThanOrEqual(0.48);
-    expect(layer.x).toBeLessThanOrEqual(0.52);
-    expect(layer.y).toBeGreaterThanOrEqual(0.42);
-    expect(layer.y).toBeLessThanOrEqual(0.58);
-  });
-});
 
 describe('randomDocument', () => {
   it('returns a CanvasDocument with global and layers', () => {
@@ -209,10 +50,6 @@ describe('randomDocument', () => {
       expect(doc.layers.length).toBeGreaterThanOrEqual(4);
       expectValidTextAndEffectLayers(doc);
     }
-  });
-
-  it('creates deterministic documents from a seed for random examples', () => {
-    expect(randomDocumentFromSeed(424242)).toEqual(randomDocumentFromSeed(424242));
   });
 
   it('covers image, type, texture, and print-damage formula shapes', () => {

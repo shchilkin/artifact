@@ -1,18 +1,7 @@
-import type {
-  AspectRatio,
-  CanvasDocument,
-  EffectLayer,
-  EffectPreset,
-  EmojiLayer,
-  GlobalConfig,
-  NoiseType,
-  TextLayer,
-} from '../types/config';
+import type { AspectRatio, CanvasDocument, EffectLayer, EffectPreset, NoiseType, TextLayer } from '../types/config';
 import {
-  ALL_EMOJIS,
   DEFAULT_EXPORT,
   DOCUMENT_SCHEMA_VERSION,
-  EFFECT_PRESET_MENU_ORDER,
   makeDocument,
   makeEffectPresetLayer,
   makeEmojiLayer,
@@ -21,14 +10,6 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
-import {
-  EFFECT_PRESET_VARIANTS,
-  type EffectColorRandom,
-  type EffectNumberRandom,
-  type EffectParamKey,
-  effectParam,
-  presetParamKeys,
-} from '../types/effectSchema';
 
 type Rng = () => number;
 
@@ -59,14 +40,6 @@ function randomHsl(
   return hslToHex(hue, rand(satRange[0], satRange[1], rng), rand(litRange[0], litRange[1], rng));
 }
 
-function chance(probability: number, rng: Rng = Math.random): boolean {
-  return rng() < probability;
-}
-
-function optionalRand(probability: number, min: number, max: number, rng: Rng = Math.random): number {
-  return chance(probability, rng) ? rand(min, max, rng) : 0;
-}
-
 function pick<T>(items: readonly T[], rng: Rng = Math.random): T {
   return items[rand(0, items.length - 1, rng)];
 }
@@ -83,9 +56,7 @@ function lcg(seed: number): Rng {
   };
 }
 
-const TEXT_RANDOM_ROLES = ['poster', 'title', 'subtitle', 'label', 'credit'] as const;
-
-type TextRandomRole = (typeof TEXT_RANDOM_ROLES)[number];
+type TextRandomRole = 'poster' | 'title' | 'subtitle' | 'label' | 'credit';
 
 interface TextRandomRoleConfig {
   fonts: readonly TextLayer['font'][];
@@ -175,32 +146,6 @@ const TEXT_ROLE_CONFIGS: Record<TextRandomRole, TextRandomRoleConfig> = {
   },
 };
 
-export function randomGlobal(baseHue?: number, rng: Rng = Math.random): Omit<GlobalConfig, 'aspect'> {
-  const h = baseHue ?? rand(0, 359, rng);
-  return {
-    bg: randomHsl(h, [20, 55], [3, 14], rng),
-    seed: Math.floor(rng() * 999999),
-  };
-}
-
-export function randomEmojiLayer(rng: Rng = Math.random): EmojiLayer {
-  const pool = [...ALL_EMOJIS].sort(() => rng() - 0.5);
-  const minSz = rand(10, 50, rng);
-  return makeEmojiLayer({
-    emojis: pool.slice(0, rand(2, 6, rng)),
-    density: rand(15, 70, rng),
-    minSz,
-    maxSz: rand(Math.max(minSz + 10, 40), 130, rng),
-    blur: 0,
-  });
-}
-
-export function randomEffectLayer(baseHue?: number): EffectLayer {
-  const baseHueValue = baseHue ?? rand(0, 359);
-  const preset = ALL_PRESETS[Math.floor(Math.random() * ALL_PRESETS.length)];
-  return randomEffectPresetLayer(preset, baseHueValue);
-}
-
 function randomTextPatch(
   role: TextRandomRole,
   baseHue: number,
@@ -233,13 +178,6 @@ function randomTextPatch(
   };
 }
 
-export function randomTextLayer(baseHue?: number, role?: TextRandomRole, rng: Rng = Math.random): TextLayer {
-  const baseHueValue = baseHue ?? rand(0, 359, rng);
-  const textRole = role ?? pick(TEXT_RANDOM_ROLES, rng);
-  return makeTextLayer(randomTextPatch(textRole, baseHueValue, undefined, rng));
-}
-
-const ALL_PRESETS: EffectPreset[] = EFFECT_PRESET_MENU_ORDER;
 const ALL_ASPECTS: AspectRatio[] = ['1:1', '4:5', '9:16', '16:9'];
 const SAMPLE_IMAGE_SRC = '/girl_image_landing.png';
 
@@ -458,58 +396,6 @@ export function randomDocumentForFormula(
     layers,
     export: { ...DEFAULT_EXPORT },
   });
-}
-
-export function randomDocumentFromSeed(seed: number): CanvasDocument {
-  const rng = lcg(seed);
-  const formula = pick(RANDOM_FORMULA_IDS, rng);
-  return randomDocumentForFormula(formula, seed);
-}
-
-type EffectRandomSpec = EffectNumberRandom | EffectColorRandom;
-
-/** Randomizer ranges of a preset: its shown parameters' own `random`, then the preset variant's overrides. */
-function presetRandomSpecs(preset: EffectPreset): [EffectParamKey, EffectRandomSpec][] {
-  const specs = new Map<EffectParamKey, EffectRandomSpec>();
-  for (const key of presetParamKeys(preset)) {
-    const { random } = effectParam(key);
-    if (random) specs.set(key, random);
-  }
-  for (const [key, random] of Object.entries(EFFECT_PRESET_VARIANTS[preset]?.random ?? {})) {
-    specs.set(key as EffectParamKey, random);
-  }
-  return [...specs];
-}
-
-function randomEffectValue(spec: EffectRandomSpec, baseHue: number, accentHue: number): number | string {
-  if ('hue' in spec) {
-    const hue = spec.hue === 'base' ? baseHue : spec.hue === 'accent' ? accentHue : rand(0, 359);
-    return randomHsl(
-      (hue + (spec.hueOffset ?? 0)) % 360,
-      [spec.saturation[0], spec.saturation[1]],
-      [spec.lightness[0], spec.lightness[1]],
-    );
-  }
-  if ('pick' in spec) return pick(spec.pick);
-  if ('chance' in spec) return optionalRand(spec.chance, spec.range[0], spec.range[1]);
-  return rand(spec[0], spec[1]);
-}
-
-/** Random values for a preset's parameters, from the schema's randomizer ranges. */
-export function randomEffectPresetPatch(
-  preset: EffectPreset,
-  baseHue: number,
-  accentHue: number,
-): Partial<EffectLayer> {
-  return Object.fromEntries(
-    presetRandomSpecs(preset).map(([key, spec]) => [key, randomEffectValue(spec, baseHue, accentHue)]),
-  ) as Partial<EffectLayer>;
-}
-
-function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectLayer {
-  const base = makeEffectPresetLayer(preset);
-  const ah = (baseHue + rand(120, 240)) % 360;
-  return { ...base, ...randomEffectPresetPatch(preset, baseHue, ah) };
 }
 
 export function randomDocument(): CanvasDocument {

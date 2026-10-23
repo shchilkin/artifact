@@ -8,13 +8,13 @@ update data, rendering, controls, docs, and tests in one slice.
 
 - `apps/web/app/types/effectSchema.ts` is the source of truth. A new parameter
   is one `EFFECT_PARAMS` entry (owning effect, label, default, slider range or
-  color, value format, randomizer range) plus its place in an `EFFECT_SECTIONS`
+  color, value format, help key) plus its place in an `EFFECT_SECTIONS`
   list. A new effect also gets an `EFFECTS` entry: its backend
   (`canvas` main-thread pass, `worker` pixel kernel, or `gpu` PixiJS filter),
   the amounts that turn it on, and its help family. `EffectLayer`,
   `DEFAULT_EFFECT_LAYER_PROPS`, `ZERO_EFFECT`, the backend activation checks,
   inspector controls, preset splitting (`effectPresetPatch.ts`), docs ranges
-  (`effectDocs.ts`), help families, and preset randomizers are derived from it.
+  (`effectDocs.ts`), and help families are derived from it.
 - The render code: the Canvas 2D pass in
   `apps/web/app/utils/render/layers/index.ts`, a kernel in
   `apps/web/app/utils/render/workers/effectPixelTransform.ts`, or a filter in
@@ -24,8 +24,7 @@ update data, rendering, controls, docs, and tests in one slice.
 - A new focused preset: `EffectPreset`, `EFFECT_PRESETS` (name, icon, values),
   `EFFECT_PRESET_MENU_ORDER`, and its description in `effectDocs.ts`. A preset
   that is a variant of another effect (like the codec block presets of Bad
-  Stream) goes in `EFFECT_PRESET_VARIANTS` with the parameters it shows and
-  its own randomizer ranges.
+  Stream) goes in `EFFECT_PRESET_VARIANTS` with the parameters it shows.
 - Optional copy: slider help in `apps/web/app/utils/effectInfo.ts`, a docs note
   for a parameter in `effectDocs.ts`, and a section summary in
   `components/node-canvas/inspector/effectSectionModel.ts`.

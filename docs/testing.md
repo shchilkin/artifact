@@ -102,7 +102,7 @@ markup.
 | `apps/web/app/utils/migrations/*.test.ts` | one fixture test per schema migration step, the step registry, and the pinned legacy AI-shader GLSL |
 | `apps/web/app/utils/documentAssets.test.ts` | imported image/font/model/environment dependency inventory, portable document hydration/storage boundaries, stable 3D asset ids, storage-unavailable fallback |
 | `apps/web/app/utils/documentPackage.test.ts` | editable package manifest, schema-v3 serialization, clean-storage asset restoration, and legacy missing-3D-payload compatibility |
-| `apps/web/app/utils/randomConfig.test.ts` | `randomDocument`, `randomEffectLayer` |
+| `apps/web/app/utils/randomConfig.test.ts` | `randomDocument` and its formulas |
 | `apps/web/app/types/effectSchema.test.ts` | effect parameter schema: one control per parameter, consistent ranges, every preset mapped to an effect, and each effect rendered on exactly its declared backend (GPU filters, pixel-worker operations, or Canvas 2D pixels) |
 | `apps/web/app/utils/nodeGraph.test.ts` | graph mutation helpers, cycle prevention, layout, connected ports |
 | `apps/web/app/utils/documentHistory.test.ts` | history reducer: snapshots, gestures, undo/redo around unsettled gestures, silent amendments, history cap |

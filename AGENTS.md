@@ -82,8 +82,8 @@ The release gate is the command list in `docs/production-readiness.md`
   keep it in sync. Renderer internals live under `apps/web/app/utils/render/`.
 - Effect layers run a Canvas 2D / worker pass, then an optional PixiJS filter
   pass. Effect parameters are declared once in `apps/web/app/types/effectSchema.ts`
-  (`EFFECT_PARAMS`, `EFFECTS`): defaults, inspector controls, backend, docs
-  ranges, and randomizer ranges are derived from it. Each effect has exactly one
+  (`EFFECT_PARAMS`, `EFFECTS`): defaults, inspector controls, backend, and docs
+  ranges are derived from it. Each effect has exactly one
   backend (`canvas`, `worker`, or `gpu`); `effectSchema.test.ts` renders every
   effect to enforce this. See `docs/effect-development.md`.
 - Document state lives in `apps/web/app/hooks/useEditorDocument.ts`. Every

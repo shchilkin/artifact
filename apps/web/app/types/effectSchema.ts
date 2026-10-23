@@ -1,7 +1,7 @@
 /**
  * The effect parameter schema: every `EffectLayer` parameter, the render effect that owns it, and how the editor
- * shows and randomizes it. Defaults, zero values, backend activation lists, inspector controls, preset splitting,
- * effect docs ranges, and randomization ranges are derived from these tables. Pixels come from the effect's render
+ * shows it. Defaults, zero values, backend activation lists, inspector controls, preset splitting, and effect
+ * docs ranges are derived from these tables. Pixels come from the effect's render
  * code (`utils/render/layers/index.ts`, `utils/render/workers/effectPixelTransform.ts`, `utils/pixiFilters.ts`).
  *
  * This module is a leaf: it imports only types.
@@ -94,20 +94,6 @@ export const EFFECTS = {
 
 export type EffectId = keyof typeof EFFECTS;
 
-/** A random value: a whole number in `[min, max]`, one of `pick`, or `range` with probability `chance` (else 0). */
-export type EffectNumberRandom =
-  | readonly [number, number]
-  | { readonly pick: readonly number[] }
-  | { readonly chance: number; readonly range: readonly [number, number] };
-
-/** A random color around the randomizer's base hue, its accent hue, or any hue. */
-export interface EffectColorRandom {
-  hue: 'base' | 'accent' | 'any';
-  hueOffset?: number;
-  saturation: readonly [number, number];
-  lightness: readonly [number, number];
-}
-
 interface EffectParamBase {
   effect: EffectId;
   /** Inspector label. */
@@ -124,19 +110,16 @@ export interface EffectNumberParam extends EffectParamBase {
   format?: EffectSliderValueFormat;
   /** `EFFECT_META` key of the slider's help, when it is not the parameter key. */
   help?: string;
-  /** Range the effect's preset randomizer draws from. */
-  random?: EffectNumberRandom;
 }
 
 export interface EffectColorParam extends EffectParamBase {
   type: 'color';
   default: string;
-  random?: EffectColorRandom;
 }
 
 export type EffectParam = EffectNumberParam | EffectColorParam;
 
-type NumberParamOptions = Pick<EffectNumberParam, 'overrideMax' | 'format' | 'help' | 'random'>;
+type NumberParamOptions = Pick<EffectNumberParam, 'overrideMax' | 'format' | 'help'>;
 
 function num(
   effect: EffectId,
@@ -149,157 +132,131 @@ function num(
   return { type: 'number', effect, label, default: defaultValue, min, max, ...options };
 }
 
-function color(
-  effect: EffectId,
-  label: string,
-  defaultValue: string,
-  options: Pick<EffectColorParam, 'random'> = {},
-): EffectColorParam {
-  return { type: 'color', effect, label, default: defaultValue, ...options };
+function color(effect: EffectId, label: string, defaultValue: string): EffectColorParam {
+  return { type: 'color', effect, label, default: defaultValue };
 }
 
 /** Every effect parameter, in stored field order. A parameter belongs to exactly one effect and one inspector section. */
 export const EFFECT_PARAMS = {
-  grain: num('grain', 'Grain', 0, 0, 50, { overrideMax: 100, format: 'percent', random: [8, 42] }),
-  dotGrain: num('dotGrain', 'Dot Grain', 0, 0, 100, { format: 'percent', random: [45, 90] }),
-  dotGrainSize: num('dotGrain', 'Dot Size', 4, 1, 9, { overrideMax: 18, format: 'px', random: [2, 7] }),
-  dotGrainDensity: num('dotGrain', 'Density', 62, 0, 100, { format: 'percent', random: [40, 85] }),
-  dotGrainJitter: num('dotGrain', 'Jitter', 35, 0, 100, { format: 'percent', random: [20, 75] }),
-  scanlines: num('scanlines', 'Scanlines', 0, 0, 100, { format: 'percent', random: [5, 80] }),
-  scanlineWidth: num('scanlines', 'Line Width', 1, 1, 12, { format: 'px', random: [1, 4] }),
-  rgbSplit: num('rgbSplit', 'RGB Split', 0, 0, 30, { format: 'px', random: [0, 12] }),
-  glitch: num('glitch', 'VHS Streaks', 0, 0, 24, { random: [0, 18] }),
-  badStream: num('badStream', 'Compression', 0, 0, 100, { format: 'percent', random: [35, 88] }),
-  badStreamBlockSize: num('badStream', 'Macroblocks', 48, 12, 96, { overrideMax: 180, format: 'px', random: [28, 86] }),
-  badStreamDetail: num('badStream', 'Detail Blocks', 42, 0, 100, { format: 'percent', random: [18, 72] }),
-  badStreamSmear: num('badStream', 'Smear', 35, 0, 100, { format: 'percent', random: [10, 68] }),
-  badStreamChroma: num('badStream', 'Chroma Drift', 28, 0, 100, { format: 'percent', random: [8, 56] }),
-  badStreamDarkness: num('badStream', 'Darkness', 38, 0, 100, { format: 'percent', random: [18, 72] }),
-  pixelStretch: num('pixelStretch', 'Stretch', 0, 0, 100, { format: 'percent', random: [35, 90] }),
-  pixelStretchLength: num('pixelStretch', 'Length', 24, 1, 80, { overrideMax: 160, format: 'px', random: [12, 64] }),
-  pixelStretchAngle: num('pixelStretch', 'Angle', 0, 0, 180, { format: 'deg', random: [0, 180] }),
-  tint: color('tint', 'Tint Color', '#350055', { random: { hue: 'any', saturation: [40, 80], lightness: [10, 28] } }),
-  tintOp: num('tint', 'Opacity', 0, 0, 80, { format: 'percent', random: [15, 65] }),
-  rays: num('rays', 'Count', 0, 0, 96, { overrideMax: 240, random: [4, 48] }),
-  rayInt: num('rays', 'Intensity', 0, 0, 100, { format: 'percent', random: [20, 90] }),
-  rayColor: color('rays', 'Ray Color', '#bb00ff', {
-    random: { hue: 'accent', saturation: [70, 100], lightness: [55, 80] },
-  }),
-  morphAmt: num('morph', 'Liquid Morph', 0, 0, 100, { format: 'percent', random: [10, 80] }),
-  morphFreq: num('morph', 'Morph Freq', 5, 1, 20, { random: [1, 15] }),
-  tearAmt: num('tear', 'Chunk Tear', 0, 0, 20, { random: [1, 15] }),
-  tearSize: num('tear', 'Tear Size', 3, 1, 20, { format: 'px', random: [1, 12] }),
-  noiseWarp: num('noiseWarp', 'Noise Warp', 0, 0, 100, { format: 'percent', random: [10, 70] }),
-  vortex: num('vortex', 'Vortex', 0, 0, 100, { format: 'percent', random: [5, 60] }),
-  barrel: num('barrel', 'Barrel', 0, 0, 100, { format: 'percent', random: [5, 70] }),
-  mirror: num('mirror', 'Mirror', 0, 0, 3, { random: [1, 3] }),
-  dataMosh: num('dataMosh', 'Data Mosh', 0, 0, 100, { format: 'percent', random: [10, 70] }),
-  interlace: num('interlace', 'Interlace', 0, 0, 100, { format: 'percent', random: [10, 70] }),
+  grain: num('grain', 'Grain', 0, 0, 50, { overrideMax: 100, format: 'percent' }),
+  dotGrain: num('dotGrain', 'Dot Grain', 0, 0, 100, { format: 'percent' }),
+  dotGrainSize: num('dotGrain', 'Dot Size', 4, 1, 9, { overrideMax: 18, format: 'px' }),
+  dotGrainDensity: num('dotGrain', 'Density', 62, 0, 100, { format: 'percent' }),
+  dotGrainJitter: num('dotGrain', 'Jitter', 35, 0, 100, { format: 'percent' }),
+  scanlines: num('scanlines', 'Scanlines', 0, 0, 100, { format: 'percent' }),
+  scanlineWidth: num('scanlines', 'Line Width', 1, 1, 12, { format: 'px' }),
+  rgbSplit: num('rgbSplit', 'RGB Split', 0, 0, 30, { format: 'px' }),
+  glitch: num('glitch', 'VHS Streaks', 0, 0, 24),
+  badStream: num('badStream', 'Compression', 0, 0, 100, { format: 'percent' }),
+  badStreamBlockSize: num('badStream', 'Macroblocks', 48, 12, 96, { overrideMax: 180, format: 'px' }),
+  badStreamDetail: num('badStream', 'Detail Blocks', 42, 0, 100, { format: 'percent' }),
+  badStreamSmear: num('badStream', 'Smear', 35, 0, 100, { format: 'percent' }),
+  badStreamChroma: num('badStream', 'Chroma Drift', 28, 0, 100, { format: 'percent' }),
+  badStreamDarkness: num('badStream', 'Darkness', 38, 0, 100, { format: 'percent' }),
+  pixelStretch: num('pixelStretch', 'Stretch', 0, 0, 100, { format: 'percent' }),
+  pixelStretchLength: num('pixelStretch', 'Length', 24, 1, 80, { overrideMax: 160, format: 'px' }),
+  pixelStretchAngle: num('pixelStretch', 'Angle', 0, 0, 180, { format: 'deg' }),
+  tint: color('tint', 'Tint Color', '#350055'),
+  tintOp: num('tint', 'Opacity', 0, 0, 80, { format: 'percent' }),
+  rays: num('rays', 'Count', 0, 0, 96, { overrideMax: 240 }),
+  rayInt: num('rays', 'Intensity', 0, 0, 100, { format: 'percent' }),
+  rayColor: color('rays', 'Ray Color', '#bb00ff'),
+  morphAmt: num('morph', 'Liquid Morph', 0, 0, 100, { format: 'percent' }),
+  morphFreq: num('morph', 'Morph Freq', 5, 1, 20),
+  tearAmt: num('tear', 'Chunk Tear', 0, 0, 20),
+  tearSize: num('tear', 'Tear Size', 3, 1, 20, { format: 'px' }),
+  noiseWarp: num('noiseWarp', 'Noise Warp', 0, 0, 100, { format: 'percent' }),
+  vortex: num('vortex', 'Vortex', 0, 0, 100, { format: 'percent' }),
+  barrel: num('barrel', 'Barrel', 0, 0, 100, { format: 'percent' }),
+  mirror: num('mirror', 'Mirror', 0, 0, 3),
+  dataMosh: num('dataMosh', 'Data Mosh', 0, 0, 100, { format: 'percent' }),
+  interlace: num('interlace', 'Interlace', 0, 0, 100, { format: 'percent' }),
   retroResolution: num('retroResolution', 'Longest Edge', 0, 8, 512, {
     overrideMax: 1024,
     format: 'px',
-    random: { pick: [160, 240, 320, 512] },
   }),
-  pixelate: num('pixelate', 'Block Size', 0, 0, 20, { overrideMax: 80, format: 'px', random: [2, 10] }),
-  hueShift: num('hueShift', 'Hue Shift', 0, 0, 360, { format: 'deg', random: [10, 350] }),
-  vignette: num('vignette', 'Vignette', 0, 0, 100, { format: 'percent', random: [0, 80] }),
-  bloom: num('bloom', 'Bloom', 0, 0, 100, { format: 'percent', random: [15, 80] }),
-  posterize: num('posterize', 'Posterize', 0, 0, 16, { format: 'bands', random: [3, 12] }),
-  indexedPalette: num('indexedPalette', 'Palette Mix', 0, 0, 100, { format: 'percent', random: [65, 100] }),
-  indexedPaletteCount: num('indexedPalette', 'Color Count', 6, 2, 6, { format: 'steps', random: [3, 6] }),
+  pixelate: num('pixelate', 'Block Size', 0, 0, 20, { overrideMax: 80, format: 'px' }),
+  hueShift: num('hueShift', 'Hue Shift', 0, 0, 360, { format: 'deg' }),
+  vignette: num('vignette', 'Vignette', 0, 0, 100, { format: 'percent' }),
+  bloom: num('bloom', 'Bloom', 0, 0, 100, { format: 'percent' }),
+  posterize: num('posterize', 'Posterize', 0, 0, 16, { format: 'bands' }),
+  indexedPalette: num('indexedPalette', 'Palette Mix', 0, 0, 100, { format: 'percent' }),
+  indexedPaletteCount: num('indexedPalette', 'Color Count', 6, 2, 6, { format: 'steps' }),
   indexedColorA: color('indexedPalette', 'Color 1', '#12002b'),
   indexedColorB: color('indexedPalette', 'Color 2', '#3b1590'),
   indexedColorC: color('indexedPalette', 'Color 3', '#d400b8'),
   indexedColorD: color('indexedPalette', 'Color 4', '#ff1d1d'),
   indexedColorE: color('indexedPalette', 'Color 5', '#f6c400'),
   indexedColorF: color('indexedPalette', 'Color 6', '#fff1df'),
-  gradientMap: num('gradientMap', 'Map Mix', 0, 0, 100, { format: 'percent', random: [45, 95] }),
-  gradientMapShadow: color('gradientMap', 'Shadow', '#0d0033', {
-    random: { hue: 'base', saturation: [40, 80], lightness: [3, 14] },
-  }),
-  gradientMapMid: color('gradientMap', 'Midtone', '#9c5a13', {
-    random: { hue: 'base', hueOffset: 70, saturation: [40, 90], lightness: [28, 48] },
-  }),
-  gradientMapHighlight: color('gradientMap', 'Highlight', '#00e6cc', {
-    random: { hue: 'accent', saturation: [60, 100], lightness: [58, 86] },
-  }),
-  channelMixer: num('channelMixer', 'Mixer', 0, 0, 100, { format: 'percent', random: [35, 90] }),
-  channelRedMix: num('channelMixer', 'Red Mix', 45, -100, 100, { format: 'percent', random: [-20, 80] }),
-  channelGreenMix: num('channelMixer', 'Green Mix', 35, -100, 100, { format: 'percent', random: [-20, 80] }),
-  channelBlueMix: num('channelMixer', 'Blue Mix', 25, -100, 100, { format: 'percent', random: [-20, 80] }),
-  filmBurn: num('filmBurn', 'Film Burn', 0, 0, 100, { format: 'percent', random: [20, 90] }),
-  duotone: num('duotone', 'Duotone', 0, 0, 100, { format: 'percent', random: [40, 90] }),
-  duoA: color('duotone', 'Shadow Color', '#0a0020', {
-    random: { hue: 'base', saturation: [30, 60], lightness: [3, 12] },
-  }),
-  duoB: color('duotone', 'Light Color', '#ff6ec7', {
-    random: { hue: 'accent', saturation: [60, 100], lightness: [55, 85] },
-  }),
-  halftone: num('halftone', 'Halftone', 0, 0, 30, { format: 'px', random: [5, 20] }),
-  risoShift: num('risoShift', 'Misreg Shift', 0, 0, 24, { overrideMax: 60, format: 'px', random: [4, 18] }),
-  risoAngle: num('risoShift', 'Misreg Angle', 15, 0, 360, { format: 'deg', random: [0, 360] }),
-  blurAmt: num('blur', 'Blur', 0, 0, 100, { format: 'px', help: 'blur', random: [10, 70] }),
-  threshold: num('threshold', 'Cutoff', 0, 0, 100, { format: 'percent', random: [30, 70] }),
-  edgeCrush: num('edgeCrush', 'Alpha Crush', 0, 0, 100, { format: 'percent', random: [35, 85] }),
-  silhouetteCrush: num('silhouetteCrush', 'Silhouette Crush', 0, 0, 100, { format: 'percent', random: [35, 85] }),
-  edgeDetect: num('edgeDetect', 'Linework', 0, 0, 100, { format: 'percent', random: [40, 90] }),
-  bokehBlur: num('bokehBlur', 'Bokeh Blur', 0, 0, 28, { overrideMax: 60, format: 'px', random: [6, 20] }),
-  bokehThreshold: num('bokehBlur', 'Highlight Gate', 68, 0, 100, { format: 'percent', random: [55, 85] }),
-  hatching: num('hatching', 'Hatching', 0, 0, 100, { format: 'percent', random: [35, 90] }),
-  hatchScale: num('hatching', 'Line Step', 9, 3, 28, { overrideMax: 48, format: 'px', random: [5, 16] }),
-  hatchAngle: num('hatching', 'Angle', 35, 0, 180, { format: 'deg', random: [0, 180] }),
-  gooeyMerge: num('gooeyMerge', 'Merge', 0, 0, 100, { format: 'percent', random: [35, 90] }),
-  gooeyRadius: num('gooeyMerge', 'Radius', 8, 1, 40, { overrideMax: 80, format: 'px', random: [5, 18] }),
-  gooeyThreshold: num('gooeyMerge', 'Threshold', 46, 0, 100, { format: 'percent', random: [35, 65] }),
+  gradientMap: num('gradientMap', 'Map Mix', 0, 0, 100, { format: 'percent' }),
+  gradientMapShadow: color('gradientMap', 'Shadow', '#0d0033'),
+  gradientMapMid: color('gradientMap', 'Midtone', '#9c5a13'),
+  gradientMapHighlight: color('gradientMap', 'Highlight', '#00e6cc'),
+  channelMixer: num('channelMixer', 'Mixer', 0, 0, 100, { format: 'percent' }),
+  channelRedMix: num('channelMixer', 'Red Mix', 45, -100, 100, { format: 'percent' }),
+  channelGreenMix: num('channelMixer', 'Green Mix', 35, -100, 100, { format: 'percent' }),
+  channelBlueMix: num('channelMixer', 'Blue Mix', 25, -100, 100, { format: 'percent' }),
+  filmBurn: num('filmBurn', 'Film Burn', 0, 0, 100, { format: 'percent' }),
+  duotone: num('duotone', 'Duotone', 0, 0, 100, { format: 'percent' }),
+  duoA: color('duotone', 'Shadow Color', '#0a0020'),
+  duoB: color('duotone', 'Light Color', '#ff6ec7'),
+  halftone: num('halftone', 'Halftone', 0, 0, 30, { format: 'px' }),
+  risoShift: num('risoShift', 'Misreg Shift', 0, 0, 24, { overrideMax: 60, format: 'px' }),
+  risoAngle: num('risoShift', 'Misreg Angle', 15, 0, 360, { format: 'deg' }),
+  blurAmt: num('blur', 'Blur', 0, 0, 100, { format: 'px', help: 'blur' }),
+  threshold: num('threshold', 'Cutoff', 0, 0, 100, { format: 'percent' }),
+  edgeCrush: num('edgeCrush', 'Alpha Crush', 0, 0, 100, { format: 'percent' }),
+  silhouetteCrush: num('silhouetteCrush', 'Silhouette Crush', 0, 0, 100, { format: 'percent' }),
+  edgeDetect: num('edgeDetect', 'Linework', 0, 0, 100, { format: 'percent' }),
+  bokehBlur: num('bokehBlur', 'Bokeh Blur', 0, 0, 28, { overrideMax: 60, format: 'px' }),
+  bokehThreshold: num('bokehBlur', 'Highlight Gate', 68, 0, 100, { format: 'percent' }),
+  hatching: num('hatching', 'Hatching', 0, 0, 100, { format: 'percent' }),
+  hatchScale: num('hatching', 'Line Step', 9, 3, 28, { overrideMax: 48, format: 'px' }),
+  hatchAngle: num('hatching', 'Angle', 35, 0, 180, { format: 'deg' }),
+  gooeyMerge: num('gooeyMerge', 'Merge', 0, 0, 100, { format: 'percent' }),
+  gooeyRadius: num('gooeyMerge', 'Radius', 8, 1, 40, { overrideMax: 80, format: 'px' }),
+  gooeyThreshold: num('gooeyMerge', 'Threshold', 46, 0, 100, { format: 'percent' }),
   gradMix: num('gradientOverlay', 'Overlay Mix', 0, 0, 100, {
     format: 'percent',
     help: 'gradientOverlay',
-    random: [30, 80],
   }),
-  gradA: color('gradientOverlay', 'Start Color', '#0a0020', {
-    random: { hue: 'base', saturation: [40, 80], lightness: [10, 30] },
-  }),
-  gradB: color('gradientOverlay', 'End Color', '#ff6ec7', {
-    random: { hue: 'accent', saturation: [60, 100], lightness: [55, 85] },
-  }),
-  gradAngle: num('gradientOverlay', 'Direction', 0, 0, 360, { format: 'deg', random: [0, 360] }),
-  sepia: num('sepia', 'Sepia', 0, 0, 100, { format: 'percent', random: [40, 90] }),
-  neonGlow: num('neonGlow', 'Neon Glow', 0, 0, 100, { format: 'percent', random: [25, 80] }),
-  neonColor: color('neonGlow', 'Glow Color', '#ff00ff', {
-    random: { hue: 'accent', saturation: [80, 100], lightness: [50, 80] },
-  }),
-  zoomBlur: num('zoomBlur', 'Zoom Blur', 0, 0, 100, { format: 'percent', random: [15, 65] }),
-  vhsTracking: num('vhsTracking', 'VHS Tracking', 0, 0, 100, { format: 'percent', random: [10, 60] }),
-  dither: num('dither', 'Dither', 0, 0, 70, { overrideMax: 100, format: 'percent', random: [18, 54] }),
-  infrared: num('infrared', 'Infrared', 0, 0, 100, { format: 'percent', random: [40, 90] }),
-  ca: num('ca', 'Radial CA', 0, 0, 40, { format: 'px', random: [5, 25] }),
-  waveAmt: num('wave', 'Wave', 0, 0, 80, { format: 'px', random: [8, 45] }),
-  waveFreq: num('wave', 'Wave Freq', 3, 1, 24, { random: [1, 8] }),
-  matte: num('matte', 'Matte', 0, 0, 100, { format: 'percent', random: [15, 65] }),
-  overprint: num('overprint', 'Overprint', 0, 0, 100, { format: 'percent', random: [10, 55] }),
-  solarize: num('solarize', 'Solarize', 0, 0, 100, { format: 'percent', random: [30, 80] }),
-  bleachBypass: num('bleachBypass', 'Bleach', 0, 0, 100, { format: 'percent', random: [20, 70] }),
-  cyanotype: num('cyanotype', 'Cyanotype', 0, 0, 100, { format: 'percent', random: [20, 80] }),
-  splitToneAmt: num('splitTone', 'Split Tone', 0, 0, 100, { format: 'percent', random: [20, 70] }),
+  gradA: color('gradientOverlay', 'Start Color', '#0a0020'),
+  gradB: color('gradientOverlay', 'End Color', '#ff6ec7'),
+  gradAngle: num('gradientOverlay', 'Direction', 0, 0, 360, { format: 'deg' }),
+  sepia: num('sepia', 'Sepia', 0, 0, 100, { format: 'percent' }),
+  neonGlow: num('neonGlow', 'Neon Glow', 0, 0, 100, { format: 'percent' }),
+  neonColor: color('neonGlow', 'Glow Color', '#ff00ff'),
+  zoomBlur: num('zoomBlur', 'Zoom Blur', 0, 0, 100, { format: 'percent' }),
+  vhsTracking: num('vhsTracking', 'VHS Tracking', 0, 0, 100, { format: 'percent' }),
+  dither: num('dither', 'Dither', 0, 0, 70, { overrideMax: 100, format: 'percent' }),
+  infrared: num('infrared', 'Infrared', 0, 0, 100, { format: 'percent' }),
+  ca: num('ca', 'Radial CA', 0, 0, 40, { format: 'px' }),
+  waveAmt: num('wave', 'Wave', 0, 0, 80, { format: 'px' }),
+  waveFreq: num('wave', 'Wave Freq', 3, 1, 24),
+  matte: num('matte', 'Matte', 0, 0, 100, { format: 'percent' }),
+  overprint: num('overprint', 'Overprint', 0, 0, 100, { format: 'percent' }),
+  solarize: num('solarize', 'Solarize', 0, 0, 100, { format: 'percent' }),
+  bleachBypass: num('bleachBypass', 'Bleach', 0, 0, 100, { format: 'percent' }),
+  cyanotype: num('cyanotype', 'Cyanotype', 0, 0, 100, { format: 'percent' }),
+  splitToneAmt: num('splitTone', 'Split Tone', 0, 0, 100, { format: 'percent' }),
   splitShadow: color('splitTone', 'Shadow', '#001a4f'),
   splitHighlight: color('splitTone', 'Highlight', '#ff8040'),
-  rippleAmt: num('ripple', 'Ripple', 0, 0, 100, { format: 'percent', random: [10, 60] }),
-  rippleFreq: num('ripple', 'Ripple Freq', 3, 1, 24, { random: [1, 8] }),
-  patternRefraction: num('patternRefraction', 'Refraction', 0, 0, 100, { format: 'percent', random: [35, 85] }),
+  rippleAmt: num('ripple', 'Ripple', 0, 0, 100, { format: 'percent' }),
+  rippleFreq: num('ripple', 'Ripple Freq', 3, 1, 24),
+  patternRefraction: num('patternRefraction', 'Refraction', 0, 0, 100, { format: 'percent' }),
   patternRefractionScale: num('patternRefraction', 'Pattern Scale', 16, 4, 80, {
     overrideMax: 160,
     format: 'px',
-    random: [8, 36],
   }),
-  patternRefractionAngle: num('patternRefraction', 'Angle', 35, 0, 180, { format: 'deg', random: [0, 180] }),
-  kaleidoscope: num('kaleidoscope', 'Kaleidoscope', 0, 0, 100, { format: 'percent', random: [20, 80] }),
-  squeezeX: num('squeeze', 'Squeeze X', 0, -80, 80, { format: 'percent', random: { chance: 0.4, range: [-60, 60] } }),
-  squeezeY: num('squeeze', 'Squeeze Y', 0, -80, 80, { format: 'percent', random: { chance: 0.4, range: [-60, 60] } }),
-  emboss: num('emboss', 'Emboss', 0, 0, 100, { format: 'percent', random: [20, 80] }),
-  linocut: num('linocut', 'Linocut', 0, 0, 100, { format: 'percent', random: [20, 80] }),
-  fog: num('fog', 'Haze', 0, 0, 100, { format: 'percent', random: [20, 70] }),
+  patternRefractionAngle: num('patternRefraction', 'Angle', 35, 0, 180, { format: 'deg' }),
+  kaleidoscope: num('kaleidoscope', 'Kaleidoscope', 0, 0, 100, { format: 'percent' }),
+  squeezeX: num('squeeze', 'Squeeze X', 0, -80, 80, { format: 'percent' }),
+  squeezeY: num('squeeze', 'Squeeze Y', 0, -80, 80, { format: 'percent' }),
+  emboss: num('emboss', 'Emboss', 0, 0, 100, { format: 'percent' }),
+  linocut: num('linocut', 'Linocut', 0, 0, 100, { format: 'percent' }),
+  fog: num('fog', 'Haze', 0, 0, 100, { format: 'percent' }),
   fogColor: color('fog', 'Haze Color', '#c8d8e8'),
-  speedLines: num('speedLines', 'Speed Lines', 0, 0, 140, { overrideMax: 300, random: [10, 80] }),
+  speedLines: num('speedLines', 'Speed Lines', 0, 0, 140, { overrideMax: 300 }),
 } satisfies Record<string, EffectParam>;
 
 export type EffectParamKey = keyof typeof EFFECT_PARAMS;
@@ -471,49 +428,29 @@ export interface EffectPresetVariant {
   effect?: EffectId;
   /** The effect parameters the preset shows; defaults to all of them. */
   shows?: readonly EffectParamKey[];
-  /** Randomizer ranges that replace or add to the shown parameters' own `random`. */
-  random?: Partial<Record<EffectParamKey, EffectNumberRandom>>;
 }
 
 /** Presets that are not a plain "one preset per effect" mapping. */
 export const EFFECT_PRESET_VARIANTS: Partial<Record<EffectPreset, EffectPresetVariant>> = {
-  badStream: {
-    random: {
-      pixelStretch: { chance: 0.18, range: [25, 85] },
-      pixelStretchLength: [10, 58],
-      pixelStretchAngle: [0, 180],
-    },
-  },
   macroblocks: {
     effect: 'badStream',
     shows: ['badStream', 'badStreamBlockSize', 'badStreamDarkness'],
-    random: { badStream: [38, 86], badStreamBlockSize: [32, 96], badStreamDarkness: [0, 36] },
   },
   detailBlocks: {
     effect: 'badStream',
     shows: ['badStream', 'badStreamBlockSize', 'badStreamDetail', 'badStreamDarkness'],
-    random: {
-      badStream: [45, 90],
-      badStreamBlockSize: [28, 72],
-      badStreamDetail: [45, 100],
-      badStreamChroma: [0, 42],
-      badStreamDarkness: [0, 38],
-    },
   },
   blockSmear: {
     effect: 'badStream',
     shows: ['badStream', 'badStreamBlockSize', 'badStreamSmear'],
-    random: { badStream: [38, 86], badStreamBlockSize: [30, 90], badStreamSmear: [35, 100] },
   },
   chromaBlocks: {
     effect: 'badStream',
     shows: ['badStream', 'badStreamBlockSize', 'badStreamDetail', 'badStreamChroma'],
-    random: { badStream: [36, 84], badStreamBlockSize: [24, 72], badStreamDetail: [0, 60], badStreamChroma: [45, 100] },
   },
   blockDropout: {
     effect: 'badStream',
     shows: ['badStream', 'badStreamBlockSize', 'badStreamDarkness'],
-    random: { badStream: [40, 88], badStreamBlockSize: [32, 100], badStreamDarkness: [45, 100] },
   },
 };
 
