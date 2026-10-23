@@ -141,18 +141,6 @@ void main() {
   gl_FragColor = col;
 }`;
 
-const RGB_FRAG = `${HEADER}
-uniform vec2 uDir;
-
-void main() {
-  vec2 uv  = vTextureCoord;
-  float r  = texture2D(uSampler, clamp(uv + uDir, inputClamp.xy, inputClamp.zw)).r;
-  float g  = texture2D(uSampler, uv).g;
-  float b  = texture2D(uSampler, clamp(uv - uDir, inputClamp.xy, inputClamp.zw)).b;
-  float a  = texture2D(uSampler, uv).a;
-  gl_FragColor = vec4(r, g, b, a);
-}`;
-
 const VIGNETTE_FRAG = `${HEADER}
 uniform float uIntensity;
 
@@ -418,10 +406,6 @@ function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 
   );
   addFilter(filters, cfg.posterize, () => f(POSTERIZE_FRAG, { uSteps: Math.max(2, cfg.posterize) }));
   addFilter(filters, cfg.hueShift, () => f(HUE_FRAG, { uAngle: (cfg.hueShift * Math.PI) / 180 }));
-  addFilter(filters, cfg.rgbSplit, () => {
-    const mag = cfg.rgbSplit * 0.0006;
-    return f(RGB_FRAG, { uDir: [mag, mag] });
-  });
   addFilter(filters, cfg.duotone, () =>
     f(DUOTONE_FRAG, {
       uColorA: hexToVec3(cfg.duoA),

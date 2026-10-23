@@ -469,6 +469,7 @@ function fontAssetEmbeddingPolicyField(
 
 export function normalizeDocument(raw: unknown): CanvasDocument {
   const doc = migrateDocumentSchema(isRecord(raw) ? raw : {});
+  const splitLayerIds = new Map<string, string[]>();
   const global = isRecord(doc.global) ? doc.global : {};
   const exportConfig = isRecord(doc.export) ? doc.export : {};
   const aspect = isValidAspect(global.aspect) ? global.aspect : DEFAULT_GLOBAL.aspect;
@@ -501,9 +502,15 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
             : layerWithDefaults;
 
         if (layerWithMaterial.kind === 'effect' && shouldSplitEffectLayer(layerWithMaterial as Partial<EffectLayer>)) {
-          return splitEffectPatchIntoPresetLayers(layerWithMaterial as Partial<EffectLayer>, {
-            idPrefix: String(layerWithMaterial.id ?? 'effect'),
+          const sourceId = String(layerWithMaterial.id ?? 'effect');
+          const splitLayers = splitEffectPatchIntoPresetLayers(layerWithMaterial as Partial<EffectLayer>, {
+            idPrefix: sourceId,
           });
+          splitLayerIds.set(
+            sourceId,
+            splitLayers.map((layer) => layer.id),
+          );
+          return splitLayers;
         }
 
         return [layerWithMaterial as Layer];
@@ -523,11 +530,77 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
     global: { ...DEFAULT_GLOBAL, ...global, aspect },
     layers,
     export: { ...DEFAULT_EXPORT, ...exportConfig } as CanvasDocument['export'],
-    graph: normalizeGraph(doc.graph),
+    graph: rewireSplitEffectLayers(normalizeGraph(doc.graph), splitLayerIds),
     ...(fontAssets ? { fontAssets } : {}),
     ...(modelAssets ? { modelAssets } : {}),
     ...(envAssets ? { envAssets } : {}),
   };
+}
+
+const SPLIT_LAYER_POSITION_STEP = 48;
+
+/**
+ * Legacy combined effect layers are split into focused preset layers with new
+ * ids. Replace each split layer in the graph with a chain of its parts so the
+ * stored edges, positions, and areas keep pointing at real nodes.
+ */
+function rewireSplitEffectLayers(
+  graph: CanvasGraph | undefined,
+  splitLayerIds: ReadonlyMap<string, string[]>,
+): CanvasGraph | undefined {
+  if (!graph || splitLayerIds.size === 0) return graph;
+  let edges = graph.edges;
+  const positions = { ...graph.positions };
+  let areas = graph.areas;
+
+  for (const [sourceId, partIds] of splitLayerIds) {
+    const incoming = edges.filter((edge) => edge.toId === sourceId);
+    const outgoing = edges.filter((edge) => edge.fromId === sourceId);
+    const untouched = edges.filter((edge) => edge.toId !== sourceId && edge.fromId !== sourceId);
+    const first = partIds[0];
+    const last = partIds[partIds.length - 1];
+
+    if (first && last) {
+      const chain = partIds.slice(1).map((toId, index) => ({
+        id: `e-${partIds[index]}-${toId}`,
+        fromId: partIds[index],
+        fromPort: 'out' as const,
+        toId,
+        toPort: 'in' as const,
+      }));
+      edges = [
+        ...untouched,
+        ...incoming.map((edge) => ({ ...edge, toId: first })),
+        ...chain,
+        ...outgoing.map((edge) => ({ ...edge, fromId: last })),
+      ];
+    } else {
+      // Nothing survived the split: connect the layer's input straight to its consumers.
+      const bridged = incoming.flatMap((input) =>
+        outgoing.map((output) => ({ ...output, id: `e-${input.fromId}-${output.toId}`, fromId: input.fromId })),
+      );
+      edges = [...untouched, ...bridged];
+    }
+
+    const position = positions[sourceId];
+    delete positions[sourceId];
+    if (position) {
+      partIds.forEach((id, index) => {
+        positions[id] = {
+          x: position.x + index * SPLIT_LAYER_POSITION_STEP,
+          y: position.y + index * SPLIT_LAYER_POSITION_STEP,
+        };
+      });
+    }
+
+    areas = areas?.map((area) =>
+      area.nodeIds.includes(sourceId)
+        ? { ...area, nodeIds: area.nodeIds.flatMap((id) => (id === sourceId ? partIds : [id])) }
+        : area,
+    );
+  }
+
+  return { ...graph, edges, positions, ...(areas ? { areas } : {}) };
 }
 
 function migrateDocumentSchema(raw: Record<string, unknown>): Record<string, unknown> {

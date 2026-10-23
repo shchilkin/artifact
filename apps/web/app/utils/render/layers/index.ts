@@ -1029,7 +1029,8 @@ async function runGpuPass(
   return gpuRenderToCanvas({ width: W, height: H, source: current, filters, recordCost: options.recordGpuCost });
 }
 
-const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
+/** Effect keys owned by the Canvas 2D pass. The GPU filter builder must not also handle them. */
+export const CANVAS_POSITIVE_EFFECT_KEYS: Array<keyof EffectLayer> = [
   'glitch',
   'badStream',
   'rgbSplit',

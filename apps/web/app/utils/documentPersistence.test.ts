@@ -605,6 +605,74 @@ describe('normalizeDocument', () => {
     expect(doc.layers).toMatchObject([{ seedOffset: 77 }, { seedOffset: 77 }, { seedOffset: 77 }]);
   });
 
+  it('rewires graph edges, positions, and areas when splitting a legacy effect layer', () => {
+    const doc = normalizeDocument({
+      layers: [
+        { id: 'fill-a', name: 'Fill', kind: 'fill', color: '#ff0000', opacity: 100, blendMode: 'source-over' },
+        {
+          id: 'legacy-warp',
+          name: 'Warp FX',
+          kind: 'effect',
+          preset: 'warp',
+          visible: true,
+          locked: false,
+          noiseWarp: 40,
+          morphAmt: 30,
+        },
+      ],
+      graph: {
+        edges: [
+          { id: 'e-fill-warp', fromId: 'fill-a', fromPort: 'out', toId: 'legacy-warp', toPort: 'in' },
+          { id: 'e-warp-export', fromId: 'legacy-warp', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        ],
+        positions: { 'fill-a': { x: 0, y: 80 }, 'legacy-warp': { x: 300, y: 80 } },
+        mergeNodes: [],
+        colorNodes: [],
+        areas: [{ id: 'area-1', name: 'FX', nodeIds: ['legacy-warp'], color: '#00ff00' }],
+      },
+    });
+
+    const [first, second] = ['legacy-warp-morph-0', 'legacy-warp-noiseWarp-1'];
+    expect(doc.layers.map((layer) => layer.id)).toEqual(['fill-a', first, second]);
+    const edges = doc.graph?.edges.map(({ fromId, toId, toPort }) => ({ fromId, toId, toPort }));
+    expect(edges).toEqual(
+      expect.arrayContaining([
+        { fromId: 'fill-a', toId: first, toPort: 'in' },
+        { fromId: first, toId: second, toPort: 'in' },
+        { fromId: second, toId: EXPORT_NODE_ID, toPort: 'in' },
+      ]),
+    );
+    expect(edges).toHaveLength(3);
+    expect(doc.graph?.edges.some((edge) => edge.fromId === 'legacy-warp' || edge.toId === 'legacy-warp')).toBe(false);
+    expect(doc.graph?.positions[first]).toEqual({ x: 300, y: 80 });
+    expect(doc.graph?.positions[second]).toBeDefined();
+    expect(doc.graph?.positions['legacy-warp']).toBeUndefined();
+    expect(doc.graph?.areas?.[0]?.nodeIds).toEqual([first, second]);
+  });
+
+  it('bridges graph edges when a legacy effect layer splits into nothing', () => {
+    const doc = normalizeDocument({
+      layers: [
+        { id: 'fill-a', name: 'Fill', kind: 'fill', color: '#ff0000', opacity: 100, blendMode: 'source-over' },
+        { id: 'empty-warp', name: 'Warp FX', kind: 'effect', preset: 'warp', visible: true, locked: false },
+      ],
+      graph: {
+        edges: [
+          { id: 'e-fill-warp', fromId: 'fill-a', fromPort: 'out', toId: 'empty-warp', toPort: 'in' },
+          { id: 'e-warp-export', fromId: 'empty-warp', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        ],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+      },
+    });
+
+    expect(doc.layers.map((layer) => layer.id)).toEqual(['fill-a']);
+    expect(doc.graph?.edges.map(({ fromId, toId, toPort }) => ({ fromId, toId, toPort }))).toEqual([
+      { fromId: 'fill-a', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
+  });
+
   it('fills newer effect defaults when loading older effect layers', () => {
     const doc = normalizeDocument({
       layers: [
