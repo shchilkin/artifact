@@ -231,5 +231,5 @@
       ]
     }
   },
-  "stackMatchesGraph": false
+  "stackMatchesGraph": true
 }

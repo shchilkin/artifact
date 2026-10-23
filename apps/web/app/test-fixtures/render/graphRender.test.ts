@@ -25,7 +25,8 @@ import { allPixels, alphaBounds, centerPixel, pixelsEqual, samplePixel } from '.
 
 function graphDocument(graph: CanvasGraph, layers?: Layer[]): CanvasDocument {
   return {
-    global: { bg: '#000000', seed: 1, aspect: '1:1' },
+    // Transparent so assertions see the graph's own pixels; the document background has its own test.
+    global: { bg: 'transparent', seed: 1, aspect: '1:1' },
     layers: layers ?? [
       makeFillLayer({ id: 'red-fill', color: '#ff0000', opacity: 100, blendMode: 'normal' }),
       makeFillLayer({ id: 'blue-fill', color: '#0000ff', opacity: 100, blendMode: 'normal' }),
@@ -302,7 +303,7 @@ describe('renderDocument graph mode', () => {
     expect(centerPixel(graphCanvas)[2]).toBeLessThan(10);
   });
 
-  it('keeps graph output transparent when no upstream node provides a background', async () => {
+  it('paints the document background behind graph output the same way in every mode', async () => {
     const transparentFill = makeFillLayer({
       id: 'transparent-fill',
       color: '#ff0000',
@@ -324,21 +325,20 @@ describe('renderDocument graph mode', () => {
       export: { format: 'png', scale: 1, target: 'cover' },
     };
 
-    const graphCanvas = await renderDocument(doc, 32, 32, new Map(), {
-      skipEffects: true,
-      graphMode: 'graph',
-    });
-    const outputCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 32, new Map(), {
-      skipEffects: true,
-    });
-    const stackCanvas = await renderDocument(doc, 32, 32, new Map(), {
-      skipEffects: true,
-      graphMode: 'stack',
-    });
+    const renders = await Promise.all([
+      renderDocument(doc, 32, 32, new Map(), { skipEffects: true, graphMode: 'graph' }),
+      renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 32, new Map(), { skipEffects: true }),
+      renderDocument(doc, 32, 32, new Map(), { skipEffects: true, graphMode: 'stack' }),
+    ]);
 
-    expect(centerPixel(graphCanvas)[3]).toBe(0);
-    expect(centerPixel(outputCanvas)[3]).toBe(0);
-    expect(centerPixel(stackCanvas)[3]).toBe(255);
+    for (const canvas of renders) {
+      expect(centerPixel(canvas)[3]).toBe(255);
+      expect(pixelsEqual(allPixels(canvas), allPixels(renders[0]!))).toBe(true);
+    }
+
+    const transparentDoc = { ...doc, global: { ...doc.global, bg: 'transparent' } };
+    const transparent = await renderDocument(transparentDoc, 32, 32, new Map(), { skipEffects: true });
+    expect(centerPixel(transparent)[3]).toBe(0);
   });
 });
 

@@ -287,5 +287,5 @@
       ]
     }
   },
-  "stackMatchesGraph": false
+  "stackMatchesGraph": true
 }

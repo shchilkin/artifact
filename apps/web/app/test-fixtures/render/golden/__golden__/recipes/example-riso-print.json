@@ -319,5 +319,5 @@
       ]
     }
   },
-  "stackMatchesGraph": false
+  "stackMatchesGraph": true
 }

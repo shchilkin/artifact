@@ -159,11 +159,11 @@ Entries are pruned least recently used first.
 Gallery previews and generated preset/example thumbnails use the same optional
 cache boundary so repeated graph branches are not recomputed while browsing or
 opening a high-resolution preview.
-The graph export/output node does not implicitly paint `doc.global.bg`; it returns
-the pixels provided by the connected graph branch. Add an explicit fill, image,
-or procedural source node when graph output should have a solid/background plate.
-Classic stack rendering still paints `doc.global.bg` before applying the inferred
-linear layer graph, preserving layer-mode behavior.
+The export/output node paints `doc.global.bg` under the connected graph branch
+in every mode, so a document renders the same in Layers and Nodes. A document
+with `bg: 'transparent'` (the blank-document default) keeps transparent output;
+add a fill, image, or procedural source node for a plate that should be part of
+the graph itself.
 Repeat nodes render their `source` input once, crop it to its visible alpha
 bounds, and stamp it into a line, grid, or radial pattern over an optional
 `backdrop` input. This keeps the node source-agnostic: text, images,

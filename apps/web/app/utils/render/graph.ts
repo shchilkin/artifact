@@ -663,7 +663,8 @@ async function renderExportGraphNode(nodeId: string, context: GraphNodeRenderCon
   const { doc, graph, W, H, options, renderDependency } = context;
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-  if (options.outputBackground === 'document') drawBackground(ctx, W, H, doc.global.bg);
+  // The document background is part of the output in every mode; `bg: 'transparent'` keeps it transparent.
+  drawBackground(ctx, W, H, doc.global.bg);
   const sourceId = findIncomingSource(graph, nodeId, 'in');
   if (!sourceId) return canvas;
   const rendered = await renderDependency(sourceId);
