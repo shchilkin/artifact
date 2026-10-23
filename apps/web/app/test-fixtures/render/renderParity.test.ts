@@ -20,6 +20,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   type CanvasDocument,
+  makeDocument,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
@@ -64,7 +65,6 @@ function darkerThan(canvas: HTMLCanvasElement, threshold: number): number {
 async function renderStackDocument(doc: CanvasDocument, size: number, skipEffects = true) {
   return renderDocument(doc, size, size, new Map(), {
     skipEffects,
-    graphMode: 'stack',
   });
 }
 
@@ -94,7 +94,6 @@ async function expectSeedOffsetChangesPixels(
 async function renderCentre(doc: Parameters<typeof renderDocument>[0], size: number) {
   const canvas = await renderDocument(doc, size, size, new Map(), {
     skipEffects: true,
-    graphMode: 'stack',
   });
   return samplePixel(canvas, Math.floor(size / 2), Math.floor(size / 2));
 }
@@ -114,7 +113,6 @@ describe('renderDocument — output dimensions', () => {
   it('returns a canvas whose dimensions match the requested W × H', async () => {
     const canvas = await renderDocument(fillOnly, 200, 200, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     expect(canvas.width).toBe(200);
     expect(canvas.height).toBe(200);
@@ -123,7 +121,6 @@ describe('renderDocument — output dimensions', () => {
   it('supports non-square output', async () => {
     const canvas = await renderDocument(fillOnly, 300, 400, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     expect(canvas.width).toBe(300);
     expect(canvas.height).toBe(400);
@@ -138,7 +135,6 @@ describe('renderDocument — fill-only document', () => {
   it('produces a fully opaque canvas (alpha = 255 everywhere)', async () => {
     const canvas = await renderDocument(fillOnly, 100, 100, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     expectFullyOpaqueCanvas(canvas);
   });
@@ -151,7 +147,7 @@ describe('renderDocument — fill-only document', () => {
   });
 
   it('is deterministic: two renders of the same document produce identical pixels', async () => {
-    const opts = { skipEffects: true as const, graphMode: 'stack' as const };
+    const opts = { skipEffects: true as const };
     const a = await renderDocument(fillOnly, 100, 100, new Map(), opts);
     const b = await renderDocument(fillOnly, 100, 100, new Map(), opts);
     expect(pixelsEqual(allPixels(a), allPixels(b))).toBe(true);
@@ -166,7 +162,6 @@ describe('renderDocument — text over fill', () => {
   it('returns a canvas with correct dimensions', async () => {
     const canvas = await renderDocument(textOverFill, 100, 100, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     expect(canvas.width).toBe(100);
     expect(canvas.height).toBe(100);
@@ -175,13 +170,12 @@ describe('renderDocument — text over fill', () => {
   it('produces a fully opaque canvas', async () => {
     const canvas = await renderDocument(textOverFill, 100, 100, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     expectFullyOpaqueCanvas(canvas);
   });
 
   it('is deterministic across renders', async () => {
-    const opts = { skipEffects: true as const, graphMode: 'stack' as const };
+    const opts = { skipEffects: true as const };
     const a = await renderDocument(textOverFill, 100, 100, new Map(), opts);
     const b = await renderDocument(textOverFill, 100, 100, new Map(), opts);
     expect(pixelsEqual(allPixels(a), allPixels(b))).toBe(true);
@@ -194,14 +188,14 @@ describe('renderDocument — text over fill', () => {
 
 describe('renderDocument — emoji seeded determinism', () => {
   it('two renders with the same doc.global.seed produce identical pixels', async () => {
-    const opts = { skipEffects: true as const, graphMode: 'stack' as const };
+    const opts = { skipEffects: true as const };
     const a = await renderDocument(emojiSeeded, 100, 100, new Map(), opts);
     const b = await renderDocument(emojiSeeded, 100, 100, new Map(), opts);
     expect(pixelsEqual(allPixels(a), allPixels(b))).toBe(true);
   });
 
   it('a different seed produces different pixels', async () => {
-    const opts = { skipEffects: true as const, graphMode: 'stack' as const };
+    const opts = { skipEffects: true as const };
     const docA = emojiSeeded;
     const docB = { ...emojiSeeded, global: { ...emojiSeeded.global, seed: 999 } };
     const a = await renderDocument(docA, 100, 100, new Map(), opts);
@@ -210,7 +204,7 @@ describe('renderDocument — emoji seeded determinism', () => {
   });
 
   it('a different emoji seed offset produces different pixels without changing the document seed', async () => {
-    const opts = { skipEffects: true as const, graphMode: 'stack' as const };
+    const opts = { skipEffects: true as const };
     const docA = emojiSeeded;
     const docB: CanvasDocument = {
       ...emojiSeeded,
@@ -241,28 +235,12 @@ describe('renderDocument — preview/export size parity', () => {
     expect(small).toEqual(large);
   });
 
-  it('stack mode and inferred linear graph produce the same fill-only output', async () => {
-    // graphMode: 'stack' and graphMode: 'auto' (which uses inferLinearGraph)
-    // should produce the same pixels for a document without a saved graph.
-    const stack = await renderDocument(fillOnly, 100, 100, new Map(), {
-      skipEffects: true,
-      graphMode: 'stack',
-    });
-    const auto = await renderDocument(fillOnly, 100, 100, new Map(), {
-      skipEffects: true,
-      graphMode: 'auto',
-    });
-    expect(pixelsEqual(allPixels(stack), allPixels(auto))).toBe(true);
-  });
-
   it('image free-fit sources scale proportionally at export sizes', async () => {
     const preview = await renderDocument(imageFreeFit, 540, 540, createTestImageCache(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     const exported = await renderDocument(imageFreeFit, 1080, 1080, createTestImageCache(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
 
     const previewBounds = alphaBounds(preview);
@@ -275,7 +253,7 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('procedural noise is deterministic and fills the same relative frame', async () => {
-    const opts = { skipEffects: true as const, graphMode: 'stack' as const };
+    const opts = { skipEffects: true as const };
     const previewA = await renderDocument(proceduralNoise, 108, 108, new Map(), opts);
     const previewB = await renderDocument(proceduralNoise, 108, 108, new Map(), opts);
     const exported = await renderDocument(proceduralNoise, 216, 216, new Map(), opts);
@@ -287,29 +265,28 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('procedural noise scale supports fine grain below the old coarse minimum', async () => {
-    const makeNoiseDoc = (noiseScale: number): CanvasDocument => ({
-      global: { bg: 'transparent', seed: 7, aspect: '1:1' },
-      layers: [
-        makeSourceLayer('noise', {
-          noiseType: 'value',
-          noiseScale,
-          noiseDetail: 2,
-          noiseContrast: 60,
-          noiseBalance: 50,
-          color: '#000000',
-          accentColor: '#ffffff',
-          opacity: 100,
-        }),
-      ],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    });
+    const makeNoiseDoc = (noiseScale: number): CanvasDocument =>
+      makeDocument({
+        global: { bg: 'transparent', seed: 7, aspect: '1:1' },
+        layers: [
+          makeSourceLayer('noise', {
+            noiseType: 'value',
+            noiseScale,
+            noiseDetail: 2,
+            noiseContrast: 60,
+            noiseBalance: 50,
+            color: '#000000',
+            accentColor: '#ffffff',
+            opacity: 100,
+          }),
+        ],
+        export: { format: 'png', scale: 1, target: 'cover' },
+      });
     const fine = await renderDocument(makeNoiseDoc(2), 128, 128, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     const coarse = await renderDocument(makeNoiseDoc(6), 128, 128, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
 
     expect(pixelsEqual(allPixels(fine), allPixels(coarse))).toBe(false);
@@ -317,7 +294,7 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('procedural arrays are deterministic and scale proportionally at export sizes', async () => {
-    const opts = { skipEffects: true as const, graphMode: 'stack' as const };
+    const opts = { skipEffects: true as const };
     const previewA = await renderDocument(proceduralArray, 540, 540, new Map(), opts);
     const previewB = await renderDocument(proceduralArray, 540, 540, new Map(), opts);
     const exported = await renderDocument(proceduralArray, 1080, 1080, new Map(), opts);
@@ -328,29 +305,28 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('radial array gap expands rings instead of only changing inspector state', async () => {
-    const makeRadialDoc = (gap: number): CanvasDocument => ({
-      global: { bg: 'transparent', seed: 13, aspect: '1:1' },
-      layers: [
-        makeSourceLayer('array', {
-          arrayPattern: 'radial',
-          arrayShape: 'disc',
-          arrayCount: 10,
-          arrayRows: 4,
-          arrayRadius: 24,
-          arrayGap: gap,
-          arraySize: 8,
-          arrayJitter: 0,
-        }),
-      ],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    });
+    const makeRadialDoc = (gap: number): CanvasDocument =>
+      makeDocument({
+        global: { bg: 'transparent', seed: 13, aspect: '1:1' },
+        layers: [
+          makeSourceLayer('array', {
+            arrayPattern: 'radial',
+            arrayShape: 'disc',
+            arrayCount: 10,
+            arrayRows: 4,
+            arrayRadius: 24,
+            arrayGap: gap,
+            arraySize: 8,
+            arrayJitter: 0,
+          }),
+        ],
+        export: { format: 'png', scale: 1, target: 'cover' },
+      });
     const tight = await renderDocument(makeRadialDoc(12), 320, 320, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     const wide = await renderDocument(makeRadialDoc(52), 320, 320, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
 
     expect(alphaBounds(wide).width).toBeGreaterThan(alphaBounds(tight).width + 80);
@@ -358,34 +334,32 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('barcode line rows and width controls affect rendered geometry', async () => {
-    const makeBarcodeDoc = (rows: number, barWidth: number): CanvasDocument => ({
-      global: { bg: 'transparent', seed: 21, aspect: '1:1' },
-      layers: [
-        makeSourceLayer('array', {
-          arrayPattern: 'line',
-          arrayShape: 'bar',
-          arrayCount: 6,
-          arrayRows: rows,
-          arrayGap: 48,
-          arrayRadius: barWidth,
-          arraySize: 54,
-          arrayJitter: 0,
-        }),
-      ],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    });
+    const makeBarcodeDoc = (rows: number, barWidth: number): CanvasDocument =>
+      makeDocument({
+        global: { bg: 'transparent', seed: 21, aspect: '1:1' },
+        layers: [
+          makeSourceLayer('array', {
+            arrayPattern: 'line',
+            arrayShape: 'bar',
+            arrayCount: 6,
+            arrayRows: rows,
+            arrayGap: 48,
+            arrayRadius: barWidth,
+            arraySize: 54,
+            arrayJitter: 0,
+          }),
+        ],
+        export: { format: 'png', scale: 1, target: 'cover' },
+      });
 
     const singleRow = await renderDocument(makeBarcodeDoc(1, 8), 320, 320, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     const threeRows = await renderDocument(makeBarcodeDoc(3, 8), 320, 320, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     const wideBars = await renderDocument(makeBarcodeDoc(1, 32), 320, 320, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
 
     expect(alphaBounds(threeRows).height).toBeGreaterThan(alphaBounds(singleRow).height + 60);
@@ -393,23 +367,24 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('line field renders nonblank output across common aspect ratios', async () => {
-    const makeLineDoc = (aspect: CanvasDocument['global']['aspect']): CanvasDocument => ({
-      global: { bg: 'transparent', seed: 33, aspect },
-      layers: [
-        makeSourceLayer('lineField', {
-          lineFieldOrientation: 'diagonal',
-          lineFieldDistortion: 'wave',
-          lineFieldCount: 24,
-          lineFieldSpacing: 18,
-          lineFieldStroke: 3,
-          lineFieldStrength: 32,
-          lineFieldFrequency: 4,
-          color: '#ffffff',
-          accentColor: '#ffffff',
-        }),
-      ],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    });
+    const makeLineDoc = (aspect: CanvasDocument['global']['aspect']): CanvasDocument =>
+      makeDocument({
+        global: { bg: 'transparent', seed: 33, aspect },
+        layers: [
+          makeSourceLayer('lineField', {
+            lineFieldOrientation: 'diagonal',
+            lineFieldDistortion: 'wave',
+            lineFieldCount: 24,
+            lineFieldSpacing: 18,
+            lineFieldStroke: 3,
+            lineFieldStrength: 32,
+            lineFieldFrequency: 4,
+            color: '#ffffff',
+            accentColor: '#ffffff',
+          }),
+        ],
+        export: { format: 'png', scale: 1, target: 'cover' },
+      });
 
     for (const [aspect, width, height] of [
       ['1:1', 120, 120],
@@ -419,7 +394,6 @@ describe('renderDocument — preview/export size parity', () => {
     ] as const) {
       const canvas = await renderDocument(makeLineDoc(aspect), width, height, new Map(), {
         skipEffects: true,
-        graphMode: 'stack',
       });
 
       expect(visiblePixelCount(canvas)).toBeGreaterThan(width * height * 0.05);
@@ -427,7 +401,7 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('line field ignores placement scale and still covers the frame', async () => {
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: 'transparent', seed: 34, aspect: '1:1' },
       layers: [
         makeSourceLayer('lineField', {
@@ -446,11 +420,10 @@ describe('renderDocument — preview/export size parity', () => {
         }),
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
 
     const canvas = await renderDocument(doc, 160, 160, new Map(), {
       skipEffects: true,
-      graphMode: 'stack',
     });
     const bounds = alphaBounds(canvas);
 
@@ -459,45 +432,47 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('procedural source seed offsets vary one node without changing the document seed', async () => {
-    const makeNoiseDoc = (seedOffset: number): CanvasDocument => ({
-      global: { bg: 'transparent', seed: 42, aspect: '1:1' },
-      layers: [
-        makeSourceLayer('noise', {
-          noiseType: 'value',
-          noiseScale: 12,
-          noiseDetail: 3,
-          noiseContrast: 78,
-          noiseBalance: 36,
-          seedOffset,
-          color: '#050505',
-          accentColor: '#f8f8f0',
-        }),
-      ],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    });
+    const makeNoiseDoc = (seedOffset: number): CanvasDocument =>
+      makeDocument({
+        global: { bg: 'transparent', seed: 42, aspect: '1:1' },
+        layers: [
+          makeSourceLayer('noise', {
+            noiseType: 'value',
+            noiseScale: 12,
+            noiseDetail: 3,
+            noiseContrast: 78,
+            noiseBalance: 36,
+            seedOffset,
+            color: '#050505',
+            accentColor: '#f8f8f0',
+          }),
+        ],
+        export: { format: 'png', scale: 1, target: 'cover' },
+      });
 
     await expectSeedOffsetChangesPixels(makeNoiseDoc, 160, true);
   });
 
   it('effect seed offsets vary one effect node without changing the document seed', async () => {
-    const makeEffectDoc = (seedOffset: number): CanvasDocument => ({
-      global: { bg: '#111111', seed: 42, aspect: '1:1' },
-      layers: [
-        makeFillLayer({ color: '#777777', opacity: 100 }),
-        makeEffectPresetLayer('grain', {
-          grain: 60,
-          seedOffset,
-        }),
-      ],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    });
+    const makeEffectDoc = (seedOffset: number): CanvasDocument =>
+      makeDocument({
+        global: { bg: '#111111', seed: 42, aspect: '1:1' },
+        layers: [
+          makeFillLayer({ color: '#777777', opacity: 100 }),
+          makeEffectPresetLayer('grain', {
+            grain: 60,
+            seedOffset,
+          }),
+        ],
+        export: { format: 'png', scale: 1, target: 'cover' },
+      });
 
     await expectSeedOffsetChangesPixels(makeEffectDoc, 120, false);
   });
 
   it('round dot grain darkens tones with deterministic stipple dots', async () => {
     const source = makeFillLayer({ color: '#777777', opacity: 100 });
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: 'transparent', seed: 92, aspect: '1:1' },
       layers: [
         source,
@@ -509,19 +484,22 @@ describe('renderDocument — preview/export size parity', () => {
         }),
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
-
-    const base = await renderDocument({ ...doc, layers: [source] }, 120, 120, new Map(), {
-      draft: true,
-      graphMode: 'stack',
     });
+
+    const base = await renderDocument(
+      makeDocument({ ...doc, layers: [source], graph: undefined }),
+      120,
+      120,
+      new Map(),
+      {
+        draft: true,
+      },
+    );
     const dotted = await renderDocument(doc, 120, 120, new Map(), {
       draft: true,
-      graphMode: 'stack',
     });
     const dottedAgain = await renderDocument(doc, 120, 120, new Map(), {
       draft: true,
-      graphMode: 'stack',
     });
 
     expect(darkerThan(base, 90)).toBe(0);
@@ -532,70 +510,71 @@ describe('renderDocument — preview/export size parity', () => {
 
   it('effect blend mode composites the effect result over its input', async () => {
     const source = makeFillLayer({ color: '#777777', opacity: 100 });
-    const makeDoc = (blendMode?: string): CanvasDocument => ({
-      global: { bg: 'transparent', seed: 92, aspect: '1:1' },
-      layers: [
-        source,
-        makeEffectPresetLayer('dotGrain', {
-          dotGrain: 100,
-          dotGrainSize: 5,
-          dotGrainDensity: 80,
-          dotGrainJitter: 20,
-          ...(blendMode ? { blendMode } : {}),
-        }),
-      ],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    });
-    const render = (doc: CanvasDocument, graphMode?: 'stack') =>
-      renderDocument(doc, 120, 120, new Map(), { draft: true, ...(graphMode ? { graphMode } : {}) });
+    const makeDoc = (blendMode?: string): CanvasDocument =>
+      makeDocument({
+        global: { bg: 'transparent', seed: 92, aspect: '1:1' },
+        layers: [
+          source,
+          makeEffectPresetLayer('dotGrain', {
+            dotGrain: 100,
+            dotGrainSize: 5,
+            dotGrainDensity: 80,
+            dotGrainJitter: 20,
+            ...(blendMode ? { blendMode } : {}),
+          }),
+        ],
+        export: { format: 'png', scale: 1, target: 'cover' },
+      });
+    const render = (doc: CanvasDocument) => renderDocument(doc, 120, 120, new Map(), { draft: true });
 
-    const base = await render({ ...makeDoc(), layers: [source] }, 'stack');
-    const normal = await render(makeDoc('normal'), 'stack');
-    const unset = await render(makeDoc(), 'stack');
-    const lightened = await render(makeDoc('lighten'), 'stack');
-    const lightenedGraph = await render(makeDoc('lighten'));
+    const base = await render(makeDocument({ ...makeDoc(), layers: [source], graph: undefined }));
+    const normal = await render(makeDoc('normal'));
+    const unset = await render(makeDoc());
+    const lightened = await render(makeDoc('lighten'));
 
     expect(pixelsEqual(allPixels(normal), allPixels(unset))).toBe(true);
     expect(darkerThan(normal, 90)).toBeGreaterThan(100);
     // Dot grain only darkens, so lighten keeps the input untouched.
     expect(pixelsEqual(allPixels(lightened), allPixels(base))).toBe(true);
-    expect(pixelsEqual(allPixels(lightenedGraph), allPixels(lightened))).toBe(true);
   });
 
   it('bad stream creates deterministic macroblock damage and responds to seed offset', async () => {
     const source = makeFillLayer({ color: '#777777', opacity: 100 });
-    const makeDoc = (seedOffset = 0): CanvasDocument => ({
-      global: { bg: 'transparent', seed: 92, aspect: '1:1' },
-      layers: [
-        source,
-        makeEffectPresetLayer('badStream', {
-          badStream: 90,
-          badStreamBlockSize: 24,
-          badStreamDetail: 80,
-          badStreamSmear: 70,
-          badStreamChroma: 50,
-          badStreamDarkness: 72,
-          seedOffset,
-        }),
-      ],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    });
+    const makeDoc = (seedOffset = 0): CanvasDocument =>
+      makeDocument({
+        global: { bg: 'transparent', seed: 92, aspect: '1:1' },
+        layers: [
+          source,
+          makeEffectPresetLayer('badStream', {
+            badStream: 90,
+            badStreamBlockSize: 24,
+            badStreamDetail: 80,
+            badStreamSmear: 70,
+            badStreamChroma: 50,
+            badStreamDarkness: 72,
+            seedOffset,
+          }),
+        ],
+        export: { format: 'png', scale: 1, target: 'cover' },
+      });
 
-    const base = await renderDocument({ ...makeDoc(), layers: [source] }, 120, 120, new Map(), {
-      draft: true,
-      graphMode: 'stack',
-    });
+    const base = await renderDocument(
+      makeDocument({ ...makeDoc(), layers: [source], graph: undefined }),
+      120,
+      120,
+      new Map(),
+      {
+        draft: true,
+      },
+    );
     const damaged = await renderDocument(makeDoc(), 120, 120, new Map(), {
       draft: true,
-      graphMode: 'stack',
     });
     const damagedAgain = await renderDocument(makeDoc(), 120, 120, new Map(), {
       draft: true,
-      graphMode: 'stack',
     });
     const shifted = await renderDocument(makeDoc(13), 120, 120, new Map(), {
       draft: true,
-      graphMode: 'stack',
     });
 
     expect(pixelsEqual(allPixels(damaged), allPixels(damagedAgain))).toBe(true);
@@ -618,22 +597,25 @@ describe('renderDocument — preview/export size parity', () => {
     const presets = ['macroblocks', 'detailBlocks', 'blockSmear', 'chromaBlocks', 'blockDropout'] as const;
 
     for (const preset of presets) {
-      const doc: CanvasDocument = {
+      const doc: CanvasDocument = makeDocument({
         global: { bg: 'transparent', seed: 92, aspect: '1:1' },
         layers: [source, makeEffectPresetLayer(preset, { badStream: 100, badStreamBlockSize: 24 })],
         export: { format: 'png', scale: 1, target: 'cover' },
-      };
-      const base = await renderDocument({ ...doc, layers: [source] }, 96, 96, new Map(), {
-        draft: true,
-        graphMode: 'stack',
       });
+      const base = await renderDocument(
+        makeDocument({ ...doc, layers: [source], graph: undefined }),
+        96,
+        96,
+        new Map(),
+        {
+          draft: true,
+        },
+      );
       const effected = await renderDocument(doc, 96, 96, new Map(), {
         draft: true,
-        graphMode: 'stack',
       });
       const again = await renderDocument(doc, 96, 96, new Map(), {
         draft: true,
-        graphMode: 'stack',
       });
 
       expect(pixelsEqual(allPixels(effected), allPixels(again))).toBe(true);
@@ -643,23 +625,24 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('noise shaping controls alter procedural texture pixels deterministically', async () => {
-    const makeNoiseDoc = (patch: Partial<ReturnType<typeof makeSourceLayer>> = {}): CanvasDocument => ({
-      global: { bg: 'transparent', seed: 77, aspect: '1:1' },
-      layers: [
-        makeSourceLayer('noise', {
-          noiseType: 'clouds',
-          noiseScale: 18,
-          noiseDetail: 5,
-          noiseContrast: 52,
-          noiseBalance: 45,
-          color: '#040405',
-          accentColor: '#e9e2d4',
-          ...patch,
-        }),
-      ],
-      export: { format: 'png', scale: 1, target: 'cover' },
-    });
-    const options = { skipEffects: true, graphMode: 'stack' as const };
+    const makeNoiseDoc = (patch: Partial<ReturnType<typeof makeSourceLayer>> = {}): CanvasDocument =>
+      makeDocument({
+        global: { bg: 'transparent', seed: 77, aspect: '1:1' },
+        layers: [
+          makeSourceLayer('noise', {
+            noiseType: 'clouds',
+            noiseScale: 18,
+            noiseDetail: 5,
+            noiseContrast: 52,
+            noiseBalance: 45,
+            color: '#040405',
+            accentColor: '#e9e2d4',
+            ...patch,
+          }),
+        ],
+        export: { format: 'png', scale: 1, target: 'cover' },
+      });
+    const options = { skipEffects: true };
     const size = 120;
 
     const base = await renderDocument(makeNoiseDoc(), size, size, new Map(), options);
@@ -683,7 +666,7 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('primitive full-frame sources scale proportionally at export sizes', async () => {
-    const primitiveDoc: CanvasDocument = {
+    const primitiveDoc: CanvasDocument = makeDocument({
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
       layers: [
         makeSourceLayer('primitive', {
@@ -693,17 +676,15 @@ describe('renderDocument — preview/export size parity', () => {
         }),
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
 
     const preview = await renderDocument(primitiveDoc, 540, 540, new Map(), {
       draft: true,
       skipEffects: true,
-      graphMode: 'stack',
     });
     const exported = await renderDocument(primitiveDoc, 1080, 1080, new Map(), {
       draft: true,
       skipEffects: true,
-      graphMode: 'stack',
     });
     const exportedBounds = alphaBounds(exported);
     expect(exportedBounds.width).toBeGreaterThan(0);
@@ -712,7 +693,7 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('effect resolution locking preserves scale-one scanline texture in larger exports', async () => {
-    const effectDoc: CanvasDocument = {
+    const effectDoc: CanvasDocument = makeDocument({
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
       layers: [
         makeFillLayer({
@@ -722,15 +703,13 @@ describe('renderDocument — preview/export size parity', () => {
         makeEffectPresetLayer('scanlines', { scanlines: 80, scanlineWidth: 1 }),
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
 
     const base = await renderDocument(effectDoc, 100, 100, new Map(), {
       draft: true,
-      graphMode: 'stack',
     });
     const scaled = await renderDocument(effectDoc, 200, 200, new Map(), {
       draft: true,
-      graphMode: 'stack',
       effectResolution: { width: 100, height: 100 },
     });
 
@@ -742,7 +721,7 @@ describe('renderDocument — preview/export size parity', () => {
   });
 
   it('scanline width increases line thickness while preserving export scale lock', async () => {
-    const effectDoc: CanvasDocument = {
+    const effectDoc: CanvasDocument = makeDocument({
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
       layers: [
         makeFillLayer({
@@ -752,15 +731,13 @@ describe('renderDocument — preview/export size parity', () => {
         makeEffectPresetLayer('scanlines', { scanlines: 100, scanlineWidth: 3 }),
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
 
     const base = await renderDocument(effectDoc, 540, 540, new Map(), {
       draft: true,
-      graphMode: 'stack',
     });
     const scaled = await renderDocument(effectDoc, 1080, 1080, new Map(), {
       draft: true,
-      graphMode: 'stack',
       effectResolution: { width: 540, height: 540 },
     });
 
@@ -775,20 +752,20 @@ describe('renderDocument — preview/export size parity', () => {
   it('renders legacy rays layers that are missing rayColor', async () => {
     const legacyRays = makeEffectPresetLayer('rays', { rays: 12, rayInt: 70 });
     delete (legacyRays as Partial<typeof legacyRays>).rayColor;
-    const effectDoc: CanvasDocument = {
+    const effectDoc: CanvasDocument = makeDocument({
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
       layers: [makeFillLayer({ color: '#221144', opacity: 100 }), legacyRays],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
 
-    const canvas = await renderDocument(effectDoc, 64, 64, new Map(), { graphMode: 'stack' });
+    const canvas = await renderDocument(effectDoc, 64, 64, new Map());
     expect(canvas.width).toBe(64);
     expect(canvas.height).toBe(64);
   });
 
   it('solarize and bleach bypass render visible pixels over a source', async () => {
     const source = makeFillLayer({ color: '#d6c8a5', opacity: 100 });
-    const effectDoc: CanvasDocument = {
+    const effectDoc: CanvasDocument = makeDocument({
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
       layers: [
         source,
@@ -796,10 +773,15 @@ describe('renderDocument — preview/export size parity', () => {
         makeEffectPresetLayer('bleachBypass', { bleachBypass: 70 }),
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
 
-    const base = await renderDocument({ ...effectDoc, layers: [source] }, 64, 64, new Map(), { graphMode: 'stack' });
-    const effected = await renderDocument(effectDoc, 64, 64, new Map(), { graphMode: 'stack' });
+    const base = await renderDocument(
+      makeDocument({ ...effectDoc, layers: [source], graph: undefined }),
+      64,
+      64,
+      new Map(),
+    );
+    const effected = await renderDocument(effectDoc, 64, 64, new Map());
 
     expect(visiblePixelCount(effected)).toBe(64 * 64);
     expect(samplePixel(effected, 32, 32)).not.toEqual(samplePixel(base, 32, 32));

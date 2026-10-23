@@ -1,7 +1,6 @@
 import {
   ASPECT_SIZES,
   type AspectRatio,
-  type CanvasDocument,
   type CanvasGraph,
   type GraphArea,
   type GraphColorNode,
@@ -17,11 +16,11 @@ import {
   type GraphTransformNode,
   type Layer,
 } from '../types/config';
+import { BASE_NODE_W, EXPORT_NODE_ID, estimateNodeWidth, linearStackEdges } from '../types/linearGraph';
 
-export const EXPORT_NODE_ID = '__export__';
+export { EXPORT_NODE_ID, inferLinearGraph } from '../types/linearGraph';
+
 export const GRAPH_AREA_COLORS = ['#ff705f', '#d987ff', '#79e3c5', '#e0bd75', '#8d5cff'];
-const BASE_NODE_W = 320;
-const ARTWORK_NODE_W = 340;
 const COL_GAP = 168;
 const ROW_GAP = 72;
 const TOP_PAD = 80;
@@ -64,14 +63,6 @@ type GraphLayoutState = {
   order: Map<string, number>;
 };
 
-function estimateNodeWidth(id: string, layers: Layer[]): number {
-  const layer = layers.find((item) => item.id === id);
-  if (!layer) return BASE_NODE_W;
-  return ['image', 'primitive', 'noise', 'array', 'lineField', 'model'].includes(layer.kind)
-    ? ARTWORK_NODE_W
-    : BASE_NODE_W;
-}
-
 function estimatePreviewHeight(aspect: AspectRatio): number {
   const [aspectWidth, aspectHeight] = ASPECT_SIZES[aspect] ?? ASPECT_SIZES['1:1'];
   return Math.round((aspectHeight / Math.max(aspectWidth, aspectHeight)) * NODE_PREVIEW_MAX);
@@ -80,55 +71,6 @@ function estimatePreviewHeight(aspect: AspectRatio): number {
 export function estimateNodeHeight(aspect: AspectRatio): number {
   const previewHeight = estimatePreviewHeight(aspect);
   return previewHeight + NODE_CHROME_H;
-}
-
-export function inferLinearGraph(layers: Layer[]): CanvasGraph {
-  const positions: Record<string, { x: number; y: number }> = {};
-  const edges: GraphEdge[] = [];
-  let x = 0;
-
-  layers.forEach((layer) => {
-    positions[layer.id] = { x, y: 80 };
-    x += estimateNodeWidth(layer.id, layers) + COL_GAP;
-  });
-  positions[EXPORT_NODE_ID] = { x, y: 80 };
-
-  layers.forEach((layer, i) => {
-    const next = layers[i + 1];
-    if (next) {
-      edges.push({
-        id: `e-${layer.id}-${next.id}`,
-        fromId: layer.id,
-        fromPort: 'out',
-        toId: next.id,
-        toPort: next.kind === 'effect' ? 'in' : 'bg',
-      });
-    } else {
-      edges.push({
-        id: `e-${layer.id}-${EXPORT_NODE_ID}`,
-        fromId: layer.id,
-        fromPort: 'out',
-        toId: EXPORT_NODE_ID,
-        toPort: 'in',
-      });
-    }
-  });
-
-  return {
-    edges,
-    positions,
-    mergeNodes: [],
-    colorNodes: [],
-    repeatNodes: [],
-    materialNodes: [],
-    maskNodes: [],
-    transformNodes: [],
-    grimeShadowNodes: [],
-    scene3dNodes: [],
-    environmentNodes: [],
-    shaderNodes: [],
-    areas: [],
-  };
 }
 
 export function updateGraphPositions(
@@ -226,11 +168,6 @@ export function splitEdgeWithNode(
 
 // Order-preserving edge edits. The renderer reads the first edge on a port, so these keep every other
 // edge where it is and say which edges must win their port (`promoteGraphEdges`).
-
-/** The graph a document renders through: its own graph, or its layer stack wired straight to Output. */
-export function documentGraph(doc: Pick<CanvasDocument, 'graph' | 'layers'>): CanvasGraph {
-  return doc.graph ?? inferLinearGraph(doc.layers);
-}
 
 function uniqueEdgeId(edges: GraphEdge[], base: string) {
   const ids = new Set(edges.map((edge) => edge.id));
@@ -1087,4 +1024,21 @@ export function wouldCreateCycle(graph: CanvasGraph, sourceId: string, targetId:
     }
   }
   return false;
+}
+
+function stackEdgeKey(edge: Pick<GraphEdge, 'fromId' | 'fromPort' | 'toId' | 'toPort'>) {
+  return `${edge.fromId}:${edge.fromPort}->${edge.toId}:${edge.toPort}`;
+}
+
+/**
+ * True when the graph is exactly the layer stack wired to export, so Layers
+ * actions can rebuild it without losing any user-authored topology.
+ */
+export function isLayerStackGraph(doc: { graph: CanvasGraph; layers: Layer[] }): boolean {
+  const { graph } = doc;
+  if (graphUtilityNodeCollections(graph).some((nodes) => nodes.length > 0)) return false;
+  const expected = linearStackEdges(doc.layers);
+  if (graph.edges.length !== expected.length) return false;
+  const actual = new Set(graph.edges.map(stackEdgeKey));
+  return expected.every((edge) => actual.has(stackEdgeKey(edge)));
 }

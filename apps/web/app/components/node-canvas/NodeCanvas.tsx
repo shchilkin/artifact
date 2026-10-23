@@ -36,13 +36,7 @@ import {
   type PrimitiveLayer,
 } from '../../types/config';
 import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
-import {
-  connectedPortIds,
-  EXPORT_NODE_ID,
-  inferLinearGraph,
-  removeGraphEdge,
-  resolveOutputPath,
-} from '../../utils/nodeGraph';
+import { connectedPortIds, EXPORT_NODE_ID, removeGraphEdge, resolveOutputPath } from '../../utils/nodeGraph';
 import { LazyModelViewport3D, LazyPrimitiveViewport3D } from '../LazyViewport3D';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
@@ -179,7 +173,7 @@ export function NodeCanvas({
   onDuplicateLayer,
 }: NodeCanvasProps) {
   const auth = useArtifactAuth();
-  const graph = useMemo(() => doc.graph ?? inferLinearGraph(doc.layers), [doc.graph, doc.layers]);
+  const graph = doc.graph;
 
   const graphRef = useRef(graph);
   useLayoutEffect(() => {

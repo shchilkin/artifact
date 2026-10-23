@@ -33,7 +33,6 @@ import {
   addLayerToDocument,
   addLooseLayerNodeToDocument,
   addNodeAtDocument,
-  bootstrapDocumentGraph,
   createEffectPresetLayer,
   createImageLayerFromSource,
   createLayerOfKind,
@@ -120,7 +119,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   const safeSelectedLayerId =
     selectedLayerId &&
     (doc.layers.some((layer) => layer.id === selectedLayerId) ||
-      Boolean(doc.graph && graphUtilityNodeKind(doc.graph, selectedLayerId)))
+      Boolean(graphUtilityNodeKind(doc.graph, selectedLayerId)))
       ? selectedLayerId
       : null;
 
@@ -270,12 +269,6 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
       cancelled = true;
     };
   }, [commitDocument, doc]);
-
-  useEffect(() => {
-    if (nodeModeEnabled && !docRef.current.graph) {
-      commitDocument(bootstrapDocumentGraph(docRef.current), 'silent');
-    }
-  }, [commitDocument, nodeModeEnabled]);
 
   const addLayer = useCallback(
     (kind: Exclude<LayerKind, 'effect'>, placement?: LayerAddPlacement) => {

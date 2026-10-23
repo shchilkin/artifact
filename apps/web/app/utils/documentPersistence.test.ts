@@ -5,6 +5,7 @@ import {
   type CanvasGraph,
   DEFAULT_DOCUMENT,
   DOCUMENT_SCHEMA_VERSION,
+  makeDocument,
   makeEffectLayer,
   makeFillLayer,
   makeGraphMaterialNode,
@@ -792,17 +793,17 @@ describe('normalizeDocument', () => {
 });
 
 describe('getInitialDocumentFromSources', () => {
-  const storedDoc: CanvasDocument = {
+  const storedDoc: CanvasDocument = makeDocument({
     global: { bg: '#101010', seed: 10, aspect: '1:1' },
     layers: [makeFillLayer({ id: 'stored-fill' })],
     export: { format: 'jpeg', scale: 2, target: 'cover' },
-  };
+  });
 
-  const linkedDoc: CanvasDocument = {
+  const linkedDoc: CanvasDocument = makeDocument({
     global: { bg: '#202020', seed: 20, aspect: '16:9' },
     layers: [makeTextLayer({ id: 'linked-text', content: 'linked' })],
     export: { format: 'png', scale: 1, target: 'envmap' },
-  };
+  });
 
   it('prefers a valid URL document over stored local state', () => {
     const doc = getInitialDocumentFromSources({
@@ -882,11 +883,11 @@ describe('resolveInitialDocumentFromSources link status', () => {
 });
 
 describe('document serialization helpers', () => {
-  const doc: CanvasDocument = {
+  const doc: CanvasDocument = makeDocument({
     global: { bg: '#303030', seed: 30, aspect: '4:5' },
     layers: [makeTextLayer({ id: 'share-text', content: 'share' })],
     export: { format: 'png', scale: 3, target: 'cover' },
-  };
+  });
 
   it('saves serialized documents to the configured storage key', () => {
     const writes = new Map<string, string>();

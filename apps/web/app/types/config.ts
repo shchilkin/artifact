@@ -7,6 +7,7 @@ import type {
   ShaderRole,
 } from '@artifact/shared';
 import { defaultShaderPalette, normalizeShaderPalette } from '../utils/shaderPalette';
+import { inferLinearGraph } from './linearGraph';
 import type { TextFontRef } from './typography';
 
 export {
@@ -730,14 +731,14 @@ export interface CanvasDocument {
   schemaVersion?: number;
   global: GlobalConfig;
   layers: Layer[];
-  graph?: CanvasGraph;
+  graph: CanvasGraph;
   export: ExportConfig;
   fontAssets?: PortableFontAsset[];
   modelAssets?: PortableModelAsset[];
   envAssets?: PortableEnvironmentAsset[];
 }
 
-export const DOCUMENT_SCHEMA_VERSION = 4;
+export const DOCUMENT_SCHEMA_VERSION = 5;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: 'transparent',
@@ -1736,7 +1737,15 @@ export function makeEffectPresetLayer(preset: EffectPreset, overrides: EffectPre
   };
 }
 
-export const DEFAULT_DOCUMENT: CanvasDocument = {
+/** A document built in code whose layers form a plain stack; `graph` defaults to the stack's linear graph. */
+export type DocumentInput = Omit<CanvasDocument, 'graph'> & { graph?: CanvasGraph };
+
+/** Every document has a graph. Use this to build documents in code from a layer list. */
+export function makeDocument(input: DocumentInput): CanvasDocument {
+  return { ...input, graph: input.graph ?? inferLinearGraph(input.layers) };
+}
+
+export const DEFAULT_DOCUMENT: CanvasDocument = makeDocument({
   schemaVersion: DOCUMENT_SCHEMA_VERSION,
   global: DEFAULT_GLOBAL,
   layers: [
@@ -1760,7 +1769,7 @@ export const DEFAULT_DOCUMENT: CanvasDocument = {
     makeEffectPresetLayer('rgbSplit', { id: 'default-rgb-split', rgbSplit: 4 }),
   ],
   export: DEFAULT_EXPORT,
-};
+});
 
 export function makeGraphMergeNode(partial: Partial<GraphMergeNode> = {}): GraphMergeNode {
   return {
@@ -1979,36 +1988,34 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
       ...layer,
       ...(layer.kind === 'emoji' ? { emojis: [...layer.emojis] } : {}),
     })) as Layer[],
-    graph: doc.graph
-      ? {
-          edges: doc.graph.edges.map((e) => ({ ...e })),
-          positions: { ...doc.graph.positions },
-          mergeNodes: doc.graph.mergeNodes.map((n) => ({ ...n })),
-          colorNodes: (doc.graph.colorNodes ?? []).map((n) => ({ ...n })),
-          repeatNodes: (doc.graph.repeatNodes ?? []).map((n) => ({ ...n })),
-          maskNodes: (doc.graph.maskNodes ?? []).map((n) => ({ ...n })),
-          transformNodes: (doc.graph.transformNodes ?? []).map((n) => ({
-            ...n,
-          })),
-          grimeShadowNodes: (doc.graph.grimeShadowNodes ?? []).map((n) => ({
-            ...n,
-          })),
-          scene3dNodes: (doc.graph.scene3dNodes ?? []).map((n) => ({
-            ...n,
-          })),
-          environmentNodes: (doc.graph.environmentNodes ?? []).map((n) => ({
-            ...n,
-          })),
-          materialNodes: (doc.graph.materialNodes ?? []).map((n) => ({ ...n })),
-          shaderNodes: (doc.graph.shaderNodes ?? []).map(cloneGraphShaderNode),
-          areas: (doc.graph.areas ?? []).map((area) => ({
-            ...area,
-            nodeIds: [...area.nodeIds],
-          })),
-          primitiveViewStates: doc.graph.primitiveViewStates
-            ? Object.fromEntries(Object.entries(doc.graph.primitiveViewStates).map(([id, state]) => [id, { ...state }]))
-            : undefined,
-        }
-      : undefined,
+    graph: {
+      edges: doc.graph.edges.map((e) => ({ ...e })),
+      positions: { ...doc.graph.positions },
+      mergeNodes: doc.graph.mergeNodes.map((n) => ({ ...n })),
+      colorNodes: (doc.graph.colorNodes ?? []).map((n) => ({ ...n })),
+      repeatNodes: (doc.graph.repeatNodes ?? []).map((n) => ({ ...n })),
+      maskNodes: (doc.graph.maskNodes ?? []).map((n) => ({ ...n })),
+      transformNodes: (doc.graph.transformNodes ?? []).map((n) => ({
+        ...n,
+      })),
+      grimeShadowNodes: (doc.graph.grimeShadowNodes ?? []).map((n) => ({
+        ...n,
+      })),
+      scene3dNodes: (doc.graph.scene3dNodes ?? []).map((n) => ({
+        ...n,
+      })),
+      environmentNodes: (doc.graph.environmentNodes ?? []).map((n) => ({
+        ...n,
+      })),
+      materialNodes: (doc.graph.materialNodes ?? []).map((n) => ({ ...n })),
+      shaderNodes: (doc.graph.shaderNodes ?? []).map(cloneGraphShaderNode),
+      areas: (doc.graph.areas ?? []).map((area) => ({
+        ...area,
+        nodeIds: [...area.nodeIds],
+      })),
+      primitiveViewStates: doc.graph.primitiveViewStates
+        ? Object.fromEntries(Object.entries(doc.graph.primitiveViewStates).map(([id, state]) => [id, { ...state }]))
+        : undefined,
+    },
   };
 }

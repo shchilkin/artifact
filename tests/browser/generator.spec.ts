@@ -4415,10 +4415,17 @@ async function expectStoredStarterDocument(
       async () =>
         page.evaluate((includeTextFonts) => {
           const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          const state: { aspect?: string; hasGraph: boolean; layerIds: string[]; textFonts?: string[] } = {
+          const layerIds: string[] = doc.layers?.map((layer: { id: string }) => layer.id) ?? [];
+          const chain = [...layerIds, '__export__'];
+          const edges: { fromId: string; toId: string }[] = doc.graph?.edges ?? [];
+          // A layer starter is stored as a layer stack: each layer feeds the next, the top layer feeds Output.
+          const layerStackGraph =
+            edges.length === layerIds.length &&
+            layerIds.every((id, index) => edges.some((edge) => edge.fromId === id && edge.toId === chain[index + 1]));
+          const state: { aspect?: string; layerStackGraph: boolean; layerIds: string[]; textFonts?: string[] } = {
             aspect: doc.global?.aspect,
-            hasGraph: Boolean(doc.graph),
-            layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
+            layerStackGraph,
+            layerIds,
           };
           if (includeTextFonts) {
             const textLayers = doc.layers?.filter((layer: { kind: string }) => layer.kind === 'text') ?? [];
@@ -4428,7 +4435,7 @@ async function expectStoredStarterDocument(
         }, Boolean(expected.textFonts)),
       { timeout: 15_000 },
     )
-    .toEqual({ ...expected, hasGraph: false });
+    .toEqual({ ...expected, layerStackGraph: true });
 }
 
 async function addTitleTypeLayer(page: Page) {

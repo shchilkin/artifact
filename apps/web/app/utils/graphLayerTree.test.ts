@@ -370,9 +370,4 @@ describe('buildGraphLayerTree', () => {
     expect(summarize(tree.output)).toEqual(['a', 'b', '↪ a']);
     expect(tree.notInOutput.map(summarize)).toEqual([['e'], ['d', 'c', '↪ d']]);
   });
-
-  it('builds the linear stack when a document has no graph', () => {
-    const doc: CanvasDocument = { ...documentOf([fill('bottom'), text('top')], graphOf({})), graph: undefined };
-    expect(summarize(buildGraphLayerTree(doc).output)).toEqual(['top', 'bottom']);
-  });
 });

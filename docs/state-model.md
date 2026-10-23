@@ -53,6 +53,16 @@ Rules:
 - Use layer factory functions when creating layers.
 - Update documents immutably.
 - Import external document JSON through normalization before committing it.
+- Every document has a `graph` (schema 5, v0.53). A layer-stack document stores
+  the linear graph of its layers; `isLayerStackGraph` recognizes it, and Layers
+  edits (add, remove, duplicate, reorder) keep that graph equal to the new
+  stack. Build documents in code with `makeDocument`, which fills in the linear
+  graph. Never substitute an inferred graph for `doc.graph` at render or edit
+  time.
+- `?doc=` links (`utils/documentLink.ts`) leave out a layer-stack graph that has
+  no areas or saved camera views, because the layers fully determine it;
+  `normalizeDocument` rebuilds it on open. This keeps links within URL size
+  limits. Saved files, projects, and local storage keep the full graph.
 - Normalize unversioned documents to the current `DOCUMENT_SCHEMA_VERSION`.
   Documents without `schemaVersion` are schema 1.
 - Stored-format changes are one-shot steps in `apps/web/app/utils/migrations/`
@@ -252,7 +262,6 @@ Current type:
 
 Important fields:
 
-- `graphMode`
 - `draft`
 - `skipEffects`
 - `primitiveViewStates`
@@ -273,7 +282,7 @@ Document commits use explicit update modes:
 | --- | --- |
 | `snapshot` | Discrete creative actions such as add, delete, duplicate, randomize, or document import |
 | `debounce` | Continuous edits such as sliders, graph node movement, and inspector field drags |
-| `silent` | Internal normalization/bootstrap work that should persist but should not create undo history |
+| `silent` | Internal normalization work, such as node placement on Nodes entry, that should persist but should not create undo history |
 
 Expected behavior:
 
@@ -284,13 +293,11 @@ Expected behavior:
 - Selection, hover, menus, camera lock toggles, and gallery view changes do not need undo unless promoted to durable document features.
 - Node placement on Nodes entry (nodes with no stored position, and measured
   cards that intersect a card kept in place) is `silent`: it adds no undo entry,
-  like graph bootstrap, because it repairs an unreadable first view rather than
+  because it repairs an unreadable first view rather than
   recording a creative decision. Cards that overlap nothing never move. The
   toolbar Layout action stays an undoable edit.
 - Entry placement is document content. It writes `graph.positions` into the
-  document and its autosaved `doc` copy, and a stack document that had no
-  `graph` gains one through the existing bootstrap. The persistence format does
-  not change. Undo to a snapshot taken before an entry can bring back
+  document and its autosaved `doc` copy. Undo to a snapshot taken before an entry can bring back
   unplaced or overlapping positions; the next entry places them again.
 
 ## Thumbnail invalidation rules

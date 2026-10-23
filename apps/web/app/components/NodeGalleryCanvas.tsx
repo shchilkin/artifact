@@ -108,7 +108,7 @@ async function renderGalleryCanvas({
         width,
         height,
         effectiveImageCache,
-        { effectResolution: { width, height }, graphMode: 'graph' },
+        { effectResolution: { width, height } },
         graphRenderSessionCache,
       )
     : renderGraphTarget(

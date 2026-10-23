@@ -1,19 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
-import { type CanvasDocument, makeFillLayer, makeGraphMaterialNode, makeImageLayer } from '../types/config';
+import {
+  type CanvasDocument,
+  makeDocument,
+  makeFillLayer,
+  makeGraphMaterialNode,
+  makeImageLayer,
+} from '../types/config';
 import { hydrateDocumentImageAssets } from './assetStore';
 
 describe('hydrateDocumentImageAssets', () => {
   const portableDataUrl = 'data:image/png;base64,AAAA';
 
   it('hydrates generated local image assets into portable document data URLs', async () => {
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: '#101010', seed: 13, aspect: '1:1' },
       layers: [
         makeImageLayer('artifact-asset://generated-output', { id: 'generated-layer' }),
         makeFillLayer({ id: 'fill-layer' }),
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const loadAssetDataUrl = vi.fn(async (src: string) =>
       src === 'artifact-asset://generated-output' ? portableDataUrl : null,
     );
@@ -30,7 +36,7 @@ describe('hydrateDocumentImageAssets', () => {
   });
 
   it('hydrates generated image history alongside the selected image', async () => {
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: '#101010', seed: 13, aspect: '1:1' },
       layers: [
         {
@@ -44,7 +50,7 @@ describe('hydrateDocumentImageAssets', () => {
         },
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const loadAssetDataUrl = vi.fn(async (src: string) => {
       if (src === 'artifact-asset://generated-output') return portableDataUrl;
       if (src === 'artifact-asset://generated-alt') return 'data:image/png;base64,BBBB';
@@ -65,11 +71,11 @@ describe('hydrateDocumentImageAssets', () => {
   });
 
   it('preserves local asset references when bytes are unavailable', async () => {
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: '#101010', seed: 13, aspect: '1:1' },
       layers: [makeImageLayer('artifact-asset://missing-generated-output', { id: 'generated-layer' })],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
 
     const hydrated = await hydrateDocumentImageAssets(doc, { loadAssetDataUrl: vi.fn(async () => null) });
 

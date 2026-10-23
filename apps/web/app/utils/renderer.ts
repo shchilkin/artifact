@@ -2,7 +2,7 @@ export type { GraphRenderCache } from './render/graph';
 export type { RenderOptions } from './render/layers';
 
 import type { CanvasDocument } from '../types/config';
-import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
+import { EXPORT_NODE_ID } from './nodeGraph';
 import { type GraphRenderCache, renderGraphTarget } from './render/graph';
 import { collectGraphRenderReach } from './render/graphInputs';
 import type { RenderOptions } from './render/layers';
@@ -44,27 +44,12 @@ export async function renderDocument(
   options: RenderOptions = {},
   renderCache?: GraphRenderCache,
 ): Promise<HTMLCanvasElement> {
-  return measureDocumentRender(async () => {
-    if (options.graphMode === 'graph' && doc.graph) {
-      return renderGraphTarget(doc, doc.graph, EXPORT_NODE_ID, W, H, imageCache, options, renderCache);
-    }
-
-    if (options.graphMode !== 'stack' && doc.graph) {
-      return renderGraphTarget(doc, doc.graph, EXPORT_NODE_ID, W, H, imageCache, options, renderCache);
-    }
-
-    // Stack mode: infer a linear graph from doc.layers and execute it.
-    // This guarantees identical rendering logic between layer and node views,
-    // bypassing any custom edges in doc.graph while preserving correct layer order.
-    const tempGraph = inferLinearGraph(doc.layers);
-    return renderGraphTarget(doc, tempGraph, EXPORT_NODE_ID, W, H, imageCache, options, renderCache);
-  });
+  return measureDocumentRender(() =>
+    renderGraphTarget(doc, doc.graph, EXPORT_NODE_ID, W, H, imageCache, options, renderCache),
+  );
 }
 
-/**
- * Ids of the layers and graph nodes that contribute to the document's output, using the same graph choice
- * as `renderDocument` with default options: the document graph when there is one, otherwise the layer stack.
- */
+/** Ids of the layers and graph nodes that contribute to the document's output. */
 export function collectDocumentOutputNodeIds(doc: CanvasDocument): Set<string> {
-  return collectGraphRenderReach(doc, doc.graph ?? inferLinearGraph(doc.layers), EXPORT_NODE_ID);
+  return collectGraphRenderReach(doc, doc.graph, EXPORT_NODE_ID);
 }

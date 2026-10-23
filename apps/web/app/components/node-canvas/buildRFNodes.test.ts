@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasDocument, CanvasGraph, Layer } from '../../types/config';
+import { makeDocument } from '../../types/config';
 import { buildRFNodes } from './buildRFNodes';
 
 function graphFixture(): CanvasGraph {
@@ -13,12 +14,12 @@ function graphFixture(): CanvasGraph {
 }
 
 function documentWithLayer(layer: Layer): CanvasDocument {
-  return {
+  return makeDocument({
     schemaVersion: 1,
     global: { bg: 'transparent', seed: 1, aspect: '1:1' },
     layers: [layer],
     export: { format: 'png', scale: 1, target: 'cover' },
-  };
+  });
 }
 
 describe('buildRFNodes', () => {

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type CanvasDocument,
   type CanvasGraph,
+  makeDocument,
   makeEffectLayer,
   makeFillLayer,
   makeGraphMaterialNode,
@@ -25,11 +26,11 @@ import {
 } from './documentHistory';
 
 function makeDoc(seed: number): CanvasDocument {
-  return {
+  return makeDocument({
     global: { bg: '#000000', seed, aspect: '1:1' },
     layers: [seed % 2 === 0 ? makeFillLayer({ id: `fill-${seed}` }) : makeTextLayer({ id: `text-${seed}` })],
     export: { format: 'png', scale: 1, target: 'cover' },
-  };
+  });
 }
 
 function makeGraphDoc(x: number): CanvasDocument {
@@ -245,11 +246,12 @@ describe('commitDocumentWithHistory', () => {
     };
   }
 
-  const docWithSeed = (seed: number): CanvasDocument => ({
-    global: { bg: '#000000', seed, aspect: '1:1' },
-    layers: [],
-    export: { format: 'png', scale: 1, target: 'cover' },
-  });
+  const docWithSeed = (seed: number): CanvasDocument =>
+    makeDocument({
+      global: { bg: '#000000', seed, aspect: '1:1' },
+      layers: [],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
 
   it('records the document before a snapshot even when the updater runs after later commits', () => {
     const { commit, flush } = harness(docWithSeed(1));

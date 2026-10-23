@@ -42,10 +42,10 @@ export async function mapDocumentImageSources(doc: CanvasDocument, mapSource: So
     doc.layers.map((layer) => (layer.kind === 'image' ? mapImageLayer(layer, mapSource) : layer)),
   );
   const materialNodes = await Promise.all(
-    (doc.graph?.materialNodes ?? []).map((node) => mapMaterialNode(node, mapSource)),
+    (doc.graph.materialNodes ?? []).map((node) => mapMaterialNode(node, mapSource)),
   );
   const layersChanged = layers.some((layer, index) => layer !== doc.layers[index]);
-  const materialNodesChanged = materialNodes.some((node, index) => node !== doc.graph?.materialNodes?.[index]);
+  const materialNodesChanged = materialNodes.some((node, index) => node !== doc.graph.materialNodes?.[index]);
   if (!layersChanged && !materialNodesChanged) return doc;
   return {
     ...doc,

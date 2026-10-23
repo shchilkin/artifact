@@ -1,7 +1,7 @@
 import { ASPECT_SIZES, type CanvasDocument } from '../../../types/config';
 import { CURATED_EXAMPLES } from '../../../utils/curatedExamples';
-import { bootstrapDocumentGraph } from '../../../utils/documentCommands';
 import { HERO_FRAMES } from '../../../utils/heroConfigs';
+import { inferLinearGraph, isLayerStackGraph } from '../../../utils/nodeGraph';
 import { GRAPH_RECIPE_STARTER_DOCUMENTS, LAYER_STARTER_DOCUMENTS } from '../../../utils/starterDocuments';
 
 /** Long side of the preview-sized render, matching the 540px authoring baseline. */
@@ -9,9 +9,9 @@ export const GOLDEN_PREVIEW_LONG_SIDE = 540;
 
 /**
  * How a golden case is rendered:
- * - `stack`: a document without a graph, rendered as a layer stack.
- * - `graph`: the document's own graph, or for a stack document the graph the editor creates when the user
- *   opens Nodes (`bootstrapDocumentGraph`).
+ * - `stack`: the linear graph of the document's layer stack (what Layers mode shows).
+ * - `graph`: the document's stored graph.
+ * Layer-stack documents render both and must match; custom-graph documents render only `graph`.
  */
 export type GoldenMode = 'stack' | 'graph';
 
@@ -23,7 +23,7 @@ export interface GoldenCase {
 }
 
 function caseFor(id: string, doc: CanvasDocument): GoldenCase {
-  return { id, doc, modes: doc.graph ? ['graph'] : ['stack', 'graph'] };
+  return { id, doc, modes: isLayerStackGraph(doc) ? ['stack', 'graph'] : ['graph'] };
 }
 
 /** Every shipped starter, curated example, and landing hero frame, each listed once. */
@@ -45,7 +45,7 @@ export function collectGoldenCases(): GoldenCase[] {
 }
 
 export function documentForMode(doc: CanvasDocument, mode: GoldenMode): CanvasDocument {
-  return mode === 'graph' ? bootstrapDocumentGraph(doc) : doc;
+  return mode === 'stack' ? { ...doc, graph: inferLinearGraph(doc.layers) } : doc;
 }
 
 export function previewSize(doc: CanvasDocument): [number, number] {

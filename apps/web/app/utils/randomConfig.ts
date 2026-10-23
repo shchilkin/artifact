@@ -13,6 +13,7 @@ import {
   DEFAULT_EXPORT,
   DOCUMENT_SCHEMA_VERSION,
   EFFECT_PRESET_MENU_ORDER,
+  makeDocument,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
@@ -463,12 +464,12 @@ export function randomDocumentForFormula(
     ...layer,
     id: `random-${formula}-${seed}-${index}`,
   }));
-  return {
+  return makeDocument({
     schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { bg: randomPlateColor(baseHue, rng), seed, aspect },
     layers,
     export: { ...DEFAULT_EXPORT },
-  };
+  });
 }
 
 export function randomDocumentFromSeed(seed: number): CanvasDocument {

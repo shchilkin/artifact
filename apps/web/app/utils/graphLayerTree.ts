@@ -1,5 +1,5 @@
 import type { CanvasDocument, CanvasGraph } from '../types/config';
-import { documentGraph, EXPORT_NODE_ID, findGraphUtilityNode, graphUtilityNodeCollections } from './nodeGraph';
+import { EXPORT_NODE_ID, findGraphUtilityNode, graphUtilityNodeCollections } from './nodeGraph';
 import {
   collectGraphRenderReachModes,
   type GraphInputPort,
@@ -260,7 +260,7 @@ function buildNotInOutput(context: TreeContext, unreached: string[]): GraphTreeR
  * nodes cannot loop, tolerates missing edges and nodes, and lists unreachable nodes separately.
  */
 export function buildGraphLayerTree(doc: CanvasDocument): GraphLayerTree {
-  const graph = documentGraph(doc);
+  const graph = doc.graph;
   const reach = collectGraphRenderReachModes(doc, graph, EXPORT_NODE_ID);
   const context: TreeContext = { doc, graph, reach, placed: new Set(), inputsCache: new Map() };
   const output = buildStack(context, exportSource(context), EXPORT_NODE_ID, { nodeId: EXPORT_NODE_ID, port: 'in' });

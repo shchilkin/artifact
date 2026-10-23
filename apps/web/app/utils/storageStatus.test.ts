@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CanvasDocument } from '../types/config';
+import { makeDocument } from '../types/config';
 import type { SavedProject } from './projectLibrary';
 import { classifyStoragePressure, formatBytes, projectSizeBytes, summarizeEditorStorage } from './storageStatus';
 
-const doc = {
+const doc = makeDocument({
   global: { bg: '#000000', seed: 1, aspect: '1:1' },
   layers: [],
   export: { format: 'png', scale: 1, target: 'cover' },
-} as CanvasDocument;
+});
 
 const project: SavedProject = {
   id: 'project-a',

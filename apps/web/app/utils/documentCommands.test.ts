@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   type CanvasDocument,
   type CanvasGraph,
+  makeDocument,
   makeEmojiLayer,
   makeFillLayer,
   makeGraphColorNode,
@@ -20,7 +21,6 @@ import {
   addLayerToDocument,
   addLooseLayerNodeToDocument,
   addNodeAtDocument,
-  bootstrapDocumentGraph,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
   isLayerStackGraph,
@@ -51,7 +51,7 @@ import { EXPORT_NODE_ID } from './nodeGraph';
 import { REPEAT_PRESETS } from './repeatPresets';
 
 function makeDoc(graph?: CanvasGraph): CanvasDocument {
-  return {
+  return makeDocument({
     global: { bg: '#101010', seed: 12, aspect: '1:1' },
     layers: [
       makeFillLayer({ id: 'fill-a', name: 'Fill A' }),
@@ -59,7 +59,7 @@ function makeDoc(graph?: CanvasGraph): CanvasDocument {
     ],
     graph,
     export: { format: 'png', scale: 1, target: 'cover' },
-  };
+  });
 }
 
 function makeGraph(): CanvasGraph {
@@ -169,18 +169,36 @@ function makeLockedFillDoc(): CanvasDocument {
 }
 
 describe('documentCommands', () => {
-  it('bootstraps a graph without mutating the layer list', () => {
-    const doc = makeDoc();
-    const next = bootstrapDocumentGraph(doc);
+  it('keeps a layer-stack graph linked when a middle layer is removed or duplicated', () => {
+    const doc = makeDocument({
+      global: { bg: '#101010', seed: 12, aspect: '1:1' },
+      layers: [
+        makeFillLayer({ id: 'fill-a', name: 'Fill A' }),
+        makeTextLayer({ id: 'text-a', name: 'Text A', content: 'A' }),
+        makeTextLayer({ id: 'text-b', name: 'Text B', content: 'B' }),
+      ],
+      export: { format: 'png', scale: 1, target: 'cover' },
+    });
+    const chain = (next: CanvasDocument) => next.graph.edges.map((edge) => `${edge.fromId}->${edge.toId}`);
 
-    expect(next).not.toBe(doc);
-    expect(next.layers).toBe(doc.layers);
-    expect(next.graph?.positions).toHaveProperty('fill-a');
-    expect(next.graph?.positions).toHaveProperty(EXPORT_NODE_ID);
+    const removed = removeLayerFromDocument(doc, 'text-a');
+    expect(chain(removed)).toEqual(['fill-a->text-b', `text-b->${EXPORT_NODE_ID}`]);
+    expect(isLayerStackGraph(removed)).toBe(true);
+
+    const duplicated = duplicateLayerInDocument(doc, 'text-a', () => 'text-a-copy').doc;
+    expect(chain(duplicated)).toEqual([
+      'fill-a->text-a',
+      'text-a->text-a-copy',
+      'text-a-copy->text-b',
+      `text-b->${EXPORT_NODE_ID}`,
+    ]);
+
+    const deleted = deleteNodesFromDocument(doc, ['text-a']);
+    expect(chain(deleted)).toEqual(['fill-a->text-b', `text-b->${EXPORT_NODE_ID}`]);
   });
 
   it('appends a layer to the stack path of a linear layer graph', () => {
-    const doc = bootstrapDocumentGraph(makeDoc());
+    const doc = makeDoc();
     const layer = makeTextLayer({ id: 'text-b' });
     const next = addLayerToDocument(doc, layer);
 
@@ -647,7 +665,7 @@ describe('documentCommands', () => {
   });
 
   it('reorders layers and keeps a linear graph in sync', () => {
-    const doc = bootstrapDocumentGraph(makeDoc());
+    const doc = makeDoc();
     const reordered = [doc.layers[1]!, doc.layers[0]!];
     const next = reorderDocumentLayers(doc, reordered);
 
@@ -656,7 +674,7 @@ describe('documentCommands', () => {
   });
 
   it('does not reorder a locked layer', () => {
-    const base = bootstrapDocumentGraph(makeDoc());
+    const base = makeDoc();
     const doc = {
       ...base,
       layers: base.layers.map((layer) => ({ ...layer, locked: layer.id === 'fill-a' })),
@@ -689,7 +707,7 @@ describe('documentCommands', () => {
 
   it('reports whether a document graph follows the layer stack', () => {
     expect(isLayerStackGraph(makeDoc())).toBe(true);
-    expect(isLayerStackGraph(bootstrapDocumentGraph(makeDoc()))).toBe(true);
+    expect(isLayerStackGraph(makeDoc())).toBe(true);
     expect(isLayerStackGraph(makeDoc(makeBranchedGraph()))).toBe(false);
     expect(isLayerStackGraph(makeDoc(makeGraph()))).toBe(false);
   });

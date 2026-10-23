@@ -1,5 +1,5 @@
 import type { CanvasDocument, EffectLayer, EffectPreset } from '../types/config';
-import { DEFAULT_EXPORT, makeEmojiLayer, ZERO_EFFECT } from '../types/config';
+import { DEFAULT_EXPORT, makeDocument, makeEmojiLayer, ZERO_EFFECT } from '../types/config';
 import { splitEffectPatchIntoPresetLayers } from './effectPresetPatch';
 import { renderDocument } from './renderer';
 
@@ -676,11 +676,11 @@ export async function renderEffectThumb(key: string): Promise<string> {
   const meta = EFFECT_META[thumbKey];
   if (!meta) return '';
 
-  const doc: CanvasDocument = {
+  const doc: CanvasDocument = makeDocument({
     global: { bg: '#120020', seed: BASE_SEED, aspect: '1:1' },
     layers: [BASE_EMOJI_LAYER, ...splitEffectPatchIntoPresetLayers({ ...BASE_EFFECT, ...meta.cfgOverride })],
     export: { ...DEFAULT_EXPORT },
-  };
+  });
 
   const canvas = await renderDocument(doc, THUMB_SIZE, THUMB_SIZE, new Map());
   const url = canvas.toDataURL('image/jpeg', 0.8);

@@ -110,18 +110,21 @@ Noise sources can additionally warp their sampling domain, fold values through
 turbulence, and harden their alpha through threshold shaping. These controls
 are source-layer state and therefore must match between node preview and export.
 
-## Stack mode vs graph mode
+## Layer stacks and custom graphs
 
-### Stack mode
+Every document renders from `CanvasDocument.graph` (schema 5). There is no
+separate stack render path and no `graphMode` option.
 
-Stack mode renders `doc.layers` in order. Index 0 is bottom. This is the classic layer editor mental model.
-Internally it builds a linear graph from the layers with `inferLinearGraph` and
-renders it through the same graph renderer, so stack and graph output share one
-render path.
+### Layer stacks
 
-### Graph mode
+A layer-stack document stores the linear graph of `doc.layers`: index 0 feeds
+the next layer and the top layer feeds Output (`inferLinearGraph`,
+`isLayerStackGraph`). Layers edits keep that graph equal to the stack. The main
+layer preview uses its per-layer prefix cache only for layer-stack graphs.
 
-Graph mode renders from `CanvasDocument.graph`. Nodes can be:
+### Custom graphs
+
+A custom graph is any other graph. Nodes can be:
 
 - layer nodes
 - merge nodes
@@ -269,11 +272,8 @@ upstream canvas to sample.
 
 ### Rule
 
-If `doc.graph` exists and `graphMode` is not forced to `stack`, graph mode is used. Preview and export call sites must be explicit about which mode they need.
-
-The main layer preview renders graph documents in graph mode so layer view and
-the export node agree about the visible artwork. Documents without a graph still
-render in classic stack mode.
+Preview, thumbnails, gallery, and export all render `doc.graph`, so Layers,
+Nodes, and the exported file show the same artwork.
 
 ## Layer rendering
 
@@ -471,7 +471,6 @@ Current render options:
 interface RenderOptions {
   skipEffects?: boolean;
   draft?: boolean;
-  graphMode?: 'auto' | 'graph' | 'stack';
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
   effectResolution?: { width: number; height: number };
   mergeGpuPasses?: boolean;
@@ -482,7 +481,6 @@ Guidelines:
 
 - `skipEffects` is for performance-sensitive preview paths only.
 - `draft` may lower quality during active interaction.
-- `graphMode` must be explicit when a surface needs stack behavior.
 - `primitiveViewStates` must be passed to export when primitive camera state is visible in preview.
 - `effectResolution` is used by export so scale 2/3 increases file
   resolution without changing procedural effect density from the base cover
@@ -504,7 +502,7 @@ For any rendering change, verify:
 1. Main layer preview still renders.
 2. Node thumbnail still renders.
 3. Node gallery still renders.
-4. Export uses the same graph or stack mode as the visible editor mode.
+4. Export renders the same `doc.graph` as the preview.
 5. Primitive camera overrides are passed to export.
 6. Image cache is available before rendering.
 7. Pixel-like values scale from the 540 baseline.

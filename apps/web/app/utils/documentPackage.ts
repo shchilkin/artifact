@@ -154,7 +154,7 @@ function modelSources(doc: CanvasDocument) {
 }
 
 function environmentSources(doc: CanvasDocument) {
-  return [...(doc.graph?.environmentNodes ?? []), ...(doc.graph?.scene3dNodes ?? [])].flatMap((node) =>
+  return [...(doc.graph.environmentNodes ?? []), ...(doc.graph.scene3dNodes ?? [])].flatMap((node) =>
     node.environmentSrc
       ? [
           [

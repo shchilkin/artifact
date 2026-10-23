@@ -14,6 +14,7 @@ import { estimateGpuPassMs } from '../utils/gpuPassCost';
 import { scheduleIdle } from '../utils/idleCallback';
 import { PREVIEW_FRAME_INTERVAL_MS } from '../utils/interactionTiming';
 import { createLayerPreviewRenderCache } from '../utils/layerPreviewRenderCache';
+import { isLayerStackGraph } from '../utils/nodeGraph';
 import { type RenderOptions, renderDocument } from '../utils/renderer';
 import { createPreviewRenderScheduler, type PreviewRenderScheduler } from './previewRenderScheduler';
 
@@ -34,8 +35,6 @@ export type InteractiveScale = (typeof INTERACTIVE_SCALE_STEPS)[number];
 interface Options {
   /** While true, renderer skips GPU effect passes for fast pointer feedback. */
   fast?: boolean;
-  /** Layer canvas preview should ignore any saved node graph and use layer order. */
-  graphMode?: 'auto' | 'graph' | 'stack';
   /** 3D primitive/model/scene camera overrides used by node previews and export. */
   primitiveViewStates?: RenderOptions['primitiveViewStates'];
   /** Keeps the last good preview visible across component remounts. */
@@ -245,7 +244,6 @@ interface DocumentRendererRefs {
   renderWidthRef: MutableRefObject<number>;
   renderHeightRef: MutableRefObject<number>;
   fastRef: MutableRefObject<boolean>;
-  graphModeRef: MutableRefObject<RenderOptions['graphMode']>;
   primitiveViewStatesRef: MutableRefObject<RenderOptions['primitiveViewStates']>;
   cacheKeyRef: MutableRefObject<string | null>;
   draftRenderScaleRef: MutableRefObject<number | undefined>;
@@ -319,7 +317,8 @@ function finishRenderCycle(
 }
 
 function renderCacheForMode(refs: DocumentRendererRefs, renderOptions: RenderOptions, width: number, height: number) {
-  return renderOptions.graphMode === 'stack'
+  // A layer-stack graph renders each layer on top of the layers below it, so per-layer prefix entries stay valid.
+  return isLayerStackGraph(refs.docRef.current)
     ? createLayerPreviewRenderCache(
         refs.docRef.current,
         refs.imageCacheRef.current,
@@ -390,7 +389,6 @@ function frameRenderOptions(
     // Interactive passes are replaced by the full-quality pass, which keeps separate GPU passes.
     mergeGpuPasses: interactive,
     recordGpuCost: true,
-    graphMode: refs.graphModeRef.current,
     primitiveViewStates: refs.primitiveViewStatesRef.current,
     signal: abortController.signal,
   };
@@ -435,7 +433,7 @@ function renderSizeKey(width: number, height: number) {
  */
 function scheduleInteractiveWarmup(refs: DocumentRendererRefs) {
   cancelInteractiveWarmup(refs);
-  if (refs.interactiveGpuPassBudgetMsRef.current === undefined || refs.graphModeRef.current !== 'stack') return;
+  if (refs.interactiveGpuPassBudgetMsRef.current === undefined || !isLayerStackGraph(refs.docRef.current)) return;
   const cancelIdle = scheduleIdle(() => {
     refs.warmupRef.current.cancelIdle = null;
     if (!refs.canvasRef.current || refs.renderingRef.current) return;
@@ -685,7 +683,6 @@ export function useDocumentRenderer(
   const renderWidthRef = useRef(initialRenderWidth);
   const renderHeightRef = useRef(initialRenderHeight);
   const fastRef = useRef(options.fast ?? false);
-  const graphModeRef = useRef(options.graphMode ?? 'auto');
   const primitiveViewStatesRef = useRef(options.primitiveViewStates);
   const cacheKeyRef = useRef(makeRenderCacheKey(options.cacheKey, pw, ph));
   const draftRenderScaleRef = useRef(options.draftRenderScale ?? options.renderScale);
@@ -726,7 +723,6 @@ export function useDocumentRenderer(
     renderWidthRef,
     renderHeightRef,
     fastRef,
-    graphModeRef,
     primitiveViewStatesRef,
     cacheKeyRef,
     draftRenderScaleRef,
@@ -776,7 +772,6 @@ export function useDocumentRenderer(
       options.maxRenderDimension,
     );
     fastRef.current = options.fast ?? false;
-    graphModeRef.current = options.graphMode ?? 'auto';
     primitiveViewStatesRef.current = options.primitiveViewStates;
     cacheKeyRef.current = makeRenderCacheKey(options.cacheKey, renderWidthRef.current, renderHeightRef.current);
     draftRenderScaleRef.current = options.draftRenderScale ?? options.renderScale;
@@ -792,7 +787,6 @@ export function useDocumentRenderer(
     pw,
     ph,
     options.fast,
-    options.graphMode,
     options.primitiveViewStates,
     options.cacheKey,
     options.renderScale,
@@ -962,7 +956,6 @@ export function useDocumentRenderer(
     doc,
     imageCache,
     options.fast,
-    options.graphMode,
     options.primitiveViewStates,
     options.cacheKey,
     options.deferFullRender,

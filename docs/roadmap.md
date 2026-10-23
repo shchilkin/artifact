@@ -17,7 +17,7 @@ v0.50.0 Editor UX was released on 2026-10-05
 | v0.50.1 | Editor Polish Patch ([#448](https://github.com/shchilkin/artifact/issues/448)) | [v0.50](./version-plans/v0.50.md) | in progress |
 | v0.51 | One control grammar across editor surfaces | [v0.51](./version-plans/v0.51.md) | planned |
 | v0.52 | AI-Assisted Creation | [v0.52](./version-plans/v0.52.md) | planned |
-| v0.53 | Core Reset: one topology source, node and effect registries | [v0.53](./version-plans/v0.53.md) | in progress (Phase 0 done) |
+| v0.53 | Core Reset: one topology source, node and effect registries | [v0.53](./version-plans/v0.53.md) | in progress (Phases 0-3 done) |
 
 Sequencing note (2026-10-23): the owner started the Core Reset ahead of its
 version number. Whether v0.53 phases run before, alongside, or after v0.51 and
@@ -27,9 +27,6 @@ v0.52 is an open owner decision; update this table when it is made.
 
 These are addressed by v0.53 unless noted.
 
-- Two topology sources (`doc.layers` order and optional `doc.graph`).
-  Opening Nodes on a stack document without a fill layer changes its output
-  (background lost); 18 of 22 golden stack documents are affected.
 - Per-kind node arrays and a flat `EffectLayer`, so new nodes and effect
   parameters need edits across many files.
 - Mixed document update paths; some silent writes skip undo.

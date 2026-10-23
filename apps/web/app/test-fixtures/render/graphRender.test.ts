@@ -17,7 +17,7 @@ import {
 } from '../../types/config';
 import { makeDefaultCodeShaderInstance } from '../../utils/customShaderCode';
 import { reorderDocumentLayers } from '../../utils/documentCommands';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { EXPORT_NODE_ID, inferLinearGraph } from '../../utils/nodeGraph';
 import { measureAlphaBounds } from '../../utils/render/alphaBounds';
 import { isGpuOnlyEffectLayer } from '../../utils/render/layers';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../../utils/renderer';
@@ -150,13 +150,9 @@ describe('renderDocument graph mode', () => {
       colorNodes: [],
     });
 
-    const graphCanvas = await renderDocument(doc, 40, 40, new Map(), {
+    const graphCanvas = await renderDocument(doc, 40, 40, new Map(), { skipEffects: true });
+    const stackCanvas = await renderDocument({ ...doc, graph: inferLinearGraph(doc.layers) }, 40, 40, new Map(), {
       skipEffects: true,
-      graphMode: 'graph',
-    });
-    const stackCanvas = await renderDocument(doc, 40, 40, new Map(), {
-      skipEffects: true,
-      graphMode: 'stack',
     });
 
     const [graphR, graphG, graphB] = centerPixel(graphCanvas);
@@ -175,10 +171,7 @@ describe('renderDocument graph mode', () => {
     const doc = graphDocument(graph);
     const options = { skipEffects: true as const };
 
-    const documentCanvas = await renderDocument(doc, 40, 40, new Map(), {
-      ...options,
-      graphMode: 'graph',
-    });
+    const documentCanvas = await renderDocument(doc, 40, 40, new Map(), options);
     const targetCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 40, 40, new Map(), options);
 
     expect(pixelsEqual(allPixels(documentCanvas), allPixels(targetCanvas))).toBe(true);
@@ -268,9 +261,7 @@ describe('renderDocument graph mode', () => {
       graph,
       export: { format: 'png', scale: 1, target: 'cover' },
     };
-    const options = { graphMode: 'graph' as const };
-
-    const documentCanvas = await renderDocument(doc, 96, 96, new Map(), options);
+    const documentCanvas = await renderDocument(doc, 96, 96, new Map());
     const targetCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 96, new Map(), {});
 
     expect(hasVisiblePixels(documentCanvas)).toBe(true);
@@ -289,14 +280,14 @@ describe('renderDocument graph mode', () => {
     });
     const reordered = reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!]);
 
-    const graphCanvas = await renderDocument(reordered, 40, 40, new Map(), {
-      skipEffects: true,
-      graphMode: 'graph',
-    });
-    const stackCanvas = await renderDocument(reordered, 40, 40, new Map(), {
-      skipEffects: true,
-      graphMode: 'stack',
-    });
+    const graphCanvas = await renderDocument(reordered, 40, 40, new Map(), { skipEffects: true });
+    const stackCanvas = await renderDocument(
+      { ...reordered, graph: inferLinearGraph(reordered.layers) },
+      40,
+      40,
+      new Map(),
+      { skipEffects: true },
+    );
 
     expect(pixelsEqual(allPixels(graphCanvas), allPixels(stackCanvas))).toBe(true);
     expect(centerPixel(graphCanvas)[0]).toBeGreaterThan(240);
@@ -326,9 +317,9 @@ describe('renderDocument graph mode', () => {
     };
 
     const renders = await Promise.all([
-      renderDocument(doc, 32, 32, new Map(), { skipEffects: true, graphMode: 'graph' }),
+      renderDocument(doc, 32, 32, new Map(), { skipEffects: true }),
       renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 32, new Map(), { skipEffects: true }),
-      renderDocument(doc, 32, 32, new Map(), { skipEffects: true, graphMode: 'stack' }),
+      renderDocument({ ...doc, graph: inferLinearGraph(doc.layers) }, 32, 32, new Map(), { skipEffects: true }),
     ]);
 
     for (const canvas of renders) {
@@ -647,7 +638,7 @@ describe('renderGraphTarget', () => {
     const doc = graphDocument(graph, [base]);
     const options = { skipEffects: true as const };
 
-    const documentCanvas = await renderDocument(doc, 96, 64, new Map(), { ...options, graphMode: 'graph' });
+    const documentCanvas = await renderDocument(doc, 96, 64, new Map(), options);
     const exportCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 64, new Map(), options);
 
     expect(pixelsEqual(allPixels(documentCanvas), allPixels(exportCanvas))).toBe(true);

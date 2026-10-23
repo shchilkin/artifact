@@ -99,14 +99,22 @@
   "starter-recipe-noise-matte-merge-graph/graph/preview": "3f964c83694ae4f898947a82c0a08d17f41f520e35ffa4cd92a20eec226a1ef6",
   "starter-recipe-photo-type-graph/graph/export": "1485d0d9fbd2d4b4f8f1d240e7e36499420cbb72a463b959427459fb2736ad82",
   "starter-recipe-photo-type-graph/graph/preview": "18fc223db2d7d457747fd799fed39e73dda88cb59c858a44fff3bc785c89f4b4",
+  "starter-recipe-photo-type-graph/stack/export": "1485d0d9fbd2d4b4f8f1d240e7e36499420cbb72a463b959427459fb2736ad82",
+  "starter-recipe-photo-type-graph/stack/preview": "18fc223db2d7d457747fd799fed39e73dda88cb59c858a44fff3bc785c89f4b4",
   "starter-recipe-primitive-image-graph/graph/export": "d6dce3fd7fdcfe0b7d3a7964b8edd109a34ed6e250c97bf777013ec1bdfd23bb",
   "starter-recipe-primitive-image-graph/graph/preview": "d45716a023717546b3329c1ee8d64483bbd521c6729b0af310b177db14260672",
   "starter-recipe-print-damage-graph/graph/export": "8e8f7d1720a019e759ab885688ec4c0c25fef72f349ca3764650a5cf630645ea",
   "starter-recipe-print-damage-graph/graph/preview": "857357c79dfcdf986209cd5e721d9812d0881f2f1c41fb4c7c8d1e5feab5bd17",
+  "starter-recipe-print-damage-graph/stack/export": "8e8f7d1720a019e759ab885688ec4c0c25fef72f349ca3764650a5cf630645ea",
+  "starter-recipe-print-damage-graph/stack/preview": "857357c79dfcdf986209cd5e721d9812d0881f2f1c41fb4c7c8d1e5feab5bd17",
   "starter-recipe-rotated-circle-tokens-graph/graph/export": "c060c7bb1063e63dce62ee07950bb713c4acec88115097ec1dc9a25f042ed418",
   "starter-recipe-rotated-circle-tokens-graph/graph/preview": "473ecb56a8ea014aab21d5eebe002a8aa46b5635afb70f43cef44c0fa0dbee05",
   "starter-recipe-sticker-grid-graph/graph/export": "074dc20eeca83f5c60200bc261a8d522cdd35d4ec8bfe93f70ed4826d8cc1365",
   "starter-recipe-sticker-grid-graph/graph/preview": "e3bed9e0e62da28a9a5c954a25bd0df73c02fcb424b4000258a3e5221d4bf805",
+  "starter-recipe-sticker-grid-graph/stack/export": "074dc20eeca83f5c60200bc261a8d522cdd35d4ec8bfe93f70ed4826d8cc1365",
+  "starter-recipe-sticker-grid-graph/stack/preview": "e3bed9e0e62da28a9a5c954a25bd0df73c02fcb424b4000258a3e5221d4bf805",
   "starter-recipe-warped-line-poster-graph/graph/export": "6a41ecace67df2151d10f8305794935205d8d72ec2777aded6683155db8eeaec",
-  "starter-recipe-warped-line-poster-graph/graph/preview": "de2fcc20858864f1a199aec11e2a7c5ec66e4ef7ef2d6174c5a7c3bf784bdebb"
+  "starter-recipe-warped-line-poster-graph/graph/preview": "de2fcc20858864f1a199aec11e2a7c5ec66e4ef7ef2d6174c5a7c3bf784bdebb",
+  "starter-recipe-warped-line-poster-graph/stack/export": "6a41ecace67df2151d10f8305794935205d8d72ec2777aded6683155db8eeaec",
+  "starter-recipe-warped-line-poster-graph/stack/preview": "de2fcc20858864f1a199aec11e2a7c5ec66e4ef7ef2d6174c5a7c3bf784bdebb"
 }

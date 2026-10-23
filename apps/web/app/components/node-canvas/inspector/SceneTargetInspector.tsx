@@ -31,7 +31,7 @@ export function SceneTargetInspector({
 }) {
   const model = getSceneModelLayer(doc.graph, doc.layers, scene.id);
   const environment = getSceneEnvironmentNode(doc.graph, scene.id);
-  const materialInputConnected = (doc.graph?.edges ?? []).some(
+  const materialInputConnected = (doc.graph.edges ?? []).some(
     (edge) => edge.toId === scene.id && edge.toPort === 'material',
   );
   return (

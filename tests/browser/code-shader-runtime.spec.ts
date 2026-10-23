@@ -305,7 +305,7 @@ test('runs an AI shader as a backdrop-aware graph effect with preview and output
       export: { format: 'png', scale: 1, target: 'cover' },
     };
     const output = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 32, new Map(), { skipEffects: true });
-    const preview = await renderDocument(doc, 32, 32, new Map(), { skipEffects: true, graphMode: 'graph' });
+    const preview = await renderDocument(doc, 32, 32, new Map(), { skipEffects: true });
     const outputPixels = Array.from(output.getContext('2d')!.getImageData(0, 0, 32, 32).data);
     const previewPixels = Array.from(preview.getContext('2d')!.getImageData(0, 0, 32, 32).data);
     return {

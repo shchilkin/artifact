@@ -46,8 +46,6 @@ export interface RenderOptions {
   skipEffects?: boolean;
   /** Use lighter-weight source rendering while interactive controls are moving, then settle back to full quality. */
   draft?: boolean;
-  /** Choose whether to render via saved node graph or plain ordered layer stack. */
-  graphMode?: 'auto' | 'graph' | 'stack';
   /** Optional live primitive viewport overrides so node/output/export renders can match the interactive 3D preview. */
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
   /** Optional resolved primitive material overrides from graph material nodes. */

@@ -20,6 +20,7 @@ import {
   type Layer,
   LEGACY_SHADER_KINDS,
   type MaterialConfig,
+  makeDocument,
   makeEmojiLayer,
   makeGraphMaterialNode,
   makeGraphShaderNode,
@@ -34,6 +35,7 @@ import {
   type SourceType,
 } from '../types/config';
 import { makeDefaultCodeShaderInstance } from './customShaderCode';
+import { serializeDocumentForLink } from './documentLink';
 import { migrateDocument } from './migrations';
 import { normalizeShaderPalette } from './shaderPalette';
 
@@ -474,7 +476,9 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
   delete documentFields.fontAssets;
   delete documentFields.modelAssets;
   delete documentFields.envAssets;
-  return {
+  // Migrations give every stored document a graph; a malformed current-schema document without one gets the
+  // graph of its layer stack, like any document built in code.
+  return makeDocument({
     ...documentFields,
     schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { ...DEFAULT_GLOBAL, ...global, aspect },
@@ -484,7 +488,7 @@ export function normalizeDocument(raw: unknown): CanvasDocument {
     ...(fontAssets ? { fontAssets } : {}),
     ...(modelAssets ? { modelAssets } : {}),
     ...(envAssets ? { envAssets } : {}),
-  };
+  });
 }
 
 function parseDocumentJson(value: string | null | undefined): CanvasDocument | null {
@@ -508,12 +512,12 @@ export function createBlankDocument({
   aspect = DEFAULT_GLOBAL.aspect,
   seed = DEFAULT_GLOBAL.seed,
 }: Partial<Pick<CanvasDocument['global'], 'aspect' | 'seed'>> = {}): CanvasDocument {
-  return {
+  return makeDocument({
     schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { ...DEFAULT_GLOBAL, bg: 'transparent', aspect, seed },
     layers: [],
     export: { ...DEFAULT_EXPORT },
-  };
+  });
 }
 
 export function isBlankDocument(doc: CanvasDocument) {
@@ -696,7 +700,7 @@ export function saveDocumentToStorage(doc: CanvasDocument, storage: DocumentStor
 
 export function createDocumentShareUrl(origin: string, doc: CanvasDocument, pathname = '/app') {
   const params = new URLSearchParams();
-  params.set('doc', serializeDocument(doc));
+  params.set('doc', serializeDocumentForLink(doc));
   return `${origin}${pathname}?${params.toString()}`;
 }
 

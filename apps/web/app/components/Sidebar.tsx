@@ -111,7 +111,7 @@ function selectedLayerTargetSummary(doc: CanvasDocument, selectedLayer: Layer | 
 }
 
 function selectedSceneTargetSummary(doc: CanvasDocument, scene: GraphScene3DNode | null) {
-  if (!scene || !doc.graph) return null;
+  if (!scene) return null;
   return buildGraphTargetSummary(
     { kind: 'scene3d', node: scene },
     { graph: doc.graph, layers: doc.layers, surface: 'layers' },
@@ -271,7 +271,7 @@ function InspectorEmptyState({ hasLayers }: { hasLayers: boolean }) {
 
 /** A graph-only node selected from the Layers tree; its settings are edited in Nodes. */
 function selectedGraphOnlyNode(doc: CanvasDocument, id: string | null) {
-  if (!id || !doc.graph) return null;
+  if (!id) return null;
   const found = findGraphUtilityNode(doc.graph, id);
   return found && found.kind !== 'scene3d' ? found.node : null;
 }

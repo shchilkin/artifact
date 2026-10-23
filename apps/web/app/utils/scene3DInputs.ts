@@ -40,5 +40,5 @@ export function getSceneEnvironmentNode(graph: CanvasGraph | undefined, sceneId:
 
 export function getScene3DTarget(doc: CanvasDocument, id: string | null): GraphScene3DNode | null {
   if (!id) return null;
-  return (doc.graph?.scene3dNodes ?? []).find((node) => node.id === id) ?? null;
+  return (doc.graph.scene3dNodes ?? []).find((node) => node.id === id) ?? null;
 }

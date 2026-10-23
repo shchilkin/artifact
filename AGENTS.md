@@ -74,11 +74,12 @@ The release gate is the command list in `docs/production-readiness.md`
 ## Architecture facts
 
 - `CanvasDocument` (`apps/web/app/types/config.ts`) is the serialized source of
-  truth: `{ schemaVersion, global, layers, graph?, export, *Assets? }`.
-- All rendering goes through the graph renderer. `renderDocument` in
-  `apps/web/app/utils/renderer.ts` renders `doc.graph` when present, or a
-  linear graph inferred from `doc.layers` in stack mode. Renderer internals live
-  under `apps/web/app/utils/render/`.
+  truth: `{ schemaVersion, global, layers, graph, export, *Assets? }`. Every
+  document has a graph; build documents in code with `makeDocument`.
+- All rendering goes through the graph renderer: `renderDocument` in
+  `apps/web/app/utils/renderer.ts` renders `doc.graph`. A layer-stack document
+  stores the linear graph of its layers (`isLayerStackGraph`), and Layers edits
+  keep it in sync. Renderer internals live under `apps/web/app/utils/render/`.
 - Effect layers run a Canvas 2D / worker pass, then an optional PixiJS filter
   pass. Each effect key belongs to exactly one backend: the canvas list in
   `render/layers/index.ts` (`CANVAS_POSITIVE_EFFECT_KEYS`) or the GPU filters in
@@ -109,7 +110,7 @@ Known core debt (two topology sources, per-kind node arrays, flat
 1. Treat documents as immutable: clone (`cloneDocument`) before mutating and
    commit through the document update flow. Never call the raw setter outside
    `useEditorDocument`.
-2. Layer order is render order in stack mode. Never reorder layers except by an
+2. In a layer-stack document, layer order is render order. Never reorder layers except by an
    explicit user action.
 3. Keep `CanvasDocument` JSON-serializable. No DOM nodes, canvases, images,
    Pixi/Three objects, or cameras in the document; caches live outside it.

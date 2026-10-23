@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   type CanvasDocument,
+  makeDocument,
   makeFillLayer,
   makeGraphEnvironmentNode,
   makeImageLayer,
@@ -72,12 +73,12 @@ describe('documentPackage', () => {
   };
 
   function doc(partial: Partial<CanvasDocument> = {}): CanvasDocument {
-    return {
+    return makeDocument({
       global: { bg: 'transparent', seed: 1234, aspect: '1:1' },
       layers: [],
       export: { format: 'png', scale: 1, target: 'cover' },
       ...partial,
-    };
+    });
   }
 
   it('builds a package manifest that keeps raster export pixel-only and text editable', () => {

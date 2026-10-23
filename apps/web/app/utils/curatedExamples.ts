@@ -5,6 +5,7 @@ import {
   DEFAULT_EXPORT,
   type EffectLayer,
   type EffectPreset,
+  makeDocument,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
@@ -70,12 +71,12 @@ function mkDoc(
   layers: CanvasDocument['layers'],
   graph?: CanvasGraph,
 ): CanvasDocument {
-  return {
+  return makeDocument({
     global: { bg, seed, aspect },
     export: { ...DEFAULT_EXPORT },
     layers,
-    ...(graph ? { graph } : {}),
-  };
+    graph,
+  });
 }
 
 function starterExample(

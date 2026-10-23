@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   type CanvasDocument,
+  makeDocument,
   makeFillLayer,
   makeGraphEnvironmentNode,
   makeGraphMaterialNode,
@@ -55,12 +56,12 @@ describe('documentAssets', () => {
   };
 
   function doc(partial: Partial<CanvasDocument> = {}): CanvasDocument {
-    return {
+    return makeDocument({
       global: { bg: '#101010', seed: 1, aspect: '1:1' },
       layers: [],
       export: { format: 'png', scale: 1, target: 'cover' },
       ...partial,
-    };
+    });
   }
 
   it('inventories imported image/font refs and portable payloads without loading bytes', () => {

@@ -40,7 +40,7 @@ import {
   stepTreeRow,
   type TreeEditResult,
 } from './graphTreeEdits';
-import { EXPORT_NODE_ID } from './nodeGraph';
+import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
 import { renderDocument } from './renderer';
 
 function edge(fromId: string, toId: string, toPort: GraphEdge['toPort']): GraphEdge {
@@ -766,8 +766,16 @@ describe('doc.layers consistency', () => {
     expect(isLayerStackGraph(next)).toBe(true);
 
     // Stack-mode rendering of doc.layers now draws the same picture as the graph; before the edit it did not.
-    const render = async (target: CanvasDocument, graphMode?: 'stack') =>
-      allPixels(await renderDocument(target, 32, 32, new Map(), { skipEffects: true, graphMode }));
+    const render = async (target: CanvasDocument, mode?: 'stack') =>
+      allPixels(
+        await renderDocument(
+          mode === 'stack' ? { ...target, graph: inferLinearGraph(target.layers) } : target,
+          32,
+          32,
+          new Map(),
+          { skipEffects: true },
+        ),
+      );
     expect(pixelsEqual(await render(doc), await render(doc, 'stack'))).toBe(false);
     expect(pixelsEqual(await render(next), await render(next, 'stack'))).toBe(true);
   });

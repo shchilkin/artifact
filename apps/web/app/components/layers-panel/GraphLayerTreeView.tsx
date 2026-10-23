@@ -358,10 +358,10 @@ export function GraphLayerTreeView({
   const ancestors = useMemo(() => graphTreeAncestorFolders(tree), [tree]);
   const layersById = useMemo(() => new Map(doc.layers.map((layer) => [layer.id, layer])), [doc.layers]);
   const mergesById = useMemo(
-    () => new Map((doc.graph?.mergeNodes ?? []).map((node) => [node.id, node])),
-    [doc.graph?.mergeNodes],
+    () => new Map((doc.graph.mergeNodes ?? []).map((node) => [node.id, node])),
+    [doc.graph.mergeNodes],
   );
-  const areasByNodeId = useMemo(() => nodeAreaMap(doc.graph?.areas), [doc.graph?.areas]);
+  const areasByNodeId = useMemo(() => nodeAreaMap(doc.graph.areas), [doc.graph.areas]);
 
   const activeKey = useMemo(() => {
     if (focusKey && items.some((item) => item.key === focusKey)) return focusKey;

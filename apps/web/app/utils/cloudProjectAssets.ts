@@ -264,11 +264,11 @@ function collectDocumentSources(doc: CanvasDocument): string[] {
       if (layer.kind === 'model') return [layer.modelSrc];
       return [];
     }),
-    ...(doc.graph?.materialNodes ?? []).flatMap((node) =>
+    ...(doc.graph.materialNodes ?? []).flatMap((node) =>
       MATERIAL_TEXTURE_SOURCE_FIELDS.map((field) => node[field]).filter((source): source is string => Boolean(source)),
     ),
-    ...(doc.graph?.environmentNodes ?? []).flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
-    ...(doc.graph?.scene3dNodes ?? []).flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
+    ...(doc.graph.environmentNodes ?? []).flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
+    ...(doc.graph.scene3dNodes ?? []).flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
   ];
 }
 

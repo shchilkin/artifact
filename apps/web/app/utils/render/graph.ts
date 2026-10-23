@@ -164,7 +164,7 @@ function normalizeRenderedCanvas(canvas: HTMLCanvasElement, W: number, H: number
 
 function withGraphPrimitiveViewStates(doc: CanvasDocument, graph: CanvasGraph, options: RenderOptions): RenderOptions {
   const primitiveViewStates = {
-    ...(doc.graph?.primitiveViewStates ?? {}),
+    ...(doc.graph.primitiveViewStates ?? {}),
     ...(graph.primitiveViewStates ?? {}),
     ...(options.primitiveViewStates ?? {}),
   };

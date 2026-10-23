@@ -1,6 +1,7 @@
 import './styles/docs.reference-detail.css';
 import { ButtonLink } from '@artifact/ui';
 import { type MetaFunction, useParams } from 'react-router';
+import { editorDocumentPath } from '../utils/documentLink';
 import { pageMeta } from '../utils/pageMeta';
 import { ALL_NODES, NodePoster, nodeTypeLabel } from './docs.nodes';
 import { DocsSection, DocsShell } from './docs.shared';
@@ -26,7 +27,7 @@ function nodeDetailChains(nodeId: string) {
 }
 
 function nodeEditorHref(node: (typeof ALL_NODES)[number]) {
-  return `/app?doc=${encodeURIComponent(JSON.stringify(node.doc))}&from=docs`;
+  return editorDocumentPath(node.doc, { from: 'docs' });
 }
 
 export default function DocsReferenceDetail() {

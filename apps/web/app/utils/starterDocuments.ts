@@ -2,6 +2,7 @@ import {
   type CanvasDocument,
   type CanvasGraph,
   DEFAULT_EXPORT,
+  makeDocument,
   makeEffectPresetLayer,
   makeFillLayer,
   makeImageLayer,
@@ -22,7 +23,7 @@ export const TEXTURE_TYPE_STACK_STARTER: StarterDocument = {
   name: 'Texture Type Stack',
   shortName: 'Texture Type',
   description: 'A stack-only cover: fill, procedural texture, type, scanlines, and grain.',
-  doc: {
+  doc: makeDocument({
     global: { bg: '#080407', seed: 87017, aspect: '1:1' },
     export: { ...DEFAULT_EXPORT },
     layers: [
@@ -73,7 +74,7 @@ export const TEXTURE_TYPE_STACK_STARTER: StarterDocument = {
         name: 'paper tooth',
       },
     ],
-  },
+  }),
 };
 
 const SAMPLE_IMAGE = '/girl_image_landing.png';
@@ -83,7 +84,7 @@ export const MULTI_FONT_TYPE_STACK_STARTER: StarterDocument = {
   name: 'Multi Font Type Stack',
   shortName: 'Multi Font',
   description: 'A stack-only cover for mixing poster title, mono subtitle, pixel label, credits, and print finish.',
-  doc: {
+  doc: makeDocument({
     global: { bg: '#090504', seed: 87244, aspect: '4:5' },
     export: { ...DEFAULT_EXPORT },
     layers: [
@@ -187,7 +188,7 @@ export const MULTI_FONT_TYPE_STACK_STARTER: StarterDocument = {
         name: 'print grain',
       },
     ],
-  },
+  }),
 };
 
 export const PHOTO_TYPE_STACK_STARTER: StarterDocument = {
@@ -195,7 +196,7 @@ export const PHOTO_TYPE_STACK_STARTER: StarterDocument = {
   name: 'Photo Type Stack',
   shortName: 'Photo Stack',
   description: 'A stack-only cover: image, duotone wash, big type, registration drift, and grain.',
-  doc: {
+  doc: makeDocument({
     global: { bg: '#080607', seed: 87104, aspect: '4:5' },
     export: { ...DEFAULT_EXPORT },
     layers: [
@@ -239,7 +240,7 @@ export const PHOTO_TYPE_STACK_STARTER: StarterDocument = {
         name: 'print grain',
       },
     ],
-  },
+  }),
 };
 
 export const NOISE_POSTER_STACK_STARTER: StarterDocument = {
@@ -247,7 +248,7 @@ export const NOISE_POSTER_STACK_STARTER: StarterDocument = {
   name: 'Noise Poster Stack',
   shortName: 'Noise Poster',
   description: 'A stack-only poster: fill, paper noise, oversized type, halftone, scanlines, and dust.',
-  doc: {
+  doc: makeDocument({
     global: { bg: '#0b0504', seed: 87191, aspect: '1:1' },
     export: { ...DEFAULT_EXPORT },
     layers: [
@@ -297,7 +298,7 @@ export const NOISE_POSTER_STACK_STARTER: StarterDocument = {
         name: 'dust pass',
       },
     ],
-  },
+  }),
 };
 
 function recipeDoc(seed: number, bg: string, layers: CanvasDocument['layers'], graph: CanvasGraph): CanvasDocument {

@@ -1,5 +1,6 @@
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../../types/config';
 import {
+  makeDocument,
   makeFillLayer,
   makeGraphColorNode,
   makeGraphEnvironmentNode,
@@ -30,12 +31,12 @@ export function graph(edges: GraphEdge[], nodes: Partial<CanvasGraph> = {}): Can
 }
 
 export function documentFor(layers: Layer[], canvasGraph?: CanvasGraph): CanvasDocument {
-  return {
+  return makeDocument({
     global: { bg: '#000000', seed: 1, aspect: '1:1' },
     layers,
     graph: canvasGraph,
     export: { format: 'png', scale: 1, target: 'cover' },
-  };
+  });
 }
 
 export const fill = (id: string) => makeFillLayer({ id, name: id, color: '#336699' });

@@ -10,6 +10,7 @@ import {
   FONT_REGISTRY,
   FONT_STACKS,
   GOOGLE_FONT_STYLESHEET_URL,
+  makeDocument,
   makeEffectLayer,
   makeEmojiLayer,
   makeGraphRepeatNode,
@@ -21,12 +22,12 @@ import {
 } from './config';
 
 function cloneableDocument(): CanvasDocument {
-  return {
+  return makeDocument({
     schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { bg: '#120020', seed: 42, aspect: '1:1' },
     layers: [makeEmojiLayer({ id: 'test-emoji' })],
     export: { format: 'png', scale: 1, target: 'cover' },
-  };
+  });
 }
 
 describe('makeTextLayer', () => {
@@ -429,11 +430,11 @@ describe('cloneDocument', () => {
 
   it('deep-clones emoji layer emojis array independently', () => {
     const emojiLayer = makeEmojiLayer({ id: 'e1', emojis: ['😂', '💀'] });
-    const original: CanvasDocument = {
+    const original: CanvasDocument = makeDocument({
       global: { bg: '#120020', seed: 1, aspect: '1:1' },
       layers: [emojiLayer],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const cloned = cloneDocument(original);
     const clonedEmojiLayer = cloned.layers[0];
     if (clonedEmojiLayer.kind === 'emoji') {
@@ -443,22 +444,22 @@ describe('cloneDocument', () => {
   });
 
   it('deep-clones export settings independently', () => {
-    const original: CanvasDocument = {
+    const original: CanvasDocument = makeDocument({
       global: { bg: '#120020', seed: 1, aspect: '1:1' },
       layers: [makeEffectLayer({ id: 'fx-1' })],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const cloned = cloneDocument(original);
     cloned.export.scale = 3;
     expect(original.export.scale).toBe(1);
   });
 
   it('keeps source layer fields when cloning', () => {
-    const original: CanvasDocument = {
+    const original: CanvasDocument = makeDocument({
       global: { bg: '#120020', seed: 1, aspect: '1:1' },
       layers: [makeSourceLayer('array', { id: 'src-1', arrayCount: 9, arrayRows: 3 })],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const cloned = cloneDocument(original);
     expect(cloned.layers[0]).toEqual(original.layers[0]);
     expect(cloned.layers[0]).not.toBe(original.layers[0]);

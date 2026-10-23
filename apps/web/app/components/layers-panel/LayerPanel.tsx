@@ -84,7 +84,7 @@ const ASPECT_OPTIONS: Array<{ ratio: AspectRatio; label: string; size: string }>
 ];
 
 function graphAreasForDocument(doc: CanvasDocument) {
-  return doc.graph?.areas ?? [];
+  return doc.graph.areas ?? [];
 }
 
 function graphTreeDisplayLayers(tree: GraphLayerTree | null, layers: Layer[]): Layer[] | null {
@@ -145,7 +145,7 @@ export function LayerPanel({
     () => [...doc.layers].reverse().filter((layer) => !isSceneModelInputLayer(layer, doc.graph)),
     [doc.layers, doc.graph],
   );
-  const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph?.areas), [doc.layers, doc.graph?.areas]);
+  const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph.areas), [doc.layers, doc.graph.areas]);
   const displayItems = useMemo(
     () => buildLayerDisplayItems(displayLayers, areasByLayerId, doc.graph),
     [areasByLayerId, displayLayers, doc.graph],
@@ -649,7 +649,7 @@ function Scene3DLayerRows({
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
 }) {
-  const scenes = doc.graph?.scene3dNodes ?? [];
+  const scenes = doc.graph.scene3dNodes ?? [];
   if (scenes.length === 0) return null;
   return (
     <>

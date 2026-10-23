@@ -73,10 +73,10 @@ test('a reference document exports the same PNG bytes with either readback', asy
   const exported = await page.evaluate(async () => {
     const { setGpuReadback } = await import('/app/utils/gpuRender.ts');
     const { renderCoverExportCanvas } = await import('/app/utils/exportCanvas.ts');
-    const { makeEffectPresetLayer, makeFillLayer } = await import('/app/types/config.ts');
+    const { makeDocument, makeEffectPresetLayer, makeFillLayer } = await import('/app/types/config.ts');
 
     // No text or emoji layers: WebKit's font loading does not settle under the test page's network rules.
-    const doc = {
+    const doc = makeDocument({
       schemaVersion: 1,
       global: { bg: 'transparent', seed: 4242, aspect: '1:1' as const },
       layers: [
@@ -88,7 +88,7 @@ test('a reference document exports the same PNG bytes with either readback', asy
         makeEffectPresetLayer('vignette', { id: 'parity-vignette', vignette: 46 }),
       ],
       export: { format: 'png' as const, scale: 1 as const, target: 'cover' as const },
-    };
+    });
 
     const pngDigest = async () => {
       const canvas = await renderCoverExportCanvas(doc, new Map(), 1);
@@ -124,26 +124,27 @@ test('a reference document exports the same PNG bytes with either readback', asy
 test('merging a layer’s GPU filters into the next GPU pass keeps opaque pixels and saves a pass', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const { renderDocument } = await import('/app/utils/renderer.ts');
-    const { makeEffectPresetLayer, makeFillLayer } = await import('/app/types/config.ts');
+    const { makeDocument, makeEffectPresetLayer, makeFillLayer } = await import('/app/types/config.ts');
 
-    // The effect-stack shape: RGB split has Canvas 2D and GPU parts, and GPU-only layers follow it.
-    const doc = {
+    // A layer with Canvas 2D and GPU parts (RGB split plus a hue shift on one layer), then GPU-only layers.
+    // Focused presets each have one backend, so the mixed layer is built explicitly.
+    const doc = makeDocument({
       schemaVersion: 1,
       global: { bg: '#101018', seed: 4242, aspect: '1:1' as const },
       layers: [
         makeFillLayer({ id: 'merge-fill', color: '#2a1140' }),
         makeFillLayer({ id: 'merge-glaze', color: '#f46f5e', opacity: 35, blendMode: 'screen' }),
         makeEffectPresetLayer('scanlines', { id: 'merge-scanlines', scanlines: 24 }),
-        makeEffectPresetLayer('rgbSplit', { id: 'merge-rgb', rgbSplit: 8 }),
+        makeEffectPresetLayer('rgbSplit', { id: 'merge-rgb', rgbSplit: 8, hueShift: 40 }),
         makeEffectPresetLayer('halftone', { id: 'merge-halftone', halftone: 16 }),
         makeEffectPresetLayer('vignette', { id: 'merge-vignette', vignette: 46 }),
       ],
       export: { format: 'png' as const, scale: 1 as const, target: 'cover' as const },
-    };
+    });
     const size = 270;
     const render = async (mergeGpuPasses: boolean) => {
       performance.clearMeasures('artifact:gpu-filter-extract');
-      const canvas = await renderDocument(doc, size, size, new Map(), { graphMode: 'stack', mergeGpuPasses });
+      const canvas = await renderDocument(doc, size, size, new Map(), { mergeGpuPasses });
       return {
         pixels: canvas.getContext('2d')!.getImageData(0, 0, size, size).data,
         gpuPasses: performance.getEntriesByName('artifact:gpu-filter-extract').length,
@@ -168,27 +169,28 @@ test('merging a layer’s GPU filters into the next GPU pass keeps opaque pixels
 test('merged GPU passes keep opaque pixels with filters that pad or sample past the edge', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const { renderDocument } = await import('/app/utils/renderer.ts');
-    const { makeEffectPresetLayer, makeFillLayer } = await import('/app/types/config.ts');
+    const { makeDocument, makeEffectPresetLayer, makeFillLayer } = await import('/app/types/config.ts');
 
-    // RGB Split's GPU filter joins a chain whose filters displace (barrel), spread (bloom), and pad (blur).
-    const doc = {
+    // The mixed layer's GPU filter (hue shift) joins a chain whose filters displace (barrel), spread (bloom), and
+    // pad (blur).
+    const doc = makeDocument({
       schemaVersion: 1,
       global: { bg: '#101018', seed: 4242, aspect: '1:1' as const },
       layers: [
         makeFillLayer({ id: 'edge-fill', color: '#2a1140' }),
         makeFillLayer({ id: 'edge-glaze', color: '#f46f5e', opacity: 35, blendMode: 'screen' }),
         makeEffectPresetLayer('scanlines', { id: 'edge-scanlines', scanlines: 24 }),
-        makeEffectPresetLayer('rgbSplit', { id: 'edge-rgb', rgbSplit: 14 }),
+        makeEffectPresetLayer('rgbSplit', { id: 'edge-rgb', rgbSplit: 14, hueShift: 40 }),
         makeEffectPresetLayer('barrel', { id: 'edge-barrel', barrel: 40 }),
         makeEffectPresetLayer('bloom', { id: 'edge-bloom', bloom: 60 }),
         makeEffectPresetLayer('blur', { id: 'edge-blur', blurAmt: 6 }),
       ],
       export: { format: 'png' as const, scale: 1 as const, target: 'cover' as const },
-    };
+    });
     const size = 270;
     const render = async (mergeGpuPasses: boolean) => {
       performance.clearMeasures('artifact:gpu-filter-extract');
-      const canvas = await renderDocument(doc, size, size, new Map(), { graphMode: 'stack', mergeGpuPasses });
+      const canvas = await renderDocument(doc, size, size, new Map(), { mergeGpuPasses });
       return {
         pixels: canvas.getContext('2d')!.getImageData(0, 0, size, size).data,
         gpuPasses: performance.getEntriesByName('artifact:gpu-filter-extract').length,
