@@ -1,0 +1,34 @@
+{
+  "graph": {
+    "preview": {
+      "size": "432x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "c3a4396a4e8c",
+            "uniforms": {
+              "uMag": 0.0192,
+              "uAngle": 0.31415927
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1080x1350",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "c3a4396a4e8c",
+            "uniforms": {
+              "uMag": 0.0192,
+              "uAngle": 0.31415927
+            }
+          }
+        ]
+      ]
+    }
+  }
+}

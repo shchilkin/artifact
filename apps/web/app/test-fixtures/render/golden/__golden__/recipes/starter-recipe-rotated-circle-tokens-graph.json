@@ -1,0 +1,12 @@
+{
+  "graph": {
+    "preview": {
+      "size": "540x540",
+      "gpuPasses": []
+    },
+    "export": {
+      "size": "1000x1000",
+      "gpuPasses": []
+    }
+  }
+}

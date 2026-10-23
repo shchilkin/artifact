@@ -1,0 +1,203 @@
+{
+  "stack": {
+    "preview": {
+      "size": "540x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "98c282cfc54d",
+            "uniforms": {
+              "uIntensity": 0.044,
+              "uSeed": 11223
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.6
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.7
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.039215686,
+                0,
+                0
+              ],
+              "uColorB": [
+                1,
+                0.2,
+                0
+              ],
+              "uStrength": 0.85
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1000x1000",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "98c282cfc54d",
+            "uniforms": {
+              "uIntensity": 0.044,
+              "uSeed": 11223
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.6
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.7
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.039215686,
+                0,
+                0
+              ],
+              "uColorB": [
+                1,
+                0.2,
+                0
+              ],
+              "uStrength": 0.85
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "graph": {
+    "preview": {
+      "size": "540x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "98c282cfc54d",
+            "uniforms": {
+              "uIntensity": 0.044,
+              "uSeed": 11223
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.6
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.7
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.039215686,
+                0,
+                0
+              ],
+              "uColorB": [
+                1,
+                0.2,
+                0
+              ],
+              "uStrength": 0.85
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1000x1000",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "98c282cfc54d",
+            "uniforms": {
+              "uIntensity": 0.044,
+              "uSeed": 11223
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.6
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.7
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.039215686,
+                0,
+                0
+              ],
+              "uColorB": [
+                1,
+                0.2,
+                0
+              ],
+              "uStrength": 0.85
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "stackMatchesGraph": false
+}

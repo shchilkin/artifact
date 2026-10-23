@@ -57,8 +57,13 @@ npm test               # web unit + render tests (Vitest)
 npm run check          # full local gate: format, lint, all typechecks, all unit suites
 npm run build
 npm run test:browser   # Playwright (Chromium, Firefox, WebKit, mobile)
+npm run test:golden    # golden render pixel hashes in the CI container (Docker)
 npm run perf:node-editor
 ```
+
+Engine changes must keep golden render fixtures unchanged
+(`apps/web/app/test-fixtures/render/golden/`, see `docs/testing.md`). Update
+baselines only for an approved pixel change.
 
 Run Vitest through the workspace scripts (or from `apps/web`), not from the repo
 root: the root has no Vitest config and the canvas polyfill will not load.

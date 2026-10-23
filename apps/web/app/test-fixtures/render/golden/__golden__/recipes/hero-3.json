@@ -1,0 +1,239 @@
+{
+  "stack": {
+    "preview": {
+      "size": "540x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "98c282cfc54d",
+            "uniforms": {
+              "uIntensity": 0.056,
+              "uSeed": 9876
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "57d5ff8c72c7",
+            "uniforms": {
+              "uK": 1
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "5e674c1ad2b8",
+            "uniforms": {
+              "uIntensity": 0.06,
+              "uSeed": 9876,
+              "uResY": 540
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.75
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.45
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "047013c2c599",
+            "uniforms": {
+              "uIntensity": 0.8,
+              "uSeed": 9876
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1000x1000",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "98c282cfc54d",
+            "uniforms": {
+              "uIntensity": 0.056,
+              "uSeed": 9876
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "57d5ff8c72c7",
+            "uniforms": {
+              "uK": 1
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "5e674c1ad2b8",
+            "uniforms": {
+              "uIntensity": 0.06,
+              "uSeed": 9876,
+              "uResY": 1000
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.75
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.45
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "047013c2c599",
+            "uniforms": {
+              "uIntensity": 0.8,
+              "uSeed": 9876
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "graph": {
+    "preview": {
+      "size": "540x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "98c282cfc54d",
+            "uniforms": {
+              "uIntensity": 0.056,
+              "uSeed": 9876
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "57d5ff8c72c7",
+            "uniforms": {
+              "uK": 1
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "5e674c1ad2b8",
+            "uniforms": {
+              "uIntensity": 0.06,
+              "uSeed": 9876,
+              "uResY": 540
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.75
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.45
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "047013c2c599",
+            "uniforms": {
+              "uIntensity": 0.8,
+              "uSeed": 9876
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1000x1000",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "98c282cfc54d",
+            "uniforms": {
+              "uIntensity": 0.056,
+              "uSeed": 9876
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "57d5ff8c72c7",
+            "uniforms": {
+              "uK": 1
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "5e674c1ad2b8",
+            "uniforms": {
+              "uIntensity": 0.06,
+              "uSeed": 9876,
+              "uResY": 1000
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.75
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.45
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "047013c2c599",
+            "uniforms": {
+              "uIntensity": 0.8,
+              "uSeed": 9876
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "stackMatchesGraph": false
+}

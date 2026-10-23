@@ -28,6 +28,8 @@ v0.52 is an open owner decision; update this table when it is made.
 These are addressed by v0.53 unless noted.
 
 - Two topology sources (`doc.layers` order and optional `doc.graph`).
+  Opening Nodes on a stack document without a fill layer changes its output
+  (background lost); 18 of 22 golden stack documents are affected.
 - Per-kind node arrays and a flat `EffectLayer`, so new nodes and effect
   parameters need edits across many files.
 - Legacy migration code runs on every document load.
