@@ -1,6 +1,6 @@
 import type { CanvasDocument, EffectLayer, EffectPreset } from '../types/config';
 import { DEFAULT_EXPORT, makeEmojiLayer, ZERO_EFFECT } from '../types/config';
-import { splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
+import { splitEffectPatchIntoPresetLayers } from './effectPresetPatch';
 import { renderDocument } from './renderer';
 
 export interface EffectMeta {

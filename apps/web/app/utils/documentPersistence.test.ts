@@ -186,7 +186,7 @@ describe('normalizeDocument', () => {
     });
 
     const node = doc.graph?.shaderNodes?.[0];
-    expect(doc.schemaVersion).toBe(3);
+    expect(doc.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(node?.shaderKind).toBe('customCode');
     expect(node?.role).toBe('effect');
     expect(node?.shaderInstance).toMatchObject({
@@ -553,6 +553,27 @@ describe('normalizeDocument', () => {
     });
 
     expect(doc.layers[0]).toMatchObject({ id: 'effect-a', kind: 'effect', seedOffset: 0 });
+  });
+
+  it('applies no legacy migrations to current-schema documents', () => {
+    const doc = normalizeDocument({
+      schemaVersion: DOCUMENT_SCHEMA_VERSION,
+      layers: [
+        {
+          id: 'fx',
+          name: 'Already focused',
+          kind: 'effect',
+          preset: 'grain',
+          visible: true,
+          locked: false,
+          grain: 20,
+          scanlines: 10,
+        },
+      ],
+    });
+
+    expect(doc.layers.map((layer) => layer.id)).toEqual(['fx']);
+    expect(doc.layers[0]).toMatchObject({ preset: 'grain', grain: 20, scanlines: 10 });
   });
 
   it('splits legacy combined effect presets into focused effect layers', () => {

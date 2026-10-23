@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import type { CanvasDocument } from '../../../types/config';
+import { normalizeDocument } from '../../../utils/documentPersistence';
 import { renderCoverExportCanvas } from '../../../utils/exportCanvas';
 import { renderDocument } from '../../../utils/renderer';
 import { collectGoldenCases, documentForMode, type GoldenMode, previewSize } from './goldenCases';
@@ -181,6 +182,14 @@ describe('golden render fixtures', () => {
       const preview = await recordRender(() => renderDocument(modeDoc, width, height, imageCache));
       const exported = await recordRender(() => renderCoverExportCanvas(modeDoc, imageCache, 1));
       previews.set(mode, preview.canvas);
+      const normalizedDoc = documentForMode(normalizeDocument(JSON.parse(JSON.stringify(doc))), mode);
+      const normalized = await recordRender(() => renderDocument(normalizedDoc, width, height, imageCache));
+      expect
+        .soft(pixelsEqual(normalized.canvas, preview.canvas), `${id}/${mode} changes after normalizeDocument`)
+        .toBe(true);
+      expect
+        .soft(normalized.recipe, `${id}/${mode} GPU recipe changes after normalizeDocument`)
+        .toEqual(preview.recipe);
       recipe[mode] = { preview: preview.recipe, export: exported.recipe };
 
       if (PIXELS) {

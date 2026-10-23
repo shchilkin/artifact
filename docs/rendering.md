@@ -318,8 +318,8 @@ When `draft` rendering is requested, primitive layers may use a Canvas 2D fallba
 
 Effect layers are non-destructive passes over everything below them.
 New documents should use focused one-effect preset layers. Legacy combined
-effect layers are migrated into separate focused layers during document
-normalization.
+effect layers are split into focused layers once, by the schema 3 -> 4
+migration (`apps/web/app/utils/migrations/v3ToV4.ts`).
 
 Pipeline:
 

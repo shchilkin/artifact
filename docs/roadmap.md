@@ -32,7 +32,6 @@ These are addressed by v0.53 unless noted.
   (background lost); 18 of 22 golden stack documents are affected.
 - Per-kind node arrays and a flat `EffectLayer`, so new nodes and effect
   parameters need edits across many files.
-- Legacy migration code runs on every document load.
 - Mixed document update paths; some silent writes skip undo.
 - Large mixed-responsibility files (`types/config.ts`,
   `render/layers/index.ts`, `documentPersistence.ts`, `useDocumentRenderer.ts`,

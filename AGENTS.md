@@ -89,8 +89,11 @@ The release gate is the command list in `docs/production-readiness.md`
   belong in `apps/web/app/utils/documentCommands.ts` and graph helpers in
   `apps/web/app/utils/nodeGraph.ts`.
 - Loading goes through `normalizeDocument` in
-  `apps/web/app/utils/documentPersistence.ts`, which runs schema migrations and
-  legacy effect splitting.
+  `apps/web/app/utils/documentPersistence.ts`. It first runs the one-shot schema
+  migrations in `apps/web/app/utils/migrations/` (one file per version step),
+  then only fills defaults and validates. To change the stored format, bump
+  `DOCUMENT_SCHEMA_VERSION` and add a migration step with a fixture test; never
+  add legacy-format branches to `normalizeDocument`.
 - The active document is stored in localStorage under key `doc`. Imported images
   are `artifact-asset://` references backed by IndexedDB
   (`utils/assetStore.ts`); projects and recovery drafts are IndexedDB records

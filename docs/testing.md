@@ -99,6 +99,7 @@ markup.
 | --- | --- |
 | `apps/web/app/types/config.test.ts` | Factory functions, `cloneDocument`, `migrateFromV1`, layer defaults |
 | `apps/web/app/utils/documentPersistence.test.ts` | document normalization, URL import precedence, localStorage fallback, storage save/link helpers |
+| `apps/web/app/utils/migrations/*.test.ts` | one fixture test per schema migration step, the step registry, and the pinned legacy AI-shader GLSL |
 | `apps/web/app/utils/documentAssets.test.ts` | imported image/font/model/environment dependency inventory, portable document hydration/storage boundaries, stable 3D asset ids, storage-unavailable fallback |
 | `apps/web/app/utils/documentPackage.test.ts` | editable package manifest, schema-v3 serialization, clean-storage asset restoration, and legacy missing-3D-payload compatibility |
 | `apps/web/app/utils/randomConfig.test.ts` | `randomDocument`, `randomEffectLayer`, `zeroLayerSection` |

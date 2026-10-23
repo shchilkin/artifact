@@ -737,7 +737,7 @@ export interface CanvasDocument {
   envAssets?: PortableEnvironmentAsset[];
 }
 
-export const DOCUMENT_SCHEMA_VERSION = 3;
+export const DOCUMENT_SCHEMA_VERSION = 4;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: 'transparent',

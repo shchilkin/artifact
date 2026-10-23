@@ -54,6 +54,16 @@ Rules:
 - Update documents immutably.
 - Import external document JSON through normalization before committing it.
 - Normalize unversioned documents to the current `DOCUMENT_SCHEMA_VERSION`.
+  Documents without `schemaVersion` are schema 1.
+- Stored-format changes are one-shot steps in `apps/web/app/utils/migrations/`
+  (`vNToVN+1.ts`, registered in `MIGRATIONS`), each with a fixture test. A step
+  runs once, raises `schemaVersion` by one, and never runs on newer documents.
+  `normalizeDocument` itself only fills defaults for current-schema fields and
+  validates; it has no legacy-format branches.
+- Schema 4 (v0.53) moved the legacy fixes that used to run on every load into
+  the 3 -> 4 step: `kind: 'source'` aliases, 0-100 material percentages,
+  removed shader kinds, and splitting combined effect layers (with graph
+  rewiring). Builds before v0.53 cannot open schema 4 documents.
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.

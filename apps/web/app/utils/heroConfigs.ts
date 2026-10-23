@@ -1,6 +1,6 @@
 import type { CanvasDocument, EffectLayer } from '../types/config';
 import { DEFAULT_EXPORT, makeEmojiLayer } from '../types/config';
-import { splitEffectPatchIntoPresetLayers } from './effectLayerMigration';
+import { splitEffectPatchIntoPresetLayers } from './effectPresetPatch';
 
 export interface HeroFrame {
   doc: CanvasDocument;

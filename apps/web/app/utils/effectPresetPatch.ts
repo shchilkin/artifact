@@ -1,14 +1,9 @@
-import { EFFECT_PRESETS, type EffectLayer, type EffectPreset, makeEffectPresetLayer } from '../types/config';
-
-const LEGACY_COMBINED_PRESETS = new Set(['warp', 'color', 'riso']);
-const CODEC_BLOCK_PRESETS = new Set([
-  'badStream',
-  'macroblocks',
-  'detailBlocks',
-  'blockSmear',
-  'chromaBlocks',
-  'blockDropout',
-]);
+/**
+ * Builds focused effect preset layers from a multi-effect patch, for authoring code that describes a look as one
+ * set of effect fields (landing hero frames, effect thumbnails). Each rule says which preset owns which fields.
+ * The legacy-document migration uses the same rules (`migrations/v3ToV4.ts`).
+ */
+import { type EffectLayer, type EffectPreset, makeEffectPresetLayer } from '../types/config';
 
 type EffectField = keyof EffectLayer;
 
@@ -146,8 +141,9 @@ function copyPresetFields(source: Partial<EffectLayer>, rule: SplitRule): Partia
   return patch;
 }
 
-function isFocusedPreset(value: unknown): value is EffectPreset {
-  return typeof value === 'string' && value in EFFECT_PRESETS;
+/** Presets whose fields are active (non-zero) in the patch, in rule order. */
+export function activeEffectPatchPresets(patch: Partial<EffectLayer>): EffectPreset[] {
+  return SPLIT_RULES.filter((rule) => hasActiveValue(patch, rule.active)).map((rule) => rule.preset);
 }
 
 export function splitEffectPatchIntoPresetLayers(
@@ -164,14 +160,4 @@ export function splitEffectPatchIntoPresetLayers(
       ...(source.blendMode ? { blendMode: source.blendMode } : {}),
     };
   });
-}
-
-export function shouldSplitEffectLayer(layer: Partial<EffectLayer>): boolean {
-  if (LEGACY_COMBINED_PRESETS.has(String(layer.preset))) return true;
-  const activeRules = SPLIT_RULES.filter((rule) => hasActiveValue(layer, rule.active));
-  const preset = layer.preset;
-  if (!isFocusedPreset(preset)) return activeRules.length > 0;
-  return activeRules.some(
-    (rule) => rule.preset !== preset && !(CODEC_BLOCK_PRESETS.has(preset) && CODEC_BLOCK_PRESETS.has(rule.preset)),
-  );
 }

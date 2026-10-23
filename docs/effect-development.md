@@ -22,8 +22,12 @@ update data, rendering, controls, docs, and tests in one slice.
   GPU filter.
 - `apps/web/app/utils/randomConfig.ts`: include randomization/zeroing behavior if the
   effect can be randomized from the classic layer controls.
-- `apps/web/app/utils/effectLayerMigration.ts`: migrate legacy combined effect state if
-  the new effect replaces or splits older behavior.
+- `apps/web/app/utils/effectPresetPatch.ts`: add a rule mapping the preset to the
+  fields it owns, so multi-effect patches (hero frames, effect thumbnails, and
+  the legacy migration) split correctly.
+- If the effect changes how existing documents store data, add a schema
+  migration step under `apps/web/app/utils/migrations/` instead of a load-time
+  branch.
 
 ## Validation
 
