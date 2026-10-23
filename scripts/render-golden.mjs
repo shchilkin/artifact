@@ -29,6 +29,10 @@ const vitestArgs = [
 const env = { GOLDEN_PIXELS: '1', ...(update ? { GOLDEN_UPDATE: '1' } : {}) };
 
 if (process.env.GOLDEN_IN_CONTAINER === '1') {
+  // The renderer imports `@artifact/shared` (shader validation through the migrations), which resolves to its
+  // built output; a clean checkout has none, so build it first, as `test:browser` does.
+  const build = spawnSync('npm', ['--workspace', '@artifact/shared', 'run', 'build'], { cwd: ROOT, stdio: 'inherit' });
+  if (build.status !== 0) process.exit(build.status ?? 1);
   const result = spawnSync('npm', vitestArgs, { cwd: ROOT, stdio: 'inherit', env: { ...process.env, ...env } });
   process.exit(result.status ?? 1);
 }
