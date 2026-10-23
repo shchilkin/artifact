@@ -1,67 +1,47 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasGraph } from '../types/config';
+import { makeEmojiLayer, makeFillLayer, makeTextLayer } from '../types/config';
 import {
-  makeEmojiLayer,
-  makeFillLayer,
-  makeGraphMergeNode,
-  makeGraphRepeatNode,
-  makeGraphShaderNode,
-  makeGraphTransformNode,
-  makeTextLayer,
-} from '../types/config';
-import {
-  addColorNode,
   addGraphArea,
   addGraphEdge,
-  addGrimeShadowNode,
-  addMaskNode,
-  addMaterialNode,
-  addMergeNode,
+  addGraphNode,
   addNodesToGraphArea,
-  addRepeatNode,
-  addShaderNode,
-  addTransformNode,
   appendNodeToExportPath,
   assignNodesToGraphArea,
   collectDownstreamNodeIds,
   collectUpstreamNodeIds,
   connectedPortIds,
   EXPORT_NODE_ID,
+  graphNodesById,
+  graphNodesOfKind,
   organizeGraph,
-  removeColorNode,
   removeGraphArea,
   removeGraphEdge,
-  removeGrimeShadowNode,
+  removeGraphNode,
   removeLayerFromGraph,
-  removeMaskNode,
-  removeMaterialNode,
-  removeMergeNode,
   removeNodesFromGraphArea,
-  removeRepeatNode,
-  removeShaderNode,
-  removeTransformNode,
   resolveOutputPath,
   resolveRenderOrder,
   resolveUpstreamRenderLayers,
   splitEdgeWithNode,
-  updateColorNode,
   updateGraphArea,
+  updateGraphNode,
   updateGraphPositions,
-  updateGrimeShadowNode,
-  updateMaskNode,
-  updateMaterialNode,
-  updateRepeatNode,
-  updateShaderNode,
-  updateTransformNode,
   wouldCreateCycle,
 } from './nodeGraph';
+import {
+  makeGraphColorNode,
+  makeGraphMergeNode,
+  makeGraphRepeatNode,
+  makeGraphShaderNode,
+  makeGraphTransformNode,
+} from './nodeKinds';
 
 function emptyGraph(partial: Partial<CanvasGraph> = {}): CanvasGraph {
   return {
     edges: [],
     positions: {},
-    mergeNodes: [],
-    colorNodes: [],
+    nodes: graphNodesById(),
     ...partial,
   };
 }
@@ -154,19 +134,19 @@ describe('graph mutations', () => {
       positions: { 'fill-1': { x: 0, y: 0 } },
     });
 
-    const withNode = addMergeNode(
+    const withNode = addGraphNode(
       graph,
-      { id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 },
+      makeGraphMergeNode({ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 }),
       { x: 100, y: 200 },
     );
-    const removed = removeMergeNode(withNode, 'merge-1');
+    const removed = removeGraphNode(withNode, 'merge-1');
 
-    expect(withNode.mergeNodes.map((node) => node.id)).toEqual(['merge-1']);
+    expect(graphNodesOfKind(withNode, 'merge').map((node) => node.id)).toEqual(['merge-1']);
     expect(withNode.positions['merge-1']).toEqual({ x: 100, y: 200 });
-    expect(removed.mergeNodes).toEqual([]);
+    expect(graphNodesOfKind(removed, 'merge')).toEqual([]);
     expect(removed.positions['merge-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
-    expect(graph.mergeNodes).toEqual([]);
+    expect(graphNodesOfKind(graph, 'merge')).toEqual([]);
   });
 
   it('adds, updates, and removes color nodes with positions and connected edges', () => {
@@ -174,6 +154,7 @@ describe('graph mutations', () => {
       edges: [{ id: 'e-color-export', fromId: 'color-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
     });
     const colorNode = {
+      kind: 'color' as const,
       id: 'color-1',
       name: 'Color',
       contrast: 110,
@@ -182,15 +163,15 @@ describe('graph mutations', () => {
       hue: 12,
     };
 
-    const withNode = addColorNode(graph, colorNode, { x: 120, y: 80 });
-    const updated = updateColorNode(withNode, 'color-1', { brightness: 120 });
-    const removed = removeColorNode(updated, 'color-1');
+    const withNode = addGraphNode(graph, colorNode, { x: 120, y: 80 });
+    const updated = updateGraphNode(withNode, 'color-1', { brightness: 120 });
+    const removed = removeGraphNode(updated, 'color-1');
 
-    expect(withNode.colorNodes).toEqual([colorNode]);
+    expect(graphNodesOfKind(withNode, 'color')).toEqual([colorNode]);
     expect(withNode.positions['color-1']).toEqual({ x: 120, y: 80 });
-    expect(updated.colorNodes[0]).toEqual({ ...colorNode, brightness: 120 });
-    expect(withNode.colorNodes[0]).toEqual(colorNode);
-    expect(removed.colorNodes).toEqual([]);
+    expect(graphNodesOfKind(updated, 'color')[0]).toEqual({ ...colorNode, brightness: 120 });
+    expect(graphNodesOfKind(withNode, 'color')[0]).toEqual(colorNode);
+    expect(graphNodesOfKind(removed, 'color')).toEqual([]);
     expect(removed.positions['color-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
   });
@@ -215,14 +196,14 @@ describe('graph mutations', () => {
       blendMode: 'source-over',
     });
 
-    const withNode = addRepeatNode(graph, repeatNode, { x: 160, y: 90 });
-    const updated = updateRepeatNode(withNode, 'repeat-1', { count: 8 });
-    const removed = removeRepeatNode(updated, 'repeat-1');
+    const withNode = addGraphNode(graph, repeatNode, { x: 160, y: 90 });
+    const updated = updateGraphNode(withNode, 'repeat-1', { count: 8 });
+    const removed = removeGraphNode(updated, 'repeat-1');
 
-    expect(withNode.repeatNodes).toEqual([repeatNode]);
+    expect(graphNodesOfKind(withNode, 'repeat')).toEqual([repeatNode]);
     expect(withNode.positions['repeat-1']).toEqual({ x: 160, y: 90 });
-    expect(updated.repeatNodes?.[0]).toEqual({ ...repeatNode, count: 8 });
-    expect(removed.repeatNodes).toEqual([]);
+    expect(graphNodesOfKind(updated, 'repeat')?.[0]).toEqual({ ...repeatNode, count: 8 });
+    expect(graphNodesOfKind(removed, 'repeat')).toEqual([]);
     expect(removed.positions['repeat-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
     expect(removed.areas?.[0]?.nodeIds).toEqual([]);
@@ -236,6 +217,7 @@ describe('graph mutations', () => {
       areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['material-1'] }],
     });
     const materialNode = {
+      kind: 'material' as const,
       id: 'material-1',
       name: 'Gold',
       materialPreset: 'goldFoil' as const,
@@ -249,14 +231,14 @@ describe('graph mutations', () => {
       materialAnisotropy: 0.5,
     };
 
-    const withNode = addMaterialNode(graph, materialNode, { x: 160, y: 90 });
-    const updated = updateMaterialNode(withNode, 'material-1', { materialRoughness: 0.12 });
-    const removed = removeMaterialNode(updated, 'material-1');
+    const withNode = addGraphNode(graph, materialNode, { x: 160, y: 90 });
+    const updated = updateGraphNode(withNode, 'material-1', { materialRoughness: 0.12 });
+    const removed = removeGraphNode(updated, 'material-1');
 
-    expect(withNode.materialNodes).toEqual([materialNode]);
+    expect(graphNodesOfKind(withNode, 'material')).toEqual([materialNode]);
     expect(withNode.positions['material-1']).toEqual({ x: 160, y: 90 });
-    expect(updated.materialNodes?.[0]).toEqual({ ...materialNode, materialRoughness: 0.12 });
-    expect(removed.materialNodes).toEqual([]);
+    expect(graphNodesOfKind(updated, 'material')?.[0]).toEqual({ ...materialNode, materialRoughness: 0.12 });
+    expect(graphNodesOfKind(removed, 'material')).toEqual([]);
     expect(removed.positions['material-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
     expect(removed.areas?.[0]?.nodeIds).toEqual([]);
@@ -269,14 +251,18 @@ describe('graph mutations', () => {
     });
     const shaderNode = makeGraphShaderNode({ id: 'shader-1', name: 'Shader', palette: ['#111111', '#222222'] });
 
-    const withNode = addShaderNode(graph, shaderNode, { x: 180, y: 100 });
-    const updated = updateShaderNode(withNode, 'shader-1', { palette: ['#ffffff', '#222222'], swirl: 64 });
-    const removed = removeShaderNode(updated, 'shader-1');
+    const withNode = addGraphNode(graph, shaderNode, { x: 180, y: 100 });
+    const updated = updateGraphNode(withNode, 'shader-1', { palette: ['#ffffff', '#222222'], swirl: 64 });
+    const removed = removeGraphNode(updated, 'shader-1');
 
-    expect(withNode.shaderNodes).toEqual([shaderNode]);
+    expect(graphNodesOfKind(withNode, 'shader')).toEqual([shaderNode]);
     expect(withNode.positions['shader-1']).toEqual({ x: 180, y: 100 });
-    expect(updated.shaderNodes?.[0]).toEqual({ ...shaderNode, palette: ['#ffffff', '#222222'], swirl: 64 });
-    expect(removed.shaderNodes).toEqual([]);
+    expect(graphNodesOfKind(updated, 'shader')?.[0]).toEqual({
+      ...shaderNode,
+      palette: ['#ffffff', '#222222'],
+      swirl: 64,
+    });
+    expect(graphNodesOfKind(removed, 'shader')).toEqual([]);
     expect(removed.positions['shader-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
     expect(removed.areas?.[0]?.nodeIds).toEqual([]);
@@ -292,6 +278,7 @@ describe('graph mutations', () => {
       areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['mask-1'] }],
     });
     const maskNode = {
+      kind: 'mask' as const,
       id: 'mask-1',
       name: 'Mask',
       mode: 'alpha' as const,
@@ -302,14 +289,14 @@ describe('graph mutations', () => {
       opacity: 100,
     };
 
-    const withNode = addMaskNode(graph, maskNode, { x: 180, y: 120 });
-    const updated = updateMaskNode(withNode, 'mask-1', { mode: 'threshold', invert: true });
-    const removed = removeMaskNode(updated, 'mask-1');
+    const withNode = addGraphNode(graph, maskNode, { x: 180, y: 120 });
+    const updated = updateGraphNode(withNode, 'mask-1', { mode: 'threshold', invert: true });
+    const removed = removeGraphNode(updated, 'mask-1');
 
-    expect(withNode.maskNodes).toEqual([maskNode]);
+    expect(graphNodesOfKind(withNode, 'mask')).toEqual([maskNode]);
     expect(withNode.positions['mask-1']).toEqual({ x: 180, y: 120 });
-    expect(updated.maskNodes?.[0]).toEqual({ ...maskNode, mode: 'threshold', invert: true });
-    expect(removed.maskNodes).toEqual([]);
+    expect(graphNodesOfKind(updated, 'mask')?.[0]).toEqual({ ...maskNode, mode: 'threshold', invert: true });
+    expect(graphNodesOfKind(removed, 'mask')).toEqual([]);
     expect(removed.positions['mask-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
     expect(removed.areas?.[0]?.nodeIds).toEqual([]);
@@ -334,14 +321,14 @@ describe('graph mutations', () => {
       opacity: 100,
     });
 
-    const withNode = addTransformNode(graph, transformNode, { x: 200, y: 140 });
-    const updated = updateTransformNode(withNode, 'transform-1', { rotation: 45, x: 12 });
-    const removed = removeTransformNode(updated, 'transform-1');
+    const withNode = addGraphNode(graph, transformNode, { x: 200, y: 140 });
+    const updated = updateGraphNode(withNode, 'transform-1', { rotation: 45, x: 12 });
+    const removed = removeGraphNode(updated, 'transform-1');
 
-    expect(withNode.transformNodes).toEqual([transformNode]);
+    expect(graphNodesOfKind(withNode, 'transform')).toEqual([transformNode]);
     expect(withNode.positions['transform-1']).toEqual({ x: 200, y: 140 });
-    expect(updated.transformNodes?.[0]).toEqual({ ...transformNode, rotation: 45, x: 12 });
-    expect(removed.transformNodes).toEqual([]);
+    expect(graphNodesOfKind(updated, 'transform')?.[0]).toEqual({ ...transformNode, rotation: 45, x: 12 });
+    expect(graphNodesOfKind(removed, 'transform')).toEqual([]);
     expect(removed.positions['transform-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
     expect(removed.areas?.[0]?.nodeIds).toEqual([]);
@@ -356,6 +343,7 @@ describe('graph mutations', () => {
       areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['shadow-1'] }],
     });
     const grimeShadowNode = {
+      kind: 'grimeShadow' as const,
       id: 'shadow-1',
       name: 'Grime Shadow',
       x: 8,
@@ -371,14 +359,14 @@ describe('graph mutations', () => {
       shadowOnly: false,
     };
 
-    const withNode = addGrimeShadowNode(graph, grimeShadowNode, { x: 220, y: 160 });
-    const updated = updateGrimeShadowNode(withNode, 'shadow-1', { grime: 80, shadowOnly: true });
-    const removed = removeGrimeShadowNode(updated, 'shadow-1');
+    const withNode = addGraphNode(graph, grimeShadowNode, { x: 220, y: 160 });
+    const updated = updateGraphNode(withNode, 'shadow-1', { grime: 80, shadowOnly: true });
+    const removed = removeGraphNode(updated, 'shadow-1');
 
-    expect(withNode.grimeShadowNodes).toEqual([grimeShadowNode]);
+    expect(graphNodesOfKind(withNode, 'grimeShadow')).toEqual([grimeShadowNode]);
     expect(withNode.positions['shadow-1']).toEqual({ x: 220, y: 160 });
-    expect(updated.grimeShadowNodes?.[0]).toEqual({ ...grimeShadowNode, grime: 80, shadowOnly: true });
-    expect(removed.grimeShadowNodes).toEqual([]);
+    expect(graphNodesOfKind(updated, 'grimeShadow')?.[0]).toEqual({ ...grimeShadowNode, grime: 80, shadowOnly: true });
+    expect(graphNodesOfKind(removed, 'grimeShadow')).toEqual([]);
     expect(removed.positions['shadow-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
     expect(removed.areas?.[0]?.nodeIds).toEqual([]);
@@ -463,14 +451,16 @@ describe('graph mutations', () => {
         { id: 'e-color-export', fromId: 'color-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: { 'layer-a': { x: 0, y: 0 }, 'merge-a': { x: 200, y: 0 }, 'color-a': { x: 400, y: 0 } },
-      mergeNodes: [{ id: 'merge-a', name: 'Merge', blendMode: 'source-over', opacity: 100 }],
-      colorNodes: [{ id: 'color-a', name: 'Color', contrast: 100, brightness: 100, saturation: 100, hue: 0 }],
+      nodes: graphNodesById(
+        makeGraphMergeNode({ id: 'merge-a', name: 'Merge', blendMode: 'source-over', opacity: 100 }),
+        makeGraphColorNode({ id: 'color-a', name: 'Color', contrast: 100, brightness: 100, saturation: 100, hue: 0 }),
+      ),
       areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['layer-a', 'merge-a', 'color-a'] }],
     });
 
     const withoutLayer = removeLayerFromGraph(graph, 'layer-a');
-    const withoutMerge = removeMergeNode(graph, 'merge-a');
-    const withoutColor = removeColorNode(graph, 'color-a');
+    const withoutMerge = removeGraphNode(graph, 'merge-a');
+    const withoutColor = removeGraphNode(graph, 'color-a');
 
     expect(withoutLayer.areas?.[0]?.nodeIds).toEqual(['merge-a', 'color-a']);
     expect(withoutMerge.areas?.[0]?.nodeIds).toEqual(['layer-a', 'color-a']);
@@ -490,8 +480,9 @@ describe('resolveUpstreamRenderLayers', () => {
         { id: 'e-emoji-merge', fromId: emoji.id, fromPort: 'out', toId: 'merge-1', toPort: 'b' },
       ],
       positions: {},
-      mergeNodes: [{ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 }],
-      colorNodes: [],
+      nodes: graphNodesById(
+        makeGraphMergeNode({ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 }),
+      ),
     };
 
     expect(resolveUpstreamRenderLayers('merge-1', graph, [fill, text, emoji]).map((layer) => layer.id)).toEqual([
@@ -580,8 +571,7 @@ describe('resolveRenderOrder', () => {
         { id: 'e-emoji-export', fromId: emoji.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
 
     expect(
@@ -599,8 +589,7 @@ describe('splitEdgeWithNode', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-fill-text', fromId: fill.id, fromPort: 'out', toId: text.id, toPort: 'bg' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
 
     const next = splitEdgeWithNode(graph, 'e-fill-text', 'fx-1', 'in');
@@ -682,7 +671,7 @@ describe('organizeGraph', () => {
     const branch = makeEmojiLayer({ id: 'branch' });
     const merge = makeGraphMergeNode({ id: 'merge-mid' });
     const graph = emptyGraph({
-      mergeNodes: [merge],
+      nodes: graphNodesById(merge),
       edges: [
         { id: 'e-base-first', fromId: base.id, fromPort: 'out', toId: first.id, toPort: 'bg' },
         { id: 'e-first-second', fromId: first.id, fromPort: 'out', toId: second.id, toPort: 'bg' },

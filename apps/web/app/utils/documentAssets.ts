@@ -44,7 +44,7 @@ import {
   storePortableModelAssets,
   stripDocumentModelAssets,
 } from './modelAssetStore';
-import { EXPORT_NODE_ID, listGraphNodeIds } from './nodeGraph';
+import { EXPORT_NODE_ID, graphNodesOfKind, listGraphNodeIds } from './nodeGraph';
 
 export interface DocumentDependencyInventory {
   importedImageRefs: string[];
@@ -76,7 +76,7 @@ function imageSourcesForMaterialNode(node: GraphMaterialNode) {
 function collectDocumentImageSources(doc: CanvasDocument): string[] {
   return [
     ...doc.layers.flatMap((layer) => (layer.kind === 'image' ? imageSourcesForLayer(layer) : [])),
-    ...(doc.graph.materialNodes ?? []).flatMap(imageSourcesForMaterialNode),
+    ...graphNodesOfKind(doc.graph, 'material').flatMap(imageSourcesForMaterialNode),
   ];
 }
 
@@ -86,8 +86,8 @@ function collectDocumentModelSources(doc: CanvasDocument): string[] {
 
 function collectDocumentEnvironmentSources(doc: CanvasDocument): string[] {
   return [
-    ...(doc.graph.environmentNodes ?? []).flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
-    ...(doc.graph.scene3dNodes ?? []).flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
+    ...graphNodesOfKind(doc.graph, 'environment').flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
+    ...graphNodesOfKind(doc.graph, 'scene3d').flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
   ];
 }
 
@@ -124,10 +124,10 @@ export function hasPortableDocumentPayloads(doc: CanvasDocument) {
     inventory.portableModelAssetIds.length > 0 ||
     inventory.portableEnvironmentAssetIds.length > 0 ||
     doc.layers.some((layer): layer is ModelLayer => layer.kind === 'model' && isModelDataUrl(layer.modelSrc)) ||
-    (doc.graph.environmentNodes ?? []).some((node) =>
+    graphNodesOfKind(doc.graph, 'environment').some((node) =>
       Boolean(node.environmentSrc && isEnvironmentDataUrl(node.environmentSrc)),
     ) ||
-    (doc.graph.scene3dNodes ?? []).some((node): node is GraphScene3DNode =>
+    graphNodesOfKind(doc.graph, 'scene3d').some((node): node is GraphScene3DNode =>
       Boolean(node.environmentSrc && isEnvironmentDataUrl(node.environmentSrc)),
     )
   );

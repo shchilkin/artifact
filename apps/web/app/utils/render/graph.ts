@@ -21,7 +21,7 @@ import type {
 import { DEFAULT_MATERIAL_CONFIG, MATERIAL_TEXTURE_INPUT_PORTS } from '../../types/config';
 import { lcg } from '../lcg';
 import type { SceneMaterialTextureCanvases } from '../modelRenderer';
-import { EXPORT_NODE_ID } from '../nodeGraph';
+import { EXPORT_NODE_ID, graphNodesOfKind } from '../nodeGraph';
 import { alphaBoundsCenter, measureAlphaBounds, measureVisibleAlphaBounds, visibleAlphaThreshold } from './alphaBounds';
 import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas, toCompositeOperation } from './canvas';
 import { renderCustomCodeShaderNodeToCanvas } from './customCodeShader';
@@ -47,43 +47,43 @@ export interface GraphRenderCache {
 }
 
 function findMergeNode(graph: CanvasGraph, nodeId: string): GraphMergeNode | undefined {
-  return graph.mergeNodes.find((node) => node.id === nodeId);
+  return graphNodesOfKind(graph, 'merge').find((node) => node.id === nodeId);
 }
 
 function findColorNode(graph: CanvasGraph, nodeId: string): GraphColorNode | undefined {
-  return (graph.colorNodes ?? []).find((node) => node.id === nodeId);
+  return graphNodesOfKind(graph, 'color').find((node) => node.id === nodeId);
 }
 
 function findRepeatNode(graph: CanvasGraph, nodeId: string): GraphRepeatNode | undefined {
-  return (graph.repeatNodes ?? []).find((node) => node.id === nodeId);
+  return graphNodesOfKind(graph, 'repeat').find((node) => node.id === nodeId);
 }
 
 function findMaterialNode(graph: CanvasGraph, nodeId: string): GraphMaterialNode | undefined {
-  return (graph.materialNodes ?? []).find((node) => node.id === nodeId);
+  return graphNodesOfKind(graph, 'material').find((node) => node.id === nodeId);
 }
 
 function findMaskNode(graph: CanvasGraph, nodeId: string): GraphMaskNode | undefined {
-  return (graph.maskNodes ?? []).find((node) => node.id === nodeId);
+  return graphNodesOfKind(graph, 'mask').find((node) => node.id === nodeId);
 }
 
 function findTransformNode(graph: CanvasGraph, nodeId: string): GraphTransformNode | undefined {
-  return (graph.transformNodes ?? []).find((node) => node.id === nodeId);
+  return graphNodesOfKind(graph, 'transform').find((node) => node.id === nodeId);
 }
 
 function findGrimeShadowNode(graph: CanvasGraph, nodeId: string): GraphGrimeShadowNode | undefined {
-  return (graph.grimeShadowNodes ?? []).find((node) => node.id === nodeId);
+  return graphNodesOfKind(graph, 'grimeShadow').find((node) => node.id === nodeId);
 }
 
 function findScene3DNode(graph: CanvasGraph, nodeId: string): GraphScene3DNode | undefined {
-  return (graph.scene3dNodes ?? []).find((node) => node.id === nodeId);
+  return graphNodesOfKind(graph, 'scene3d').find((node) => node.id === nodeId);
 }
 
 function findEnvironmentNode(graph: CanvasGraph, nodeId: string): GraphEnvironmentNode | undefined {
-  return (graph.environmentNodes ?? []).find((node) => node.id === nodeId);
+  return graphNodesOfKind(graph, 'environment').find((node) => node.id === nodeId);
 }
 
 function findShaderNode(graph: CanvasGraph, nodeId: string): GraphShaderNode | undefined {
-  return (graph.shaderNodes ?? []).find((node) => node.id === nodeId);
+  return graphNodesOfKind(graph, 'shader').find((node) => node.id === nodeId);
 }
 
 function shaderMaterialConfig(sourceId: string): MaterialConfig {

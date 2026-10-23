@@ -1,5 +1,5 @@
 import type { CanvasDocument, CanvasGraph } from '../types/config';
-import { EXPORT_NODE_ID, findGraphUtilityNode, graphUtilityNodeCollections } from './nodeGraph';
+import { EXPORT_NODE_ID, findGraphUtilityNode } from './nodeGraph';
 import {
   collectGraphRenderReachModes,
   type GraphInputPort,
@@ -232,7 +232,7 @@ function buildStack(
 function graphNodeIds(doc: CanvasDocument, graph: CanvasGraph): string[] {
   // Top-first, matching the Layers list: layers from the top of the stack, then graph-only nodes.
   const layerIds = [...doc.layers].reverse().map((layer) => layer.id);
-  const utilityIds = graphUtilityNodeCollections(graph).flatMap((nodes) => nodes.map((node) => node.id));
+  const utilityIds = Object.keys(graph.nodes);
   return [...new Set([...layerIds, ...utilityIds])];
 }
 

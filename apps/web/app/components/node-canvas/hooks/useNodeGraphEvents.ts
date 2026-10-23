@@ -10,6 +10,7 @@ import {
 import {
   addGraphEdge,
   EXPORT_NODE_ID,
+  graphNodesOfKind,
   organizeGraph,
   removeGraphEdge,
   wouldCreateCycle,
@@ -120,11 +121,11 @@ function graphConnectionEndpoints(connection: Connection | RFEdge) {
 
 export function isGraphPortConnectionAllowed(connection: Connection | RFEdge, graph: CanvasGraph, layers: Layer[]) {
   const targetPort = connection.targetHandle ?? 'in';
-  const sourceIsMaterial = (graph.materialNodes ?? []).some((node) => node.id === connection.source);
-  const sourceIsShader = (graph.shaderNodes ?? []).some((node) => node.id === connection.source);
-  const sourceShader = (graph.shaderNodes ?? []).find((node) => node.id === connection.source);
-  const targetIsMaterial = (graph.materialNodes ?? []).some((node) => node.id === connection.target);
-  const targetShader = (graph.shaderNodes ?? []).find((node) => node.id === connection.target);
+  const sourceIsMaterial = graphNodesOfKind(graph, 'material').some((node) => node.id === connection.source);
+  const sourceIsShader = graphNodesOfKind(graph, 'shader').some((node) => node.id === connection.source);
+  const sourceShader = graphNodesOfKind(graph, 'shader').find((node) => node.id === connection.source);
+  const targetIsMaterial = graphNodesOfKind(graph, 'material').some((node) => node.id === connection.target);
+  const targetShader = graphNodesOfKind(graph, 'shader').find((node) => node.id === connection.target);
   if (targetPort === 'bg' && targetShader) return targetShader.role === 'effect' && !sourceIsMaterial;
   if ((MATERIAL_TEXTURE_INPUT_PORTS as readonly string[]).includes(targetPort)) {
     const sourceReady =
@@ -135,7 +136,7 @@ export function isGraphPortConnectionAllowed(connection: Connection | RFEdge, gr
   }
   if (targetPort === 'material') {
     const targetIsPrimitive = layers.some((layer) => layer.id === connection.target && layer.kind === 'primitive');
-    const targetIsScene3D = (graph.scene3dNodes ?? []).some((node) => node.id === connection.target);
+    const targetIsScene3D = graphNodesOfKind(graph, 'scene3d').some((node) => node.id === connection.target);
     return (sourceIsMaterial || sourceIsShader) && (targetIsPrimitive || targetIsScene3D);
   }
   return !sourceIsMaterial;

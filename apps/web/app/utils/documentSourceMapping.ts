@@ -7,6 +7,7 @@ import {
   MATERIAL_TEXTURE_SOURCE_FIELDS,
   type ModelLayer,
 } from '../types/config';
+import { mapGraphNodesAsync } from './nodeGraph';
 
 type SourceMapper = (source: string) => Promise<string>;
 
@@ -41,17 +42,12 @@ export async function mapDocumentImageSources(doc: CanvasDocument, mapSource: So
   const layers = await Promise.all(
     doc.layers.map((layer) => (layer.kind === 'image' ? mapImageLayer(layer, mapSource) : layer)),
   );
-  const materialNodes = await Promise.all(
-    (doc.graph.materialNodes ?? []).map((node) => mapMaterialNode(node, mapSource)),
+  const graph = await mapGraphNodesAsync(doc.graph, async (node) =>
+    node.kind === 'material' ? mapMaterialNode(node, mapSource) : node,
   );
   const layersChanged = layers.some((layer, index) => layer !== doc.layers[index]);
-  const materialNodesChanged = materialNodes.some((node, index) => node !== doc.graph.materialNodes?.[index]);
-  if (!layersChanged && !materialNodesChanged) return doc;
-  return {
-    ...doc,
-    layers,
-    ...(materialNodesChanged && doc.graph ? { graph: { ...doc.graph, materialNodes } } : {}),
-  };
+  if (!layersChanged && graph === doc.graph) return doc;
+  return { ...doc, layers, graph };
 }
 
 export async function mapDocumentModelSources(
@@ -81,14 +77,8 @@ export async function mapDocumentEnvironmentSources(
   doc: CanvasDocument,
   mapSource: (source: string, node: GraphEnvironmentNode | GraphScene3DNode) => Promise<string>,
 ): Promise<CanvasDocument> {
-  const graph = doc.graph;
-  if (!graph?.environmentNodes?.length && !graph?.scene3dNodes?.length) return doc;
-  const environmentNodes = await Promise.all(
-    (graph.environmentNodes ?? []).map((node) => mapEnvironmentNode(node, mapSource)),
+  const graph = await mapGraphNodesAsync(doc.graph, async (node) =>
+    node.kind === 'environment' || node.kind === 'scene3d' ? mapEnvironmentNode(node, mapSource) : node,
   );
-  const scene3dNodes = await Promise.all((graph.scene3dNodes ?? []).map((node) => mapEnvironmentNode(node, mapSource)));
-  const changed =
-    environmentNodes.some((node, index) => node !== graph.environmentNodes?.[index]) ||
-    scene3dNodes.some((node, index) => node !== graph.scene3dNodes?.[index]);
-  return changed ? { ...doc, graph: { ...graph, environmentNodes, scene3dNodes } } : doc;
+  return graph === doc.graph ? doc : { ...doc, graph };
 }

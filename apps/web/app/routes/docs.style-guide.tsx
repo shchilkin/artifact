@@ -96,7 +96,7 @@ import {
   type TextFontRef,
 } from '../types/config';
 import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
-import { EXPORT_NODE_ID } from '../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById } from '../utils/nodeGraph';
 import './docs.style-guide.css';
 
 export const meta: MetaFunction = () =>
@@ -354,9 +354,7 @@ const styleGuidePanelGraph: CanvasGraph = {
     [styleGuidePanelEffectLayer.id]: { x: 360, y: 0 },
     [EXPORT_NODE_ID]: { x: 720, y: 0 },
   },
-  mergeNodes: [],
-  colorNodes: [],
-  repeatNodes: [],
+  nodes: graphNodesById(),
 };
 
 const styleGuidePanelDoc: CanvasDocument = {

@@ -9,6 +9,10 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
+import { graphNodesById } from './nodeGraph';
+import { makeGraphMaskNode } from './nodeKinds/mask';
+import { makeGraphMergeNode } from './nodeKinds/merge';
+import { makeGraphRepeatNode } from './nodeKinds/repeat';
 
 export interface StarterDocument {
   id: string;
@@ -364,8 +368,7 @@ export const PHOTO_TYPE_GRAPH_RECIPE: StarterDocument = {
         'photo-grain': { x: 1080, y: 60 },
         __export__: { x: 1440, y: 60 },
       },
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     },
   ),
 };
@@ -461,8 +464,7 @@ export const STICKER_GRID_GRAPH_RECIPE: StarterDocument = {
         'sticker-overprint': { x: 1440, y: 60 },
         __export__: { x: 1800, y: 60 },
       },
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     },
   ),
 };
@@ -579,8 +581,14 @@ export const PRIMITIVE_IMAGE_GRAPH_RECIPE: StarterDocument = {
         'primitive-vignette': { x: 1440, y: -40 },
         __export__: { x: 1800, y: -40 },
       },
-      mergeNodes: [{ id: 'merge-primitive-image', name: 'primitive over image', blendMode: 'screen', opacity: 92 }],
-      colorNodes: [],
+      nodes: graphNodesById(
+        makeGraphMergeNode({
+          id: 'merge-primitive-image',
+          name: 'primitive over image',
+          blendMode: 'screen',
+          opacity: 92,
+        }),
+      ),
     },
   ),
 };
@@ -648,8 +656,7 @@ export const PRINT_DAMAGE_GRAPH_RECIPE: StarterDocument = {
         'damage-grain': { x: 1440, y: 60 },
         __export__: { x: 1800, y: 60 },
       },
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     },
   ),
 };
@@ -737,10 +744,14 @@ export const MASKED_TYPE_LINES_GRAPH_RECIPE: StarterDocument = {
         'masked-lines-grain': { x: 1080, y: 0 },
         __export__: { x: 1440, y: 0 },
       },
-      mergeNodes: [{ id: 'merge-masked-lines', name: 'lines over plate', blendMode: 'source-over', opacity: 100 }],
-      colorNodes: [],
-      maskNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphMergeNode({
+          id: 'merge-masked-lines',
+          name: 'lines over plate',
+          blendMode: 'source-over',
+          opacity: 100,
+        }),
+        makeGraphMaskNode({
           id: 'mask-masked-lines',
           name: 'type mask',
           mode: 'alpha',
@@ -749,8 +760,8 @@ export const MASKED_TYPE_LINES_GRAPH_RECIPE: StarterDocument = {
           feather: 0,
           expand: 0,
           opacity: 100,
-        },
-      ],
+        }),
+      ),
     },
   ),
 };
@@ -844,10 +855,8 @@ export const ROTATED_CIRCLE_TOKENS_GRAPH_RECIPE: StarterDocument = {
         'tokens-label': { x: 1080, y: -120 },
         __export__: { x: 1440, y: -120 },
       },
-      mergeNodes: [],
-      colorNodes: [],
-      maskNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphMaskNode({
           id: 'mask-token-circle',
           name: 'circle mask',
           mode: 'alpha',
@@ -856,10 +865,8 @@ export const ROTATED_CIRCLE_TOKENS_GRAPH_RECIPE: StarterDocument = {
           feather: 0,
           expand: 0,
           opacity: 100,
-        },
-      ],
-      repeatNodes: [
-        {
+        }),
+        makeGraphRepeatNode({
           id: 'repeat-token-circle',
           name: 'rotated tokens',
           pattern: 'radial',
@@ -876,8 +883,8 @@ export const ROTATED_CIRCLE_TOKENS_GRAPH_RECIPE: StarterDocument = {
           seedOffset: 0,
           opacity: 100,
           blendMode: 'screen',
-        },
-      ],
+        }),
+      ),
     },
   ),
 };
@@ -931,8 +938,7 @@ export const WARPED_LINE_POSTER_GRAPH_RECIPE: StarterDocument = {
         'warped-scan': { x: 720, y: 40 },
         __export__: { x: 1080, y: 40 },
       },
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     },
   ),
 };
@@ -1031,10 +1037,14 @@ export const NOISE_MATTE_MERGE_GRAPH_RECIPE: StarterDocument = {
         'noise-matte-title': { x: 1080, y: -80 },
         __export__: { x: 1440, y: -80 },
       },
-      mergeNodes: [{ id: 'merge-noise-matte', name: 'masked texture over plate', blendMode: 'screen', opacity: 100 }],
-      colorNodes: [],
-      maskNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphMergeNode({
+          id: 'merge-noise-matte',
+          name: 'masked texture over plate',
+          blendMode: 'screen',
+          opacity: 100,
+        }),
+        makeGraphMaskNode({
           id: 'mask-noise-matte',
           name: 'noise mask',
           mode: 'threshold',
@@ -1043,8 +1053,8 @@ export const NOISE_MATTE_MERGE_GRAPH_RECIPE: StarterDocument = {
           feather: 2,
           expand: 0,
           opacity: 100,
-        },
-      ],
+        }),
+      ),
     },
   ),
 };

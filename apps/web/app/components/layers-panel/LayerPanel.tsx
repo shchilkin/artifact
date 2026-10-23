@@ -18,6 +18,7 @@ import { isLayerStackGraph } from '../../utils/documentCommands';
 import { buildGraphLayerTree, type GraphLayerTree } from '../../utils/graphLayerTree';
 import type { LayerAddPlacement, TreeEditResult } from '../../utils/graphTreeEdits';
 import { getLayerAreaMap } from '../../utils/layerAreas';
+import { graphNodesOfKind } from '../../utils/nodeGraph';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import { collectDocumentOutputNodeIds } from '../../utils/renderer';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
@@ -649,7 +650,7 @@ function Scene3DLayerRows({
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
 }) {
-  const scenes = doc.graph.scene3dNodes ?? [];
+  const scenes = graphNodesOfKind(doc.graph, 'scene3d');
   if (scenes.length === 0) return null;
   return (
     <>

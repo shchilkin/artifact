@@ -13,6 +13,8 @@ import {
   makeTextLayer,
 } from '../types/config';
 import { type ArrayPresetId, makeArrayPresetLayer } from './arrayPresets';
+import { graphNodesById } from './nodeGraph';
+import { makeGraphMergeNode } from './nodeKinds/merge';
 import { makeNoisePresetLayer, type NoisePresetId } from './noisePresets';
 import {
   MASKED_TYPE_LINES_GRAPH_RECIPE,
@@ -230,8 +232,9 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
           'static-grain': { x: 1800, y: -60 },
           __export__: { x: 2160, y: -60 },
         },
-        mergeNodes: [{ id: 'merge-static-orbit', name: 'orbit over signal', blendMode: 'screen', opacity: 88 }],
-        colorNodes: [],
+        nodes: graphNodesById(
+          makeGraphMergeNode({ id: 'merge-static-orbit', name: 'orbit over signal', blendMode: 'screen', opacity: 88 }),
+        ),
       },
     ),
   },
@@ -300,8 +303,9 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
           'paper-overprint': { x: 1440, y: -80 },
           __export__: { x: 1800, y: -80 },
         },
-        mergeNodes: [{ id: 'merge-paper-shards', name: 'paper plus shards', blendMode: 'screen', opacity: 72 }],
-        colorNodes: [],
+        nodes: graphNodesById(
+          makeGraphMergeNode({ id: 'merge-paper-shards', name: 'paper plus shards', blendMode: 'screen', opacity: 72 }),
+        ),
       },
     ),
   },
@@ -386,8 +390,14 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
           'merge-tower-cover': { x: 980, y: 120 },
           __export__: { x: 1220, y: 120 },
         },
-        mergeNodes: [{ id: 'merge-tower-cover', name: 'type over concrete', blendMode: 'normal', opacity: 100 }],
-        colorNodes: [],
+        nodes: graphNodesById(
+          makeGraphMergeNode({
+            id: 'merge-tower-cover',
+            name: 'type over concrete',
+            blendMode: 'normal',
+            opacity: 100,
+          }),
+        ),
       },
     ),
   },

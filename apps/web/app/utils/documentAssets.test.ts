@@ -3,8 +3,6 @@ import {
   type CanvasDocument,
   makeDocument,
   makeFillLayer,
-  makeGraphEnvironmentNode,
-  makeGraphMaterialNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
@@ -17,7 +15,8 @@ import {
 } from './documentAssets';
 import { makePortableAssetLoaders } from './documentAssetTestHelpers';
 import { fontUriFromId } from './fontStore';
-import { EXPORT_NODE_ID } from './nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind } from './nodeGraph';
+import { makeGraphEnvironmentNode, makeGraphMaterialNode } from './nodeKinds';
 
 describe('documentAssets', () => {
   const imageRef = 'artifact-asset://image-a';
@@ -81,16 +80,14 @@ describe('documentAssets', () => {
         graph: {
           edges: [{ id: 'e-text-export', fromId: 'text-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
           positions: {},
-          mergeNodes: [],
-          colorNodes: [],
-          materialNodes: [
+          nodes: graphNodesById(
             makeGraphMaterialNode({
               id: 'material-node-a',
               materialAlbedoSrc: materialImageRef,
               materialRoughnessSrc: materialImageDataUrl,
             }),
-          ],
-          environmentNodes: [makeGraphEnvironmentNode({ id: 'env-node-a', environmentSrc: environmentRef })],
+            makeGraphEnvironmentNode({ id: 'env-node-a', environmentSrc: environmentRef }),
+          ),
         },
         envAssets: [environmentAsset],
       }),
@@ -112,7 +109,7 @@ describe('documentAssets', () => {
 
   it('reports graph documents without an export input', () => {
     const inventory = inspectDocumentDependencies(
-      doc({ layers: [makeFillLayer()], graph: { edges: [], positions: {}, mergeNodes: [], colorNodes: [] } }),
+      doc({ layers: [makeFillLayer()], graph: { edges: [], positions: {}, nodes: graphNodesById() } }),
     );
 
     expect(inventory.hasGraphExportTarget).toBe(false);
@@ -146,15 +143,13 @@ describe('documentAssets', () => {
         graph: {
           edges: [],
           positions: {},
-          mergeNodes: [],
-          colorNodes: [],
-          materialNodes: [
+          nodes: graphNodesById(
             makeGraphMaterialNode({
               id: 'material-node-a',
               materialAlbedoSrc: materialImageRef,
             }),
-          ],
-          environmentNodes: [makeGraphEnvironmentNode({ id: 'env-node-a', environmentSrc: environmentRef })],
+            makeGraphEnvironmentNode({ id: 'env-node-a', environmentSrc: environmentRef }),
+          ),
         },
       }),
       { loadAssetDataUrl, loadFontAsset, loadModelAsset, loadEnvironmentAsset },
@@ -166,11 +161,13 @@ describe('documentAssets', () => {
     expect(loadModelAsset).toHaveBeenCalledWith(modelRef);
     expect(loadEnvironmentAsset).toHaveBeenCalledWith(environmentRef);
     expect(portable.layers[0]).toMatchObject({ kind: 'image', src: imageDataUrl });
-    expect(portable.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: materialImageDataUrl });
+    expect(graphNodesOfKind(portable.graph, 'material')?.[0]).toMatchObject({
+      materialAlbedoSrc: materialImageDataUrl,
+    });
     expect(portable.fontAssets).toEqual([fontAsset]);
     expect(portable.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelDataUrl, modelName: 'skull.glb' });
     expect(portable.modelAssets).toEqual([modelAsset]);
-    expect(portable.graph?.environmentNodes?.[0]).toMatchObject({
+    expect(graphNodesOfKind(portable.graph, 'environment')?.[0]).toMatchObject({
       environmentSrc: environmentDataUrl,
       environmentName: 'studio.exr',
     });
@@ -195,14 +192,12 @@ describe('documentAssets', () => {
         graph: {
           edges: [],
           positions: {},
-          mergeNodes: [],
-          colorNodes: [],
-          materialNodes: [
+          nodes: graphNodesById(
             makeGraphMaterialNode({
               materialAlbedoSrc: materialImageDataUrl,
             }),
-          ],
-          environmentNodes: [makeGraphEnvironmentNode({ environmentSrc: environmentDataUrl })],
+            makeGraphEnvironmentNode({ environmentSrc: environmentDataUrl }),
+          ),
         },
         fontAssets: [fontAsset],
         modelAssets: [modelAsset],
@@ -226,9 +221,9 @@ describe('documentAssets', () => {
     expect(saveEnvironmentDataUrl).not.toHaveBeenCalled();
     expect(saveEnvironmentAsset).toHaveBeenCalledWith(environmentAsset);
     expect(stored.layers[0]).toMatchObject({ kind: 'image', src: imageRef });
-    expect(stored.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: imageRef });
+    expect(graphNodesOfKind(stored.graph, 'material')?.[0]).toMatchObject({ materialAlbedoSrc: imageRef });
     expect(stored.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelRef });
-    expect(stored.graph?.environmentNodes?.[0]).toMatchObject({ environmentSrc: environmentRef });
+    expect(graphNodesOfKind(stored.graph, 'environment')?.[0]).toMatchObject({ environmentSrc: environmentRef });
     expect(stored.fontAssets).toBeUndefined();
     expect(stored.modelAssets).toBeUndefined();
     expect(stored.envAssets).toBeUndefined();

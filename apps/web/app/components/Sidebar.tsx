@@ -19,10 +19,9 @@ import {
   replaceSelectedImageSourceInDocument,
   setLayersVisibilityInDocument,
   toggleLayerVisibilityInDocument,
-  updateEnvironmentNodeInDocument,
   updateGlobalInDocument,
+  updateGraphNodeInDocument,
   updateLayerInDocument,
-  updateScene3DNodeInDocument,
 } from '../utils/documentCommands';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../utils/editorTargetSummary';
 import { findGraphUtilityNode } from '../utils/nodeGraph';
@@ -245,8 +244,8 @@ function SelectedScene3DSections({
       <SceneTargetInspector
         doc={doc}
         scene={scene}
-        onUpdateScene={(patch) => onDocChange(updateScene3DNodeInDocument(docRef.current, scene.id, patch))}
-        onUpdateEnvironment={(id, patch) => onDocChange(updateEnvironmentNodeInDocument(docRef.current, id, patch))}
+        onUpdateScene={(patch) => onDocChange(updateGraphNodeInDocument(docRef.current, scene.id, patch))}
+        onUpdateEnvironment={(id, patch) => onDocChange(updateGraphNodeInDocument(docRef.current, id, patch))}
         onLoadEnvironmentFile={onReplaceEnvironmentNodeFile}
       />
     </div>

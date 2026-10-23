@@ -9,19 +9,7 @@ import {
 import type { SceneMaterialTextureCanvases } from '../../../utils/modelRenderer';
 import { collectUpstreamNodeIds } from '../../../utils/nodeGraph';
 import { renderGraphTarget } from '../../../utils/renderer';
-import {
-  edgeRenderSig,
-  environmentNodeRenderSig,
-  grimeShadowNodeRenderSig,
-  layerRenderSig,
-  maskNodeRenderSig,
-  materialNodeRenderSig,
-  mergeNodeRenderSig,
-  repeatNodeRenderSig,
-  scene3DNodeRenderSig,
-  shaderNodeRenderSig,
-  transformNodeRenderSig,
-} from '../../../utils/renderSignature';
+import { edgeRenderSig, graphNodeRenderSig, layerRenderSig } from '../../../utils/renderSignature';
 import type { PrimitiveViewportState } from '../../PrimitiveViewportState';
 
 export function useGeneratedMaterialTextureCanvases({
@@ -103,54 +91,9 @@ function materialTextureInputSignature(
       doc.layers.filter((layer) => upstream.has(layer.id)).map((layer) => `${layer.id}:${layerRenderSig(layer)}`),
     ),
     signatureList(
-      (graph.mergeNodes ?? [])
+      Object.values(graph.nodes)
         .filter((node) => upstream.has(node.id))
-        .map((node) => `${node.id}:${mergeNodeRenderSig(node)}`),
-    ),
-    signatureList(
-      (graph.colorNodes ?? [])
-        .filter((node) => upstream.has(node.id))
-        .map((node) => `${node.id}:${node.contrast},${node.brightness},${node.saturation},${node.hue}`),
-    ),
-    signatureList(
-      (graph.repeatNodes ?? [])
-        .filter((node) => upstream.has(node.id))
-        .map((node) => `${node.id}:${repeatNodeRenderSig(node)}`),
-    ),
-    signatureList(
-      (graph.materialNodes ?? [])
-        .filter((node) => upstream.has(node.id))
-        .map((node) => `${node.id}:${materialNodeRenderSig(node)}`),
-    ),
-    signatureList(
-      (graph.maskNodes ?? [])
-        .filter((node) => upstream.has(node.id))
-        .map((node) => `${node.id}:${maskNodeRenderSig(node)}`),
-    ),
-    signatureList(
-      (graph.transformNodes ?? [])
-        .filter((node) => upstream.has(node.id))
-        .map((node) => `${node.id}:${transformNodeRenderSig(node)}`),
-    ),
-    signatureList(
-      (graph.grimeShadowNodes ?? [])
-        .filter((node) => upstream.has(node.id))
-        .map((node) => `${node.id}:${grimeShadowNodeRenderSig(node)}`),
-    ),
-    signatureList(
-      (graph.scene3dNodes ?? [])
-        .filter((node) => upstream.has(node.id))
-        .map((node) => `${node.id}:${scene3DNodeRenderSig(node)}`),
-    ),
-    signatureList(
-      (graph.environmentNodes ?? [])
-        .filter((node) => upstream.has(node.id))
-        .map((node) => `${node.id}:${environmentNodeRenderSig(node)}`),
-    ),
-    signatureList(
-      (graph.shaderNodes ?? [])
-        .filter((node) => upstream.has(node.id))
-        .map((node) => `${node.id}:${shaderNodeRenderSig(node)}`),
+        .map((node) => `${node.id}:${graphNodeRenderSig(node)}`),
     ),
     signatureList(
       graph.edges

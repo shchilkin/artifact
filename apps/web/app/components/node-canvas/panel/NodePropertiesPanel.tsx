@@ -15,7 +15,7 @@ import type {
 } from '../../../types/config';
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../../../utils/editorTargetSummary';
-import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphNodesOfKind } from '../../../utils/nodeGraph';
 import { EditorTargetOverview } from '../../editor-target/EditorTargetHeader';
 import { LayerTargetInspector } from '../../layer-controls/LayerTargetInspector';
 import {
@@ -124,52 +124,52 @@ function isSelectedNodeTarget(target: SelectedNodeTarget | null): target is Sele
 }
 
 function findColorNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.colorNodes ?? []).find((item) => item.id === selectedNodeId);
+  const node = graphNodesOfKind(graph, 'color').find((item) => item.id === selectedNodeId);
   return node ? { kind: 'color', node } : null;
 }
 
 function findMergeNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = graph.mergeNodes.find((item) => item.id === selectedNodeId);
+  const node = graphNodesOfKind(graph, 'merge').find((item) => item.id === selectedNodeId);
   return node ? { kind: 'merge', node } : null;
 }
 
 function findRepeatNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.repeatNodes ?? []).find((item) => item.id === selectedNodeId);
+  const node = graphNodesOfKind(graph, 'repeat').find((item) => item.id === selectedNodeId);
   return node ? { kind: 'repeat', node } : null;
 }
 
 function findMaskNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.maskNodes ?? []).find((item) => item.id === selectedNodeId);
+  const node = graphNodesOfKind(graph, 'mask').find((item) => item.id === selectedNodeId);
   return node ? { kind: 'mask', node } : null;
 }
 
 function findMaterialNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.materialNodes ?? []).find((item) => item.id === selectedNodeId);
+  const node = graphNodesOfKind(graph, 'material').find((item) => item.id === selectedNodeId);
   return node ? { kind: 'material', node } : null;
 }
 
 function findTransformNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.transformNodes ?? []).find((item) => item.id === selectedNodeId);
+  const node = graphNodesOfKind(graph, 'transform').find((item) => item.id === selectedNodeId);
   return node ? { kind: 'transform', node } : null;
 }
 
 function findGrimeShadowNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.grimeShadowNodes ?? []).find((item) => item.id === selectedNodeId);
+  const node = graphNodesOfKind(graph, 'grimeShadow').find((item) => item.id === selectedNodeId);
   return node ? { kind: 'grimeShadow', node } : null;
 }
 
 function findScene3DNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.scene3dNodes ?? []).find((item) => item.id === selectedNodeId);
+  const node = graphNodesOfKind(graph, 'scene3d').find((item) => item.id === selectedNodeId);
   return node ? { kind: 'scene3d', node } : null;
 }
 
 function findEnvironmentNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.environmentNodes ?? []).find((item) => item.id === selectedNodeId);
+  const node = graphNodesOfKind(graph, 'environment').find((item) => item.id === selectedNodeId);
   return node ? { kind: 'environment', node } : null;
 }
 
 function findShaderNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.shaderNodes ?? []).find((item) => item.id === selectedNodeId);
+  const node = graphNodesOfKind(graph, 'shader').find((item) => item.id === selectedNodeId);
   return node ? { kind: 'shader', node } : null;
 }
 

@@ -763,7 +763,9 @@ async function waitForStored3DRefs(page: Page) {
           const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
           return {
             modelRef: doc.layers?.find((layer: { id: string }) => layer.id === 'v036-model')?.modelSrc ?? '',
-            environmentRef: doc.graph?.environmentNodes?.[0]?.environmentSrc ?? '',
+            environmentRef:
+              Object.values(doc.graph?.nodes ?? {}).find((node: { kind?: string }) => node.kind === 'environment')
+                ?.environmentSrc ?? '',
           };
         }),
       { timeout: 15_000 },
@@ -776,7 +778,8 @@ async function waitForStored3DRefs(page: Page) {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
     return {
       modelRef: doc.layers.find((layer: { id: string }) => layer.id === 'v036-model').modelSrc as string,
-      environmentRef: doc.graph.environmentNodes[0].environmentSrc as string,
+      environmentRef: Object.values(doc.graph.nodes).find((node: { kind?: string }) => node.kind === 'environment')
+        .environmentSrc as string,
     };
   });
 }
@@ -816,7 +819,12 @@ async function waitForStored3DAssets(page: Page, refs: { modelRef: string; envir
         });
       const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
       const modelRef = doc.layers?.find((layer: { id: string }) => layer.id === 'v036-model')?.modelSrc ?? '';
-      const environmentRef = doc.graph?.environmentNodes?.[0]?.environmentSrc ?? '';
+      const graphNodes = Object.values(doc.graph?.nodes ?? {}) as {
+        kind?: string;
+        environmentSrc?: string;
+        environmentStrength?: number;
+      }[];
+      const environmentRef = graphNodes.find((node) => node.kind === 'environment')?.environmentSrc ?? '';
       return {
         model: await readAsset(
           'artifact-local-model-assets',
@@ -831,7 +839,7 @@ async function waitForStored3DAssets(page: Page, refs: { modelRef: string; envir
         document: {
           modelRef,
           environmentRef,
-          environmentStrength: doc.graph?.scene3dNodes?.[0]?.environmentStrength,
+          environmentStrength: graphNodes.find((node) => node.kind === 'scene3d')?.environmentStrength,
           edgeIds: doc.graph?.edges?.map((edge: { id: string }) => edge.id) ?? [],
           hasModelPayloadField: Object.hasOwn(doc, 'modelAssets'),
           hasEnvironmentPayloadField: Object.hasOwn(doc, 'envAssets'),

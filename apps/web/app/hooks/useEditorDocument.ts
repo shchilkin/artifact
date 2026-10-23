@@ -45,18 +45,9 @@ import {
   setDocumentAspect,
   setDocumentGraph,
   setDocumentSeed,
-  updateColorNodeInDocument,
   updateDocumentExportConfig,
-  updateEnvironmentNodeInDocument,
-  updateGrimeShadowNodeInDocument,
+  updateGraphNodeInDocument,
   updateLayerInDocument,
-  updateMaskNodeInDocument,
-  updateMaterialNodeInDocument,
-  updateMergeNodeInDocument,
-  updateRepeatNodeInDocument,
-  updateScene3DNodeInDocument,
-  updateShaderNodeInDocument,
-  updateTransformNodeInDocument,
 } from '../utils/documentCommands';
 import {
   clearPendingDocumentHistory,
@@ -407,70 +398,70 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
 
   const updateMergeNode = useCallback(
     (id: string, patch: Partial<GraphMergeNode>) => {
-      updateDocument((current) => updateMergeNodeInDocument(current, id, patch), 'debounce');
+      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateColorNode = useCallback(
     (id: string, patch: Partial<GraphColorNode>) => {
-      updateDocument((current) => updateColorNodeInDocument(current, id, patch), 'debounce');
+      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateRepeatNode = useCallback(
     (id: string, patch: Partial<GraphRepeatNode>) => {
-      updateDocument((current) => updateRepeatNodeInDocument(current, id, patch), 'debounce');
+      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateMaterialNode = useCallback(
     (id: string, patch: Partial<GraphMaterialNode>) => {
-      updateDocument((current) => updateMaterialNodeInDocument(current, id, patch), 'debounce');
+      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateMaskNode = useCallback(
     (id: string, patch: Partial<GraphMaskNode>) => {
-      updateDocument((current) => updateMaskNodeInDocument(current, id, patch), 'debounce');
+      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateTransformNode = useCallback(
     (id: string, patch: Partial<GraphTransformNode>) => {
-      updateDocument((current) => updateTransformNodeInDocument(current, id, patch), 'debounce');
+      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateGrimeShadowNode = useCallback(
     (id: string, patch: Partial<GraphGrimeShadowNode>) => {
-      updateDocument((current) => updateGrimeShadowNodeInDocument(current, id, patch), 'debounce');
+      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateScene3DNode = useCallback(
     (id: string, patch: Partial<GraphScene3DNode>) => {
-      updateDocument((current) => updateScene3DNodeInDocument(current, id, patch), 'debounce');
+      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateEnvironmentNode = useCallback(
     (id: string, patch: Partial<GraphEnvironmentNode>) => {
-      updateDocument((current) => updateEnvironmentNodeInDocument(current, id, patch), 'debounce');
+      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );
 
   const updateShaderNode = useCallback(
     (id: string, patch: Partial<GraphShaderNode>) => {
-      updateDocument((current) => updateShaderNodeInDocument(current, id, patch), 'debounce');
+      updateDocument((current) => updateGraphNodeInDocument(current, id, patch), 'debounce');
     },
     [updateDocument],
   );

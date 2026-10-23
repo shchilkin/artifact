@@ -1,5 +1,4 @@
 import type { Node as RFNode } from '@xyflow/react';
-
 import type {
   CanvasDocument,
   CanvasGraph,
@@ -17,7 +16,7 @@ import type {
   ModelLayer,
   PrimitiveLayer,
 } from '../../types/config';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphNodesOfKind } from '../../utils/nodeGraph';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 import { NODE_W } from './constants';
 import type {
@@ -178,16 +177,16 @@ function buildUtilityRFNodes(context: BuildRFNodeContext): RFNode[] {
 }
 
 const RF_UTILITY_NODE_BUILDERS = [
-  { nodes: (graph: CanvasGraph) => graph.mergeNodes, build: buildMergeRFNode },
-  { nodes: (graph: CanvasGraph) => graph.colorNodes, build: buildColorRFNode },
-  { nodes: (graph: CanvasGraph) => graph.repeatNodes ?? [], build: buildRepeatRFNode },
-  { nodes: (graph: CanvasGraph) => graph.materialNodes ?? [], build: buildMaterialRFNode },
-  { nodes: (graph: CanvasGraph) => graph.maskNodes ?? [], build: buildMaskRFNode },
-  { nodes: (graph: CanvasGraph) => graph.transformNodes ?? [], build: buildTransformRFNode },
-  { nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [], build: buildGrimeShadowRFNode },
-  { nodes: (graph: CanvasGraph) => graph.scene3dNodes ?? [], build: buildScene3DRFNode },
-  { nodes: (graph: CanvasGraph) => graph.environmentNodes ?? [], build: buildEnvironmentRFNode },
-  { nodes: (graph: CanvasGraph) => graph.shaderNodes ?? [], build: buildShaderRFNode },
+  { nodes: (graph: CanvasGraph) => graphNodesOfKind(graph, 'merge'), build: buildMergeRFNode },
+  { nodes: (graph: CanvasGraph) => graphNodesOfKind(graph, 'color'), build: buildColorRFNode },
+  { nodes: (graph: CanvasGraph) => graphNodesOfKind(graph, 'repeat'), build: buildRepeatRFNode },
+  { nodes: (graph: CanvasGraph) => graphNodesOfKind(graph, 'material'), build: buildMaterialRFNode },
+  { nodes: (graph: CanvasGraph) => graphNodesOfKind(graph, 'mask'), build: buildMaskRFNode },
+  { nodes: (graph: CanvasGraph) => graphNodesOfKind(graph, 'transform'), build: buildTransformRFNode },
+  { nodes: (graph: CanvasGraph) => graphNodesOfKind(graph, 'grimeShadow'), build: buildGrimeShadowRFNode },
+  { nodes: (graph: CanvasGraph) => graphNodesOfKind(graph, 'scene3d'), build: buildScene3DRFNode },
+  { nodes: (graph: CanvasGraph) => graphNodesOfKind(graph, 'environment'), build: buildEnvironmentRFNode },
+  { nodes: (graph: CanvasGraph) => graphNodesOfKind(graph, 'shader'), build: buildShaderRFNode },
 ];
 
 function buildMergeRFNode(mn: GraphMergeNode, context: BuildRFNodeContext): RFNode {
@@ -291,9 +290,10 @@ function buildScene3DRFNode(sn: GraphScene3DNode, context: BuildRFNodeContext): 
       (layer): layer is ModelLayer | PrimitiveLayer =>
         layer.id === modelPreviewTargetId && (layer.kind === 'model' || layer.kind === 'primitive'),
     ) ?? null;
-  const materialNode = (context.graph.materialNodes ?? []).find((node) => node.id === materialPreviewTargetId) ?? null;
+  const materialNode =
+    graphNodesOfKind(context.graph, 'material').find((node) => node.id === materialPreviewTargetId) ?? null;
   const environmentNode =
-    (context.graph.environmentNodes ?? []).find((node) => node.id === environmentPreviewTargetId) ?? null;
+    graphNodesOfKind(context.graph, 'environment').find((node) => node.id === environmentPreviewTargetId) ?? null;
   return {
     id: sn.id,
     type: 'scene3dNode',

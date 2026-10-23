@@ -20,6 +20,7 @@ import {
   type GraphTreeRow,
 } from '../../utils/graphLayerTree';
 import { checkTreeDrop, checkTreeRowMovable, type TreeDropPosition } from '../../utils/graphTreeEdits';
+import { graphNodesOfKind } from '../../utils/nodeGraph';
 import {
   EditorRowActions,
   EditorRowFrame,
@@ -357,9 +358,10 @@ export function GraphLayerTreeView({
   const items = useMemo(() => visibleGraphTreeItems(tree, collapse, narrow), [collapse, narrow, tree]);
   const ancestors = useMemo(() => graphTreeAncestorFolders(tree), [tree]);
   const layersById = useMemo(() => new Map(doc.layers.map((layer) => [layer.id, layer])), [doc.layers]);
+  const graphNodes = doc.graph.nodes;
   const mergesById = useMemo(
-    () => new Map((doc.graph.mergeNodes ?? []).map((node) => [node.id, node])),
-    [doc.graph.mergeNodes],
+    () => new Map(graphNodesOfKind({ nodes: graphNodes }, 'merge').map((node) => [node.id, node])),
+    [graphNodes],
   );
   const areasByNodeId = useMemo(() => nodeAreaMap(doc.graph.areas), [doc.graph.areas]);
 

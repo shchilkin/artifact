@@ -1,12 +1,4 @@
-import type {
-  ShaderDefinition,
-  ShaderInstance,
-  ShaderPropertyDefinition,
-  ShaderPropertyType,
-  ShaderPropertyValue,
-  ShaderRole,
-} from '@artifact/shared';
-import { defaultShaderPalette, normalizeShaderPalette } from '../utils/shaderPalette';
+import type { GraphNode } from '../utils/nodeKinds';
 import { inferLinearGraph } from './linearGraph';
 import type { TextFontRef } from './typography';
 
@@ -88,7 +80,7 @@ export type {
   ShaderPropertyType,
   ShaderPropertyValue,
   ShaderRole,
-};
+} from '@artifact/shared';
 export type NoiseType = 'value' | 'clouds' | 'cells';
 export type ArrayPattern = 'line' | 'grid' | 'radial';
 type ArrayShape = 'disc' | 'bar' | 'diamond';
@@ -520,136 +512,6 @@ export interface GraphEdge {
   toPort: 'in' | 'bg' | 'a' | 'b' | 'mask' | 'model' | 'env' | 'material' | MaterialTextureInputPort;
 }
 
-export interface GraphMergeNode {
-  id: string;
-  name: string;
-  blendMode: string;
-  opacity: number;
-}
-
-export interface GraphColorNode {
-  id: string;
-  name: string;
-  contrast: number; // CSS %, 0–200 (100 = neutral)
-  brightness: number; // CSS %, 0–200 (100 = neutral)
-  saturation: number; // CSS %, 0–200 (100 = neutral)
-  hue: number; // degrees, -180 to 180 (0 = neutral)
-}
-
-export interface GraphRepeatNode {
-  id: string;
-  name: string;
-  pattern: ArrayPattern;
-  count: number;
-  rows: number;
-  gap: number;
-  radius: number;
-  scale: number;
-  jitter: number;
-  rotation: number;
-  rotationMode?: 'fixed' | 'radial' | 'step' | 'random';
-  rotationStep?: number;
-  rotationJitter?: number;
-  seedOffset: number;
-  opacity: number;
-  blendMode: string;
-}
-
-export interface GraphMaskNode {
-  id: string;
-  name: string;
-  mode: 'alpha' | 'luma' | 'threshold';
-  invert: boolean;
-  threshold: number;
-  feather: number;
-  expand: number;
-  opacity: number;
-}
-
-export interface GraphTransformNode {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  scaleX: number;
-  scaleY: number;
-  uniformScale: boolean;
-  rotation: number;
-  pivotMode?: 'canvas' | 'visible';
-  opacity: number;
-}
-
-export interface GraphGrimeShadowNode {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  layers: number;
-  blur: number;
-  spread: number;
-  grime: number;
-  jitter: number;
-  opacity: number;
-  color: string;
-  seedOffset: number;
-  shadowOnly: boolean;
-}
-
-export interface GraphScene3DNode {
-  id: string;
-  name: string;
-  /** Legacy direct environment reference. Prefer GraphEnvironmentNode connected to the env port. */
-  environmentSrc: string;
-  environmentName: string;
-  environmentMime: string;
-  environmentBytes: number;
-  materialMode: 'original' | 'clay' | 'unlit';
-  transparent: boolean;
-  exposure: number;
-  environmentStrength: number;
-  environmentRotation: number;
-  ambientIntensity: number;
-  keyAzimuth: number;
-  keyElevation: number;
-  keyIntensity: number;
-  fillIntensity: number;
-  rimIntensity: number;
-}
-
-export interface GraphEnvironmentNode {
-  id: string;
-  name: string;
-  environmentSrc: string;
-  environmentName: string;
-  environmentMime: string;
-  environmentBytes: number;
-}
-
-export interface GraphMaterialNode extends MaterialConfig {
-  id: string;
-  name: string;
-}
-
-export interface GraphShaderNode {
-  id: string;
-  name: string;
-  shaderKind: ShaderKind;
-  role: ShaderRole;
-  aiPrompt?: string;
-  shaderInstance?: ShaderInstance;
-  palette: string[];
-  distortion: number;
-  swirl: number;
-  grain: number;
-  scale: number;
-  rotation: number;
-  offsetX: number;
-  offsetY: number;
-  seedOffset: number;
-  opacity: number;
-  blendMode: string;
-}
-
 export interface GraphArea {
   id: string;
   name: string;
@@ -670,16 +532,8 @@ export interface PrimitiveViewportStateConfig {
 export interface CanvasGraph {
   edges: GraphEdge[];
   positions: Record<string, { x: number; y: number }>;
-  mergeNodes: GraphMergeNode[];
-  colorNodes: GraphColorNode[];
-  repeatNodes?: GraphRepeatNode[];
-  maskNodes?: GraphMaskNode[];
-  transformNodes?: GraphTransformNode[];
-  grimeShadowNodes?: GraphGrimeShadowNode[];
-  scene3dNodes?: GraphScene3DNode[];
-  environmentNodes?: GraphEnvironmentNode[];
-  materialNodes?: GraphMaterialNode[];
-  shaderNodes?: GraphShaderNode[];
+  /** Graph-only nodes (merge, color, shader, ...) by id. Layers are nodes too but live in `doc.layers`. */
+  nodes: Record<string, GraphNode>;
   areas?: GraphArea[];
   primitiveViewStates?: Record<string, PrimitiveViewportStateConfig>;
 }
@@ -738,7 +592,22 @@ export interface CanvasDocument {
   envAssets?: PortableEnvironmentAsset[];
 }
 
-export const DOCUMENT_SCHEMA_VERSION = 5;
+export type {
+  GraphColorNode,
+  GraphEnvironmentNode,
+  GraphGrimeShadowNode,
+  GraphMaskNode,
+  GraphMaterialNode,
+  GraphMergeNode,
+  GraphNode,
+  GraphNodeKind,
+  GraphRepeatNode,
+  GraphScene3DNode,
+  GraphShaderNode,
+  GraphTransformNode,
+} from '../utils/nodeKinds';
+
+export const DOCUMENT_SCHEMA_VERSION = 6;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: 'transparent',
@@ -764,7 +633,7 @@ export const DEFAULT_MATERIAL_CONFIG: MaterialConfig = {
   materialAnisotropy: 0,
 };
 
-const MATERIAL_PRESET_LABELS: Record<MaterialPreset, string> = {
+export const MATERIAL_PRESET_LABELS: Record<MaterialPreset, string> = {
   matte: 'Matte',
   goldFoil: 'Gold Foil',
   chrome: 'Chrome',
@@ -1771,211 +1640,6 @@ export const DEFAULT_DOCUMENT: CanvasDocument = makeDocument({
   export: DEFAULT_EXPORT,
 });
 
-export function makeGraphMergeNode(partial: Partial<GraphMergeNode> = {}): GraphMergeNode {
-  return {
-    id: `merge-${Date.now()}-${_idCounter++}`,
-    name: 'Merge',
-    blendMode: 'source-over',
-    opacity: 100,
-    ...partial,
-  };
-}
-
-export function makeGraphColorNode(partial: Partial<GraphColorNode> = {}): GraphColorNode {
-  return {
-    id: `color-${Date.now()}-${_idCounter++}`,
-    name: 'Color',
-    contrast: 100,
-    brightness: 100,
-    saturation: 100,
-    hue: 0,
-    ...partial,
-  };
-}
-
-export function makeGraphRepeatNode(partial: Partial<GraphRepeatNode> = {}): GraphRepeatNode {
-  return {
-    id: `repeat-${Date.now()}-${_idCounter++}`,
-    name: 'Repeater',
-    pattern: 'grid',
-    count: 4,
-    rows: 3,
-    gap: 120,
-    radius: 90,
-    scale: 28,
-    jitter: 0,
-    rotation: 0,
-    rotationMode: 'fixed',
-    rotationStep: 0,
-    rotationJitter: 0,
-    seedOffset: 0,
-    opacity: 58,
-    blendMode: 'screen',
-    ...partial,
-  };
-}
-
-export function makeGraphMaskNode(partial: Partial<GraphMaskNode> = {}): GraphMaskNode {
-  return {
-    id: `mask-${Date.now()}-${_idCounter++}`,
-    name: 'Mask',
-    mode: 'alpha',
-    invert: false,
-    threshold: 50,
-    feather: 0,
-    expand: 0,
-    opacity: 100,
-    ...partial,
-  };
-}
-
-export function makeGraphTransformNode(partial: Partial<GraphTransformNode> = {}): GraphTransformNode {
-  return {
-    id: `transform-${Date.now()}-${_idCounter++}`,
-    name: 'Transform',
-    x: 0,
-    y: 0,
-    scaleX: 100,
-    scaleY: 100,
-    uniformScale: true,
-    rotation: 0,
-    pivotMode: 'canvas',
-    opacity: 100,
-    ...partial,
-  };
-}
-
-export function makeGraphGrimeShadowNode(partial: Partial<GraphGrimeShadowNode> = {}): GraphGrimeShadowNode {
-  return {
-    id: `grime-shadow-${Date.now()}-${_idCounter++}`,
-    name: 'Grime Shadow',
-    x: 8,
-    y: 10,
-    layers: 5,
-    blur: 10,
-    spread: 14,
-    grime: 45,
-    jitter: 10,
-    opacity: 58,
-    color: '#090606',
-    seedOffset: 0,
-    shadowOnly: false,
-    ...partial,
-  };
-}
-
-export function makeGraphScene3DNode(partial: Partial<GraphScene3DNode> = {}): GraphScene3DNode {
-  return {
-    id: `scene3d-${Date.now()}-${_idCounter++}`,
-    name: '3D Scene',
-    environmentSrc: '',
-    environmentName: '',
-    environmentMime: '',
-    environmentBytes: 0,
-    materialMode: 'original',
-    transparent: true,
-    exposure: 100,
-    environmentStrength: 100,
-    environmentRotation: 0,
-    ambientIntensity: 115,
-    keyAzimuth: 38,
-    keyElevation: 42,
-    keyIntensity: 145,
-    fillIntensity: 65,
-    rimIntensity: 55,
-    ...partial,
-  };
-}
-
-export function makeGraphEnvironmentNode(partial: Partial<GraphEnvironmentNode> = {}): GraphEnvironmentNode {
-  return {
-    id: `environment-${Date.now()}-${_idCounter++}`,
-    name: 'Environment Map',
-    environmentSrc: '',
-    environmentName: '',
-    environmentMime: '',
-    environmentBytes: 0,
-    ...partial,
-  };
-}
-
-export function makeGraphMaterialNode(partial: Partial<GraphMaterialNode> = {}): GraphMaterialNode {
-  const preset = partial.materialPreset ? MATERIAL_PRESETS[partial.materialPreset] : DEFAULT_MATERIAL_CONFIG;
-  const name = partial.materialPreset ? MATERIAL_PRESET_LABELS[partial.materialPreset] : 'PBR Material';
-  return {
-    id: `material-${Date.now()}-${_idCounter++}`,
-    name,
-    ...preset,
-    ...partial,
-  };
-}
-
-export function makeGraphShaderNode(partial: Partial<GraphShaderNode> = {}): GraphShaderNode {
-  const shaderKind = partial.shaderKind ?? 'meshGradient';
-  const id = partial.id ?? `shader-${Date.now()}-${_idCounter++}`;
-  const role = shaderKind === 'aiShader' ? 'effect' : (partial.role ?? 'fill');
-  const defaultShaderInstance: ShaderInstance = {
-    definition: {
-      version: 1,
-      id: `${id}-definition`,
-      label: 'Code Shader',
-      language: 'glsl-fragment',
-      code: '',
-      properties: [],
-      provenance: { source: 'manual' },
-    },
-    values: {},
-  };
-  return {
-    id,
-    name: 'Shader',
-    shaderKind,
-    distortion: 56,
-    swirl: 28,
-    grain: 12,
-    scale: 100,
-    rotation: 0,
-    offsetX: 0,
-    offsetY: 0,
-    seedOffset: 0,
-    opacity: 58,
-    blendMode: 'screen',
-    ...partial,
-    role,
-    ...(shaderKind === 'customCode'
-      ? {
-          shaderInstance: partial.shaderInstance
-            ? {
-                ...partial.shaderInstance,
-                definition: { ...partial.shaderInstance.definition },
-                values: { ...partial.shaderInstance.values },
-              }
-            : defaultShaderInstance,
-        }
-      : {}),
-    palette: normalizeShaderPalette(shaderKind, partial.palette ?? defaultShaderPalette(shaderKind)),
-  };
-}
-
-function cloneGraphShaderNode(node: GraphShaderNode): GraphShaderNode {
-  return {
-    ...node,
-    palette: [...node.palette],
-    shaderInstance: node.shaderInstance
-      ? {
-          definition: {
-            ...node.shaderInstance.definition,
-            properties: node.shaderInstance.definition.properties.map((property) => ({ ...property })),
-            provenance: node.shaderInstance.definition.provenance
-              ? { ...node.shaderInstance.definition.provenance }
-              : undefined,
-          },
-          values: { ...node.shaderInstance.values },
-        }
-      : undefined,
-  };
-}
-
 export function cloneDocument(doc: CanvasDocument): CanvasDocument {
   return {
     schemaVersion: doc.schemaVersion,
@@ -1991,24 +1655,7 @@ export function cloneDocument(doc: CanvasDocument): CanvasDocument {
     graph: {
       edges: doc.graph.edges.map((e) => ({ ...e })),
       positions: { ...doc.graph.positions },
-      mergeNodes: doc.graph.mergeNodes.map((n) => ({ ...n })),
-      colorNodes: (doc.graph.colorNodes ?? []).map((n) => ({ ...n })),
-      repeatNodes: (doc.graph.repeatNodes ?? []).map((n) => ({ ...n })),
-      maskNodes: (doc.graph.maskNodes ?? []).map((n) => ({ ...n })),
-      transformNodes: (doc.graph.transformNodes ?? []).map((n) => ({
-        ...n,
-      })),
-      grimeShadowNodes: (doc.graph.grimeShadowNodes ?? []).map((n) => ({
-        ...n,
-      })),
-      scene3dNodes: (doc.graph.scene3dNodes ?? []).map((n) => ({
-        ...n,
-      })),
-      environmentNodes: (doc.graph.environmentNodes ?? []).map((n) => ({
-        ...n,
-      })),
-      materialNodes: (doc.graph.materialNodes ?? []).map((n) => ({ ...n })),
-      shaderNodes: (doc.graph.shaderNodes ?? []).map(cloneGraphShaderNode),
+      nodes: Object.fromEntries(Object.entries(doc.graph.nodes).map(([id, node]) => [id, structuredClone(node)])),
       areas: (doc.graph.areas ?? []).map((area) => ({
         ...area,
         nodeIds: [...area.nodeIds],

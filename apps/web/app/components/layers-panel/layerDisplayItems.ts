@@ -1,6 +1,6 @@
 import type { CanvasGraph, EffectLayer, GraphArea, Layer, LayerKind } from '../../types/config';
 import { EFFECT_PRESETS } from '../../types/config';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphNodesOfKind } from '../../utils/nodeGraph';
 
 const KIND_ICONS: Record<LayerKind, string> = {
   text: 'T',
@@ -63,39 +63,39 @@ function getAreaGraphHelpers(graph: CanvasGraph | undefined, area: GraphArea): G
   const areaNodeIds = new Set(area.nodeIds);
   const helpersById = new Map<string, GraphHelperRowData>();
 
-  graph.mergeNodes.forEach((node) => {
+  graphNodesOfKind(graph, 'merge').forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'merge', ...GRAPH_HELPER_META.merge });
   });
-  (graph.colorNodes ?? []).forEach((node) => {
+  graphNodesOfKind(graph, 'color').forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'color', ...GRAPH_HELPER_META.color });
   });
-  (graph.repeatNodes ?? []).forEach((node) => {
+  graphNodesOfKind(graph, 'repeat').forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'repeat', ...GRAPH_HELPER_META.repeat });
   });
-  (graph.materialNodes ?? []).forEach((node) => {
+  graphNodesOfKind(graph, 'material').forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'material', ...GRAPH_HELPER_META.material });
   });
-  (graph.maskNodes ?? []).forEach((node) => {
+  graphNodesOfKind(graph, 'mask').forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'mask', ...GRAPH_HELPER_META.mask });
   });
-  (graph.transformNodes ?? []).forEach((node) => {
+  graphNodesOfKind(graph, 'transform').forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'transform', ...GRAPH_HELPER_META.transform });
   });
-  (graph.grimeShadowNodes ?? []).forEach((node) => {
+  graphNodesOfKind(graph, 'grimeShadow').forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'grimeShadow', ...GRAPH_HELPER_META.grimeShadow });
   });
-  (graph.environmentNodes ?? []).forEach((node) => {
+  graphNodesOfKind(graph, 'environment').forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'environment', ...GRAPH_HELPER_META.environment });
   });
-  (graph.shaderNodes ?? []).forEach((node) => {
+  graphNodesOfKind(graph, 'shader').forEach((node) => {
     if (!areaNodeIds.has(node.id)) return;
     helpersById.set(node.id, { id: node.id, name: node.name, kind: 'shader', ...GRAPH_HELPER_META.shader });
   });

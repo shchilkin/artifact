@@ -2,21 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { allPixels, pixelsEqual } from '../test-fixtures/render/fixtures';
 import { expectDocumentTreeMatchesRenderer } from '../test-fixtures/render/graphTreeOracle';
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../types/config';
-import {
-  makeEffectPresetLayer,
-  makeFillLayer,
-  makeGraphColorNode,
-  makeGraphEnvironmentNode,
-  makeGraphMaskNode,
-  makeGraphMaterialNode,
-  makeGraphMergeNode,
-  makeGraphRepeatNode,
-  makeGraphScene3DNode,
-  makeGraphShaderNode,
-  makeGraphTransformNode,
-  makeSourceLayer,
-  makeTextLayer,
-} from '../types/config';
+import { makeEffectPresetLayer, makeFillLayer, makeSourceLayer, makeTextLayer } from '../types/config';
 import { isLayerStackGraph } from './documentCommands';
 import {
   importArtifactProjectPackage,
@@ -40,7 +26,18 @@ import {
   stepTreeRow,
   type TreeEditResult,
 } from './graphTreeEdits';
-import { EXPORT_NODE_ID, inferLinearGraph } from './nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById, inferLinearGraph } from './nodeGraph';
+import {
+  makeGraphColorNode,
+  makeGraphEnvironmentNode,
+  makeGraphMaskNode,
+  makeGraphMaterialNode,
+  makeGraphMergeNode,
+  makeGraphRepeatNode,
+  makeGraphScene3DNode,
+  makeGraphShaderNode,
+  makeGraphTransformNode,
+} from './nodeKinds';
 import { renderDocument } from './renderer';
 
 function edge(fromId: string, toId: string, toPort: GraphEdge['toPort']): GraphEdge {
@@ -56,7 +53,7 @@ function text(id: string): Layer {
 }
 
 function graphOf(partial: Partial<CanvasGraph>): CanvasGraph {
-  return { edges: [], positions: {}, mergeNodes: [], colorNodes: [], ...partial };
+  return { edges: [], positions: {}, nodes: graphNodesById(), ...partial };
 }
 
 function documentOf(layers: Layer[], graph: CanvasGraph): CanvasDocument {
@@ -120,7 +117,7 @@ function linearDoc() {
   return documentOf(
     layers,
     graphOf({
-      colorNodes: [makeGraphColorNode({ id: 'grade' })],
+      nodes: graphNodesById(makeGraphColorNode({ id: 'grade' })),
       edges: [
         edge('base', 'mid', 'bg'),
         edge('mid', 'grade', 'in'),
@@ -137,8 +134,10 @@ function mergeDoc() {
   return documentOf(
     layers,
     graphOf({
-      mergeNodes: [makeGraphMergeNode({ id: 'merge', blendMode: 'screen', opacity: 70 })],
-      colorNodes: [makeGraphColorNode({ id: 'grade' })],
+      nodes: graphNodesById(
+        makeGraphMergeNode({ id: 'merge', blendMode: 'screen', opacity: 70 }),
+        makeGraphColorNode({ id: 'grade' }),
+      ),
       edges: [
         edge('base', 'paper', 'bg'),
         edge('paper', 'merge', 'a'),
@@ -156,8 +155,7 @@ function maskDoc() {
   return documentOf(
     layers,
     graphOf({
-      maskNodes: [makeGraphMaskNode({ id: 'mask' })],
-      colorNodes: [makeGraphColorNode({ id: 'soften' })],
+      nodes: graphNodesById(makeGraphMaskNode({ id: 'mask' }), makeGraphColorNode({ id: 'soften' })),
       edges: [
         edge('source', 'mask', 'in'),
         edge('matte', 'soften', 'in'),
@@ -174,7 +172,7 @@ function repeatDoc() {
   return documentOf(
     layers,
     graphOf({
-      repeatNodes: [makeGraphRepeatNode({ id: 'repeat' })],
+      nodes: graphNodesById(makeGraphRepeatNode({ id: 'repeat' })),
       edges: [edge('item', 'repeat', 'in'), edge('backdrop', 'repeat', 'bg'), edge('repeat', EXPORT_NODE_ID, 'in')],
     }),
   );
@@ -187,9 +185,11 @@ function sceneDoc() {
   return documentOf(
     layers,
     graphOf({
-      scene3dNodes: [makeGraphScene3DNode({ id: 'scene', transparent: true })],
-      materialNodes: [makeGraphMaterialNode({ id: 'chrome' })],
-      environmentNodes: [makeGraphEnvironmentNode({ id: 'env' })],
+      nodes: graphNodesById(
+        makeGraphScene3DNode({ id: 'scene', transparent: true }),
+        makeGraphMaterialNode({ id: 'chrome' }),
+        makeGraphEnvironmentNode({ id: 'env' }),
+      ),
       edges: [
         edge('backdrop', 'scene', 'bg'),
         edge('sphere', 'scene', 'model'),
@@ -209,8 +209,7 @@ function fanOutDoc() {
   return documentOf(
     layers,
     graphOf({
-      mergeNodes: [makeGraphMergeNode({ id: 'merge' })],
-      transformNodes: [makeGraphTransformNode({ id: 'move' })],
+      nodes: graphNodesById(makeGraphMergeNode({ id: 'merge' }), makeGraphTransformNode({ id: 'move' })),
       edges: [
         edge('shared', 'move', 'in'),
         edge('move', 'merge', 'a'),
@@ -228,8 +227,7 @@ function nestedDoc() {
   return documentOf(
     layers,
     graphOf({
-      mergeNodes: [makeGraphMergeNode({ id: 'merge' })],
-      maskNodes: [makeGraphMaskNode({ id: 'mask' })],
+      nodes: graphNodesById(makeGraphMergeNode({ id: 'merge' }), makeGraphMaskNode({ id: 'mask' })),
       edges: [
         edge('base', 'merge', 'a'),
         edge('title', 'merge', 'b'),
@@ -544,8 +542,10 @@ describe('blocked moves', () => {
     const doc = documentOf(
       [fill('base')],
       graphOf({
-        shaderNodes: [makeGraphShaderNode({ id: 'gradient', role: 'fill' })],
-        transformNodes: [makeGraphTransformNode({ id: 'move' })],
+        nodes: graphNodesById(
+          makeGraphShaderNode({ id: 'gradient', role: 'fill' }),
+          makeGraphTransformNode({ id: 'move' }),
+        ),
         edges: [edge('gradient', 'move', 'in'), edge('move', 'base', 'bg'), edge('base', EXPORT_NODE_ID, 'in')],
       }),
     );
@@ -698,7 +698,7 @@ describe('delete', () => {
     const standalone = documentOf(
       [fill('under'), fill('paint', '#cc8844')],
       graphOf({
-        materialNodes: [makeGraphMaterialNode({ id: 'chrome' })],
+        nodes: graphNodesById(makeGraphMaterialNode({ id: 'chrome' })),
         edges: [edge('under', 'paint', 'bg'), edge('paint', 'chrome', 'albedo'), edge('chrome', EXPORT_NODE_ID, 'in')],
       }),
     );

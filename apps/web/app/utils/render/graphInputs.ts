@@ -1,6 +1,6 @@
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../../types/config';
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../types/config';
-import { EXPORT_NODE_ID, type GraphUtilityNodeKind, graphUtilityNodeKind } from '../nodeGraph';
+import { EXPORT_NODE_ID, type GraphUtilityNodeKind, graphNodesOfKind, graphUtilityNodeKind } from '../nodeGraph';
 
 // Pure description of which inputs the graph renderer follows. The renderer (`graph.ts`) shares the
 // port lookup below; the per-kind input tables restate what each `GRAPH_NODE_RENDERERS` entry reads,
@@ -72,7 +72,7 @@ function modelPortMode(doc: GraphDocument, sourceId: string): GraphReachMode | n
 }
 
 function shaderFollowsBackdrop(graph: CanvasGraph, nodeId: string) {
-  const shader = (graph.shaderNodes ?? []).find((node) => node.id === nodeId);
+  const shader = graphNodesOfKind(graph, 'shader').find((node) => node.id === nodeId);
   if (!shader) return false;
   if (shader.shaderKind === 'customCode' || shader.shaderKind === 'aiShader') return shader.role === 'effect';
   return shader.role !== 'fill';

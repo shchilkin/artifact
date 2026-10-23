@@ -1,12 +1,10 @@
 import type { CanvasDocument, GraphEdge } from '../../apps/web/app/types/config';
-import {
-  makeFillLayer,
-  makeGraphColorNode,
-  makeGraphMaskNode,
-  makeGraphMergeNode,
-  makeGraphRepeatNode,
-  makeTextLayer,
-} from '../../apps/web/app/types/config';
+import { makeFillLayer, makeTextLayer } from '../../apps/web/app/types/config';
+import { graphNodesById } from '../../apps/web/app/utils/nodeGraph';
+import { makeGraphColorNode } from '../../apps/web/app/utils/nodeKinds/color';
+import { makeGraphMaskNode } from '../../apps/web/app/utils/nodeKinds/mask';
+import { makeGraphMergeNode } from '../../apps/web/app/utils/nodeKinds/merge';
+import { makeGraphRepeatNode } from '../../apps/web/app/utils/nodeKinds/repeat';
 
 function edge(fromId: string, toId: string, toPort: GraphEdge['toPort']): GraphEdge {
   return { id: `e-${fromId}-${toId}-${toPort}`, fromId, fromPort: 'out', toId, toPort };
@@ -44,10 +42,12 @@ export const layersTreeDocument: CanvasDocument = {
       edge('tree-headline', '__export__', 'in'),
     ],
     positions: {},
-    mergeNodes: [makeGraphMergeNode({ id: 'tree-glow', name: 'Glow', blendMode: 'screen', opacity: 70 })],
-    colorNodes: [makeGraphColorNode({ id: 'tree-grade', name: 'Grade' })],
-    maskNodes: [makeGraphMaskNode({ id: 'tree-cutout', name: 'Cutout' })],
-    repeatNodes: [makeGraphRepeatNode({ id: 'tree-pattern', name: 'Pattern' })],
+    nodes: graphNodesById(
+      makeGraphMergeNode({ id: 'tree-glow', name: 'Glow', blendMode: 'screen', opacity: 70 }),
+      makeGraphColorNode({ id: 'tree-grade', name: 'Grade' }),
+      makeGraphMaskNode({ id: 'tree-cutout', name: 'Cutout' }),
+      makeGraphRepeatNode({ id: 'tree-pattern', name: 'Pattern' }),
+    ),
     areas: [
       { id: 'tree-area-type', name: 'Type', nodeIds: ['tree-headline', 'tree-matte'], color: '#d8b04a' },
       { id: 'tree-area-texture', name: 'Texture', nodeIds: ['tree-pattern', 'tree-dot'], color: '#4ab0d8' },

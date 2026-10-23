@@ -13,6 +13,7 @@ import {
   mapDocumentModelSources,
 } from './documentSourceMapping';
 import { fontUriFromId, isFontUri } from './fontStore';
+import { graphNodesOfKind } from './nodeGraph';
 import { blobToBase64DataUrl, dataUrlMime, estimateDataUrlBytes } from './storagePrimitives';
 
 const CLOUD_ASSET_URI_PREFIX = 'artifact-cloud-asset://';
@@ -264,11 +265,11 @@ function collectDocumentSources(doc: CanvasDocument): string[] {
       if (layer.kind === 'model') return [layer.modelSrc];
       return [];
     }),
-    ...(doc.graph.materialNodes ?? []).flatMap((node) =>
+    ...graphNodesOfKind(doc.graph, 'material').flatMap((node) =>
       MATERIAL_TEXTURE_SOURCE_FIELDS.map((field) => node[field]).filter((source): source is string => Boolean(source)),
     ),
-    ...(doc.graph.environmentNodes ?? []).flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
-    ...(doc.graph.scene3dNodes ?? []).flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
+    ...graphNodesOfKind(doc.graph, 'environment').flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
+    ...graphNodesOfKind(doc.graph, 'scene3d').flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
   ];
 }
 

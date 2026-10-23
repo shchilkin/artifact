@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { type CanvasGraph, makeFillLayer, makeGraphMergeNode } from '../../types/config';
-import { EXPORT_NODE_ID, estimateNodeHeight, organizeGraph } from '../../utils/nodeGraph';
+import { type CanvasGraph, makeFillLayer } from '../../types/config';
+import { EXPORT_NODE_ID, estimateNodeHeight, graphNodesById, organizeGraph } from '../../utils/nodeGraph';
+import { makeGraphMergeNode } from '../../utils/nodeKinds';
 import { layoutUnpositionedNodes, resolveOverlappingNodes } from './entryLayout';
 
 const layers = [makeFillLayer({ id: 'a', name: 'A' }), makeFillLayer({ id: 'b', name: 'B' })];
@@ -14,8 +15,7 @@ function graph(positions: CanvasGraph['positions']): CanvasGraph {
       { id: 'e-m', fromId: 'm', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ],
     positions,
-    mergeNodes: [makeGraphMergeNode({ id: 'm', name: 'Merge' })],
-    colorNodes: [],
+    nodes: graphNodesById(makeGraphMergeNode({ id: 'm', name: 'Merge' })),
   };
 }
 

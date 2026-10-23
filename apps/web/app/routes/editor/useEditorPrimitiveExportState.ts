@@ -2,6 +2,7 @@ import { type RefObject, useCallback, useMemo, useState } from 'react';
 import { type PrimitiveViewportState, primitiveViewStateMapsEqual } from '../../components/PrimitiveViewportState';
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
 import type { DocumentUpdateMode } from '../../utils/documentHistory';
+import { graphNodesOfKind } from '../../utils/nodeGraph';
 
 export function useEditorPrimitiveExportState({
   doc,
@@ -51,11 +52,11 @@ export function useEditorPrimitiveExportState({
 export function prunePrimitiveViewStates(
   viewStates: Record<string, PrimitiveViewportState>,
   layers: Array<{ id: string; kind: string }>,
-  graph: Pick<CanvasGraph, 'scene3dNodes'>,
+  graph: Pick<CanvasGraph, 'nodes'>,
 ) {
   const viewportIds = new Set([
     ...layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id),
-    ...(graph.scene3dNodes ?? []).map((node) => node.id),
+    ...graphNodesOfKind(graph, 'scene3d').map((node) => node.id),
   ]);
   const entries = Object.entries(viewStates).filter(([id]) => viewportIds.has(id));
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;

@@ -36,7 +36,13 @@ import {
   type PrimitiveLayer,
 } from '../../types/config';
 import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
-import { connectedPortIds, EXPORT_NODE_ID, removeGraphEdge, resolveOutputPath } from '../../utils/nodeGraph';
+import {
+  connectedPortIds,
+  EXPORT_NODE_ID,
+  graphNodesOfKind,
+  removeGraphEdge,
+  resolveOutputPath,
+} from '../../utils/nodeGraph';
 import { LazyModelViewport3D, LazyPrimitiveViewport3D } from '../LazyViewport3D';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
@@ -1217,8 +1223,12 @@ function PrimitiveGalleryViewport({
 }) {
   const { doc, imageCache, primitiveViewStates } = useNodeCanvasPreview();
   const materialId = graph.edges.find((edge) => edge.toId === displayLayer.id && edge.toPort === 'material')?.fromId;
-  const materialConfig = materialId ? graph.materialNodes?.find((node) => node.id === materialId) : undefined;
-  const materialShader = materialId ? graph.shaderNodes?.find((node) => node.id === materialId) : undefined;
+  const materialConfig = materialId
+    ? graphNodesOfKind(graph, 'material')?.find((node) => node.id === materialId)
+    : undefined;
+  const materialShader = materialId
+    ? graphNodesOfKind(graph, 'shader')?.find((node) => node.id === materialId)
+    : undefined;
   const materialTextures = useGeneratedMaterialTextureCanvases({
     materialNode: materialConfig ?? null,
     directTextureSourceId: materialShader?.id ?? null,

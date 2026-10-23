@@ -1,12 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  type CanvasDocument,
-  makeDocument,
-  makeFillLayer,
-  makeGraphMaterialNode,
-  makeImageLayer,
-} from '../types/config';
+import { type CanvasDocument, makeDocument, makeFillLayer, makeImageLayer } from '../types/config';
 import { hydrateDocumentImageAssets } from './assetStore';
+
+import { graphNodesById, graphNodesOfKind } from './nodeGraph';
+import { makeGraphMaterialNode } from './nodeKinds';
 
 describe('hydrateDocumentImageAssets', () => {
   const portableDataUrl = 'data:image/png;base64,AAAA';
@@ -94,14 +91,12 @@ describe('hydrateDocumentImageAssets', () => {
       graph: {
         edges: [],
         positions: {},
-        mergeNodes: [],
-        colorNodes: [],
-        materialNodes: [
+        nodes: graphNodesById(
           makeGraphMaterialNode({
             id: 'material-a',
             materialAlbedoSrc: 'artifact-asset://material-albedo',
           }),
-        ],
+        ),
       },
       export: { format: 'png', scale: 1, target: 'cover' },
     };
@@ -112,7 +107,9 @@ describe('hydrateDocumentImageAssets', () => {
     const hydrated = await hydrateDocumentImageAssets(doc, { loadAssetDataUrl });
 
     expect(loadAssetDataUrl).toHaveBeenCalledWith('artifact-asset://material-albedo');
-    expect(hydrated.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: portableDataUrl });
-    expect(doc.graph?.materialNodes?.[0]).toMatchObject({ materialAlbedoSrc: 'artifact-asset://material-albedo' });
+    expect(graphNodesOfKind(hydrated.graph, 'material')?.[0]).toMatchObject({ materialAlbedoSrc: portableDataUrl });
+    expect(graphNodesOfKind(doc.graph, 'material')?.[0]).toMatchObject({
+      materialAlbedoSrc: 'artifact-asset://material-albedo',
+    });
   });
 });

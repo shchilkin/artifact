@@ -6,7 +6,7 @@ import {
   type GraphLayerTree,
   type GraphTreeRow,
 } from '../../utils/graphLayerTree';
-import { inferLinearGraph } from '../../utils/nodeGraph';
+import { graphNodesOfKind, inferLinearGraph } from '../../utils/nodeGraph';
 import { renderedNodeIds } from './graphReachFixtures';
 
 // The Layers tree oracle shared by the tree builder and tree edit tests: the tree must list exactly
@@ -17,16 +17,16 @@ export function allNodeIds(doc: CanvasDocument): Set<string> {
   return new Set([
     ...doc.layers.map((layer) => layer.id),
     ...[
-      graph.mergeNodes,
-      graph.colorNodes,
-      graph.repeatNodes,
-      graph.materialNodes,
-      graph.maskNodes,
-      graph.transformNodes,
-      graph.grimeShadowNodes,
-      graph.shaderNodes,
-      graph.environmentNodes,
-      graph.scene3dNodes,
+      graphNodesOfKind(graph, 'merge'),
+      graphNodesOfKind(graph, 'color'),
+      graphNodesOfKind(graph, 'repeat'),
+      graphNodesOfKind(graph, 'material'),
+      graphNodesOfKind(graph, 'mask'),
+      graphNodesOfKind(graph, 'transform'),
+      graphNodesOfKind(graph, 'grimeShadow'),
+      graphNodesOfKind(graph, 'shader'),
+      graphNodesOfKind(graph, 'environment'),
+      graphNodesOfKind(graph, 'scene3d'),
     ].flatMap((nodes) => (nodes ?? []).map((node) => node.id)),
   ]);
 }

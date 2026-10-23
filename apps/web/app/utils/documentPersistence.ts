@@ -1,4 +1,3 @@
-import { AI_SHADER_PROMPT_MAX_LENGTH, normalizeShaderInstance } from '@artifact/shared';
 import {
   ASPECT_SIZES,
   type AspectRatio,
@@ -10,34 +9,21 @@ import {
   DEFAULT_EXPORT,
   DEFAULT_GLOBAL,
   DOCUMENT_SCHEMA_VERSION,
-  type GraphEnvironmentNode,
-  type GraphGrimeShadowNode,
-  type GraphMaterialNode,
-  type GraphRepeatNode,
-  type GraphScene3DNode,
-  type GraphShaderNode,
-  type GraphTransformNode,
   type Layer,
-  LEGACY_SHADER_KINDS,
-  type MaterialConfig,
   makeDocument,
   makeEmojiLayer,
-  makeGraphMaterialNode,
-  makeGraphShaderNode,
   makeSourceLayer,
   type PortableEnvironmentAsset,
   type PortableFontAsset,
   type PortableModelAsset,
   type PrimitiveLayer,
-  SHADER_KINDS,
-  type ShaderKind,
   SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
-import { makeDefaultCodeShaderInstance } from './customShaderCode';
 import { serializeDocumentForLink } from './documentLink';
 import { migrateDocument } from './migrations';
-import { normalizeShaderPalette } from './shaderPalette';
+import { graphNodesOfKind } from './nodeGraph';
+import { clampMaterialFractions, graphNodeModel, isGraphNodeKind } from './nodeKinds';
 
 export const DOC_KEY = 'doc';
 export const PRE_BLANK_DRAFT_KEY = 'artifact-pre-blank-draft-v1';
@@ -99,237 +85,25 @@ function normalizePrimitiveViewStates(value: unknown): CanvasGraph['primitiveVie
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
-const MATERIAL_PERCENT_FIELDS = [
-  'materialMetalness',
-  'materialRoughness',
-  'materialClearcoat',
-  'materialRelief',
-  'materialGrain',
-  'materialAnisotropy',
-] as const;
-
-function isShaderKind(value: unknown): value is ShaderKind {
-  return (
-    typeof value === 'string' &&
-    ((SHADER_KINDS as readonly string[]).includes(value) || (LEGACY_SHADER_KINDS as readonly string[]).includes(value))
-  );
-}
-
-function normalizeShaderKind(value: unknown): ShaderKind {
-  return isShaderKind(value) ? value : 'meshGradient';
-}
-
-function normalizeMaterialPercent(value: unknown) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return undefined;
-  return Math.min(1, Math.max(0, parsed));
-}
-
-function normalizeMaterialPatch<T extends Partial<MaterialConfig>>(value: T): T {
-  const patch = { ...value };
-  for (const field of MATERIAL_PERCENT_FIELDS) {
-    if (field in patch) {
-      const normalized = normalizeMaterialPercent(patch[field]);
-      if (normalized !== undefined) patch[field] = normalized;
-    }
+function normalizeGraphNodes(value: unknown): CanvasGraph['nodes'] {
+  if (!isRecord(value)) return {};
+  const nodes: CanvasGraph['nodes'] = {};
+  for (const [id, stored] of Object.entries(value)) {
+    if (!isRecord(stored) || !isGraphNodeKind(stored.kind)) continue;
+    nodes[id] = graphNodeModel(stored.kind).normalize({ ...stored, id });
   }
-  return patch;
+  return nodes;
 }
-
-type GraphArrayKey = {
-  [K in keyof CanvasGraph]-?: NonNullable<CanvasGraph[K]> extends readonly unknown[] ? K : never;
-}[keyof CanvasGraph];
-
-/** Stored graph node from an older schema that may be missing fields added later. */
-type StoredGraphNode<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 
 function normalizeGraph(value: unknown): CanvasGraph | undefined {
   if (!isRecord(value)) return undefined;
-  const arrayField = <K extends GraphArrayKey>(key: K) =>
-    (Array.isArray(value[key]) ? value[key] : []) as NonNullable<CanvasGraph[K]>;
   return {
-    edges: arrayField('edges'),
+    edges: Array.isArray(value.edges) ? (value.edges as CanvasGraph['edges']) : [],
     positions: isRecord(value.positions) ? (value.positions as CanvasGraph['positions']) : {},
-    mergeNodes: arrayField('mergeNodes'),
-    colorNodes: arrayField('colorNodes'),
-    repeatNodes: normalizeRepeatNodes(arrayField('repeatNodes')),
-    materialNodes: Array.isArray(value.materialNodes)
-      ? value.materialNodes.filter(isRecord).map((node) =>
-          makeGraphMaterialNode(
-            normalizeMaterialPatch({
-              ...node,
-              id: String(node.id ?? `material-${Date.now()}`),
-            } as Partial<GraphMaterialNode>),
-          ),
-        )
-      : [],
-    maskNodes: arrayField('maskNodes'),
-    transformNodes: normalizeTransformNodes(arrayField('transformNodes')),
-    grimeShadowNodes: normalizeGrimeShadowNodes(arrayField('grimeShadowNodes')),
-    scene3dNodes: normalizeScene3DNodes(arrayField('scene3dNodes')),
-    environmentNodes: normalizeEnvironmentNodes(arrayField('environmentNodes')),
-    shaderNodes: normalizeShaderNodes(arrayField('shaderNodes')),
-    areas: arrayField('areas'),
+    nodes: normalizeGraphNodes(value.nodes),
+    areas: Array.isArray(value.areas) ? (value.areas as NonNullable<CanvasGraph['areas']>) : [],
     primitiveViewStates: normalizePrimitiveViewStates(value.primitiveViewStates),
   };
-}
-
-function normalizeShaderNodes(nodes: readonly unknown[]): GraphShaderNode[] {
-  return nodes.filter(isRecord).map((node) => {
-    const shaderKind = normalizeShaderKind(node.shaderKind);
-    const id = String(node.id ?? `shader-${Date.now()}`);
-    const role =
-      shaderKind === 'aiShader' ? 'effect' : node.role === 'effect' || node.role === 'fill' ? node.role : 'fill';
-    const defaults = makeGraphShaderNode({ id, shaderKind, role });
-    const normalizedInstance = normalizeShaderInstance(node.shaderInstance, `${id}-definition`);
-    const shaderInstance =
-      normalizedInstance ?? (shaderKind === 'customCode' ? makeDefaultCodeShaderInstance(id) : undefined);
-    return makeGraphShaderNode({
-      id,
-      name: typeof node.name === 'string' ? node.name : defaults.name,
-      shaderKind,
-      role,
-      palette: normalizeShaderPalette(shaderKind, node.palette),
-      distortion: normalizeShaderNumber(node.distortion, defaults.distortion),
-      swirl: normalizeShaderNumber(node.swirl, defaults.swirl),
-      grain: normalizeShaderNumber(node.grain, defaults.grain),
-      scale: normalizeShaderNumber(node.scale, defaults.scale),
-      rotation: normalizeShaderNumber(node.rotation, defaults.rotation),
-      offsetX: normalizeShaderNumber(node.offsetX, defaults.offsetX),
-      offsetY: normalizeShaderNumber(node.offsetY, defaults.offsetY),
-      seedOffset: normalizeShaderNumber(node.seedOffset, defaults.seedOffset),
-      opacity: normalizeShaderNumber(node.opacity, defaults.opacity),
-      blendMode: typeof node.blendMode === 'string' ? node.blendMode : defaults.blendMode,
-      ...(shaderInstance
-        ? {
-            shaderInstance,
-          }
-        : {}),
-      aiPrompt: typeof node.aiPrompt === 'string' ? node.aiPrompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH) : undefined,
-    });
-  });
-}
-
-function normalizeShaderNumber(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-}
-
-function normalizeRepeatNodes(
-  nodes: StoredGraphNode<GraphRepeatNode, 'rotationMode' | 'rotationStep' | 'rotationJitter' | 'seedOffset'>[],
-): GraphRepeatNode[] {
-  return nodes.map(
-    (node): GraphRepeatNode => ({
-      rotationMode: 'fixed',
-      rotationStep: 0,
-      rotationJitter: 0,
-      seedOffset: 0,
-      ...node,
-    }),
-  );
-}
-
-function normalizeTransformNodes(
-  nodes: StoredGraphNode<
-    GraphTransformNode,
-    'x' | 'y' | 'scaleX' | 'scaleY' | 'uniformScale' | 'rotation' | 'pivotMode' | 'opacity'
-  >[],
-): GraphTransformNode[] {
-  return nodes.map(
-    (node): GraphTransformNode => ({
-      x: 0,
-      y: 0,
-      scaleX: 100,
-      scaleY: 100,
-      uniformScale: true,
-      rotation: 0,
-      pivotMode: 'canvas',
-      opacity: 100,
-      ...node,
-    }),
-  );
-}
-
-function normalizeGrimeShadowNodes(
-  nodes: StoredGraphNode<
-    GraphGrimeShadowNode,
-    'x' | 'y' | 'layers' | 'blur' | 'spread' | 'grime' | 'jitter' | 'opacity' | 'color' | 'seedOffset' | 'shadowOnly'
-  >[],
-): GraphGrimeShadowNode[] {
-  return nodes.map(
-    (node): GraphGrimeShadowNode => ({
-      x: 8,
-      y: 10,
-      layers: 5,
-      blur: 10,
-      spread: 14,
-      grime: 45,
-      jitter: 10,
-      opacity: 58,
-      color: '#090606',
-      seedOffset: 0,
-      shadowOnly: false,
-      ...node,
-    }),
-  );
-}
-
-function normalizeScene3DNodes(
-  nodes: StoredGraphNode<
-    GraphScene3DNode,
-    | 'environmentSrc'
-    | 'environmentName'
-    | 'environmentMime'
-    | 'environmentBytes'
-    | 'materialMode'
-    | 'transparent'
-    | 'exposure'
-    | 'environmentStrength'
-    | 'environmentRotation'
-    | 'ambientIntensity'
-    | 'keyAzimuth'
-    | 'keyElevation'
-    | 'keyIntensity'
-    | 'fillIntensity'
-    | 'rimIntensity'
-  >[],
-): GraphScene3DNode[] {
-  return nodes.map(
-    (node): GraphScene3DNode => ({
-      environmentSrc: '',
-      environmentName: '',
-      environmentMime: '',
-      environmentBytes: 0,
-      materialMode: 'original',
-      transparent: true,
-      exposure: 100,
-      environmentStrength: 100,
-      environmentRotation: 0,
-      ambientIntensity: 115,
-      keyAzimuth: 38,
-      keyElevation: 42,
-      keyIntensity: 145,
-      fillIntensity: 65,
-      rimIntensity: 55,
-      ...node,
-    }),
-  );
-}
-
-function normalizeEnvironmentNodes(
-  nodes: StoredGraphNode<
-    GraphEnvironmentNode,
-    'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'
-  >[],
-): GraphEnvironmentNode[] {
-  return nodes.map(
-    (node): GraphEnvironmentNode => ({
-      environmentSrc: '',
-      environmentName: '',
-      environmentMime: '',
-      environmentBytes: 0,
-      ...node,
-    }),
-  );
 }
 
 function normalizePortableFontAssets(value: unknown): PortableFontAsset[] | undefined {
@@ -454,7 +228,7 @@ function normalizeLayer(layer: Record<string, unknown>): Layer {
           ? { ...makeEmojiLayer(), ...layer }
           : layer;
   return (
-    withDefaults.kind === 'primitive' ? normalizeMaterialPatch(withDefaults as Partial<PrimitiveLayer>) : withDefaults
+    withDefaults.kind === 'primitive' ? clampMaterialFractions(withDefaults as Partial<PrimitiveLayer>) : withDefaults
   ) as Layer;
 }
 
@@ -525,16 +299,16 @@ export function isBlankDocument(doc: CanvasDocument) {
   const graphIsEmpty =
     !graph ||
     (graph.edges.length === 0 &&
-      graph.mergeNodes.length === 0 &&
-      (graph.colorNodes ?? []).length === 0 &&
-      (graph.repeatNodes ?? []).length === 0 &&
-      (graph.materialNodes ?? []).length === 0 &&
-      (graph.maskNodes ?? []).length === 0 &&
-      (graph.transformNodes ?? []).length === 0 &&
-      (graph.grimeShadowNodes ?? []).length === 0 &&
-      (graph.scene3dNodes ?? []).length === 0 &&
-      (graph.environmentNodes ?? []).length === 0 &&
-      (graph.shaderNodes ?? []).length === 0 &&
+      graphNodesOfKind(graph, 'merge').length === 0 &&
+      graphNodesOfKind(graph, 'color').length === 0 &&
+      graphNodesOfKind(graph, 'repeat').length === 0 &&
+      graphNodesOfKind(graph, 'material').length === 0 &&
+      graphNodesOfKind(graph, 'mask').length === 0 &&
+      graphNodesOfKind(graph, 'transform').length === 0 &&
+      graphNodesOfKind(graph, 'grimeShadow').length === 0 &&
+      graphNodesOfKind(graph, 'scene3d').length === 0 &&
+      graphNodesOfKind(graph, 'environment').length === 0 &&
+      graphNodesOfKind(graph, 'shader').length === 0 &&
       (graph.areas ?? []).length === 0 &&
       Object.keys(graph.positions).every((id) => id === '__export__'));
 

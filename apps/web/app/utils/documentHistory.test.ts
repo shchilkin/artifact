@@ -5,8 +5,6 @@ import {
   makeDocument,
   makeEffectLayer,
   makeFillLayer,
-  makeGraphMaterialNode,
-  makeGraphShaderNode,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
@@ -25,6 +23,9 @@ import {
   undoHistory,
 } from './documentHistory';
 
+import { graphNodesById, graphNodesOfKind } from './nodeGraph';
+import { makeGraphMaterialNode, makeGraphShaderNode } from './nodeKinds';
+
 function makeDoc(seed: number): CanvasDocument {
   return makeDocument({
     global: { bg: '#000000', seed, aspect: '1:1' },
@@ -37,8 +38,7 @@ function makeGraphDoc(x: number): CanvasDocument {
   const graph: CanvasGraph = {
     edges: [{ id: 'e-fill-export', fromId: 'fill-graph', fromPort: 'out', toId: '__export__', toPort: 'in' }],
     positions: { 'fill-graph': { x, y: 80 }, __export__: { x: 216, y: 80 } },
-    mergeNodes: [],
-    colorNodes: [],
+    nodes: graphNodesById(),
   };
 
   return {
@@ -74,10 +74,10 @@ function makeShaderMaterialGraphDoc(shaderKind: 'waterCaustic' | 'glowingWave'):
       { id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: '__export__', toPort: 'in' },
     ],
     positions: {},
-    mergeNodes: [],
-    colorNodes: [],
-    materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })],
-    shaderNodes: [makeGraphShaderNode({ id: 'shader-a', shaderKind, distortion: 54, grain: 0 })],
+    nodes: graphNodesById(
+      makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' }),
+      makeGraphShaderNode({ id: 'shader-a', shaderKind, distortion: 54, grain: 0 }),
+    ),
   };
 
   return {
@@ -170,7 +170,7 @@ describe('documentHistory', () => {
     const afterGraphEdit = makeShaderMaterialGraphDoc('glowingWave');
     const undoResult = undoHistory(pushSnapshotHistory({ past: [], future: [] }, beforeGraphEdit), afterGraphEdit);
 
-    expect(undoResult?.doc.graph?.shaderNodes?.[0]?.shaderKind).toBe('waterCaustic');
+    expect(graphNodesOfKind(undoResult?.doc.graph ?? { nodes: {} }, 'shader')?.[0]?.shaderKind).toBe('waterCaustic');
     expect(undoResult?.doc.graph?.edges.map((edge) => edge.toPort)).toEqual([
       'albedo',
       'in',
@@ -187,8 +187,8 @@ describe('documentHistory', () => {
       undoResult?.doc ?? beforeGraphEdit,
     );
 
-    expect(redoResult?.doc.graph?.shaderNodes?.[0]?.shaderKind).toBe('glowingWave');
-    expect(redoResult?.doc.graph?.materialNodes?.[0]?.materialPreset).toBe('plastic');
+    expect(graphNodesOfKind(redoResult?.doc.graph ?? { nodes: {} }, 'shader')?.[0]?.shaderKind).toBe('glowingWave');
+    expect(graphNodesOfKind(redoResult?.doc.graph ?? { nodes: {} }, 'material')?.[0]?.materialPreset).toBe('plastic');
     expect(redoResult?.doc.layers.find((layer) => layer.id === 'shader-effect-a')).toMatchObject({
       preset: 'gradientMap',
       gradientMap: 85,

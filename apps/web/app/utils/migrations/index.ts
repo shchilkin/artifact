@@ -4,6 +4,7 @@ import { migrateV1ToV2 } from './v1ToV2';
 import { migrateV2ToV3 } from './v2ToV3';
 import { migrateV3ToV4 } from './v3ToV4';
 import { migrateV4ToV5 } from './v4ToV5';
+import { migrateV5ToV6 } from './v5ToV6';
 
 export type { StoredDocument } from './shared';
 
@@ -19,6 +20,7 @@ export const MIGRATIONS: Readonly<Record<number, (doc: StoredDocument) => Stored
   2: migrateV2ToV3,
   3: migrateV3ToV4,
   4: migrateV4ToV5,
+  5: migrateV5ToV6,
 };
 
 export function storedSchemaVersion(doc: StoredDocument): number {

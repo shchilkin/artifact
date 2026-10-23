@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { CanvasGraph } from '../../../types/config';
 
-import {
-  DEFAULT_MATERIAL_CONFIG,
-  type GraphMaterialNode,
-  type GraphShaderNode,
-  type MaterialConfig,
-  type PrimitiveLayer,
-} from '../../../types/config';
+import { DEFAULT_MATERIAL_CONFIG, type MaterialConfig, type PrimitiveLayer } from '../../../types/config';
+import { graphNodesOfKind } from '../../../utils/nodeGraph';
 import { Viewport3DControlStrip } from '../../canvas-chrome/Viewport3DChrome';
 import { LazyPrimitiveViewport3D } from '../../LazyViewport3D';
 import {
@@ -153,17 +149,12 @@ function primitiveBackgroundPreviewTargetId(
   return edges.find((edge) => edge.toId === layerId && edge.toPort === 'bg')?.fromId ?? null;
 }
 
-function primitiveMaterialSource(
-  graph: {
-    edges: { toId: string; toPort: string; fromId: string }[];
-    materialNodes?: GraphMaterialNode[];
-    shaderNodes?: GraphShaderNode[];
-  },
-  layerId: string,
-) {
+function primitiveMaterialSource(graph: Pick<CanvasGraph, 'edges' | 'nodes'>, layerId: string) {
   const materialId = graph.edges.find((edge) => edge.toId === layerId && edge.toPort === 'material')?.fromId;
-  const materialNode = materialId ? (graph.materialNodes ?? []).find((node) => node.id === materialId) : undefined;
-  const shaderNode = materialId ? (graph.shaderNodes ?? []).find((node) => node.id === materialId) : undefined;
+  const materialNode = materialId
+    ? graphNodesOfKind(graph, 'material').find((node) => node.id === materialId)
+    : undefined;
+  const shaderNode = materialId ? graphNodesOfKind(graph, 'shader').find((node) => node.id === materialId) : undefined;
   return {
     materialNode: materialNode ?? null,
     shaderNode: shaderNode ?? null,

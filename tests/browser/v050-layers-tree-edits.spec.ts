@@ -446,7 +446,7 @@ async function expectSameAsWiredInNodes(
   const wired: CanvasDocument = {
     ...layersTreeDocument,
     layers: [...layersTreeDocument.layers, ...(extra.layers ?? [])],
-    graph: { ...graph, edges, colorNodes: graph.colorNodes.filter((node) => !gone.has(node.id)) },
+    graph: { ...graph, edges, nodes: Object.fromEntries(Object.entries(graph.nodes).filter(([id]) => !gone.has(id))) },
   };
   await gotoDocument(page, wired);
   await expect(layerTree(page)).toBeVisible({ timeout: 15_000 });

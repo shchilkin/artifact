@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { type CanvasGraph, makeEffectPresetLayer, makeFillLayer, makeTextLayer } from '../types/config';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from './editorTargetSummary';
-import { EXPORT_NODE_ID } from './nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind } from './nodeGraph';
+import { makeGraphMergeNode } from './nodeKinds';
 
 describe('editor target summaries', () => {
   it('labels visible source layers as editable sources', () => {
@@ -46,8 +47,7 @@ describe('editor target summaries', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-fill-export', fromId: 'fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
 
     const summary = buildLayerTargetSummary(layer, { surface: 'nodes', graph, layers: [layer] });
@@ -64,8 +64,7 @@ describe('editor target summaries', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-other-export', fromId: 'other', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
 
     expect(buildLayerTargetSummary(layer, { surface: 'nodes', graph, layers: [] }).badges).toContainEqual({
@@ -79,8 +78,7 @@ describe('editor target summaries', () => {
     const graph: CanvasGraph = {
       edges: [],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
       areas: [{ id: 'area-a', name: 'Print Stack', color: '#ff735f', nodeIds: ['fill'] }],
     };
 
@@ -94,8 +92,7 @@ describe('editor target summaries', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-other-export', fromId: 'other', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
       areas: [{ id: 'area-a', name: 'Print Stack', color: '#ff735f', nodeIds: ['orphan'] }],
     };
     const layers = buildLayerTargetSummary(layer, { surface: 'layers', graph, layers: [layer] });
@@ -126,8 +123,7 @@ describe('editor target summaries', () => {
     const graph: CanvasGraph = {
       edges: [],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
 
     const summary = buildLayerTargetSummary(layer, { surface: 'nodes', graph, layers: [] });
@@ -143,12 +139,13 @@ describe('editor target summaries', () => {
     const graph: CanvasGraph = {
       edges: [],
       positions: {},
-      mergeNodes: [{ id: 'merge-a', name: 'Merge A', blendMode: 'source-over', opacity: 100 }],
-      colorNodes: [],
+      nodes: graphNodesById(
+        makeGraphMergeNode({ id: 'merge-a', name: 'Merge A', blendMode: 'source-over', opacity: 100 }),
+      ),
     };
 
     const summary = buildGraphTargetSummary(
-      { kind: 'merge', node: graph.mergeNodes[0] },
+      { kind: 'merge', node: graphNodesOfKind(graph, 'merge')[0] },
       { surface: 'nodes', graph, layers: [] },
     );
 
@@ -178,8 +175,7 @@ describe('editor target summaries', () => {
         { id: 'e-title', fromId: 'title', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const layers = [ignored, title];
 
@@ -196,8 +192,7 @@ describe('editor target summaries', () => {
     const graph: CanvasGraph = {
       edges: [],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
 
     expect(buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph, layers: [] }).badges).toContainEqual({
@@ -210,8 +205,7 @@ describe('editor target summaries', () => {
     const graph: CanvasGraph = {
       edges: [],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
 
     expect(buildGraphTargetSummary({ kind: 'output' }, { surface: 'nodes', graph, layers: [] }).notes).toContainEqual({

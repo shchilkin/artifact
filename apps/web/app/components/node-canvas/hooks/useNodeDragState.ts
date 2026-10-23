@@ -11,6 +11,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CanvasGraph, GraphArea, GraphEdge, Layer } from '../../../types/config';
 import {
   EXPORT_NODE_ID,
+  graphNodesOfKind,
   graphUtilityNodeKind,
   removeGraphEdge,
   removeNodesFromGraphArea,
@@ -211,9 +212,9 @@ function layerNodeInputPort(nodeId: string, layers: Layer[]): GraphEdge['toPort'
 }
 
 function graphOnlyNodeInputPort(nodeId: string, graph: CanvasGraph): GraphEdge['toPort'] | null {
-  if (graph.mergeNodes.some((mergeNode) => mergeNode.id === nodeId)) return 'a';
-  if ((graph.scene3dNodes ?? []).some((sceneNode) => sceneNode.id === nodeId)) return 'model';
-  const shaderNode = (graph.shaderNodes ?? []).find((node) => node.id === nodeId);
+  if (graphNodesOfKind(graph, 'merge').some((mergeNode) => mergeNode.id === nodeId)) return 'a';
+  if (graphNodesOfKind(graph, 'scene3d').some((sceneNode) => sceneNode.id === nodeId)) return 'model';
+  const shaderNode = graphNodesOfKind(graph, 'shader').find((node) => node.id === nodeId);
   if (shaderNode) return shaderNode.role === 'effect' ? 'bg' : null;
   return hasSingleInputGraphNode(graph, nodeId) ? 'in' : null;
 }

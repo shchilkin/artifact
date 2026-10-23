@@ -1,20 +1,15 @@
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../../types/config';
-import {
-  makeDocument,
-  makeFillLayer,
-  makeGraphColorNode,
-  makeGraphEnvironmentNode,
-  makeGraphMaskNode,
-  makeGraphMaterialNode,
-  makeGraphMergeNode,
-  makeGraphRepeatNode,
-  makeGraphScene3DNode,
-  makeGraphShaderNode,
-  makeGraphTransformNode,
-  makeSourceLayer,
-  makeTextLayer,
-} from '../../types/config';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { makeDocument, makeFillLayer, makeSourceLayer, makeTextLayer } from '../../types/config';
+import { EXPORT_NODE_ID, graphNodesById } from '../../utils/nodeGraph';
+import { makeGraphColorNode } from '../../utils/nodeKinds/color';
+import { makeGraphEnvironmentNode } from '../../utils/nodeKinds/environment';
+import { makeGraphMaskNode } from '../../utils/nodeKinds/mask';
+import { makeGraphMaterialNode } from '../../utils/nodeKinds/material';
+import { makeGraphMergeNode } from '../../utils/nodeKinds/merge';
+import { makeGraphRepeatNode } from '../../utils/nodeKinds/repeat';
+import { makeGraphScene3DNode } from '../../utils/nodeKinds/scene3d';
+import { makeGraphShaderNode } from '../../utils/nodeKinds/shader';
+import { makeGraphTransformNode } from '../../utils/nodeKinds/transform';
 import { renderGraphTarget } from '../../utils/renderer';
 
 // Renderer-backed reachability fixtures shared by `collectGraphRenderReach` (graphRenderReach.test.ts)
@@ -27,7 +22,7 @@ export function edge(fromId: string, toId: string, toPort: GraphEdge['toPort']):
 }
 
 export function graph(edges: GraphEdge[], nodes: Partial<CanvasGraph> = {}): CanvasGraph {
-  return { edges, positions: {}, mergeNodes: [], colorNodes: [], ...nodes };
+  return { edges, positions: {}, nodes: graphNodesById(), ...nodes };
 }
 
 export function documentFor(layers: Layer[], canvasGraph?: CanvasGraph): CanvasDocument {
@@ -75,8 +70,11 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
         edge('unused', 'orphan-color', 'in'),
       ],
       {
-        mergeNodes: [makeGraphMergeNode({ id: 'merge' })],
-        colorNodes: [makeGraphColorNode({ id: 'tint' }), makeGraphColorNode({ id: 'orphan-color' })],
+        nodes: graphNodesById(
+          makeGraphMergeNode({ id: 'merge' }),
+          makeGraphColorNode({ id: 'tint' }),
+          makeGraphColorNode({ id: 'orphan-color' }),
+        ),
       },
     ),
   },
@@ -94,9 +92,11 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
         edge('backdrop', 'move', 'bg'),
       ],
       {
-        maskNodes: [makeGraphMaskNode({ id: 'mask' })],
-        repeatNodes: [makeGraphRepeatNode({ id: 'repeat' })],
-        transformNodes: [makeGraphTransformNode({ id: 'move' })],
+        nodes: graphNodesById(
+          makeGraphMaskNode({ id: 'mask' }),
+          makeGraphRepeatNode({ id: 'repeat' }),
+          makeGraphTransformNode({ id: 'move' }),
+        ),
       },
     ),
   },
@@ -127,11 +127,11 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
         edge('merge', EXPORT_NODE_ID, 'in'),
       ],
       {
-        mergeNodes: [makeGraphMergeNode({ id: 'merge' })],
-        shaderNodes: [
+        nodes: graphNodesById(
+          makeGraphMergeNode({ id: 'merge' }),
           makeGraphShaderNode({ id: 'fill-shader', role: 'fill' }),
           makeGraphShaderNode({ id: 'effect-shader', role: 'effect' }),
-        ],
+        ),
       },
     ),
   },
@@ -148,9 +148,11 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
         edge('scene', EXPORT_NODE_ID, 'in'),
       ],
       {
-        scene3dNodes: [makeGraphScene3DNode({ id: 'scene' })],
-        materialNodes: [makeGraphMaterialNode({ id: 'material' })],
-        environmentNodes: [makeGraphEnvironmentNode({ id: 'env' })],
+        nodes: graphNodesById(
+          makeGraphScene3DNode({ id: 'scene' }),
+          makeGraphMaterialNode({ id: 'material' }),
+          makeGraphEnvironmentNode({ id: 'env' }),
+        ),
       },
     ),
     readOnly: ['model', 'material', 'env'],
@@ -166,8 +168,10 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
         edge('scene', EXPORT_NODE_ID, 'in'),
       ],
       {
-        scene3dNodes: [makeGraphScene3DNode({ id: 'scene', transparent: true })],
-        environmentNodes: [makeGraphEnvironmentNode({ id: 'env' })],
+        nodes: graphNodesById(
+          makeGraphScene3DNode({ id: 'scene', transparent: true }),
+          makeGraphEnvironmentNode({ id: 'env' }),
+        ),
       },
     ),
   },
@@ -181,7 +185,9 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
         edge('rough', 'chrome', 'roughness'),
         edge('ball', EXPORT_NODE_ID, 'in'),
       ],
-      { materialNodes: [makeGraphMaterialNode({ id: 'chrome' })] },
+      {
+        nodes: graphNodesById(makeGraphMaterialNode({ id: 'chrome' })),
+      },
     ),
     readOnly: ['chrome'],
   },
@@ -190,7 +196,9 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
     layers: [fill('base'), fill('rough')],
     graph: graph(
       [edge('base', 'chrome', 'albedo'), edge('rough', 'chrome', 'roughness'), edge('chrome', EXPORT_NODE_ID, 'in')],
-      { materialNodes: [makeGraphMaterialNode({ id: 'chrome' })] },
+      {
+        nodes: graphNodesById(makeGraphMaterialNode({ id: 'chrome' })),
+      },
     ),
   },
   {
@@ -204,8 +212,10 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
         edge('scene', EXPORT_NODE_ID, 'in'),
       ],
       {
-        scene3dNodes: [makeGraphScene3DNode({ id: 'scene', transparent: true })],
-        shaderNodes: [makeGraphShaderNode({ id: 'gradient', role: 'fill' })],
+        nodes: graphNodesById(
+          makeGraphScene3DNode({ id: 'scene', transparent: true }),
+          makeGraphShaderNode({ id: 'gradient', role: 'fill' }),
+        ),
       },
     ),
   },
@@ -214,7 +224,9 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
     layers: [fill('backdrop'), fill('not-a-model')],
     graph: graph(
       [edge('backdrop', 'scene', 'bg'), edge('not-a-model', 'scene', 'model'), edge('scene', EXPORT_NODE_ID, 'in')],
-      { scene3dNodes: [makeGraphScene3DNode({ id: 'scene', transparent: true })] },
+      {
+        nodes: graphNodesById(makeGraphScene3DNode({ id: 'scene', transparent: true })),
+      },
     ),
   },
   {
@@ -229,8 +241,10 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
         edge('scene', EXPORT_NODE_ID, 'in'),
       ],
       {
-        scene3dNodes: [makeGraphScene3DNode({ id: 'scene', transparent: true })],
-        colorNodes: [makeGraphColorNode({ id: 'grade' })],
+        nodes: graphNodesById(
+          makeGraphScene3DNode({ id: 'scene', transparent: true }),
+          makeGraphColorNode({ id: 'grade' }),
+        ),
       },
     ),
   },

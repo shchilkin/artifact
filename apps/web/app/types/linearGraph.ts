@@ -55,16 +55,7 @@ export function inferLinearGraph(layers: Layer[]): CanvasGraph {
   return {
     edges,
     positions,
-    mergeNodes: [],
-    colorNodes: [],
-    repeatNodes: [],
-    materialNodes: [],
-    maskNodes: [],
-    transformNodes: [],
-    grimeShadowNodes: [],
-    scene3dNodes: [],
-    environmentNodes: [],
-    shaderNodes: [],
+    nodes: {},
     areas: [],
   };
 }

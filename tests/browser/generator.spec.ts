@@ -3084,8 +3084,9 @@ test('node add menu can add material nodes with previews and inspector controls'
 
   const graphState = await page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-    const node = doc.graph?.materialNodes?.find(
-      (item: { name?: string; materialPreset?: string }) => item.name === 'PBR Material',
+    const node = Object.values(doc.graph?.nodes ?? {}).find(
+      (item: { kind?: string; name?: string; materialPreset?: string }) =>
+        item.kind === 'material' && item.name === 'PBR Material',
     );
     return {
       name: node?.name,
