@@ -37,11 +37,10 @@ as described below].
 
 ## Validation
 
-Local validation passed during release prep on [YYYY-MM-DD]:
+Local validation passed during release prep on [YYYY-MM-DD]. List every
+command from `## Release Gate` in `docs/production-readiness.md` with its
+result:
 
-- `npm run check`
-- `npm run build`
-- `npm run test:browser`
 - [targeted command or manual verification, if relevant]
 
 The full browser gate passed with `[N] passed, [N] skipped` across Chromium,
@@ -63,12 +62,9 @@ Performance notes:
 
 <!--
 Internal release checklist. Keep this checklist in the working release-prep
-notes or `docs/production-readiness.md`; do not publish it as visible GitHub
-Release body.
+notes; do not publish it as visible GitHub Release body.
 
 - [ ] Version plan status updated.
-- [ ] Roadmap updated.
-- [ ] `docs/production-readiness.md` updated with release prep status.
 - [ ] Package metadata bumped in `package.json`, `apps/web/package.json`, and
   `package-lock.json` when this is a public version release.
 - [ ] Release notes saved at `docs/releases/vX.Y.Z.md`.

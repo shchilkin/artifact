@@ -1504,7 +1504,7 @@ test('rand creates cover-ready text layers with curated fonts', async ({ page })
 });
 
 test('node visual hierarchy marks selected nodes toolbar actions and graph areas', async ({ page }) => {
-  await gotoDocument(page, areaMergeDocument);
+  await gotoDocument(page, areaMergeDocument, 'debug=1');
   await switchToNodeView(page);
   await expect(page.locator('.node-shell-kind-fill')).toBeVisible({ timeout: 15_000 });
 
@@ -2238,7 +2238,7 @@ test('local projects preserve imported image and font assets across save and loa
 
   await page.getByRole('button', { name: 'PROJECTS' }).click();
   await page.getByLabel('Project name').fill('Portable Project');
-  await page.getByRole('button', { name: 'CREATE PROJECT', exact: true }).click();
+  await page.getByRole('button', { name: 'SAVE CURRENT CANVAS', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Load Portable Project' })).toBeVisible({ timeout: 15_000 });
 
   await startBlankEditor(page);
@@ -2417,9 +2417,7 @@ test('graph-only utility properties show area and output context without lock co
   await expect(targetHeader).toContainText('Nodes / Utility');
   await expect(targetHeader).toContainText('Area: Area 1');
   await expect(targetHeader).toContainText('Output path');
-  await expect(targetHeader).toContainText(
-    'Graph-only utility nodes can be deleted or moved; durable locking is reserved for layer-backed targets in v0.28.',
-  );
+  await expect(targetHeader).toContainText("Utility nodes can't be locked.");
   await expect(nodePropsPanel.getByRole('checkbox', { name: 'Locked', exact: true })).toHaveCount(0);
 });
 
@@ -2536,7 +2534,7 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
 });
 
 test('node performance debug toggle persists', async ({ page }) => {
-  await gotoDocument(page, wideNodeDocument);
+  await gotoDocument(page, wideNodeDocument, 'debug=1');
   await switchToNodeView(page);
 
   await clickEditorControl(page.getByRole('button', { name: 'Show performance debug overlay' }));
@@ -2573,7 +2571,7 @@ test('current document can be saved into local projects', async ({ page }) => {
   await gotoDocument(page, lightDocument);
   await page.getByRole('button', { name: 'PROJECTS' }).click();
   await page.getByLabel('Project name').fill('Browser Project');
-  await page.getByRole('button', { name: 'CREATE PROJECT', exact: true }).click();
+  await page.getByRole('button', { name: 'SAVE CURRENT CANVAS', exact: true }).click();
 
   await expect(page.getByRole('button', { name: 'Save active project Browser Project' })).toBeVisible({
     timeout: 15_000,
@@ -2656,13 +2654,10 @@ test('new blank canvas ignores stored work and shows the empty start panel', asy
   await expectLayerCanvasToHavePixels(page);
 });
 
-test('empty layer panel offers direct layer quick starts', async ({ page }) => {
+test('empty canvas offers direct layer quick starts', async ({ page }) => {
   await page.goto('/app?new=blank');
 
-  const emptyPanel = page.locator('.layer-empty-state');
-  await expect(emptyPanel).toBeVisible({ timeout: 15_000 });
-  await expect(emptyPanel).toContainText('No layers yet');
-  await expect(emptyPanel).toContainText('Start with image, text, AI, or a recipe.');
+  await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.empty-canvas-start').getByRole('link', { name: 'Open guide' })).toHaveAttribute(
     'href',
     '/docs/nodes#docs-first-cover',
@@ -2674,7 +2669,7 @@ test('empty layer panel offers direct layer quick starts', async ({ page }) => {
   await expect(page.locator('.empty-canvas-start').getByRole('button', { name: 'Texture Type' })).toBeVisible();
 
   await page.locator('.empty-canvas-start').getByRole('button', { name: 'Add text' }).click();
-  await expect(page.locator('.layer-empty-state')).toHaveCount(0);
+  await expect(page.locator('.empty-canvas-start')).toHaveCount(0);
   await expect(page.locator('.layer-row').filter({ hasText: 'Text' })).toHaveCount(1, { timeout: 15_000 });
   await expectLayerCanvasToHavePixels(page);
   await expect
@@ -2813,10 +2808,10 @@ test('new blank canvas action confirms before replacing current work', async ({ 
   await gotoDocument(page, lightDocument);
   await expectLayerCanvasToHavePixels(page);
 
-  await page.getByRole('button', { name: 'Create new project' }).click();
-  const confirm = page.getByRole('alertdialog', { name: 'Create a new project?' });
+  await page.getByRole('button', { name: 'New blank canvas' }).click();
+  const confirm = page.getByRole('alertdialog', { name: 'Start a new blank canvas?' });
   await expect(confirm).toContainText('recovery copy');
-  await confirm.getByRole('button', { name: 'Create new project' }).click();
+  await confirm.getByRole('button', { name: 'New blank canvas' }).click();
 
   await expect(page.locator('.empty-canvas-start')).toBeVisible({ timeout: 15_000 });
   await expectCanvasCenterAlpha(page, 0);
@@ -3089,8 +3084,9 @@ test('node add menu can add material nodes with previews and inspector controls'
 
   const graphState = await page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-    const node = doc.graph?.materialNodes?.find(
-      (item: { name?: string; materialPreset?: string }) => item.name === 'PBR Material',
+    const node = Object.values(doc.graph?.nodes ?? {}).find(
+      (item: { kind?: string; name?: string; materialPreset?: string }) =>
+        item.kind === 'material' && item.name === 'PBR Material',
     );
     return {
       name: node?.name,
@@ -3581,7 +3577,7 @@ test.describe('AI provider failure flow', () => {
 
     await expect(panel).toContainText('Provider timed out.', { timeout: 15_000 });
     await expect(panel.locator('.ai-generation-feedback')).toHaveClass(/ui-inline-notice--danger/);
-    await expect(panel.locator('.ai-generation-diagnostics')).toContainText('browser-...-job');
+    await expect(panel.locator('.ai-generation-diagnostics')).toContainText('browser-…-job');
     await expect(panel.locator('.ai-generation-diagnostics')).toContainText('provider_unavailable');
     await expect(panel.getByRole('button', { name: 'Retry Prompt' })).toBeVisible();
     await expect(panel.getByRole('button', { name: 'Recover Asset' })).toHaveCount(0);
@@ -4420,10 +4416,17 @@ async function expectStoredStarterDocument(
       async () =>
         page.evaluate((includeTextFonts) => {
           const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          const state: { aspect?: string; hasGraph: boolean; layerIds: string[]; textFonts?: string[] } = {
+          const layerIds: string[] = doc.layers?.map((layer: { id: string }) => layer.id) ?? [];
+          const chain = [...layerIds, '__export__'];
+          const edges: { fromId: string; toId: string }[] = doc.graph?.edges ?? [];
+          // A layer starter is stored as a layer stack: each layer feeds the next, the top layer feeds Output.
+          const layerStackGraph =
+            edges.length === layerIds.length &&
+            layerIds.every((id, index) => edges.some((edge) => edge.fromId === id && edge.toId === chain[index + 1]));
+          const state: { aspect?: string; layerStackGraph: boolean; layerIds: string[]; textFonts?: string[] } = {
             aspect: doc.global?.aspect,
-            hasGraph: Boolean(doc.graph),
-            layerIds: doc.layers?.map((layer: { id: string }) => layer.id) ?? [],
+            layerStackGraph,
+            layerIds,
           };
           if (includeTextFonts) {
             const textLayers = doc.layers?.filter((layer: { kind: string }) => layer.kind === 'text') ?? [];
@@ -4433,7 +4436,7 @@ async function expectStoredStarterDocument(
         }, Boolean(expected.textFonts)),
       { timeout: 15_000 },
     )
-    .toEqual({ ...expected, hasGraph: false });
+    .toEqual({ ...expected, layerStackGraph: true });
 }
 
 async function addTitleTypeLayer(page: Page) {

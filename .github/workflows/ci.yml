@@ -34,6 +34,36 @@ jobs:
       - name: Production build
         run: npm run build:ci
 
+  # Pixel hashes depend on the fonts and emoji in this exact image; keep the tag
+  # in sync with the browser jobs (scripts/render-golden.mjs reads the first
+  # Playwright image tag in this file). Uses the image's own Node so local
+  # `npm run test:golden` runs match.
+  render-golden:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund --ignore-scripts
+
+      - name: Golden render fixtures
+        env:
+          CI: "true"
+          GOLDEN_IN_CONTAINER: "1"
+        run: node scripts/render-golden.mjs
+
+      - name: Upload changed renders
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-golden
+          path: test-results/render-golden/
+          retention-days: 7
+
   fallow:
     runs-on: ubuntu-latest
 
@@ -194,6 +224,28 @@ jobs:
             test-results/
           retention-days: 7
 
+  # Single required check for the browser matrix. A skipped matrix job reports
+  # an unexpanded "browser (${{ matrix.project }})" name, so branch protection
+  # cannot require the per-project checks directly.
+  browser-result:
+    needs: [browser-changes, browser]
+    if: always()
+    runs-on: ubuntu-latest
+    name: browser
+
+    steps:
+      - name: Check browser matrix result
+        env:
+          CHANGES_RESULT: ${{ needs.browser-changes.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          echo "browser-changes: $CHANGES_RESULT, browser matrix: $BROWSER_RESULT"
+          if [ "$CHANGES_RESULT" != "success" ]; then exit 1; fi
+          case "$BROWSER_RESULT" in
+            success|skipped) exit 0 ;;
+            *) exit 1 ;;
+          esac
+
   route-loading:
     needs: browser-changes
     if: needs.browser-changes.outputs.should_run == 'true'
@@ -344,7 +396,7 @@ jobs:
 
   container-gate:
     name: container gate
-    needs: [quality, browser-changes, browser, browser-backoffice, route-loading, container-changes]
+    needs: [quality, render-golden, browser-changes, browser, browser-backoffice, route-loading, container-changes]
     if: always()
     runs-on: ubuntu-latest
     outputs:
@@ -355,6 +407,7 @@ jobs:
         id: gate
         env:
           QUALITY_RESULT: ${{ needs.quality.result }}
+          RENDER_GOLDEN_RESULT: ${{ needs.render-golden.result }}
           BROWSER_CHANGES_RESULT: ${{ needs.browser-changes.result }}
           BROWSER_REQUIRED: ${{ needs.browser-changes.outputs.should_run }}
           BROWSER_RESULT: ${{ needs.browser.result }}
@@ -373,6 +426,10 @@ jobs:
 
           if [ "$QUALITY_RESULT" != "success" ]; then
             fail_gate "Quality result was '$QUALITY_RESULT'."
+          fi
+
+          if [ "$RENDER_GOLDEN_RESULT" != "success" ]; then
+            fail_gate "Golden render result was '$RENDER_GOLDEN_RESULT'."
           fi
 
           if [ "$BROWSER_CHANGES_RESULT" != "success" ]; then

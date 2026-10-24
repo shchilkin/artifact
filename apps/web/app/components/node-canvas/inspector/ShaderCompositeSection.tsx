@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GraphShaderNode } from '../../../types/config';
+import type { GraphShaderNode } from '../../../utils/nodeKinds';
 import { BLEND_OPTIONS } from '../constants';
 import { BlendModeNote, InspectorSection, InspectorSelect, InspectorSlider } from './fields';
 

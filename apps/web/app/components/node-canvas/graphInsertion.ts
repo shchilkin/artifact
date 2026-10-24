@@ -1,6 +1,6 @@
 import type { CanvasGraph, GraphEdge, Layer } from '../../types/config';
 import type { AddAction } from '../../utils/addActions';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphNodesOfKind } from '../../utils/nodeGraph';
 import { distancePointToSegment } from './helpers';
 import type { InsertConnectionConfig } from './types';
 
@@ -155,8 +155,12 @@ function nodeTargetPortForAddedAction(
   layers: readonly Layer[],
 ): GraphEdge['toPort'] | null {
   if (action.kind === 'material' && isMaterialTargetNode(nodeId, graph, layers)) return 'material';
-  if (action.kind === 'environment' && (graph.scene3dNodes ?? []).some((node) => node.id === nodeId)) return 'env';
-  if (isEnvironmentRenderSourceAction(action) && (graph.environmentNodes ?? []).some((node) => node.id === nodeId))
+  if (action.kind === 'environment' && graphNodesOfKind(graph, 'scene3d').some((node) => node.id === nodeId))
+    return 'env';
+  if (
+    isEnvironmentRenderSourceAction(action) &&
+    graphNodesOfKind(graph, 'environment').some((node) => node.id === nodeId)
+  )
     return 'in';
   if (
     action.kind === 'scene3d' &&
@@ -173,7 +177,7 @@ function isEnvironmentRenderSourceAction(action: AddAction) {
 function isMaterialTargetNode(nodeId: string, graph: CanvasGraph, layers: readonly Layer[]) {
   return (
     layers.some((layer) => layer.id === nodeId && layer.kind === 'primitive') ||
-    (graph.scene3dNodes ?? []).some((node) => node.id === nodeId)
+    graphNodesOfKind(graph, 'scene3d').some((node) => node.id === nodeId)
   );
 }
 

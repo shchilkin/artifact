@@ -6,10 +6,6 @@ import {
   type MaterialTextureInputPort,
   makeEffectLayer,
   makeFillLayer,
-  makeGraphEnvironmentNode,
-  makeGraphMaterialNode,
-  makeGraphScene3DNode,
-  makeGraphShaderNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
@@ -17,7 +13,19 @@ import {
 } from '../../types/config';
 import { makeDefaultCodeShaderInstance } from '../../utils/customShaderCode';
 import { reorderDocumentLayers } from '../../utils/documentCommands';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind, inferLinearGraph } from '../../utils/nodeGraph';
+import {
+  makeGraphColorNode,
+  makeGraphEnvironmentNode,
+  makeGraphGrimeShadowNode,
+  makeGraphMaskNode,
+  makeGraphMaterialNode,
+  makeGraphMergeNode,
+  makeGraphRepeatNode,
+  makeGraphScene3DNode,
+  makeGraphShaderNode,
+  makeGraphTransformNode,
+} from '../../utils/nodeKinds';
 import { measureAlphaBounds } from '../../utils/render/alphaBounds';
 import { isGpuOnlyEffectLayer } from '../../utils/render/layers';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../../utils/renderer';
@@ -25,7 +33,8 @@ import { allPixels, alphaBounds, centerPixel, pixelsEqual, samplePixel } from '.
 
 function graphDocument(graph: CanvasGraph, layers?: Layer[]): CanvasDocument {
   return {
-    global: { bg: '#000000', seed: 1, aspect: '1:1' },
+    // Transparent so assertions see the graph's own pixels; the document background has its own test.
+    global: { bg: 'transparent', seed: 1, aspect: '1:1' },
     layers: layers ?? [
       makeFillLayer({ id: 'red-fill', color: '#ff0000', opacity: 100, blendMode: 'normal' }),
       makeFillLayer({ id: 'blue-fill', color: '#0000ff', opacity: 100, blendMode: 'normal' }),
@@ -135,8 +144,7 @@ function mergeGraph(): CanvasGraph {
       { id: 'e-merge-export', fromId: 'merge-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ],
     positions: {},
-    mergeNodes: [{ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 50 }],
-    colorNodes: [],
+    nodes: graphNodesById(makeGraphMergeNode({ id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 50 })),
   };
 }
 
@@ -145,17 +153,12 @@ describe('renderDocument graph mode', () => {
     const doc = graphDocument({
       edges: [{ id: 'e-red-export', fromId: 'red-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     });
 
-    const graphCanvas = await renderDocument(doc, 40, 40, new Map(), {
+    const graphCanvas = await renderDocument(doc, 40, 40, new Map(), { skipEffects: true });
+    const stackCanvas = await renderDocument({ ...doc, graph: inferLinearGraph(doc.layers) }, 40, 40, new Map(), {
       skipEffects: true,
-      graphMode: 'graph',
-    });
-    const stackCanvas = await renderDocument(doc, 40, 40, new Map(), {
-      skipEffects: true,
-      graphMode: 'stack',
     });
 
     const [graphR, graphG, graphB] = centerPixel(graphCanvas);
@@ -174,10 +177,7 @@ describe('renderDocument graph mode', () => {
     const doc = graphDocument(graph);
     const options = { skipEffects: true as const };
 
-    const documentCanvas = await renderDocument(doc, 40, 40, new Map(), {
-      ...options,
-      graphMode: 'graph',
-    });
+    const documentCanvas = await renderDocument(doc, 40, 40, new Map(), options);
     const targetCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 40, 40, new Map(), options);
 
     expect(pixelsEqual(allPixels(documentCanvas), allPixels(targetCanvas))).toBe(true);
@@ -208,17 +208,15 @@ describe('renderDocument graph mode', () => {
           { id: 'e-primitive-export', fromId: 'primitive-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
         ],
         positions: {},
-        mergeNodes: [],
-        colorNodes: [],
-        materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })],
-        shaderNodes: [
+        nodes: graphNodesById(
+          makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' }),
           makeGraphShaderNode({
             id: 'shader-a',
             shaderKind: 'waterCaustic',
             palette: ['#052d3b', '#8ff8d2', '#ffcf6b', '#ffffff'],
             grain: 0,
           }),
-        ],
+        ),
       } satisfies CanvasGraph,
     },
     {
@@ -255,9 +253,7 @@ describe('renderDocument graph mode', () => {
           { id: 'e-primitive-export', fromId: 'primitive-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
         ],
         positions: {},
-        mergeNodes: [],
-        colorNodes: [],
-        materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })],
+        nodes: graphNodesById(makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })),
       } satisfies CanvasGraph,
     },
   ])('matches renderGraphTarget for shader material bridge export parity: $name', async ({ graph, layers }) => {
@@ -267,9 +263,7 @@ describe('renderDocument graph mode', () => {
       graph,
       export: { format: 'png', scale: 1, target: 'cover' },
     };
-    const options = { graphMode: 'graph' as const };
-
-    const documentCanvas = await renderDocument(doc, 96, 96, new Map(), options);
+    const documentCanvas = await renderDocument(doc, 96, 96, new Map());
     const targetCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 96, new Map(), {});
 
     expect(hasVisiblePixels(documentCanvas)).toBe(true);
@@ -283,26 +277,25 @@ describe('renderDocument graph mode', () => {
         { id: 'e-blue-export', fromId: 'blue-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     });
     const reordered = reorderDocumentLayers(doc, [doc.layers[1]!, doc.layers[0]!]);
 
-    const graphCanvas = await renderDocument(reordered, 40, 40, new Map(), {
-      skipEffects: true,
-      graphMode: 'graph',
-    });
-    const stackCanvas = await renderDocument(reordered, 40, 40, new Map(), {
-      skipEffects: true,
-      graphMode: 'stack',
-    });
+    const graphCanvas = await renderDocument(reordered, 40, 40, new Map(), { skipEffects: true });
+    const stackCanvas = await renderDocument(
+      { ...reordered, graph: inferLinearGraph(reordered.layers) },
+      40,
+      40,
+      new Map(),
+      { skipEffects: true },
+    );
 
     expect(pixelsEqual(allPixels(graphCanvas), allPixels(stackCanvas))).toBe(true);
     expect(centerPixel(graphCanvas)[0]).toBeGreaterThan(240);
     expect(centerPixel(graphCanvas)[2]).toBeLessThan(10);
   });
 
-  it('keeps graph output transparent when no upstream node provides a background', async () => {
+  it('paints the document background behind graph output the same way in every mode', async () => {
     const transparentFill = makeFillLayer({
       id: 'transparent-fill',
       color: '#ff0000',
@@ -314,8 +307,7 @@ describe('renderDocument graph mode', () => {
         { id: 'e-transparent-export', fromId: transparentFill.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const doc: CanvasDocument = {
       global: { bg: '#552266', seed: 1, aspect: '1:1' },
@@ -324,21 +316,20 @@ describe('renderDocument graph mode', () => {
       export: { format: 'png', scale: 1, target: 'cover' },
     };
 
-    const graphCanvas = await renderDocument(doc, 32, 32, new Map(), {
-      skipEffects: true,
-      graphMode: 'graph',
-    });
-    const outputCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 32, new Map(), {
-      skipEffects: true,
-    });
-    const stackCanvas = await renderDocument(doc, 32, 32, new Map(), {
-      skipEffects: true,
-      graphMode: 'stack',
-    });
+    const renders = await Promise.all([
+      renderDocument(doc, 32, 32, new Map(), { skipEffects: true }),
+      renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 32, new Map(), { skipEffects: true }),
+      renderDocument({ ...doc, graph: inferLinearGraph(doc.layers) }, 32, 32, new Map(), { skipEffects: true }),
+    ]);
 
-    expect(centerPixel(graphCanvas)[3]).toBe(0);
-    expect(centerPixel(outputCanvas)[3]).toBe(0);
-    expect(centerPixel(stackCanvas)[3]).toBe(255);
+    for (const canvas of renders) {
+      expect(centerPixel(canvas)[3]).toBe(255);
+      expect(pixelsEqual(allPixels(canvas), allPixels(renders[0]!))).toBe(true);
+    }
+
+    const transparentDoc = { ...doc, global: { ...doc.global, bg: 'transparent' } };
+    const transparent = await renderDocument(transparentDoc, 32, 32, new Map(), { skipEffects: true });
+    expect(centerPixel(transparent)[3]).toBe(0);
   });
 });
 
@@ -347,9 +338,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-red-env', fromId: 'red-fill', fromPort: 'out', toId: 'env-a', toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      environmentNodes: [makeGraphEnvironmentNode({ id: 'env-a' })],
+      nodes: graphNodesById(makeGraphEnvironmentNode({ id: 'env-a' })),
     };
     const doc = graphDocument(graph);
 
@@ -368,9 +357,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-red-env', fromId: 'red-fill', fromPort: 'out', toId: 'env-a', toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      environmentNodes: [makeGraphEnvironmentNode({ id: 'env-a' })],
+      nodes: graphNodesById(makeGraphEnvironmentNode({ id: 'env-a' })),
     };
     const doc = graphDocument(graph);
 
@@ -387,11 +374,9 @@ describe('renderGraphTarget', () => {
         { id: 'e-env-scene', fromId: 'env-a', fromPort: 'out', toId: 'scene-a', toPort: 'env' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      environmentNodes: [makeGraphEnvironmentNode({ id: 'env-a' })],
-      scene3dNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphEnvironmentNode({ id: 'env-a' }),
+        makeGraphScene3DNode({
           id: 'scene-a',
           name: '3D Scene',
           environmentSrc: '',
@@ -409,8 +394,8 @@ describe('renderGraphTarget', () => {
           keyIntensity: 145,
           fillIntensity: 65,
           rimIntensity: 55,
-        },
-      ],
+        }),
+      ),
     };
     const doc = graphDocument(graph);
 
@@ -424,9 +409,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      environmentNodes: [makeGraphEnvironmentNode({ id: 'env-a', environmentSrc: 'artifact-env://env-a' })],
+      nodes: graphNodesById(makeGraphEnvironmentNode({ id: 'env-a', environmentSrc: 'artifact-env://env-a' })),
     };
     const doc = graphDocument(graph);
 
@@ -450,9 +433,7 @@ describe('renderGraphTarget', () => {
         { id: 'e-material-scene', fromId: 'material-a', fromPort: 'out', toId: 'scene-a', toPort: 'material' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      materialNodes: [
+      nodes: graphNodesById(
         makeGraphMaterialNode({
           id: 'material-a',
           materialPreset: 'chrome',
@@ -460,8 +441,8 @@ describe('renderGraphTarget', () => {
           materialRoughness: 0.18,
           materialClearcoat: 0.65,
         }),
-      ],
-      scene3dNodes: [makeGraphScene3DNode({ id: 'scene-a', materialMode: 'original', transparent: true })],
+        makeGraphScene3DNode({ id: 'scene-a', materialMode: 'original', transparent: true }),
+      ),
     };
     const doc: CanvasDocument = {
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
@@ -487,9 +468,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-red-material', fromId: 'red-fill', fromPort: 'out', toId: 'material-a', toPort: 'albedo' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'chrome' })],
+      nodes: graphNodesById(makeGraphMaterialNode({ id: 'material-a', materialPreset: 'chrome' })),
     };
     const doc = graphDocument(graph);
 
@@ -506,9 +485,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      materialNodes: [
+      nodes: graphNodesById(
         makeGraphMaterialNode({
           id: 'material-a',
           materialBaseColor: '#224466',
@@ -516,7 +493,7 @@ describe('renderGraphTarget', () => {
           materialGrain: 0,
           materialRelief: 0,
         }),
-      ],
+      ),
     };
     const doc = graphDocument(graph);
 
@@ -534,9 +511,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-shader-export', fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', palette: ['#ff0000', '#00ff00'], grain: 0 })],
+      nodes: graphNodesById(makeGraphShaderNode({ id: 'shader-a', palette: ['#ff0000', '#00ff00'], grain: 0 })),
     };
     const doc = graphDocument(graph);
 
@@ -555,16 +530,14 @@ describe('renderGraphTarget', () => {
         { id: `e-${shaderKind}-export`, fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [
+      nodes: graphNodesById(
         makeGraphShaderNode({
           id: 'shader-a',
           shaderKind,
           palette: ['#0c1024', '#ff705f', '#79e3c5', '#f6c96f'],
           grain: 0,
         }),
-      ],
+      ),
     };
     const doc = graphDocument(graph);
 
@@ -579,9 +552,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-code-export', fromId: 'shader-code', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [
+      nodes: graphNodesById(
         makeGraphShaderNode({
           id: 'shader-code',
           shaderKind: 'customCode',
@@ -591,7 +562,7 @@ describe('renderGraphTarget', () => {
             'vec4 mainImage(vec2 uv) { return vec4(uv.x, uv.y, 1.0 - uv.x, 1.0); }',
           ),
         }),
-      ],
+      ),
     };
     const doc = graphDocument(graph);
 
@@ -606,16 +577,14 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [
+      nodes: graphNodesById(
         makeGraphShaderNode({
           id: 'custom-shader',
           shaderKind: 'aiShader',
           grain: 0,
           shaderInstance: aiShaderInstance('custom-shader'),
         }),
-      ],
+      ),
     };
     const canvas = await renderGraphTarget(graphDocument(graph), graph, EXPORT_NODE_ID, 64, 64, new Map(), {
       skipEffects: true,
@@ -633,21 +602,19 @@ describe('renderGraphTarget', () => {
         { id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [
+      nodes: graphNodesById(
         makeGraphShaderNode({
           id: 'custom-shader',
           shaderKind: 'aiShader',
           grain: 0,
           shaderInstance: aiShaderInstance('custom-shader'),
         }),
-      ],
+      ),
     };
     const doc = graphDocument(graph, [base]);
     const options = { skipEffects: true as const };
 
-    const documentCanvas = await renderDocument(doc, 96, 64, new Map(), { ...options, graphMode: 'graph' });
+    const documentCanvas = await renderDocument(doc, 96, 64, new Map(), options);
     const exportCanvas = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 96, 64, new Map(), options);
 
     expect(pixelsEqual(allPixels(documentCanvas), allPixels(exportCanvas))).toBe(true);
@@ -672,18 +639,14 @@ describe('renderGraphTarget', () => {
     const standaloneGraph: CanvasGraph = {
       edges: [{ id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [customShader],
+      nodes: graphNodesById(customShader),
     };
     const backdropGraph: CanvasGraph = {
       edges: [
         { id: 'e-backdrop-export', fromId: 'backdrop-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [backdropShader],
+      nodes: graphNodesById(backdropShader),
     };
     const passGraph: CanvasGraph = {
       edges: [
@@ -691,9 +654,7 @@ describe('renderGraphTarget', () => {
         { id: 'e-custom-export', fromId: 'custom-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [backdropShader, customShader],
+      nodes: graphNodesById(backdropShader, customShader),
     };
 
     const standalone = await renderGraphTarget(
@@ -747,8 +708,7 @@ describe('renderGraphTarget', () => {
     const baseGraph: CanvasGraph = {
       edges: [{ id: 'e-base-export', fromId: 'base-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const passGraph: CanvasGraph = {
       edges: [
@@ -756,9 +716,7 @@ describe('renderGraphTarget', () => {
         { id: 'e-code-export', fromId: 'code-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [codeShader],
+      nodes: graphNodesById(codeShader),
     };
 
     const base = await renderGraphTarget(
@@ -804,15 +762,12 @@ describe('renderGraphTarget', () => {
         { id: 'e-code-export', fromId: 'code-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [codeShader],
+      nodes: graphNodesById(codeShader),
     };
     const baseGraph: CanvasGraph = {
       edges: [{ id: 'e-base-export', fromId: 'base-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
 
     const baseCanvas = await renderGraphTarget(
@@ -861,9 +816,7 @@ describe('renderGraphTarget', () => {
     const standaloneGraph: CanvasGraph = {
       edges: [{ id: 'e-code-export', fromId: 'code-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [codeShader],
+      nodes: graphNodesById(codeShader),
     };
     const passGraph: CanvasGraph = {
       edges: [
@@ -871,9 +824,7 @@ describe('renderGraphTarget', () => {
         { id: 'e-code-export', fromId: 'code-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [codeShader],
+      nodes: graphNodesById(codeShader),
     };
 
     const standalone = await renderGraphTarget(
@@ -907,9 +858,7 @@ describe('renderGraphTarget', () => {
         { id: 'e-shader-export', fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [
+      nodes: graphNodesById(
         makeGraphShaderNode({
           id: 'shader-a',
           shaderKind: 'staticRadialGradient',
@@ -919,14 +868,13 @@ describe('renderGraphTarget', () => {
           opacity: 45,
           blendMode: 'source-over',
         }),
-      ],
+      ),
     };
     const doc = graphDocument(graph, [base]);
     const baseGraph: CanvasGraph = {
       edges: [{ id: 'e-base-export', fromId: base.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const baseDoc = graphDocument(baseGraph, [base]);
 
@@ -943,9 +891,7 @@ describe('renderGraphTarget', () => {
     const standaloneTopGraph: CanvasGraph = {
       edges: [{ id: 'e-top-export', fromId: 'top-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [
+      nodes: graphNodesById(
         makeGraphShaderNode({
           id: 'top-shader',
           shaderKind: 'staticRadialGradient',
@@ -955,23 +901,21 @@ describe('renderGraphTarget', () => {
           opacity: 100,
           blendMode: 'source-over',
         }),
-      ],
+      ),
     };
     const backdropGraph: CanvasGraph = {
       edges: [
         { id: 'e-backdrop-export', fromId: 'backdrop-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [
+      nodes: graphNodesById(
         makeGraphShaderNode({
           id: 'backdrop-shader',
           shaderKind: 'waterCaustic',
           palette: ['#052d3b', '#8ff8d2', '#ffcf6b', '#ffffff'],
           grain: 0,
         }),
-      ],
+      ),
     };
     const passGraph: CanvasGraph = {
       edges: [
@@ -979,10 +923,8 @@ describe('renderGraphTarget', () => {
         { id: 'e-top-export', fromId: 'top-shader', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [
-        ...(backdropGraph.shaderNodes ?? []),
+      nodes: graphNodesById(
+        ...graphNodesOfKind(backdropGraph, 'shader'),
         makeGraphShaderNode({
           id: 'top-shader',
           shaderKind: 'staticRadialGradient',
@@ -992,7 +934,7 @@ describe('renderGraphTarget', () => {
           opacity: 100,
           blendMode: 'source-over',
         }),
-      ],
+      ),
     };
 
     const standaloneTop = await renderGraphTarget(
@@ -1035,8 +977,7 @@ describe('renderGraphTarget', () => {
     const baseGraph: CanvasGraph = {
       edges: [{ id: 'e-base-export', fromId: base.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const passGraph: CanvasGraph = {
       edges: [
@@ -1044,9 +985,7 @@ describe('renderGraphTarget', () => {
         { id: 'e-custom-export', fromId: customShader.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [customShader],
+      nodes: graphNodesById(customShader),
     };
 
     const baseCanvas = await renderGraphTarget(
@@ -1097,15 +1036,12 @@ describe('renderGraphTarget', () => {
     const imageGraph: CanvasGraph = {
       edges: [{ id: 'e-image-export', fromId: imageLayer.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const standaloneShaderGraph: CanvasGraph = {
       edges: [{ id: 'e-shader-export', fromId: shaderNode.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [shaderNode],
+      nodes: graphNodesById(shaderNode),
     };
     const passGraph: CanvasGraph = {
       edges: [
@@ -1113,9 +1049,7 @@ describe('renderGraphTarget', () => {
         { id: 'e-shader-export', fromId: shaderNode.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [shaderNode],
+      nodes: graphNodesById(shaderNode),
     };
     const imageCache = createDetailedImageCache(imageSrc);
 
@@ -1160,15 +1094,12 @@ describe('renderGraphTarget', () => {
         { id: 'e-shader-export', fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', role: 'effect', opacity: 0, grain: 0 })],
+      nodes: graphNodesById(makeGraphShaderNode({ id: 'shader-a', role: 'effect', opacity: 0, grain: 0 })),
     };
     const baseGraph: CanvasGraph = {
       edges: [{ id: 'e-base-export', fromId: base.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
 
     const baseCanvas = await renderGraphTarget(
@@ -1212,22 +1143,17 @@ describe('renderGraphTarget', () => {
         { id: 'e-shader-export', fromId: 'shader-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [shaderNode],
+      nodes: graphNodesById(shaderNode),
     };
     const standaloneShaderGraph: CanvasGraph = {
       edges: [{ id: 'e-shader-export', fromId: shaderNode.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [shaderNode],
+      nodes: graphNodesById(shaderNode),
     };
     const baseGraph: CanvasGraph = {
       edges: [{ id: 'e-base-export', fromId: base.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
 
     const baseCanvas = await renderGraphTarget(
@@ -1280,10 +1206,10 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-shader-material', fromId: 'shader-a', fromPort: 'out', toId: 'material-a', toPort: 'albedo' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'chrome' })],
-      shaderNodes: [makeGraphShaderNode({ id: 'shader-a', palette: ['#ff0000', '#00ff00'], grain: 0 })],
+      nodes: graphNodesById(
+        makeGraphMaterialNode({ id: 'material-a', materialPreset: 'chrome' }),
+        makeGraphShaderNode({ id: 'shader-a', palette: ['#ff0000', '#00ff00'], grain: 0 }),
+      ),
     };
     const doc = graphDocument(graph);
 
@@ -1304,8 +1230,7 @@ describe('renderGraphTarget', () => {
     const baseGraph: CanvasGraph = {
       edges: [{ id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const shaderGraph: CanvasGraph = {
       ...baseGraph,
@@ -1313,14 +1238,14 @@ describe('renderGraphTarget', () => {
         ...baseGraph.edges,
         { id: 'e-shader-primitive', fromId: 'shader-a', fromPort: 'out', toId: primitive.id, toPort: 'material' },
       ],
-      shaderNodes: [
+      nodes: graphNodesById(
         makeGraphShaderNode({
           id: 'shader-a',
           palette: ['#00ccff', '#ff00cc', '#f8ff00', '#101020'],
           distortion: 80,
           grain: 0,
         }),
-      ],
+      ),
     };
     const baseDoc: CanvasDocument = {
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
@@ -1358,24 +1283,20 @@ describe('renderGraphTarget', () => {
         { id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      materialNodes: [
+      nodes: graphNodesById(
         makeGraphMaterialNode({
           id: 'material-a',
           materialPreset: 'chrome',
           materialMetalness: 0.75,
           materialRoughness: 0.22,
         }),
-      ],
-      shaderNodes: [
         makeGraphShaderNode({
           id: 'shader-a',
           shaderKind: 'moire',
           palette: ['#06040a', '#f7e6ff', '#ff6ab7', '#50e3c2'],
           grain: 0,
         }),
-      ],
+      ),
     };
     const doc: CanvasDocument = {
       global: { bg: 'transparent', seed: 13, aspect: '1:1' },
@@ -1416,9 +1337,7 @@ describe('renderGraphTarget', () => {
         { id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      materialNodes: [makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })],
+      nodes: graphNodesById(makeGraphMaterialNode({ id: 'material-a', materialPreset: 'plastic' })),
     };
     const doc: CanvasDocument = {
       global: { bg: 'transparent', seed: 17, aspect: '1:1' },
@@ -1444,8 +1363,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-effect-export', fromId: effect.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const doc: CanvasDocument = {
       global: { bg: 'transparent', seed: 19, aspect: '1:1' },
@@ -1475,25 +1393,24 @@ describe('renderGraphTarget', () => {
         { id: 'e-red-color-b', fromId: 'red-fill', fromPort: 'out', toId: 'color-b', toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphColorNode({
           id: 'color-a',
           name: 'Color A',
           contrast: 100,
           brightness: 80,
           saturation: 100,
           hue: 0,
-        },
-        {
+        }),
+        makeGraphColorNode({
           id: 'color-b',
           name: 'Color B',
           contrast: 100,
           brightness: 60,
           saturation: 100,
           hue: 0,
-        },
-      ],
+        }),
+      ),
     };
     const doc = graphDocument(graph);
     const cache: GraphRenderCache = { namespace: 'shared-session', entries: new Map() };
@@ -1512,8 +1429,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-red-export', fromId: 'red-fill', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const doc = graphDocument(graph);
     const zeroCanvas = document.createElement('canvas');
@@ -1553,23 +1469,28 @@ describe('renderGraphTarget', () => {
         { id: 'e-color-export', fromId: 'color-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphColorNode({
           id: 'color-1',
           name: 'Color',
           contrast: 100,
           brightness: 50,
           saturation: 100,
           hue: 0,
-        },
-      ],
+        }),
+      ),
     };
     const doc = graphDocument(graph);
 
     const neutralCanvas = await renderGraphTarget(
-      graphDocument({ ...graph, colorNodes: [{ ...graph.colorNodes[0], brightness: 100 }] }),
-      { ...graph, colorNodes: [{ ...graph.colorNodes[0], brightness: 100 }] },
+      graphDocument({
+        ...graph,
+        nodes: graphNodesById(makeGraphColorNode({ ...graphNodesOfKind(graph, 'color')[0], brightness: 100 })),
+      }),
+      {
+        ...graph,
+        nodes: graphNodesById(makeGraphColorNode({ ...graphNodesOfKind(graph, 'color')[0], brightness: 100 })),
+      },
       EXPORT_NODE_ID,
       40,
       40,
@@ -1604,8 +1525,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-noise-export', fromId: 'noise-wide', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const doc: CanvasDocument = {
       global: { bg: 'transparent', seed: 7, aspect: '16:9' },
@@ -1634,8 +1554,7 @@ describe('renderGraphTarget', () => {
     const graph: CanvasGraph = {
       edges: [{ id: 'e-primitive-export', fromId: primitive.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const doc: CanvasDocument = {
       global: { bg: 'transparent', seed: 7, aspect: '16:9' },
@@ -1664,10 +1583,8 @@ describe('renderGraphTarget', () => {
         { id: 'e-repeat-export', fromId: 'repeat-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      repeatNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphRepeatNode({
           id: 'repeat-1',
           name: 'Repeater',
           pattern: 'grid',
@@ -1681,8 +1598,8 @@ describe('renderGraphTarget', () => {
           seedOffset: 0,
           opacity: 100,
           blendMode: 'source-over',
-        },
-      ],
+        }),
+      ),
     };
     const doc: CanvasDocument = {
       global: { bg: 'transparent', seed: 3, aspect: '1:1' },
@@ -1711,10 +1628,8 @@ describe('renderGraphTarget', () => {
         { id: 'e-repeat-export', fromId: 'repeat-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      repeatNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphRepeatNode({
           id: 'repeat-1',
           name: 'Repeater',
           pattern: 'grid',
@@ -1728,8 +1643,8 @@ describe('renderGraphTarget', () => {
           seedOffset,
           opacity: 100,
           blendMode: 'source-over',
-        },
-      ],
+        }),
+      ),
     });
     const render = (seedOffset: number) => {
       const graph = makeGraph(seedOffset);
@@ -1780,10 +1695,8 @@ describe('renderGraphTarget', () => {
         { id: 'e-mask-export', fromId: 'mask-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      maskNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphMaskNode({
           id: 'mask-1',
           name: 'Mask',
           mode,
@@ -1792,8 +1705,8 @@ describe('renderGraphTarget', () => {
           feather: 0,
           expand: 0,
           opacity: 100,
-        },
-      ],
+        }),
+      ),
     });
     const render = (graph: CanvasGraph) =>
       renderGraphTarget(
@@ -1839,10 +1752,8 @@ describe('renderGraphTarget', () => {
         { id: 'e-transform-export', fromId: 'transform-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      transformNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphTransformNode({
           id: 'transform-1',
           name: 'Transform',
           x,
@@ -1852,8 +1763,8 @@ describe('renderGraphTarget', () => {
           uniformScale: true,
           rotation,
           opacity: 100,
-        },
-      ],
+        }),
+      ),
     });
     const render = (graph: CanvasGraph) =>
       renderGraphTarget(
@@ -1908,10 +1819,8 @@ describe('renderGraphTarget', () => {
         { id: 'e-transform-export', fromId: 'transform-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      transformNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphTransformNode({
           id: 'transform-1',
           name: 'Transform',
           x: 0,
@@ -1922,8 +1831,8 @@ describe('renderGraphTarget', () => {
           rotation: 90,
           pivotMode,
           opacity: 100,
-        },
-      ],
+        }),
+      ),
     });
     const render = (graph: CanvasGraph) =>
       renderGraphTarget(
@@ -1969,8 +1878,7 @@ describe('renderGraphTarget', () => {
     const sourceGraph: CanvasGraph = {
       edges: [{ id: 'e-source-export', fromId: source.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
+      nodes: graphNodesById(),
     };
     const shadowGraph: CanvasGraph = {
       edges: [
@@ -1978,10 +1886,8 @@ describe('renderGraphTarget', () => {
         { id: 'e-shadow-export', fromId: 'shadow-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      grimeShadowNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphGrimeShadowNode({
           id: 'shadow-1',
           name: 'Grime Shadow',
           x: 120,
@@ -1995,8 +1901,8 @@ describe('renderGraphTarget', () => {
           color: '#000000',
           seedOffset: 0,
           shadowOnly: true,
-        },
-      ],
+        }),
+      ),
     };
     const render = (graph: CanvasGraph) =>
       renderGraphTarget(
@@ -2047,10 +1953,8 @@ describe('renderGraphTarget', () => {
         { id: 'e-repeat-export', fromId: 'repeat-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      repeatNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphRepeatNode({
           id: 'repeat-1',
           name: 'Repeater',
           pattern: 'grid',
@@ -2067,8 +1971,8 @@ describe('renderGraphTarget', () => {
           seedOffset: 0,
           opacity: 100,
           blendMode: 'source-over',
-        },
-      ],
+        }),
+      ),
     });
     const render = (graph: CanvasGraph) =>
       renderGraphTarget(

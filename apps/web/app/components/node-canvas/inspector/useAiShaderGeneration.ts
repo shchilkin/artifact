@@ -6,8 +6,8 @@ import type {
   AiShaderRequestMode,
   CreateAiShaderRequest,
 } from '../../../types/aiGeneration';
-import type { GraphShaderNode } from '../../../types/config';
 import { createAiIdempotencyKey } from '../../../utils/aiGenerationClient';
+import type { GraphShaderNode } from '../../../utils/nodeKinds';
 import { useNodeCanvasActions } from '../context';
 import type { ShaderNodeGenerationStatus } from '../types';
 import {

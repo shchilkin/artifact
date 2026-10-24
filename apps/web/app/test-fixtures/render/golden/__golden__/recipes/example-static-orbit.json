@@ -1,0 +1,32 @@
+{
+  "graph": {
+    "preview": {
+      "size": "540x304",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.58
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1920x1080",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.58
+            }
+          }
+        ]
+      ]
+    }
+  }
+}

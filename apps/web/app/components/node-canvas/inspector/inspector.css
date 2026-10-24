@@ -530,6 +530,7 @@
 }
 
 .node-slider-row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--editor-inspector-entry-w);
   align-items: center;
@@ -581,6 +582,42 @@
 .artifact-inspector-number__unit {
   flex: 0 0 auto;
   padding-right: var(--space-1);
+}
+
+/* The limit a typed value was clamped to: the shared notice laid over the end of the slider track, beside the entry. */
+/* Scoped to the slider row so it outranks the shared notice's own border and spacing. */
+.node-slider-row > .artifact-inspector-entry-limit {
+  position: absolute;
+  top: 50%;
+  right: calc(var(--editor-inspector-entry-w) + var(--space-2));
+  z-index: 1;
+  isolation: isolate;
+  max-width: calc(100% - var(--editor-inspector-entry-w) - var(--space-2));
+  padding: var(--space-1) var(--space-2);
+  border-width: 1px;
+  border-radius: var(--control-radius);
+  font-family: var(--font-mono);
+  font-size: var(--type-editor-meta);
+  line-height: var(--leading-ui);
+  white-space: nowrap;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* The notice's tone tint is translucent; an opaque surface under it keeps the track from showing through. */
+.node-slider-row > .artifact-inspector-entry-limit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--surface-panel);
+}
+
+.node-slider-row > .artifact-inspector-entry-limit[data-visible="false"] {
+  /* Kept in the accessibility tree so the live region is registered before the first message. */
+  clip-path: inset(50%);
+  opacity: 0;
 }
 
 .artifact-inspector-info {

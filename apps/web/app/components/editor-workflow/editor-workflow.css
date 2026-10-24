@@ -210,20 +210,41 @@
   align-items: center;
 }
 
-.editor-workflow-notice--docs {
-  padding-block: var(--space-2);
-  padding-inline: var(--space-4);
-  color: var(--text-secondary);
+/* Overlays the top of the stage so the notice never pushes the editor down. */
+.editor-workflow-notice--link {
+  position: absolute;
+  top: var(--space-2);
+  left: 50%;
+  z-index: 40;
+  width: max-content;
+  max-width: calc(100% - (2 * var(--space-4)));
+  padding-block: var(--space-1);
+  padding-inline: var(--space-3);
+  border-width: 1px;
+  border-radius: var(--radius-md);
   font-size: var(--type-ui-sm);
   letter-spacing: 0.04em;
+  transform: translateX(-50%);
 }
 
-.editor-workflow-notice--docs a {
+/* In desktop Nodes the right-anchored toolbar can reach the center, so the notice sits at the top left of the graph. */
+@media (min-width: 768px) {
+  .app-nodes > .editor-workflow-notice--link {
+    left: var(--space-4);
+    transform: none;
+  }
+}
+
+.editor-workflow-notice--link.ui-inline-notice--info {
+  color: var(--text-secondary);
+}
+
+.editor-workflow-notice--link a {
   color: var(--accent-primary);
   text-decoration: none;
 }
 
-.editor-workflow-notice--docs a:hover {
+.editor-workflow-notice--link a:hover {
   color: var(--text-primary);
 }
 
@@ -231,6 +252,48 @@
   justify-content: center;
   padding-block: var(--space-2);
   text-align: center;
+}
+
+.editor-export-status {
+  position: absolute;
+  top: var(--space-3);
+  left: 50%;
+  z-index: 20;
+  display: grid;
+  width: min(440px, calc(100% - 2 * var(--space-3)));
+  gap: var(--space-2);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.editor-export-status__notice {
+  position: relative;
+  isolation: isolate;
+  border-width: 1px;
+  box-shadow: var(--shadow-overlay);
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  pointer-events: auto;
+}
+
+/* The notice's tone tint is translucent; an opaque surface under it keeps the canvas from showing through. */
+.editor-export-status__notice::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--surface-panel);
+}
+
+.editor-export-status__notice[data-visible="false"] {
+  /* Kept in the accessibility tree so the live region is registered before the first message. */
+  clip-path: inset(50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.editor-export-status__notice .editor-workflow-notice__action {
+  gap: var(--space-2);
 }
 
 .editor-confirm-dialog {

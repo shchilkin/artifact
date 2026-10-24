@@ -1,12 +1,11 @@
 import './styles/editor.css';
-import { IconButton } from '@artifact/ui';
-import { AnimatePresence } from 'framer-motion';
+import { Button } from '@artifact/ui';
 import { lazy, type RefObject, Suspense, useCallback, useRef, useState } from 'react';
-import { Link } from 'react-router';
 import { BottomBar } from '../components/BottomBar';
 import { CanvasPreview } from '../components/CanvasPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { EditorConfirmDialog } from '../components/editor-workflow/EditorConfirmDialog';
+import { EditorExportStatus } from '../components/editor-workflow/EditorExportStatus';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
 import { useEditorConfirm } from '../components/editor-workflow/useEditorConfirm';
 import type { NodeCanvasViewport } from '../components/node-canvas';
@@ -32,6 +31,7 @@ import { environmentUriFromId, isSupportedEnvironmentFile, saveEnvironmentFileAs
 import { isSupportedModelFile, modelUriFromId, saveModelFileAsset } from '../utils/modelAssetStore';
 import type { SavedProject } from '../utils/projectLibrary';
 import { getStarterDocument } from '../utils/starterDocuments';
+import { DocumentLinkNotice } from './editor/DocumentLinkNotice';
 import { EmptyCanvasStart } from './editor/EmptyCanvasStart';
 import { useEditorPanels } from './editor/useEditorPanels';
 import { useEditorPrimitiveExportState } from './editor/useEditorPrimitiveExportState';
@@ -76,25 +76,35 @@ const IMPORT_FILE_TYPES = [
   { icon: 'PKG', label: 'Package', detail: '.artifact with assets' },
 ];
 
-function CanvasErrorFallback({ aspect }: { aspect: AspectRatio }) {
+function CanvasErrorFallback({
+  aspect,
+  canUndo,
+  onRetry,
+  onUndo,
+}: {
+  aspect: AspectRatio;
+  canUndo: boolean;
+  onRetry: () => void;
+  onUndo: () => void;
+}) {
   const [previewWidth, previewHeight] = getPreviewDims(aspect);
   return (
     <div className="canvas-wrapper flex-1 flex items-center justify-center min-h-0 w-full">
       <div
-        className="canvas-area relative h-full max-h-[min(100%,540px)] max-w-full flex flex-col items-center justify-center gap-2"
-        style={{
-          aspectRatio: `${previewWidth} / ${previewHeight}`,
-          background: 'var(--surface-panel)',
-          border: '1px solid var(--line-default)',
-          color: 'var(--text-secondary)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '11px',
-        }}
+        className="canvas-area canvas-error-state relative h-full max-h-[min(100%,540px)] max-w-full"
+        role="alert"
+        style={{ aspectRatio: `${previewWidth} / ${previewHeight}` }}
       >
-        <span>Canvas error: could not render layers.</span>
-        <span style={{ opacity: 0.5 }}>
-          {previewWidth} × {previewHeight}
-        </span>
+        <p className="canvas-error-state__message">The canvas couldn't render these layers.</p>
+        <p className="canvas-error-state__detail">Undo your last change, or try rendering again.</p>
+        <div className="canvas-error-state__actions">
+          <Button variant="primary" size="compact" disabled={!canUndo} onClick={onUndo}>
+            Undo
+          </Button>
+          <Button variant="secondary" size="compact" onClick={onRetry}>
+            Retry
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -121,7 +131,12 @@ export default function Editor() {
   const [documentImportBusy, setDocumentImportBusy] = useState(false);
   const [recoveryCopyFailed, setRecoveryCopyFailed] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('layers');
-  const [docsBannerDismissed, setDocsBannerDismissed] = useState(false);
+  // Node that Edit in Nodes centers on entry, for the document it was chosen in. The view switch clears it.
+  const [nodeEntryFocus, setNodeEntryFocus] = useState<{ sessionId: number; nodeId: string } | null>(null);
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setNodeEntryFocus(null);
+    setViewMode(mode);
+  }, []);
   const [environmentFileError, setEnvironmentFileError] = useState<string | null>(null);
   const [modelFileError, setModelFileError] = useState<string | null>(null);
   const [aiPanelRequested, setAiPanelRequested] = useState(false);
@@ -146,16 +161,7 @@ export default function Editor() {
     deleteNodeSelection,
     updateLayer,
     storeImageAssetSource,
-    updateMergeNode,
-    updateColorNode,
-    updateRepeatNode,
-    updateMaterialNode,
-    updateMaskNode,
-    updateTransformNode,
-    updateGrimeShadowNode,
-    updateScene3DNode,
-    updateEnvironmentNode,
-    updateShaderNode,
+    updateGraphNode,
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
@@ -164,12 +170,12 @@ export default function Editor() {
     handleRandomize,
     handleNewBlank,
     saveRecoveryDraft,
-    handleGraphChange,
+    handleGraphEdit,
     handleExportConfigChange,
     handleCopyLink,
     loadDocument,
     documentSessionId,
-    setDoc,
+    dispatch,
     setAspect,
     undo,
     redo,
@@ -177,6 +183,7 @@ export default function Editor() {
     canRedo,
     undoCount,
     fromDocParam,
+    documentLinkStatus,
     fromBlankParam,
     isBlank,
     documentSaveStatus,
@@ -230,7 +237,7 @@ export default function Editor() {
       }
       try {
         const asset = await saveEnvironmentFileAsset(file);
-        updateEnvironmentNode(id, {
+        updateGraphNode(id, {
           environmentSrc: environmentUriFromId(asset.id),
           environmentName: asset.label,
           environmentMime: asset.mime,
@@ -240,7 +247,7 @@ export default function Editor() {
         setEnvironmentFileError('Could not read environment map.');
       }
     },
-    [updateEnvironmentNode],
+    [updateGraphNode],
   );
   const handleReplaceModelLayerFile = useCallback(
     async (id: string, file: File) => {
@@ -275,9 +282,13 @@ export default function Editor() {
   } = useEditorPrimitiveExportState({
     doc,
     docRef,
-    onGraphChange: handleGraphChange,
+    onGraphEdit: handleGraphEdit,
   });
-  const { exportBusy, exportError, handleNodeExport } = useEditorExport(docRef, imageCache, exportRenderOptions);
+  const { exportBusy, exportFeedback, dismissExportFeedback, handleNodeExport, retryExport } = useEditorExport(
+    docRef,
+    imageCache,
+    exportRenderOptions,
+  );
   const {
     showProjects,
     projects,
@@ -353,9 +364,10 @@ export default function Editor() {
   const handleEditInNodes = useCallback(
     (nodeId: string) => {
       setSelectedLayerId(nodeId);
+      setNodeEntryFocus({ sessionId: documentSessionId, nodeId });
       setViewMode('nodes');
     },
-    [setSelectedLayerId],
+    [documentSessionId, setSelectedLayerId],
   );
 
   const handleStartAiImage = useCallback(() => {
@@ -370,9 +382,9 @@ export default function Editor() {
     if (
       !isBlank &&
       !(await confirm({
-        title: 'Create a new project?',
+        title: 'Start a new blank canvas?',
         description: 'Current work is kept as a recovery copy in Projects before the canvas is cleared.',
-        confirmLabel: 'Create new project',
+        confirmLabel: 'New blank canvas',
       }))
     ) {
       return;
@@ -414,6 +426,7 @@ export default function Editor() {
           title: `Open ${project.name}?`,
           description: 'Unsaved changes on the canvas will be replaced. Save them as a project first to keep them.',
           confirmLabel: 'Open project',
+          tone: 'danger',
         }))
       ) {
         return;
@@ -505,12 +518,13 @@ export default function Editor() {
         ariaLabel="Editor navigation"
         solid
         compact
-        compactSlot={<EditorChromeSlot viewMode={viewMode} onViewModeChange={setViewMode} />}
+        compactSlot={<EditorChromeSlot viewMode={viewMode} onViewModeChange={handleViewModeChange} />}
       />
       <input
         ref={fileInputRef}
         className="sr-only"
         type="file"
+        tabIndex={-1}
         accept=".artifact,.artifact.json,application/json,application/vnd.artifact.project+json"
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
@@ -522,6 +536,7 @@ export default function Editor() {
         ref={imageFileInputRef}
         className="sr-only"
         type="file"
+        tabIndex={-1}
         accept="image/*"
         multiple
         onChange={(event) => {
@@ -530,23 +545,8 @@ export default function Editor() {
           event.currentTarget.value = '';
         }}
       />
-      {fromDocParam && !docsBannerDismissed && (
-        <EditorWorkflowNotice
-          className="editor-workflow-notice--docs"
-          action={
-            <IconButton
-              label="Dismiss loaded document notice"
-              icon={<span aria-hidden="true">×</span>}
-              onClick={() => setDocsBannerDismissed(true)}
-            />
-          }
-        >
-          <span>
-            Loaded from <Link to="/docs/nodes">docs</Link> — customize or randomize to make it yours.
-          </span>
-        </EditorWorkflowNotice>
-      )}
       <div className={`app app-${viewMode}`}>
+        <DocumentLinkNotice status={documentLinkStatus} />
         <main
           className={`main main-${viewMode}`}
           onDragEnter={(event) => {
@@ -575,7 +575,18 @@ export default function Editor() {
           <StorageWarningStrip status={storageStatus} storageError={storageError} />
 
           {viewMode === 'layers' ? (
-            <ErrorBoundary fallback={<CanvasErrorFallback aspect={doc.global.aspect ?? '1:1'} />}>
+            <ErrorBoundary
+              resetKeys={[doc]}
+              fallback={(reset) => (
+                <CanvasErrorFallback
+                  // The fallback must render even when the document that failed has a malformed `global`.
+                  aspect={doc.global?.aspect ?? '1:1'}
+                  canUndo={canUndo}
+                  onRetry={reset}
+                  onUndo={undo}
+                />
+              )}
+            >
               <CanvasPreview
                 doc={doc}
                 imageCache={imageCache}
@@ -584,7 +595,6 @@ export default function Editor() {
                 dropPreview={dropPreview}
                 onLayerUpdate={updateLayer}
                 onSelectLayer={setSelectedLayerId}
-                onStartEmptyCanvas={() => addLayer('text')}
               />
               {doc.layers.length === 0 && (
                 <EmptyCanvasStart
@@ -603,24 +613,16 @@ export default function Editor() {
                   key={documentSessionId}
                   doc={doc}
                   initialViewport={nodeViewport?.sessionId === documentSessionId ? nodeViewport.viewport : null}
+                  entryFocusNodeId={nodeEntryFocus?.sessionId === documentSessionId ? nodeEntryFocus.nodeId : null}
                   onViewportChange={handleNodeViewportChange}
                   imageCache={imageCache}
                   initialPrimitiveViewStates={effectivePrimitiveViewStates}
                   onPrimitiveViewStatesChange={handlePrimitiveViewStatesChange}
                   selectedLayerId={selectedLayerId}
                   onSelectLayer={setSelectedLayerId}
-                  onGraphChange={handleGraphChange}
+                  onGraphEdit={handleGraphEdit}
                   onUpdateLayer={updateLayer}
-                  onUpdateMergeNode={updateMergeNode}
-                  onUpdateColorNode={updateColorNode}
-                  onUpdateRepeatNode={updateRepeatNode}
-                  onUpdateMaterialNode={updateMaterialNode}
-                  onUpdateMaskNode={updateMaskNode}
-                  onUpdateTransformNode={updateTransformNode}
-                  onUpdateGrimeShadowNode={updateGrimeShadowNode}
-                  onUpdateScene3DNode={updateScene3DNode}
-                  onUpdateEnvironmentNode={updateEnvironmentNode}
-                  onUpdateShaderNode={updateShaderNode}
+                  onUpdateGraphNode={updateGraphNode}
                   onReplaceModelLayerFile={handleReplaceModelLayerFile}
                   onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
                   onUpdateExportConfig={handleExportConfigChange}
@@ -651,11 +653,12 @@ export default function Editor() {
           />
           {confirmDialog}
 
-          {(dropError || exportError || documentFileError || modelFileError || environmentFileError) && (
+          {(dropError || documentFileError || modelFileError || environmentFileError) && (
             <EditorWorkflowNotice className="editor-workflow-notice--error" variant="danger">
-              {dropError ?? exportError ?? documentFileError ?? modelFileError ?? environmentFileError}
+              {dropError ?? documentFileError ?? modelFileError ?? environmentFileError}
             </EditorWorkflowNotice>
           )}
+          <EditorExportStatus feedback={exportFeedback} onRetry={retryExport} onDismiss={dismissExportFeedback} />
         </main>
 
         <BottomBar {...bottomBarProps} />
@@ -663,7 +666,7 @@ export default function Editor() {
         {viewMode === 'layers' && (
           <Sidebar
             doc={doc}
-            onDocChange={setDoc}
+            onDocCommand={dispatch}
             selectedLayerId={selectedLayerId}
             onSelectLayer={setSelectedLayerId}
             onAddLayer={addLayer}
@@ -686,27 +689,25 @@ export default function Editor() {
           />
         )}
 
-        <AnimatePresence>
-          {showProjects && (
-            <ProjectsPanel
-              projects={projects}
-              activeProject={activeProject}
-              recoveryDraft={recoveryDraft}
-              storageStatus={storageStatus}
-              storageError={storageError}
-              projectSyncStates={projectSyncStates}
-              maxProjects={maxProjects}
-              onSaveCopy={saveCurrentProject}
-              onSaveActive={saveActiveProject}
-              onLoad={handleLoadProjectRequest}
-              onDelete={deleteProject}
-              onSaveToCloud={saveProjectToCloud}
-              onDeleteRecoveryDraft={deleteRecoveryDraft}
-              onNewBlank={handleNewBlankRequest}
-              onClose={closeProjects}
-            />
-          )}
-        </AnimatePresence>
+        {showProjects && (
+          <ProjectsPanel
+            projects={projects}
+            activeProject={activeProject}
+            recoveryDraft={recoveryDraft}
+            storageStatus={storageStatus}
+            storageError={storageError}
+            projectSyncStates={projectSyncStates}
+            maxProjects={maxProjects}
+            onSaveCopy={saveCurrentProject}
+            onSaveActive={saveActiveProject}
+            onLoad={handleLoadProjectRequest}
+            onDelete={deleteProject}
+            onSaveToCloud={saveProjectToCloud}
+            onDeleteRecoveryDraft={deleteRecoveryDraft}
+            onNewBlank={handleNewBlankRequest}
+            onClose={closeProjects}
+          />
+        )}
       </div>
     </div>
   );

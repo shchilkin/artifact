@@ -1,7 +1,7 @@
 # Route Loading Matrix
 
 Normative loading contract for
-[v0.49 Application Shell And Loading Boundaries](../version-plans/v0.49.md).
+[v0.49 Application Shell And Loading Boundaries](../archive/version-plans/v0.49.md).
 The machine-readable contract is
 [`route-loading-contract.json`](./route-loading-contract.json). Measurements:
 
@@ -103,20 +103,34 @@ on its own, so other states keep failing until their own cause is fixed.
 
 Sizes are gzip KiB of JavaScript. "Before render" is `initial` minus
 `afterRender`. "Current" is the `npm run loading:gate` measurement from the
-last reviewed contract change (#243); the gate reports live numbers on every
+last reviewed contract change (#446); the gate reports live numbers on every
 run.
 
 | State | URL | Owning shell | Delivery | v0.48.1 | Current | Budget |
 | --- | --- | --- | --- | --- | --- | --- |
-| Home, before render | `/` | public | prerender | 423.6 | 131.6 | 170 |
-| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +180.5 | +185 |
-| Docs | `/docs` | public | prerender | 240.4 | 119.7 | 170 |
-| Account recovery | `/reset-password` | public | SPA fallback | 239.6 | 120.0 | 170 |
-| Projects | `/projects` | account | SPA fallback | 312.8 | 220.5 | 230 |
-| Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 | 324.6 | 370 |
-| Nodes activation | Nodes tab | NodeCanvas | — | +65.4 | +120.0 | +135 |
-| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 364.5 | 370 |
-| First 3D activation | add Primitive | primitive scene renderer | — | +206.7 | +182.7 | +215 |
+| Home, before render | `/` | public | prerender | 423.6 | 131.1 | 170 |
+| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +187.1 | +188 |
+| Docs | `/docs` | public | prerender | 240.4 | 119.2 | 170 |
+| Account recovery | `/reset-password` | public | SPA fallback | 239.6 | 119.6 | 170 |
+| Projects | `/projects` | account | SPA fallback | 312.8 | 221.0 | 230 |
+| Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 | 336.0 | 370 |
+| Nodes activation | Nodes tab | NodeCanvas | — | +65.4 | +119.9 | +135 |
+| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 368.3 | 370 |
+| First 3D activation | add Primitive | primitive scene renderer | — | +206.7 | +182.5 | +215 |
+
+The editor stopped loading `motion` in #446: its only use was an unused
+`AnimatePresence` wrapper around the Projects sheet. The editor route went from
+337.5 to 336.0 KiB before render (347,388 to 345,903 bytes gzip, -1.5 KiB,
+measured against `development` at 8591980), and `motion` is now prohibited
+before render on the editor.
+
+The home hero renders through the graph renderer, which reads each node kind's
+model from the v0.51 node-kind registry. The models now also carry their
+canvas look and Add Library data, so the hero after-render bundle went from
++183.0 to +187.1 KiB (renderer registry split +2.5, model look and library data
++1.6). The budget moved from +185 to +188 for that one source of truth instead of
+three per-kind tables. The style guide stays under 370 because the Properties
+panel loads only the inspector registry, not the React Flow node components.
 
 The Nodes activation grew because React Flow now loads with the node canvas
 instead of on every route. The style guide budget is 370 rather than the
@@ -128,7 +142,7 @@ dependency cannot leave the route.
 | Home | react-flow, pixi, three, renderer, node-canvas | After render: pixi, renderer. Exceptions: motion (home animations), `config.js` (step content is built with document factories) |
 | Docs, account recovery | react-flow, pixi, three, renderer, motion, node-canvas | — |
 | Projects | react-flow, pixi, three, motion, node-canvas | renderer: project thumbnails |
-| Editor, blank Layers | react-flow, pixi, three, node-canvas | motion, renderer; pixi once the document needs the WebGL pass |
+| Editor, blank Layers | react-flow, pixi, three, motion, node-canvas | renderer; pixi once the document needs the WebGL pass |
 | Nodes activation | — | react-flow, node-canvas |
 | Style guide | pixi, three | node-canvas, react-flow, renderer: live specimens |
 | First 3D activation | — | three |
@@ -137,13 +151,13 @@ CSS, gzip KiB, enforced since #240 (`enforcement.cssBudgets`):
 
 | State | v0.48.1 | Current | Budget |
 | --- | --- | --- | --- |
-| Home | 38.4 | 12.6 | 24 |
-| Docs | 38.4 | 14.6 | 24 |
-| Account recovery | 38.4 | 10.6 | 24 |
-| Projects | 41.1 | 17.0 | 26 |
-| Editor, blank Layers | 44.2 | 29.5 | 50 |
-| Nodes activation | +12.8 | +14.8 | +20 |
-| Style guide | 60.4 | 49.4 | 65 |
+| Home | 38.4 | 12.8 | 24 |
+| Docs | 38.4 | 14.7 | 24 |
+| Account recovery | 38.4 | 10.8 | 24 |
+| Projects | 41.1 | 18.1 | 26 |
+| Editor, blank Layers | 44.2 | 31.3 | 50 |
+| Nodes activation | +12.8 | +12.7 | +20 |
+| Style guide | 60.4 | 49.0 | 65 |
 | First 3D activation | +0 | +0 | +5 |
 
 ## CSS ownership

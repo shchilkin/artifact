@@ -117,7 +117,7 @@ function NodeCanvasSpecimen() {
         data-canvas-chrome-state="account-variants"
       >
         <span>Account</span>
-        <ToolbarButton disabled>Loading</ToolbarButton>
+        <ToolbarButton disabled>Loading…</ToolbarButton>
         <ToolbarButton>Sign in</ToolbarButton>
         <ToolbarButton>Sign out</ToolbarButton>
       </Toolbar>
@@ -185,7 +185,7 @@ function NodeCanvasSpecimen() {
         <span className="canvas-chrome-port canvas-chrome-port--in" aria-hidden="true" />
       </div>
       <div className="canvas-chrome-perf-reference">
-        <span data-canvas-chrome-state="preview-queue-status">Preparing previews · 2</span>
+        <span data-canvas-chrome-state="preview-queue-status">Preparing previews… · 2</span>
         <span data-canvas-chrome-state="performance-overlay">Perf · 60 FPS</span>
       </div>
       <EmptyState
@@ -234,7 +234,7 @@ function CanvasPreviewSpecimen() {
         </div>
       </div>
       <div className="canvas-chrome-state-stack" aria-label="Canvas preview recovery states">
-        <ReferenceState state="loading" label="Preparing preview" detail="Canvas stays in place." />
+        <ReferenceState state="loading" label="Preparing preview…" detail="Canvas stays in place." />
         <ReferenceState state="empty" label="Empty canvas" detail="Start with one clear action." />
         <ReferenceState state="locked-handles" label="Locked handles" detail="Warning grammar." />
         <ReferenceState state="hidden-handles" label="Hidden handles" detail="Reduced emphasis." />
@@ -272,7 +272,7 @@ function NodeGallerySpecimen() {
       </div>
       <div className="canvas-chrome-gallery-state-grid" aria-label="Gallery state references">
         <div className="canvas-chrome-gallery-state" data-canvas-chrome-state="loading">
-          <span>Loading</span>
+          <span>Loading…</span>
           <Skeleton shape="line" />
           <Skeleton shape="line" />
         </div>
@@ -335,7 +335,7 @@ function PrimitiveViewportSpecimen() {
         <ReferenceState state="webgl-unavailable" label="3D unavailable" detail="Keep source frame · retry" />
       </div>
       <div className="canvas-chrome-primitive__state-grid" aria-label="3D workspace state references">
-        <ReferenceState state="loading" label="Loading 3D" detail="Source frame stays stable" />
+        <ReferenceState state="loading" label="Loading 3D…" detail="Source frame stays stable" />
         <ReferenceState state="node-mode" label="Node frame" detail="Compact camera workspace" />
         <ReferenceState state="modal-mode" label="Modal frame" detail="Expanded camera workspace" />
         <ReferenceState state="scene-loading" label="Scene loading" detail="Model · material · environment" />

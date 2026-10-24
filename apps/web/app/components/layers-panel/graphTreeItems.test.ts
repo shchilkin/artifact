@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasDocument, GraphEdge } from '../../types/config';
-import {
-  makeFillLayer,
-  makeGraphMaskNode,
-  makeGraphMergeNode,
-  makeGraphRepeatNode,
-  makeTextLayer,
-} from '../../types/config';
+import { makeFillLayer, makeTextLayer } from '../../types/config';
 import { buildGraphLayerTree } from '../../utils/graphLayerTree';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById } from '../../utils/nodeGraph';
+import { makeGraphMaskNode, makeGraphMergeNode, makeGraphRepeatNode } from '../../utils/nodeKinds';
 import {
   defaultFolderCollapsed,
   graphTreeAncestorFolders,
@@ -40,10 +35,11 @@ const doc: CanvasDocument = {
       edge('merge', EXPORT_NODE_ID, 'in'),
     ],
     positions: {},
-    mergeNodes: [makeGraphMergeNode({ id: 'merge', name: 'Group' })],
-    colorNodes: [],
-    maskNodes: [makeGraphMaskNode({ id: 'mask' })],
-    repeatNodes: [makeGraphRepeatNode({ id: 'unused-repeat' })],
+    nodes: graphNodesById(
+      makeGraphMergeNode({ id: 'merge', name: 'Group' }),
+      makeGraphMaskNode({ id: 'mask' }),
+      makeGraphRepeatNode({ id: 'unused-repeat' }),
+    ),
   },
   export: { format: 'png', scale: 1, target: 'cover' },
 };

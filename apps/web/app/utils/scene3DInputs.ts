@@ -1,17 +1,11 @@
-import type {
-  CanvasDocument,
-  CanvasGraph,
-  GraphEnvironmentNode,
-  GraphScene3DNode,
-  Layer,
-  ModelLayer,
-  PrimitiveLayer,
-} from '../types/config';
+import type { CanvasDocument, CanvasGraph, Layer, ModelLayer, PrimitiveLayer } from '../types/config';
+import type { GraphEnvironmentNode, GraphScene3DNode } from '../utils/nodeKinds';
+import { graphNodesOfKind } from './nodeGraph';
 
 function getSceneModelInputLayerIds(graph: CanvasGraph | undefined): Set<string> {
   const ids = new Set<string>();
   if (!graph) return ids;
-  const sceneNodeIds = new Set((graph.scene3dNodes ?? []).map((node) => node.id));
+  const sceneNodeIds = new Set(graphNodesOfKind(graph, 'scene3d').map((node) => node.id));
   if (sceneNodeIds.size === 0) return ids;
   for (const edge of graph.edges) {
     if (edge.toPort === 'model' && sceneNodeIds.has(edge.toId)) ids.add(edge.fromId);
@@ -35,10 +29,12 @@ export function getSceneModelLayer(
 
 export function getSceneEnvironmentNode(graph: CanvasGraph | undefined, sceneId: string): GraphEnvironmentNode | null {
   const environmentId = graph?.edges.find((edge) => edge.toId === sceneId && edge.toPort === 'env')?.fromId;
-  return environmentId ? ((graph?.environmentNodes ?? []).find((node) => node.id === environmentId) ?? null) : null;
+  return environmentId
+    ? (graphNodesOfKind(graph, 'environment').find((node) => node.id === environmentId) ?? null)
+    : null;
 }
 
 export function getScene3DTarget(doc: CanvasDocument, id: string | null): GraphScene3DNode | null {
   if (!id) return null;
-  return (doc.graph?.scene3dNodes ?? []).find((node) => node.id === id) ?? null;
+  return graphNodesOfKind(doc.graph, 'scene3d').find((node) => node.id === id) ?? null;
 }

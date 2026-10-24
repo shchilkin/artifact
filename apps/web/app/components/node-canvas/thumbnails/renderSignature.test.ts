@@ -4,26 +4,13 @@ import {
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
-  makeGraphMaterialNode,
-  makeGraphShaderNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
 } from '../../../types/config';
 import { makeDefaultCodeShaderInstance } from '../../../utils/customShaderCode';
-import {
-  colorNodeRenderSig,
-  edgeRenderSig,
-  environmentNodeRenderSig,
-  grimeShadowNodeRenderSig,
-  layerRenderSig,
-  maskNodeRenderSig,
-  materialNodeRenderSig,
-  mergeNodeRenderSig,
-  repeatNodeRenderSig,
-  shaderNodeRenderSig,
-  transformNodeRenderSig,
-} from '../../../utils/renderSignature';
+import { makeGraphMaterialNode, makeGraphShaderNode } from '../../../utils/nodeKinds';
+import { edgeRenderSig, graphNodeRenderSig, layerRenderSig } from '../../../utils/renderSignature';
 
 describe('layerRenderSig', () => {
   it('ignores layer identity and editor-only metadata', () => {
@@ -124,21 +111,22 @@ describe('layerRenderSig', () => {
 
 describe('graph node render signatures', () => {
   it('ignores merge node identity and name', () => {
-    const base = { id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 };
+    const base = { kind: 'merge' as const, id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 };
     const renamed = { ...base, id: 'merge-2', name: 'Renamed merge' };
 
-    expect(mergeNodeRenderSig(renamed)).toBe(mergeNodeRenderSig(base));
+    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
   });
 
   it('changes when merge render fields change', () => {
-    const base = { id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 };
+    const base = { kind: 'merge' as const, id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 };
     const edited = { ...base, opacity: 50 };
 
-    expect(mergeNodeRenderSig(edited)).not.toBe(mergeNodeRenderSig(base));
+    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
   it('ignores color node identity and name', () => {
     const base = {
+      kind: 'color' as const,
       id: 'color-1',
       name: 'Color',
       contrast: 100,
@@ -148,11 +136,12 @@ describe('graph node render signatures', () => {
     };
     const renamed = { ...base, id: 'color-2', name: 'Renamed color' };
 
-    expect(colorNodeRenderSig(renamed)).toBe(colorNodeRenderSig(base));
+    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
   });
 
   it('changes when color render fields change', () => {
     const base = {
+      kind: 'color' as const,
       id: 'color-1',
       name: 'Color',
       contrast: 100,
@@ -162,11 +151,12 @@ describe('graph node render signatures', () => {
     };
     const edited = { ...base, hue: 45 };
 
-    expect(colorNodeRenderSig(edited)).not.toBe(colorNodeRenderSig(base));
+    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
   it('ignores repeat node identity and changes for repeat fields', () => {
     const base = {
+      kind: 'repeat' as const,
       id: 'repeat-1',
       name: 'Repeater',
       pattern: 'grid' as const,
@@ -184,8 +174,8 @@ describe('graph node render signatures', () => {
     const renamed = { ...base, id: 'repeat-2', name: 'Renamed repeat' };
     const edited = { ...base, rotationMode: 'step' as const, rotationStep: 22 };
 
-    expect(repeatNodeRenderSig(renamed)).toBe(repeatNodeRenderSig(base));
-    expect(repeatNodeRenderSig(edited)).not.toBe(repeatNodeRenderSig(base));
+    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
   it('ignores shader node identity and changes for procedural fields', () => {
@@ -253,16 +243,17 @@ describe('graph node render signatures', () => {
       },
     };
 
-    expect(shaderNodeRenderSig(renamed)).toBe(shaderNodeRenderSig(base));
-    expect(shaderNodeRenderSig(edited)).not.toBe(shaderNodeRenderSig(base));
-    expect(shaderNodeRenderSig(composited)).not.toBe(shaderNodeRenderSig(base));
-    expect(shaderNodeRenderSig(customEdited)).not.toBe(shaderNodeRenderSig(custom));
-    expect(shaderNodeRenderSig(promptEdited)).toBe(shaderNodeRenderSig(custom));
-    expect(shaderNodeRenderSig(codeEdited)).not.toBe(shaderNodeRenderSig(code));
+    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(composited)).not.toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(customEdited)).not.toBe(graphNodeRenderSig(custom));
+    expect(graphNodeRenderSig(promptEdited)).toBe(graphNodeRenderSig(custom));
+    expect(graphNodeRenderSig(codeEdited)).not.toBe(graphNodeRenderSig(code));
   });
 
   it('ignores mask node identity and changes for mask fields', () => {
     const base = {
+      kind: 'mask' as const,
       id: 'mask-1',
       name: 'Mask',
       mode: 'alpha' as const,
@@ -275,12 +266,13 @@ describe('graph node render signatures', () => {
     const renamed = { ...base, id: 'mask-2', name: 'Renamed mask' };
     const edited = { ...base, mode: 'threshold' as const, threshold: 65 };
 
-    expect(maskNodeRenderSig(renamed)).toBe(maskNodeRenderSig(base));
-    expect(maskNodeRenderSig(edited)).not.toBe(maskNodeRenderSig(base));
+    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
   it('ignores transform node identity and changes for transform fields', () => {
     const base = {
+      kind: 'transform' as const,
       id: 'transform-1',
       name: 'Transform',
       x: 0,
@@ -297,14 +289,15 @@ describe('graph node render signatures', () => {
     const scaleLockChanged = { ...base, uniformScale: false };
     const pivotChanged = { ...base, pivotMode: 'visible' as const };
 
-    expect(transformNodeRenderSig(renamed)).toBe(transformNodeRenderSig(base));
-    expect(transformNodeRenderSig(scaleLockChanged)).toBe(transformNodeRenderSig(base));
-    expect(transformNodeRenderSig(pivotChanged)).not.toBe(transformNodeRenderSig(base));
-    expect(transformNodeRenderSig(edited)).not.toBe(transformNodeRenderSig(base));
+    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(scaleLockChanged)).toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(pivotChanged)).not.toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
   it('ignores grime shadow node identity and changes for render fields', () => {
     const base = {
+      kind: 'grimeShadow' as const,
       id: 'shadow-1',
       name: 'Grime Shadow',
       x: 8,
@@ -322,12 +315,13 @@ describe('graph node render signatures', () => {
     const renamed = { ...base, id: 'shadow-2', name: 'Renamed shadow' };
     const edited = { ...base, grime: 80, shadowOnly: true };
 
-    expect(grimeShadowNodeRenderSig(renamed)).toBe(grimeShadowNodeRenderSig(base));
-    expect(grimeShadowNodeRenderSig(edited)).not.toBe(grimeShadowNodeRenderSig(base));
+    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
   it('ignores environment node identity and changes for render fields', () => {
     const base = {
+      kind: 'environment' as const,
       id: 'env-1',
       name: 'Environment Map',
       environmentSrc: 'artifact-env://env-a',
@@ -338,8 +332,8 @@ describe('graph node render signatures', () => {
     const renamed = { ...base, id: 'env-2', name: 'Renamed environment' };
     const edited = { ...base, environmentSrc: 'artifact-env://env-b', environmentBytes: 2048 };
 
-    expect(environmentNodeRenderSig(renamed)).toBe(environmentNodeRenderSig(base));
-    expect(environmentNodeRenderSig(edited)).not.toBe(environmentNodeRenderSig(base));
+    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
   it('changes material node signatures when PBR texture sources change', () => {
@@ -351,8 +345,8 @@ describe('graph node render signatures', () => {
     const renamed = { ...base, id: 'material-2', name: 'Renamed material' };
     const edited = { ...base, materialAlbedoSrc: 'artifact-asset://albedo-b' };
 
-    expect(materialNodeRenderSig(renamed)).toBe(materialNodeRenderSig(base));
-    expect(materialNodeRenderSig(edited)).not.toBe(materialNodeRenderSig(base));
+    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
+    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 });
 

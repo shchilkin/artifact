@@ -1,62 +1,25 @@
 import {
   ASPECT_SIZES,
   type AspectRatio,
-  type CanvasDocument,
   type CanvasGraph,
   type GraphArea,
-  type GraphColorNode,
   type GraphEdge,
-  type GraphEnvironmentNode,
-  type GraphGrimeShadowNode,
-  type GraphMaskNode,
-  type GraphMaterialNode,
-  type GraphMergeNode,
-  type GraphRepeatNode,
-  type GraphScene3DNode,
-  type GraphShaderNode,
-  type GraphTransformNode,
   type Layer,
 } from '../types/config';
+import { BASE_NODE_W, EXPORT_NODE_ID, estimateNodeWidth, linearStackEdges } from '../types/linearGraph';
+import type { GraphNode, GraphNodeKind, GraphNodeOfKind, GraphNodePatch } from './nodeKinds';
 
-export const EXPORT_NODE_ID = '__export__';
+export { EXPORT_NODE_ID, inferLinearGraph } from '../types/linearGraph';
+
 export const GRAPH_AREA_COLORS = ['#ff705f', '#d987ff', '#79e3c5', '#e0bd75', '#8d5cff'];
-const BASE_NODE_W = 320;
-const ARTWORK_NODE_W = 340;
 const COL_GAP = 168;
 const ROW_GAP = 72;
 const TOP_PAD = 80;
 const NODE_CHROME_H = 118;
 const NODE_PREVIEW_MAX = 280;
 
-export type GraphUtilityNodeKind =
-  | 'merge'
-  | 'color'
-  | 'repeat'
-  | 'material'
-  | 'mask'
-  | 'transform'
-  | 'grimeShadow'
-  | 'scene3d'
-  | 'environment'
-  | 'shader';
-
-// Listed in the renderer's dispatch order (`GRAPH_NODE_RENDERERS` in `render/graph.ts`), so a lookup by id
-// classifies a node the way the renderer does.
-const GRAPH_UTILITY_NODE_SELECTORS = [
-  { kind: 'merge', nodes: (graph: CanvasGraph) => graph.mergeNodes },
-  { kind: 'color', nodes: (graph: CanvasGraph) => graph.colorNodes ?? [] },
-  { kind: 'repeat', nodes: (graph: CanvasGraph) => graph.repeatNodes ?? [] },
-  { kind: 'material', nodes: (graph: CanvasGraph) => graph.materialNodes ?? [] },
-  { kind: 'mask', nodes: (graph: CanvasGraph) => graph.maskNodes ?? [] },
-  { kind: 'transform', nodes: (graph: CanvasGraph) => graph.transformNodes ?? [] },
-  { kind: 'grimeShadow', nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [] },
-  { kind: 'shader', nodes: (graph: CanvasGraph) => graph.shaderNodes ?? [] },
-  { kind: 'environment', nodes: (graph: CanvasGraph) => graph.environmentNodes ?? [] },
-  { kind: 'scene3d', nodes: (graph: CanvasGraph) => graph.scene3dNodes ?? [] },
-] satisfies Array<{
-  kind: GraphUtilityNodeKind;
-  nodes: (graph: CanvasGraph) => Array<{ id: string; name: string }>;
-}>;
+/** Kind of a graph-only node. */
+export type GraphUtilityNodeKind = GraphNodeKind;
 
 type GraphLayoutState = {
   outgoing: Map<string, string[]>;
@@ -64,71 +27,14 @@ type GraphLayoutState = {
   order: Map<string, number>;
 };
 
-function estimateNodeWidth(id: string, layers: Layer[]): number {
-  const layer = layers.find((item) => item.id === id);
-  if (!layer) return BASE_NODE_W;
-  return ['image', 'primitive', 'noise', 'array', 'lineField', 'model'].includes(layer.kind)
-    ? ARTWORK_NODE_W
-    : BASE_NODE_W;
-}
-
 function estimatePreviewHeight(aspect: AspectRatio): number {
   const [aspectWidth, aspectHeight] = ASPECT_SIZES[aspect] ?? ASPECT_SIZES['1:1'];
   return Math.round((aspectHeight / Math.max(aspectWidth, aspectHeight)) * NODE_PREVIEW_MAX);
 }
 
-function estimateNodeHeight(aspect: AspectRatio): number {
+export function estimateNodeHeight(aspect: AspectRatio): number {
   const previewHeight = estimatePreviewHeight(aspect);
   return previewHeight + NODE_CHROME_H;
-}
-
-export function inferLinearGraph(layers: Layer[]): CanvasGraph {
-  const positions: Record<string, { x: number; y: number }> = {};
-  const edges: GraphEdge[] = [];
-  let x = 0;
-
-  layers.forEach((layer) => {
-    positions[layer.id] = { x, y: 80 };
-    x += estimateNodeWidth(layer.id, layers) + COL_GAP;
-  });
-  positions[EXPORT_NODE_ID] = { x, y: 80 };
-
-  layers.forEach((layer, i) => {
-    const next = layers[i + 1];
-    if (next) {
-      edges.push({
-        id: `e-${layer.id}-${next.id}`,
-        fromId: layer.id,
-        fromPort: 'out',
-        toId: next.id,
-        toPort: next.kind === 'effect' ? 'in' : 'bg',
-      });
-    } else {
-      edges.push({
-        id: `e-${layer.id}-${EXPORT_NODE_ID}`,
-        fromId: layer.id,
-        fromPort: 'out',
-        toId: EXPORT_NODE_ID,
-        toPort: 'in',
-      });
-    }
-  });
-
-  return {
-    edges,
-    positions,
-    mergeNodes: [],
-    colorNodes: [],
-    repeatNodes: [],
-    materialNodes: [],
-    maskNodes: [],
-    transformNodes: [],
-    grimeShadowNodes: [],
-    scene3dNodes: [],
-    environmentNodes: [],
-    shaderNodes: [],
-    areas: [],
-  };
 }
 
 export function updateGraphPositions(
@@ -149,46 +55,6 @@ export function addGraphEdge(graph: CanvasGraph, edge: GraphEdge): CanvasGraph {
 
 export function removeGraphEdge(graph: CanvasGraph, edgeId: string): CanvasGraph {
   return { ...graph, edges: graph.edges.filter((e) => e.id !== edgeId) };
-}
-
-function defaultAppendEdgeId(fromId: string, toId: string, index: number): string {
-  return `e-${fromId}-${toId}-${index}`;
-}
-
-export function appendNodeToExportPath(
-  graph: CanvasGraph,
-  nodeId: string,
-  nodeInputPort: GraphEdge['toPort'],
-  createEdgeId: (fromId: string, toId: string, index: number) => string = defaultAppendEdgeId,
-): CanvasGraph {
-  const previousExportEdge = graph.edges.findLast((edge) => edge.toId === EXPORT_NODE_ID && edge.toPort === 'in');
-
-  if (!previousExportEdge) {
-    return addGraphEdge(graph, {
-      id: createEdgeId(nodeId, EXPORT_NODE_ID, 0),
-      fromId: nodeId,
-      fromPort: 'out',
-      toId: EXPORT_NODE_ID,
-      toPort: 'in',
-    });
-  }
-
-  let next = removeGraphEdge(graph, previousExportEdge.id);
-  next = addGraphEdge(next, {
-    id: createEdgeId(previousExportEdge.fromId, nodeId, 0),
-    fromId: previousExportEdge.fromId,
-    fromPort: previousExportEdge.fromPort,
-    toId: nodeId,
-    toPort: nodeInputPort,
-  });
-  next = addGraphEdge(next, {
-    id: createEdgeId(nodeId, EXPORT_NODE_ID, 1),
-    fromId: nodeId,
-    fromPort: 'out',
-    toId: EXPORT_NODE_ID,
-    toPort: 'in',
-  });
-  return next;
 }
 
 /** Ids for the two halves of a split edge: the edge into the inserted node, then the edge out of it. */
@@ -226,11 +92,6 @@ export function splitEdgeWithNode(
 
 // Order-preserving edge edits. The renderer reads the first edge on a port, so these keep every other
 // edge where it is and say which edges must win their port (`promoteGraphEdges`).
-
-/** The graph a document renders through: its own graph, or its layer stack wired straight to Output. */
-export function documentGraph(doc: Pick<CanvasDocument, 'graph' | 'layers'>): CanvasGraph {
-  return doc.graph ?? inferLinearGraph(doc.layers);
-}
 
 function uniqueEdgeId(edges: GraphEdge[], base: string) {
   const ids = new Set(edges.map((edge) => edge.id));
@@ -311,261 +172,66 @@ export function promoteGraphEdges(edges: GraphEdge[], edgeIds: Iterable<string>)
   return next;
 }
 
-export function addMergeNode(
-  graph: CanvasGraph,
-  node: GraphMergeNode,
-  position: { x: number; y: number },
-): CanvasGraph {
-  return {
-    ...graph,
-    mergeNodes: [...graph.mergeNodes, node],
-    positions: { ...graph.positions, [node.id]: position },
-  };
+/** A `CanvasGraph['nodes']` map from a list of nodes. */
+export function graphNodesById(...nodes: GraphNode[]): CanvasGraph['nodes'] {
+  return Object.fromEntries(nodes.map((node) => [node.id, node]));
 }
 
-export function removeMergeNode(graph: CanvasGraph, id: string): CanvasGraph {
-  return {
-    ...removeGraphNodeReferences(graph, id),
-    mergeNodes: graph.mergeNodes.filter((n) => n.id !== id),
-  };
+/** Every graph-only node of one kind, in document order. */
+export function graphNodesOfKind<K extends GraphNodeKind>(
+  graph: Pick<CanvasGraph, 'nodes'>,
+  kind: K,
+): GraphNodeOfKind<K>[] {
+  return Object.values(graph.nodes).filter((node): node is GraphNodeOfKind<K> => node.kind === kind);
 }
 
-export function addColorNode(
-  graph: CanvasGraph,
-  node: GraphColorNode,
-  position: { x: number; y: number },
-): CanvasGraph {
-  return {
-    ...graph,
-    colorNodes: [...(graph.colorNodes ?? []), node],
-    positions: { ...graph.positions, [node.id]: position },
-  };
+/** The graph-only node with this id, if any. */
+export function findGraphNode(graph: Pick<CanvasGraph, 'nodes'>, id: string): GraphNode | undefined {
+  return Object.hasOwn(graph.nodes, id) ? graph.nodes[id] : undefined;
 }
 
-export function removeColorNode(graph: CanvasGraph, id: string): CanvasGraph {
-  return {
-    ...removeGraphNodeReferences(graph, id),
-    colorNodes: (graph.colorNodes ?? []).filter((n) => n.id !== id),
-  };
-}
-
-export function updateColorNode(graph: CanvasGraph, id: string, patch: Partial<GraphColorNode>): CanvasGraph {
-  return {
-    ...graph,
-    colorNodes: (graph.colorNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
-  };
-}
-
-export function addRepeatNode(
-  graph: CanvasGraph,
-  node: GraphRepeatNode,
-  position: { x: number; y: number },
-): CanvasGraph {
-  return {
-    ...graph,
-    repeatNodes: [...(graph.repeatNodes ?? []), node],
-    positions: { ...graph.positions, [node.id]: position },
-  };
-}
-
-export function removeRepeatNode(graph: CanvasGraph, id: string): CanvasGraph {
-  return {
-    ...removeGraphNodeReferences(graph, id),
-    repeatNodes: (graph.repeatNodes ?? []).filter((n) => n.id !== id),
-  };
-}
-
-export function updateRepeatNode(graph: CanvasGraph, id: string, patch: Partial<GraphRepeatNode>): CanvasGraph {
-  return {
-    ...graph,
-    repeatNodes: (graph.repeatNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
-  };
-}
-
-export function addMaterialNode(
-  graph: CanvasGraph,
-  node: GraphMaterialNode,
-  position: { x: number; y: number },
-): CanvasGraph {
-  return {
-    ...graph,
-    materialNodes: [...(graph.materialNodes ?? []), node],
-    positions: { ...graph.positions, [node.id]: position },
-  };
-}
-
-export function removeMaterialNode(graph: CanvasGraph, id: string): CanvasGraph {
-  return {
-    ...removeGraphNodeReferences(graph, id),
-    materialNodes: (graph.materialNodes ?? []).filter((n) => n.id !== id),
-  };
-}
-
-export function updateMaterialNode(graph: CanvasGraph, id: string, patch: Partial<GraphMaterialNode>): CanvasGraph {
-  return {
-    ...graph,
-    materialNodes: (graph.materialNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
-  };
-}
-
-export function addMaskNode(graph: CanvasGraph, node: GraphMaskNode, position: { x: number; y: number }): CanvasGraph {
-  return {
-    ...graph,
-    maskNodes: [...(graph.maskNodes ?? []), node],
-    positions: { ...graph.positions, [node.id]: position },
-  };
-}
-
-export function removeMaskNode(graph: CanvasGraph, id: string): CanvasGraph {
-  return {
-    ...removeGraphNodeReferences(graph, id),
-    maskNodes: (graph.maskNodes ?? []).filter((n) => n.id !== id),
-  };
-}
-
-export function updateMaskNode(graph: CanvasGraph, id: string, patch: Partial<GraphMaskNode>): CanvasGraph {
-  return {
-    ...graph,
-    maskNodes: (graph.maskNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
-  };
-}
-
-export function addTransformNode(
-  graph: CanvasGraph,
-  node: GraphTransformNode,
-  position: { x: number; y: number },
-): CanvasGraph {
-  return {
-    ...graph,
-    transformNodes: [...(graph.transformNodes ?? []), node],
-    positions: { ...graph.positions, [node.id]: position },
-  };
-}
-
-export function removeTransformNode(graph: CanvasGraph, id: string): CanvasGraph {
-  return {
-    ...removeGraphNodeReferences(graph, id),
-    transformNodes: (graph.transformNodes ?? []).filter((n) => n.id !== id),
-  };
-}
-
-export function updateTransformNode(graph: CanvasGraph, id: string, patch: Partial<GraphTransformNode>): CanvasGraph {
-  return {
-    ...graph,
-    transformNodes: (graph.transformNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
-  };
-}
-
-export function addGrimeShadowNode(
-  graph: CanvasGraph,
-  node: GraphGrimeShadowNode,
-  position: { x: number; y: number },
-): CanvasGraph {
-  return {
-    ...graph,
-    grimeShadowNodes: [...(graph.grimeShadowNodes ?? []), node],
-    positions: { ...graph.positions, [node.id]: position },
-  };
-}
-
-export function removeGrimeShadowNode(graph: CanvasGraph, id: string): CanvasGraph {
-  return {
-    ...removeGraphNodeReferences(graph, id),
-    grimeShadowNodes: (graph.grimeShadowNodes ?? []).filter((n) => n.id !== id),
-  };
-}
-
-export function updateGrimeShadowNode(
-  graph: CanvasGraph,
+/** The graph-only node with this id when it has the given kind. */
+export function findGraphNodeOfKind<K extends GraphNodeKind>(
+  graph: Pick<CanvasGraph, 'nodes'>,
+  kind: K,
   id: string,
-  patch: Partial<GraphGrimeShadowNode>,
-): CanvasGraph {
-  return {
-    ...graph,
-    grimeShadowNodes: (graph.grimeShadowNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
-  };
+): GraphNodeOfKind<K> | undefined {
+  const node = findGraphNode(graph, id);
+  return node?.kind === kind ? (node as GraphNodeOfKind<K>) : undefined;
 }
 
-export function addScene3DNode(
+/** Map every graph-only node; returns the same graph when no node changed. */
+export async function mapGraphNodesAsync(
   graph: CanvasGraph,
-  node: GraphScene3DNode,
-  position: { x: number; y: number },
-): CanvasGraph {
+  map: (node: GraphNode) => Promise<GraphNode>,
+): Promise<CanvasGraph> {
+  const entries = await Promise.all(
+    Object.entries(graph.nodes).map(async ([id, node]) => [id, await map(node)] as const),
+  );
+  const changed = entries.some(([id, node]) => node !== graph.nodes[id]);
+  return changed ? { ...graph, nodes: Object.fromEntries(entries) } : graph;
+}
+
+export function addGraphNode(graph: CanvasGraph, node: GraphNode, position: { x: number; y: number }): CanvasGraph {
   return {
     ...graph,
-    scene3dNodes: [...(graph.scene3dNodes ?? []), node],
+    nodes: { ...graph.nodes, [node.id]: node },
     positions: { ...graph.positions, [node.id]: position },
   };
 }
 
-export function removeScene3DNode(graph: CanvasGraph, id: string): CanvasGraph {
-  return {
-    ...removeGraphNodeReferences(graph, id),
-    scene3dNodes: (graph.scene3dNodes ?? []).filter((n) => n.id !== id),
-  };
+/** Remove a graph-only node with its edges, position, and area membership. */
+export function removeGraphNode(graph: CanvasGraph, id: string): CanvasGraph {
+  const nodes = { ...graph.nodes };
+  delete nodes[id];
+  return { ...removeGraphNodeReferences(graph, id), nodes };
 }
 
-export function updateScene3DNode(graph: CanvasGraph, id: string, patch: Partial<GraphScene3DNode>): CanvasGraph {
-  return {
-    ...graph,
-    scene3dNodes: (graph.scene3dNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
-  };
-}
-
-export function addEnvironmentNode(
-  graph: CanvasGraph,
-  node: GraphEnvironmentNode,
-  position: { x: number; y: number },
-): CanvasGraph {
-  return {
-    ...graph,
-    environmentNodes: [...(graph.environmentNodes ?? []), node],
-    positions: { ...graph.positions, [node.id]: position },
-  };
-}
-
-export function removeEnvironmentNode(graph: CanvasGraph, id: string): CanvasGraph {
-  return {
-    ...removeGraphNodeReferences(graph, id),
-    environmentNodes: (graph.environmentNodes ?? []).filter((n) => n.id !== id),
-  };
-}
-
-export function updateEnvironmentNode(
-  graph: CanvasGraph,
-  id: string,
-  patch: Partial<GraphEnvironmentNode>,
-): CanvasGraph {
-  return {
-    ...graph,
-    environmentNodes: (graph.environmentNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
-  };
-}
-
-export function addShaderNode(
-  graph: CanvasGraph,
-  node: GraphShaderNode,
-  position: { x: number; y: number },
-): CanvasGraph {
-  return {
-    ...graph,
-    shaderNodes: [...(graph.shaderNodes ?? []), node],
-    positions: { ...graph.positions, [node.id]: position },
-  };
-}
-
-export function removeShaderNode(graph: CanvasGraph, id: string): CanvasGraph {
-  return {
-    ...removeGraphNodeReferences(graph, id),
-    shaderNodes: (graph.shaderNodes ?? []).filter((n) => n.id !== id),
-  };
-}
-
-export function updateShaderNode(graph: CanvasGraph, id: string, patch: Partial<GraphShaderNode>): CanvasGraph {
-  return {
-    ...graph,
-    shaderNodes: (graph.shaderNodes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
-  };
+/** Patch a graph-only node; the patch cannot change its id or kind. */
+export function updateGraphNode(graph: CanvasGraph, id: string, patch: GraphNodePatch): CanvasGraph {
+  const node = findGraphNode(graph, id);
+  if (!node) return graph;
+  return { ...graph, nodes: { ...graph.nodes, [id]: { ...node, ...patch, id, kind: node.kind } as GraphNode } };
 }
 
 function uniqueNodeIds(ids: string[]): string[] {
@@ -694,18 +360,9 @@ function upstreamNodeForEdge(edge: GraphEdge, id: string): string | null {
   return edge.toId === id ? edge.fromId : null;
 }
 
-function downstreamNodeForEdge(edge: GraphEdge, id: string): string | null {
-  return edge.fromId === id ? edge.toId : null;
-}
-
 /** BFS backwards from nodeId, return every node id (layer/merge/color) that feeds into it, including itself. */
 export function collectUpstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
   return collectConnectedNodeIds(nodeId, graph, upstreamNodeForEdge);
-}
-
-/** BFS forwards from nodeId, return every node id affected by it, including itself. */
-export function collectDownstreamNodeIds(nodeId: string, graph: CanvasGraph): Set<string> {
-  return collectConnectedNodeIds(nodeId, graph, downstreamNodeForEdge);
 }
 
 export function resolveOutputPath(graph: CanvasGraph, targetId: string = EXPORT_NODE_ID) {
@@ -714,26 +371,6 @@ export function resolveOutputPath(graph: CanvasGraph, targetId: string = EXPORT_
     graph.edges.filter((edge) => nodeIds.has(edge.fromId) && nodeIds.has(edge.toId)).map((edge) => edge.id),
   );
   return { nodeIds, edgeIds };
-}
-
-/** Resolve only the layers that feed into nodeId, in graph render order. */
-export function resolveUpstreamRenderLayers(nodeId: string, graph: CanvasGraph, layers: Layer[]): Layer[] {
-  const layerById = new Map(layers.map((layer) => [layer.id, layer]));
-  const visited = new Set<string>();
-  const result: Layer[] = [];
-
-  function visit(currentNodeId: string) {
-    if (visited.has(currentNodeId)) return;
-    visited.add(currentNodeId);
-    for (const edge of graph.edges) {
-      if (edge.toId === currentNodeId) visit(edge.fromId);
-    }
-    const layer = layerById.get(currentNodeId);
-    if (layer) result.push(layer);
-  }
-
-  visit(nodeId);
-  return result;
 }
 
 /** Add a new layer's position to the graph without connecting edges. */
@@ -764,40 +401,25 @@ export function nextDropPosition(graph: CanvasGraph): { x: number; y: number } {
 }
 
 export function listGraphNodeIds(graph: CanvasGraph, layers: Layer[]): string[] {
-  return [
-    ...layers.map((layer) => layer.id),
-    ...graph.mergeNodes.map((node) => node.id),
-    ...(graph.colorNodes ?? []).map((node) => node.id),
-    ...(graph.repeatNodes ?? []).map((node) => node.id),
-    ...(graph.materialNodes ?? []).map((node) => node.id),
-    ...(graph.maskNodes ?? []).map((node) => node.id),
-    ...(graph.transformNodes ?? []).map((node) => node.id),
-    ...(graph.grimeShadowNodes ?? []).map((node) => node.id),
-    ...(graph.scene3dNodes ?? []).map((node) => node.id),
-    ...(graph.environmentNodes ?? []).map((node) => node.id),
-    ...(graph.shaderNodes ?? []).map((node) => node.id),
-    EXPORT_NODE_ID,
-  ];
+  return [...layers.map((layer) => layer.id), ...Object.keys(graph.nodes), EXPORT_NODE_ID];
 }
 
-export function graphUtilityNodeCollections(graph: CanvasGraph) {
-  return GRAPH_UTILITY_NODE_SELECTORS.map((selector) => selector.nodes(graph));
+/** True when the graph has any graph-only node. */
+export function hasGraphNodes(graph: CanvasGraph): boolean {
+  return Object.keys(graph.nodes).length > 0;
 }
 
-/** The graph-only node with this id and its kind, classified in the renderer's dispatch order. */
+/** The graph-only node with this id and its kind. */
 export function findGraphUtilityNode(
   graph: CanvasGraph,
   nodeId: string,
-): { kind: GraphUtilityNodeKind; node: { id: string; name: string } } | null {
-  for (const selector of GRAPH_UTILITY_NODE_SELECTORS) {
-    const node = selector.nodes(graph).find((item) => item.id === nodeId);
-    if (node) return { kind: selector.kind, node };
-  }
-  return null;
+): { kind: GraphNodeKind; node: GraphNode } | null {
+  const node = findGraphNode(graph, nodeId);
+  return node ? { kind: node.kind, node } : null;
 }
 
-export function graphUtilityNodeKind(graph: CanvasGraph, nodeId: string): GraphUtilityNodeKind | null {
-  return findGraphUtilityNode(graph, nodeId)?.kind ?? null;
+export function graphUtilityNodeKind(graph: CanvasGraph, nodeId: string): GraphNodeKind | null {
+  return findGraphNode(graph, nodeId)?.kind ?? null;
 }
 
 function createEmptyGraphLayoutState(nodeIds: string[]): GraphLayoutState {
@@ -1038,40 +660,6 @@ export function connectedPortIds(graph: CanvasGraph): {
   return { sources, targets };
 }
 
-/**
- * Resolve the layer render order from the graph topology.
- * Does a DFS post-order traversal backwards from EXPORT_NODE_ID,
- * following edges in reverse (predecessor-first), returning only Layer nodes.
- * Merge nodes are traversed but not included in the output (they're not layers).
- * Falls back to original doc.layers order for any unconnected layers appended last.
- */
-export function resolveRenderOrder(graph: CanvasGraph, layers: Layer[]): Layer[] {
-  const layerById = new Map(layers.map((l) => [l.id, l]));
-  const visited = new Set<string>();
-  const result: Layer[] = [];
-
-  function visit(nodeId: string) {
-    if (visited.has(nodeId)) return;
-    visited.add(nodeId);
-    // Follow edges backwards: find all nodes that feed INTO nodeId
-    for (const edge of graph.edges) {
-      if (edge.toId === nodeId) visit(edge.fromId);
-    }
-    // Post-order: add after all predecessors
-    const layer = layerById.get(nodeId);
-    if (layer) result.push(layer);
-  }
-
-  visit(EXPORT_NODE_ID);
-
-  // Append any orphan layers (not connected to the export path) at the end
-  for (const layer of layers) {
-    if (!visited.has(layer.id)) result.push(layer);
-  }
-
-  return result;
-}
-
 /** Returns true if adding an edge source→target would create a cycle. */
 export function wouldCreateCycle(graph: CanvasGraph, sourceId: string, targetId: string): boolean {
   // DFS from targetId following outgoing edges — if we reach sourceId, cycle detected
@@ -1087,4 +675,21 @@ export function wouldCreateCycle(graph: CanvasGraph, sourceId: string, targetId:
     }
   }
   return false;
+}
+
+function stackEdgeKey(edge: Pick<GraphEdge, 'fromId' | 'fromPort' | 'toId' | 'toPort'>) {
+  return `${edge.fromId}:${edge.fromPort}->${edge.toId}:${edge.toPort}`;
+}
+
+/**
+ * True when the graph is exactly the layer stack wired to export, so Layers
+ * actions can rebuild it without losing any user-authored topology.
+ */
+export function isLayerStackGraph(doc: { graph: CanvasGraph; layers: Layer[] }): boolean {
+  const { graph } = doc;
+  if (hasGraphNodes(graph)) return false;
+  const expected = linearStackEdges(doc.layers);
+  if (graph.edges.length !== expected.length) return false;
+  const actual = new Set(graph.edges.map(stackEdgeKey));
+  return expected.every((edge) => actual.has(stackEdgeKey(edge)));
 }

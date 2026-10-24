@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   type CanvasDocument,
+  makeDocument,
   makeFillLayer,
-  makeGraphEnvironmentNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
@@ -22,7 +22,8 @@ import {
   serializeArtifactProjectPackage,
 } from './documentPackage';
 import { fontUriFromId } from './fontStore';
-import { EXPORT_NODE_ID } from './nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind } from './nodeGraph';
+import { makeGraphEnvironmentNode } from './nodeKinds';
 
 describe('documentPackage', () => {
   const imageRef = 'artifact-asset://image-a';
@@ -72,12 +73,12 @@ describe('documentPackage', () => {
   };
 
   function doc(partial: Partial<CanvasDocument> = {}): CanvasDocument {
-    return {
+    return makeDocument({
       global: { bg: 'transparent', seed: 1234, aspect: '1:1' },
       layers: [],
       export: { format: 'png', scale: 1, target: 'cover' },
       ...partial,
-    };
+    });
   }
 
   it('builds a package manifest that keeps raster export pixel-only and text editable', () => {
@@ -91,8 +92,7 @@ describe('documentPackage', () => {
       graph: {
         edges: [{ id: 'e-title-export', fromId: 'title', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
         positions: {},
-        mergeNodes: [],
-        colorNodes: [],
+        nodes: graphNodesById(),
       },
     });
     const packageDoc = doc({
@@ -245,15 +245,13 @@ describe('documentPackage', () => {
         graph: {
           edges: [],
           positions: {},
-          mergeNodes: [],
-          colorNodes: [],
-          environmentNodes: [
+          nodes: graphNodesById(
             makeGraphEnvironmentNode({
               id: 'environment-node',
               environmentSrc: environmentRef,
               environmentName: 'Qwantani Dusk.exr',
             }),
-          ],
+          ),
         },
       }),
       { loadModelAsset, loadEnvironmentAsset },
@@ -319,7 +317,7 @@ describe('documentPackage', () => {
       modelMime: 'model/gltf-binary',
       modelBytes: 2_008_530,
     });
-    expect(imported.graph?.environmentNodes?.[0]).toMatchObject({
+    expect(graphNodesOfKind(imported.graph, 'environment')?.[0]).toMatchObject({
       environmentSrc: environmentRef,
       environmentName: 'Qwantani Dusk.exr',
       environmentMime: 'image/x-exr',
@@ -342,16 +340,14 @@ describe('documentPackage', () => {
       graph: {
         edges: [],
         positions: {},
-        mergeNodes: [],
-        colorNodes: [],
-        environmentNodes: [
+        nodes: graphNodesById(
           makeGraphEnvironmentNode({
             environmentSrc: environmentRef,
             environmentName: '',
             environmentMime: '',
             environmentBytes: 0,
           }),
-        ],
+        ),
       },
     });
 
@@ -379,11 +375,9 @@ describe('documentPackage', () => {
           graph: {
             edges: [],
             positions: {},
-            mergeNodes: [],
-            colorNodes: [],
-            environmentNodes: [
+            nodes: graphNodesById(
               makeGraphEnvironmentNode({ environmentSrc: environmentRef, environmentName: 'Qwantani Dusk.exr' }),
-            ],
+            ),
           },
         }),
       }),
@@ -392,7 +386,7 @@ describe('documentPackage', () => {
     const imported = await importArtifactProjectPackage(legacyPackage!);
 
     expect(imported.layers[0]).toMatchObject({ kind: 'model', modelSrc: modelRef });
-    expect(imported.graph?.environmentNodes?.[0]).toMatchObject({ environmentSrc: environmentRef });
+    expect(graphNodesOfKind(imported.graph, 'environment')?.[0]).toMatchObject({ environmentSrc: environmentRef });
     expect(inspectDocumentDependencies(imported)).toMatchObject({
       importedModelRefs: [modelRef],
       importedEnvironmentRefs: [environmentRef],

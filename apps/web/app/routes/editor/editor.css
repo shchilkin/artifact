@@ -314,6 +314,39 @@
   border-color: oklch(66% 0.16 28 / 0.5);
 }
 
+/* ─── CANVAS ERROR STATE ─────────────────────────── */
+
+.canvas-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--line-default);
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-sm);
+  text-align: center;
+}
+
+.canvas-error-state__message {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--type-ui-md);
+}
+
+.canvas-error-state__detail {
+  margin: 0;
+}
+
+.canvas-error-state__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
 /* ─── MAIN AREA ──────────────────────────────────── */
 
 .main {
@@ -851,18 +884,6 @@
   border-color: color-mix(in oklch, var(--line-strong) 56%, transparent);
   background: color-mix(in oklch, var(--surface-control-hover) 62%, var(--surface-panel));
   color: var(--text-primary);
-}
-
-.bottom-command-badge {
-  min-width: 12px;
-  padding: 1px 3px;
-  border: 1px solid color-mix(in oklch, var(--line-strong) 48%, transparent);
-  border-radius: var(--control-radius);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: var(--type-editor-meta);
-  font-weight: var(--weight-strong);
-  line-height: 1;
 }
 
 @media (max-width: 767px) {

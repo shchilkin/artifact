@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { samplePixel } from '../test-fixtures/render/fixtures';
-import { type CanvasDocument, makeEffectPresetLayer, makeFillLayer } from '../types/config';
+import { type CanvasDocument, makeDocument, makeEffectPresetLayer, makeFillLayer } from '../types/config';
 import { renderCoverExportCanvas } from './exportCanvas';
 
 describe('renderCoverExportCanvas', () => {
   it('exports larger scales as pixel-identical upscales of the preview/base render', async () => {
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: 'transparent', seed: 42, aspect: '1:1' },
       layers: [
         makeFillLayer({ color: '#ff5a36', opacity: 100 }),
@@ -17,7 +17,7 @@ describe('renderCoverExportCanvas', () => {
         }),
       ],
       export: { format: 'png', scale: 2, target: 'cover' },
-    };
+    });
 
     const base = await renderCoverExportCanvas(doc, new Map(), 1);
     const scaled = await renderCoverExportCanvas(doc, new Map(), 2);

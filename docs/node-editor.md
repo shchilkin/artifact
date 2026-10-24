@@ -16,9 +16,9 @@ The node editor should not become a second document model.
 | State machine | `apps/web/app/components/node-canvas/machine.ts` |
 | Context | `apps/web/app/components/node-canvas/context.ts` |
 | Node construction | `apps/web/app/components/node-canvas/buildRFNodes.ts` |
-| Node components | `apps/web/app/components/node-canvas/nodes/NodeTypes.tsx`, `NodeShell.tsx` |
+| Node components | Layer, Output, and fallback nodes: `nodes/NodeTypes.tsx`, `NodeShell.tsx`. Graph-only node kinds: `nodeKinds/<kind>.tsx`, registered in `GRAPH_NODE_UIS` (`nodeKinds/index.ts`) |
 | Node previews | `apps/web/app/components/node-canvas/thumbnails/*` |
-| Inspectors | `apps/web/app/components/node-canvas/inspector/*`, `panel/NodePropertiesPanel.tsx` |
+| Inspectors | `apps/web/app/components/node-canvas/inspector/*`, `panel/NodePropertiesPanel.tsx`. Graph-only kinds are wired in `GRAPH_NODE_INSPECTORS` (`nodeKinds/inspectors.tsx`), kept apart from `GRAPH_NODE_UIS` so the Properties panel does not load the React Flow node components |
 | AI shader lifecycle | `inspector/useAiShaderGeneration.ts`, `inspector/aiShaderGenerationController.ts`, `inspector/shaderGenerationMachine.ts` |
 | Menus | `apps/web/app/components/node-canvas/menus/*` |
 | Graph helpers | `apps/web/app/utils/nodeGraph.ts` |
@@ -277,9 +277,11 @@ nodes in between are not visually claimed by the area.
 | Drop a handle connection on empty canvas | Open add menu; selected node is connected to the dragged handle |
 | Toolbar Add Node | Open add menu; created node appears at the menu/button anchor in graph space |
 | Drag Add Library item onto edge | Highlight the edge and split it with the dropped node |
-| Enter Nodes | First entry for a document: fit the whole graph once React Flow has measured the nodes. Later entries restore the viewport the user left (editor UI state, not saved with the document). A graph with only the Output node is not fitted |
+| Enter Nodes | Before the first paint, nodes with no stored position get the auto layout: the whole graph when no node has one, otherwise only the unpositioned nodes, placed below the stored ones. Once React Flow has measured the cards, they are kept in render order and a card that intersects a kept card moves; moved cards keep their auto-layout arrangement and are placed below the kept cards. A card that overlaps nothing never moves. Card heights are reserved before thumbnails load, so this check runs once, on measure. Each step is one `silent` update with no undo entry (see [`state-model.md`](./state-model.md), "Undo rules"). The graph viewport stays hidden until placement and the one entry fit finish (`NodeEntryViewport`). First entry for a document, or an entry that moved nodes: fit the whole graph. Other entries restore the viewport the user left (editor UI state, not saved with the document). A graph with only the Output node is not fitted. Area frames follow their member nodes and can still overlap each other after placement; they sit behind the cards |
+| Edit in Nodes (Layers tree) | Enter Nodes with the node selected, and center the viewport on it instead of fitting or restoring the viewport. The request belongs to the document it was made in: the view switch or a document change clears it, and a node missing from the graph falls back to the normal entry fit |
 | Toolbar Path | Fit the viewport to the graph nodes that feed the output |
 | Toolbar Output | Center the viewport on the output node |
+| Toolbar Metrics | Shown only with `?debug` (any value) or `?perf=1`, in a Debug group; toggles the performance overlay. The account button has its own group. Toolbar groups are `role="group"` with an accessible name |
 | Right-click graph | Open pane add menu |
 | Right-click node shell | Open node context menu |
 | `M` with layer nodes selected | Mute/unmute selected layer nodes by toggling visibility |

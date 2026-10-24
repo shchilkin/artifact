@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CanvasDocument } from '../types/config';
-import { makeFillLayer, makeTextLayer } from '../types/config';
+import { makeDocument, makeFillLayer, makeTextLayer } from '../types/config';
 import { canReorderDocumentLayers, getLayerGuardrailState, getNodeGuardrailState } from './editorGuardrails';
 
 describe('editor guardrails', () => {
@@ -26,16 +25,16 @@ describe('editor guardrails', () => {
       canReorder: false,
       canEditControls: true,
       canToggleVisibility: true,
-      reason: 'Locked layer targets are protected from delete actions and layer-stack reorder.',
+      reason: "Locked layers can't be moved or deleted.",
     });
   });
 
   it('applies locked layer guardrails to layer-backed nodes', () => {
-    const doc = {
+    const doc = makeDocument({
       global: { bg: '#000000', seed: 1, aspect: '1:1' },
       layers: [makeFillLayer({ id: 'locked-fill', locked: true })],
       export: { format: 'png', scale: 1, target: 'cover' },
-    } satisfies CanvasDocument;
+    });
 
     expect(getNodeGuardrailState(doc, 'locked-fill')).toMatchObject({
       locked: true,
@@ -47,11 +46,11 @@ describe('editor guardrails', () => {
   });
 
   it('keeps graph-only node locking deferred in v0.28', () => {
-    const doc = {
+    const doc = makeDocument({
       global: { bg: '#000000', seed: 1, aspect: '1:1' },
       layers: [],
       export: { format: 'png', scale: 1, target: 'cover' },
-    } satisfies CanvasDocument;
+    });
 
     expect(getNodeGuardrailState(doc, 'merge-a')).toMatchObject({
       locked: false,

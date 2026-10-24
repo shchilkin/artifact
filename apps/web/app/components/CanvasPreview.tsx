@@ -6,7 +6,6 @@ import { getPreviewDims } from '../types/config';
 import { CanvasHandles } from './CanvasHandles';
 import { type CanvasPreviewRenderState, resolveCanvasPreviewState } from './canvasPreviewState';
 import type { PrimitiveViewportState } from './PrimitiveViewportState';
-import { EmptyState } from './ui/EmptyState';
 import { PreviewProgress } from './ui/PreviewProgress';
 
 import './canvas-preview.css';
@@ -30,7 +29,6 @@ interface Props {
   dropPreview?: 'document' | 'file' | 'image' | null;
   onLayerUpdate: (id: string, patch: Partial<TextLayer | ImageLayer>) => void;
   onSelectLayer: (id: string | null) => void;
-  onStartEmptyCanvas?: () => void;
 }
 
 export function CanvasPreview({
@@ -41,13 +39,11 @@ export function CanvasPreview({
   dropPreview,
   onLayerUpdate,
   onSelectLayer,
-  onStartEmptyCanvas,
 }: Props) {
   const [pw, ph] = getPreviewDims(doc.global.aspect ?? '1:1');
   const viewStateCacheKey = useMemo(() => primitiveViewStatesSignature(primitiveViewStates), [primitiveViewStates]);
   const { frameRef, previewSize } = useContainedPreviewSize(pw, ph);
   const { containerRef, renderState, retryRender } = useDocumentRenderer(doc, imageCache, pw, ph, {
-    graphMode: doc.graph ? 'graph' : 'stack',
     primitiveViewStates,
     cacheKey: `layer-preview:${viewStateCacheKey}`,
     renderScale: PREVIEW_RENDER_SCALE,
@@ -108,29 +104,9 @@ export function CanvasPreview({
           onLayerUpdate={onLayerUpdate}
         />
         <CanvasPreviewDropOverlay dropPreview={dropPreview} />
-        {previewState === 'empty' && <CanvasPreviewEmptyState onStart={onStartEmptyCanvas} />}
         <CanvasPreviewRenderStatus renderState={renderState} onRetry={retryRender} />
       </div>
     </div>
-  );
-}
-
-export function CanvasPreviewEmptyState({ onStart }: { onStart?: () => void }) {
-  return (
-    <EmptyState
-      className="canvas-preview-empty-state"
-      data-canvas-preview-status="empty"
-      eyebrow="Empty canvas"
-      title="Start with a text layer"
-      body="Add the first element, then shape the composition from the Layers panel."
-      actions={
-        onStart ? (
-          <Button variant="primary" onClick={onStart}>
-            Add text
-          </Button>
-        ) : undefined
-      }
-    />
   );
 }
 
@@ -163,8 +139,8 @@ export function CanvasPreviewRenderStatus({
   if (renderState.isRendering && !renderState.hasFrame) {
     return (
       <div className="canvas-preview-status canvas-preview-status--loading" data-canvas-preview-status="loading">
-        <span>Preparing preview</span>
-        <ProgressIndicator label="Preparing canvas preview" />
+        <span>Preparing preview…</span>
+        <ProgressIndicator label="Preparing canvas preview…" />
       </div>
     );
   }

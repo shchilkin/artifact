@@ -8,6 +8,8 @@ import type {
 import { useCallback, useEffect, useRef } from 'react';
 import type { CanvasGraph, GraphEdge } from '../../../types/config';
 import type { AddAction } from '../../../utils/addActions';
+import type { GraphEditKind } from '../../../utils/documentDispatch';
+import { isEditableKeyTarget } from '../../../utils/editableKeyTarget';
 import { EXPORT_NODE_ID, graphUtilityNodeKind, removeGraphEdge } from '../../../utils/nodeGraph';
 import type { NodeCanvasMachineEvent } from '../machine';
 import type { ContextMenuState, InsertConnectionConfig } from '../types';
@@ -25,7 +27,7 @@ export interface UseNodeContextMenusOptions {
   graphRef: React.RefObject<CanvasGraph>;
   onDeleteNodes: (ids: string[]) => void;
   canDeleteNode?: (id: string) => boolean;
-  onGraphChange: (graph: CanvasGraph) => void;
+  onGraphEdit: (graph: CanvasGraph, edit: GraphEditKind) => void;
   onAddLayerAt: (action: AddAction, pos: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
 }
 
@@ -38,13 +40,6 @@ export interface UseNodeContextMenusResult {
   onConnectStart: (event: MouseEvent | TouchEvent, params: OnConnectStartParams) => void;
   onConnectEnd: (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => void;
   handleAddFromMenu: (action: AddAction, flowPos: { x: number; y: number }, insertion?: InsertConnectionConfig) => void;
-}
-
-const EDITABLE_KEYBOARD_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
-
-function isEditableKeyboardTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  return EDITABLE_KEYBOARD_TAGS.has(target.tagName) || target.isContentEditable;
 }
 
 function getDeletableNodeIds(ids: string[], canDeleteNode: ((id: string) => boolean) | undefined) {
@@ -95,11 +90,11 @@ function insertionFromConnection(
 function deleteSelectedEdge(
   edgeId: string | null,
   graph: CanvasGraph,
-  onGraphChange: (graph: CanvasGraph) => void,
+  onGraphEdit: (graph: CanvasGraph, edit: GraphEditKind) => void,
   send: (event: NodeCanvasMachineEvent) => void,
 ) {
   if (!edgeId) return false;
-  onGraphChange(removeGraphEdge(graph, edgeId));
+  onGraphEdit(removeGraphEdge(graph, edgeId), 'disconnect');
   send({ type: 'EDGE_IDS_REMOVED', ids: [edgeId] });
   return true;
 }
@@ -121,7 +116,7 @@ function deleteSelectedCanvasItems({
   selectedEdgeId,
   selectedNodeIds,
   graph,
-  onGraphChange,
+  onGraphEdit,
   onDeleteNodes,
   canDeleteNode,
   send,
@@ -129,13 +124,13 @@ function deleteSelectedCanvasItems({
   selectedEdgeId: string | null;
   selectedNodeIds: string[];
   graph: CanvasGraph;
-  onGraphChange: (graph: CanvasGraph) => void;
+  onGraphEdit: (graph: CanvasGraph, edit: GraphEditKind) => void;
   onDeleteNodes: (ids: string[]) => void;
   canDeleteNode: ((id: string) => boolean) | undefined;
   send: (event: NodeCanvasMachineEvent) => void;
 }) {
   return (
-    deleteSelectedEdge(selectedEdgeId, graph, onGraphChange, send) ||
+    deleteSelectedEdge(selectedEdgeId, graph, onGraphEdit, send) ||
     deleteSelectedNodes(selectedNodeIds, canDeleteNode, onDeleteNodes, send)
   );
 }
@@ -146,14 +141,14 @@ function handleDeleteShortcut(
     selectedEdgeId: string | null;
     selectedNodeIds: string[];
     graph: CanvasGraph;
-    onGraphChange: (graph: CanvasGraph) => void;
+    onGraphEdit: (graph: CanvasGraph, edit: GraphEditKind) => void;
     onDeleteNodes: (ids: string[]) => void;
     canDeleteNode: ((id: string) => boolean) | undefined;
     send: (event: NodeCanvasMachineEvent) => void;
   },
 ) {
   if (!isDeleteShortcutKey(event.key)) return;
-  if (isEditableKeyboardTarget(event.target)) return;
+  if (isEditableKeyTarget(event.target)) return;
   if (deleteSelectedCanvasItems(options)) event.preventDefault();
 }
 
@@ -261,7 +256,7 @@ export function useNodeContextMenus({
   graphRef,
   onDeleteNodes,
   canDeleteNode,
-  onGraphChange,
+  onGraphEdit,
   onAddLayerAt,
 }: UseNodeContextMenusOptions): UseNodeContextMenusResult {
   const pendingConnectionStartRef = useRef<ReturnType<typeof pendingConnectStart>>(null);
@@ -291,7 +286,7 @@ export function useNodeContextMenus({
         selectedEdgeId,
         selectedNodeIds,
         graph: graphRef.current,
-        onGraphChange,
+        onGraphEdit,
         onDeleteNodes,
         canDeleteNode,
         send,
@@ -299,7 +294,7 @@ export function useNodeContextMenus({
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [selectedEdgeId, selectedNodeIds, onDeleteNodes, canDeleteNode, onGraphChange, graphRef, send]);
+  }, [selectedEdgeId, selectedNodeIds, onDeleteNodes, canDeleteNode, onGraphEdit, graphRef, send]);
 
   useEffect(() => {
     if (!contextMenu) return;

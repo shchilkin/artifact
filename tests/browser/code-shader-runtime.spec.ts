@@ -261,7 +261,8 @@ test('runs an AI shader as a backdrop-aware graph effect with preview and output
   test.skip(!(await supportsWebGl(page)), 'Shader runtime coverage requires WebGL.');
 
   const result = await page.evaluate(async () => {
-    const { makeFillLayer, makeGraphShaderNode } = await import('/app/types/config.ts');
+    const { makeFillLayer } = await import('/app/types/config.ts');
+    const { makeGraphShaderNode } = await import('/app/utils/nodeKinds/shader.ts');
     const { EXPORT_NODE_ID } = await import('/app/utils/nodeGraph.ts');
     const { renderDocument, renderGraphTarget } = await import('/app/utils/renderer.ts');
     const base = makeFillLayer({ id: 'base-fill', color: '#24334f', opacity: 100, blendMode: 'normal' });
@@ -293,19 +294,17 @@ test('runs an AI shader as a backdrop-aware graph effect with preview and output
         { id: 'ai-export', fromId: shader.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      shaderNodes: [shader],
+      nodes: { [shader.id]: shader },
     };
     const doc = {
-      schemaVersion: 3,
+      schemaVersion: 6,
       global: { bg: 'transparent', seed: 1171, aspect: '1:1' },
       layers: [base],
       graph,
       export: { format: 'png', scale: 1, target: 'cover' },
     };
     const output = await renderGraphTarget(doc, graph, EXPORT_NODE_ID, 32, 32, new Map(), { skipEffects: true });
-    const preview = await renderDocument(doc, 32, 32, new Map(), { skipEffects: true, graphMode: 'graph' });
+    const preview = await renderDocument(doc, 32, 32, new Map(), { skipEffects: true });
     const outputPixels = Array.from(output.getContext('2d')!.getImageData(0, 0, 32, 32).data);
     const previewPixels = Array.from(preview.getContext('2d')!.getImageData(0, 0, 32, 32).data);
     return {
@@ -362,7 +361,8 @@ test('migrates legacy AI operations into a compilable backdrop-aware shader', as
         ],
       },
     });
-    const definition = doc.graph?.shaderNodes?.[0]?.shaderInstance?.definition;
+    const shader = Object.values(doc.graph.nodes).find((node) => node.kind === 'shader');
+    const definition = shader?.kind === 'shader' ? shader.shaderInstance?.definition : undefined;
     if (!definition) return { ok: false, message: 'Migration did not create a shader definition.' };
     return compileCustomCodeShaderForDiagnostics(definition.code, definition.properties, { requireBackdrop: true });
   });

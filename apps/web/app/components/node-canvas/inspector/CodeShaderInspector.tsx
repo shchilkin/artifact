@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import type { GraphShaderNode, ShaderPropertyType } from '../../../types/config';
+import type { ShaderPropertyType } from '../../../types/config';
 import { makeDefaultCodeShaderInstance, validateCustomShaderCode } from '../../../utils/customShaderCode';
+import type { GraphShaderNode } from '../../../utils/nodeKinds';
 import { compileCustomCodeShaderForDiagnostics } from '../../../utils/render/customCodeShader';
 import { codeShaderUniformControls, makeCodeShaderProperty } from './CodeShaderInspectorModel';
 import { InspectorSection, InspectorSelect, InspectorSlider, InspectorTextArea } from './fields';

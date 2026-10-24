@@ -128,8 +128,9 @@ export async function supportsWebGl(page: Page): Promise<boolean> {
   return page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl')));
 }
 
-export function documentUrl(doc: object): string {
-  return `/app?doc=${encodeURIComponent(JSON.stringify(doc))}`;
+/** `search` adds query parameters before `doc`, for example `debug=perf`. */
+export function documentUrl(doc: object, search = ''): string {
+  return `/app?${search ? `${search}&` : ''}doc=${encodeURIComponent(JSON.stringify(doc))}`;
 }
 
 export function editorDocumentFixture(layers: object[]) {
@@ -175,8 +176,8 @@ export function textLayerFixture({ id, name, content }: { id: string; name: stri
   };
 }
 
-export async function gotoDocument(page: Page, doc: object): Promise<void> {
-  await gotoReadyEditor(page, documentUrl(doc));
+export async function gotoDocument(page: Page, doc: object, search = ''): Promise<void> {
+  await gotoReadyEditor(page, documentUrl(doc, search));
 }
 
 async function gotoEditor(page: Page, url: string): Promise<void> {
@@ -330,4 +331,19 @@ function isBenignBrowserTestIssue(text: string): boolean {
     BENIGN_BROWSER_TEST_MESSAGES.has(text) ||
     BENIGN_BROWSER_TEST_SUBSTRINGS.some((substring) => text.includes(substring))
   );
+}
+
+/**
+ * A destructive EditorConfirmDialog confirms with the filled danger variant, so it never looks like the outlined
+ * Cancel next to it.
+ */
+export async function expectDangerConfirm(dialog: Locator, confirmName: string): Promise<void> {
+  const confirm = dialog.getByRole('button', { name: confirmName, exact: true });
+  await expect(confirm).toHaveClass(/ui-command--danger-filled/);
+  const [confirmBackground, cancelBackground] = await Promise.all([
+    confirm.evaluate((element) => getComputedStyle(element).backgroundColor),
+    dialog.getByRole('button', { name: 'Cancel' }).evaluate((element) => getComputedStyle(element).backgroundColor),
+  ]);
+  expect(confirmBackground).not.toBe(cancelBackground);
+  expect(confirmBackground).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
 }

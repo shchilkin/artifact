@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CURATED_EXAMPLES } from './curatedExamples';
+import { isLayerStackGraph } from './nodeGraph';
 import { renderDocument } from './renderer';
 import {
   GRAPH_RECIPE_STARTER_DOCUMENTS,
@@ -18,8 +19,8 @@ describe('CURATED_EXAMPLES', () => {
     for (const starter of LAYER_STARTER_DOCUMENTS) {
       const example = CURATED_EXAMPLES.find((item) => item.id === starter.id);
       expect(example?.category, starter.id).toBe('Layer recipe');
-      expect(example?.doc.graph, starter.id).toBeUndefined();
-      expect(getStarterDocument(starter.id)?.doc.graph, starter.id).toBeUndefined();
+      expect(example && isLayerStackGraph(example.doc), starter.id).toBe(true);
+      expect(getStarterDocument(starter.id)?.doc, starter.id).toBe(starter.doc);
     }
   });
 
@@ -50,7 +51,7 @@ describe('CURATED_EXAMPLES', () => {
     expect(textLayers.length).toBeGreaterThanOrEqual(3);
     expect(fonts.size).toBeGreaterThanOrEqual(3);
     expect([...fonts]).toEqual(expect.arrayContaining(['BUNGEE', 'SPACE_MONO', 'PRESS_START']));
-    expect(MULTI_FONT_TYPE_STACK_STARTER.doc.graph).toBeUndefined();
+    expect(isLayerStackGraph(MULTI_FONT_TYPE_STACK_STARTER.doc)).toBe(true);
   });
 
   it('renders every curated document in smoke mode', async () => {

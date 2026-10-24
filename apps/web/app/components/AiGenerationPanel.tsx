@@ -36,7 +36,7 @@ const ASSET_IMPORT_TIMEOUT_MS = 30_000;
 const AI_DEBUG_STORAGE_KEY = 'artifact-debug-ai';
 const AI_DEBUG_ENABLED_VALUES = new Set(['1', 'true', 'ai', 'all']);
 const ACCESS_ACTION_LABELS: Partial<Record<string, string>> = {
-  anonymous: 'Create account',
+  anonymous: 'Sign in',
   invalid_session: 'Sign in again',
 };
 
@@ -241,7 +241,7 @@ function logBearerTokenClaims(token: string | undefined) {
 function shortId(id: string | undefined) {
   if (!id) return null;
   if (id.length <= 12) return id;
-  return `${id.slice(0, 8)}...${id.slice(-4)}`;
+  return `${id.slice(0, 8)}…${id.slice(-4)}`;
 }
 
 function yesNo(value: boolean | null | undefined) {
@@ -491,7 +491,7 @@ function AiDeveloperDiagnostics({
       <div className="ai-generation-dev-diagnostics-header">
         <span>AI diagnostics</span>
         <button type="button" onClick={onRetryAccess} disabled={accessCheck.state === 'checking'}>
-          {accessCheck.state === 'checking' ? 'Checking' : 'Retry'}
+          {accessCheck.state === 'checking' ? 'Checking…' : 'Retry'}
         </button>
       </div>
       <div className="ai-generation-dev-diagnostics-rows">
@@ -671,7 +671,7 @@ function AccessBanner({
   const checking = !access && !failed;
   return (
     <InspectorStatus
-      className={accessBannerClassName(accessCheck)}
+      className="ai-generation-access-banner"
       id="ai-generation-status"
       loading={checking}
       title={accessBannerTitle(access, accessBlockReason, accessCheck)}
@@ -682,19 +682,13 @@ function AccessBanner({
   );
 }
 
-function accessBannerClassName(accessCheck: AccessCheckState) {
-  return accessCheck.state === 'failed'
-    ? 'ai-generation-access-banner ai-generation-access-banner--failed'
-    : 'ai-generation-access-banner';
-}
-
 function accessBannerTitle(
   access: AiGenerationAccessState | null,
   accessBlockReason: string | null | undefined,
   accessCheck: AccessCheckState,
 ) {
   if (access) return disabledReasonTitle(accessBlockReason);
-  return accessCheck.state === 'failed' ? 'AI API unavailable' : 'Checking AI access';
+  return accessCheck.state === 'failed' ? 'AI API unavailable' : 'Checking AI access…';
 }
 
 function accessBannerBody(

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DEFAULT_EXPORT, type FontName, makeTextLayer } from '../types/config';
+import { DEFAULT_EXPORT, type FontName, makeDocument, makeTextLayer } from '../types/config';
 import { collectDocumentFontNames, ensureCanvasFontLoaded } from './fontLoading';
 
 describe('fontLoading', () => {
   it('collects unique document text fonts', () => {
-    const doc = {
+    const doc = makeDocument({
       global: { bg: '#000000', seed: 1, aspect: '1:1' as const },
       layers: [
         makeTextLayer({ font: 'ANTON' }),
@@ -12,7 +12,7 @@ describe('fontLoading', () => {
         makeTextLayer({ font: 'PRESS_START' }),
       ],
       export: { ...DEFAULT_EXPORT },
-    };
+    });
 
     expect(collectDocumentFontNames(doc)).toEqual(['ANTON', 'PRESS_START']);
   });

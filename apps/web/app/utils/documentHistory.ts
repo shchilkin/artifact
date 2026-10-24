@@ -62,53 +62,74 @@ export function redoHistory(stacks: HistoryStacks, currentDoc: CanvasDocument) {
 
 export const HISTORY_DEBOUNCE_MS = 400;
 
-/** State and setters `commitDocumentWithHistory` works with; the editor passes its refs and React state setters. */
-export interface DocumentHistoryCommit {
-  docRef: { current: CanvasDocument };
-  pendingRef: { current: HistoryEntry | null };
-  timerRef: { current: ReturnType<typeof setTimeout> | undefined };
-  setDoc: (doc: CanvasDocument) => void;
-  setPast: (update: (past: HistoryEntry[]) => HistoryEntry[]) => void;
-  setFuture: (future: HistoryEntry[]) => void;
-}
-
-export function clearPendingDocumentHistory({ pendingRef, timerRef }: DocumentHistoryCommit) {
-  clearTimeout(timerRef.current);
-  pendingRef.current = null;
-}
-
 /**
- * Commits a document change and records history for its update mode. `setPast` updaters may run later than the call
- * (React defers them while other updates are queued), so every value they use is captured before they are queued.
+ * The editor's document and its undo history. `pending` is the document a gesture started from while the gesture is
+ * still running; it becomes one undo step when the gesture settles, or as soon as another history event needs it.
  */
-export function commitDocumentWithHistory(
-  newDoc: CanvasDocument,
-  mode: DocumentUpdateMode,
-  commit: DocumentHistoryCommit,
-) {
-  const { docRef, pendingRef, timerRef, setDoc, setPast, setFuture } = commit;
-  if (mode === 'snapshot') {
-    clearPendingDocumentHistory(commit);
-    const previous = docRef.current;
-    setPast((items) => pushSnapshotHistory({ past: items, future: [] }, previous).past);
-    setFuture([]);
-    setDoc(newDoc);
-    return;
-  }
+export interface DocumentHistoryState extends HistoryStacks {
+  doc: CanvasDocument;
+  pending: HistoryEntry | null;
+}
 
-  if (mode === 'debounce') {
-    pendingRef.current = createPendingHistoryEntry(docRef.current, pendingRef.current);
-    setDoc(newDoc);
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      const pending = pendingRef.current;
-      if (!pending) return;
-      pendingRef.current = null;
-      setPast((items) => flushPendingHistory({ past: items, future: [] }, pending).past);
-      setFuture([]);
-    }, HISTORY_DEBOUNCE_MS);
-    return;
-  }
+export type DocumentHistoryEvent =
+  | { type: 'commit'; doc: CanvasDocument; mode: 'snapshot' | 'debounce' }
+  /**
+   * A write that keeps every visible result the same (asset references for embedded payloads, layout for nodes
+   * that had none). `amend` applies the same change to every history entry, so undo and redo cannot bring the old
+   * form back.
+   */
+  | { type: 'commit'; doc: CanvasDocument; mode: 'silent'; amend?: (doc: CanvasDocument) => CanvasDocument }
+  | { type: 'settle' }
+  | { type: 'undo' }
+  | { type: 'redo' };
 
-  setDoc(newDoc);
+export function createDocumentHistoryState(doc: CanvasDocument): DocumentHistoryState {
+  return { doc, past: [], future: [], pending: null };
+}
+
+/** Turns an unsettled gesture into its undo step. */
+function settle(state: DocumentHistoryState): DocumentHistoryState {
+  if (!state.pending) return state;
+  return { ...state, ...flushPendingHistory(state, state.pending), pending: null };
+}
+
+function amendEntry(entry: HistoryEntry, amend: (doc: CanvasDocument) => CanvasDocument): HistoryEntry {
+  const doc = amend(entry.doc);
+  return doc === entry.doc ? entry : { doc };
+}
+
+function amendHistory(state: DocumentHistoryState, amend: (doc: CanvasDocument) => CanvasDocument) {
+  return {
+    past: state.past.map((entry) => amendEntry(entry, amend)),
+    future: state.future.map((entry) => amendEntry(entry, amend)),
+    pending: state.pending && amendEntry(state.pending, amend),
+  };
+}
+
+export function documentHistoryReducer(state: DocumentHistoryState, event: DocumentHistoryEvent): DocumentHistoryState {
+  switch (event.type) {
+    case 'commit':
+      if (event.mode === 'snapshot') {
+        const settled = settle(state);
+        return { ...settled, ...pushSnapshotHistory(settled, settled.doc), doc: event.doc };
+      }
+      if (event.mode === 'debounce') {
+        if (state.pending) return { ...state, doc: event.doc };
+        return { ...state, doc: event.doc, future: [], pending: createPendingHistoryEntry(state.doc, null) };
+      }
+      return {
+        ...state,
+        ...(event.mode === 'silent' && event.amend ? amendHistory(state, event.amend) : {}),
+        doc: event.doc,
+      };
+    case 'settle':
+      return settle(state);
+    case 'undo':
+    case 'redo': {
+      const settled = settle(state);
+      const navigate = event.type === 'undo' ? undoHistory : redoHistory;
+      const result = navigate(settled, settled.doc);
+      return result ? { ...result, pending: null } : settled;
+    }
+  }
 }

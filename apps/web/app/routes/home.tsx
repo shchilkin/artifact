@@ -8,12 +8,14 @@ import {
   type CanvasDocument,
   DEFAULT_EXPORT,
   type Layer,
+  makeDocument,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
   makeImageLayer,
   makeTextLayer,
 } from '../types/config';
+import { isEditableKeyTarget } from '../utils/editableKeyTarget';
 import { HERO_FRAMES } from '../utils/heroConfigs';
 import { pageMeta } from '../utils/pageMeta';
 
@@ -27,7 +29,6 @@ const HOME_STEP_KEY_DELTA: Record<string, number> = {
   ArrowUp: -1,
   PageUp: -1,
 };
-const HOME_EDITABLE_KEY_TARGETS = new Set(['INPUT', 'TEXTAREA']);
 
 // The hero artwork renders through the canonical renderer, which pulls in PixiJS. Load it after the page
 // has rendered so the home route's first paint does not wait for the WebGL stack.
@@ -130,11 +131,11 @@ const STEPS: Step[] = [
 
 function buildDoc(stepIndex: number): CanvasDocument {
   const layers = STEPS.slice(0, stepIndex + 1).flatMap((step) => step.layers);
-  return {
+  return makeDocument({
     global: { bg: '#0a0008', seed: SEED, aspect: '1:1' },
     export: DEFAULT_EXPORT,
     layers,
-  };
+  });
 }
 
 export const meta: MetaFunction = () =>
@@ -238,7 +239,7 @@ function handleHomeStepKey(
   step: number,
   prefersReducedMotion: boolean | null,
 ) {
-  if (isHomeEditableKeyTarget(event.target)) return;
+  if (isEditableKeyTarget(event.target)) return;
   const target = homeStepKeyTarget(refs, step, event.key);
   if (!target) return;
   event.preventDefault();
@@ -256,10 +257,6 @@ function homeStepKeyTarget(refs: Array<HTMLElement | null>, step: number, key: s
 
 function clampedHomeStepIndex(index: number) {
   return Math.max(0, Math.min(index, STEPS.length - 1));
-}
-
-function isHomeEditableKeyTarget(target: EventTarget | null) {
-  return target instanceof HTMLElement && (HOME_EDITABLE_KEY_TARGETS.has(target.tagName) || target.isContentEditable);
 }
 
 function setupHomeNoiseCanvas(canvas: HTMLCanvasElement | null, prefersReducedMotion: boolean | null) {

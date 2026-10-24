@@ -11,6 +11,7 @@ import {
   EFFECT_PRESETS,
   type EffectPreset,
   type ImageLayer,
+  makeDocument,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
@@ -18,6 +19,7 @@ import {
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
+import { editorDocumentPath } from '../utils/documentLink';
 import { EFFECT_DOCS } from '../utils/effectDocs';
 import { pageMeta } from '../utils/pageMeta';
 import { renderDocument } from '../utils/renderer';
@@ -58,11 +60,11 @@ const EFFECT_BASE_LAYERS = [
 ];
 
 function buildEffectDoc(preset: EffectPreset): CanvasDocument {
-  return {
+  return makeDocument({
     global: { bg: '#0d0018', seed: 31415, aspect: '1:1' },
     export: DEFAULT_EXPORT,
     layers: [...EFFECT_BASE_LAYERS, makeEffectPresetLayer(preset)],
-  };
+  });
 }
 
 // ─── Node definitions ─────────────────────────────────────────────────────────
@@ -86,11 +88,11 @@ const CONTENT_NODES: NodeDef[] = [
       { key: 'color', range: 'hex' },
       { key: 'opacity', range: '0–100' },
     ],
-    doc: {
+    doc: makeDocument({
       global: { bg: '#0d0018', seed: 1, aspect: '1:1' },
       export: DEFAULT_EXPORT,
       layers: [makeFillLayer({ color: '#d44500' })],
-    },
+    }),
   },
   {
     id: 'image',
@@ -102,7 +104,7 @@ const CONTENT_NODES: NodeDef[] = [
       { key: 'scaleX', range: '0.1–5' },
       { key: 'rotation', range: '0–360' },
     ],
-    doc: {
+    doc: makeDocument({
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
       export: DEFAULT_EXPORT,
       layers: [
@@ -111,7 +113,7 @@ const CONTENT_NODES: NodeDef[] = [
           opacity: 80,
         }),
       ],
-    },
+    }),
   },
   {
     id: 'text',
@@ -123,7 +125,7 @@ const CONTENT_NODES: NodeDef[] = [
       { key: 'x', range: '0–1' },
       { key: 'y', range: '0–1' },
     ],
-    doc: {
+    doc: makeDocument({
       global: { bg: '#0d0018', seed: 1, aspect: '1:1' },
       export: DEFAULT_EXPORT,
       layers: [
@@ -138,7 +140,7 @@ const CONTENT_NODES: NodeDef[] = [
           align: 'center',
         }),
       ],
-    },
+    }),
   },
   {
     id: 'emoji',
@@ -151,7 +153,7 @@ const CONTENT_NODES: NodeDef[] = [
       { key: 'emojis', range: 'list' },
       { key: 'opacity', range: '0–100' },
     ],
-    doc: {
+    doc: makeDocument({
       global: { bg: '#0d0018', seed: 31415, aspect: '1:1' },
       export: DEFAULT_EXPORT,
       layers: [
@@ -164,7 +166,7 @@ const CONTENT_NODES: NodeDef[] = [
           opacity: 100,
         }),
       ],
-    },
+    }),
   },
 ];
 
@@ -180,7 +182,7 @@ const SOURCE_NODES: NodeDef[] = [
       { key: 'tiltY', range: '0–90' },
       { key: 'material/light', range: 'hex' },
     ],
-    doc: {
+    doc: makeDocument({
       global: { bg: '#0d0018', seed: 1, aspect: '1:1' },
       export: DEFAULT_EXPORT,
       layers: [
@@ -194,7 +196,7 @@ const SOURCE_NODES: NodeDef[] = [
           accentColor: '#8762ff',
         }),
       ],
-    },
+    }),
   },
   {
     id: 'noise',
@@ -211,7 +213,7 @@ const SOURCE_NODES: NodeDef[] = [
       { key: 'nodeSeed', range: '0–9999' },
       { key: 'shadow/main color', range: 'hex' },
     ],
-    doc: {
+    doc: makeDocument({
       global: { bg: '#0d0018', seed: 1, aspect: '1:1' },
       export: DEFAULT_EXPORT,
       layers: [
@@ -226,7 +228,7 @@ const SOURCE_NODES: NodeDef[] = [
           accentColor: '#6b5dff',
         }),
       ],
-    },
+    }),
   },
   {
     id: 'array',
@@ -240,7 +242,7 @@ const SOURCE_NODES: NodeDef[] = [
       { key: 'arraySize', range: '8–64' },
       { key: 'seedOffset', range: '0–999' },
     ],
-    doc: {
+    doc: makeDocument({
       global: { bg: '#0d0018', seed: 1, aspect: '1:1' },
       export: DEFAULT_EXPORT,
       layers: [
@@ -257,7 +259,7 @@ const SOURCE_NODES: NodeDef[] = [
           accentColor: '#ff5f8f',
         }),
       ],
-    },
+    }),
   },
   {
     id: 'lineField',
@@ -276,7 +278,7 @@ const SOURCE_NODES: NodeDef[] = [
       { key: 'strength', range: '0–100' },
       { key: 'frequency', range: '1–16' },
     ],
-    doc: {
+    doc: makeDocument({
       global: { bg: '#0d0018', seed: 1, aspect: '1:1' },
       export: DEFAULT_EXPORT,
       layers: [
@@ -293,7 +295,7 @@ const SOURCE_NODES: NodeDef[] = [
           accentColor: '#ff6a3a',
         }),
       ],
-    },
+    }),
   },
 ];
 
@@ -758,7 +760,7 @@ function itemMatches(item: SearchItem, query: string, filter: DocFilter) {
 }
 
 export function starterHref(starter: StarterDocument) {
-  return `/app?doc=${encodeURIComponent(JSON.stringify(starter.doc))}`;
+  return editorDocumentPath(starter.doc, { from: 'docs' });
 }
 
 export function DocsLink({ children, className, href }: { children: ReactNode; className?: string; href: string }) {
@@ -935,7 +937,7 @@ export function NodePoster({ node }: { node: NodeDef }) {
   const docRef = useRef(doc);
   const revRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const tryHref = `/app?doc=${encodeURIComponent(JSON.stringify(doc))}`;
+  const tryHref = editorDocumentPath(doc, { from: 'docs' });
   const controlsId = `node-${node.id}-controls`;
 
   useLayoutEffect(() => {
@@ -1256,7 +1258,7 @@ function DocsSearchPanel({
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
         onClear={() => onQueryChange('')}
-        placeholder="Search effects, export, fonts, nodes..."
+        placeholder="Search effects, export, fonts, nodes…"
       />
       <DocsTypeFilter activeFilter={activeFilter} onFilterChange={onFilterChange} />
       <DocsSearchContent

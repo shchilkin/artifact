@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { type CanvasDocument, makeImageLayer } from '../types/config';
+import { type CanvasDocument, makeDocument, makeImageLayer } from '../types/config';
 import {
   hydrateCloudSavedProject,
   listCloudProjects,
@@ -11,11 +11,11 @@ import { PROJECT_THUMBNAIL_FALLBACK, type SavedProject } from './projectLibrary'
 
 describe('prepareCloudSavedProject', () => {
   it('uploads local image assets separately and keeps cloud project JSON lightweight', async () => {
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: '#101010', seed: 13, aspect: '1:1' },
       layers: [makeImageLayer('artifact-asset://cover-image', { id: 'image-layer' })],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const project: SavedProject = {
       id: 'project-a',
       name: 'Cloud project',
@@ -67,11 +67,11 @@ describe('prepareCloudSavedProject', () => {
 
   it('keeps large portable image documents under the cloud project request limit', async () => {
     const largeImage = `data:image/png;base64,${'A'.repeat(2_850_000)}`;
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: '#101010', seed: 13, aspect: '1:1' },
       layers: [makeImageLayer(largeImage, { id: 'image-layer' })],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const project: SavedProject = {
       id: 'large-project',
       name: 'Large cloud project',
@@ -163,11 +163,11 @@ describe('prepareCloudSavedProject', () => {
   });
 
   it('keeps unresolved cloud asset refs when an asset file is missing', async () => {
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: '#101010', seed: 13, aspect: '1:1' },
       layers: [makeImageLayer('artifact-cloud-asset://image/missing-image', { id: 'image-layer' })],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const project: SavedProject = {
       id: 'project-a',
       name: 'Cloud project',

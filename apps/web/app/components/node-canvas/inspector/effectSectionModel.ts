@@ -1,37 +1,20 @@
-import type { EffectLayer } from '../../../types/config';
-import {
-  COLOR_PRESETS,
-  GLITCH_PRESETS,
-  GRAPHIC_PRESETS,
-  RAYS_PRESETS,
-  RISO_PRESETS,
-  TEXTURE_PRESETS,
-  TINT_PRESETS,
-  WARP_PRESETS,
-} from '../constants';
+import { EFFECT_PRESET_MENU_ORDER, type EffectLayer, type EffectPreset } from '../../../types/config';
+import { EFFECT_SECTIONS, type EffectControlSectionId, presetParamKeys } from '../../../types/effectSchema';
 import type { EffectSectionId } from '../types';
 
-export const EFFECT_CONTROL_PRESETS = [
-  ...RAYS_PRESETS,
-  ...GLITCH_PRESETS,
-  ...TEXTURE_PRESETS,
-  ...TINT_PRESETS,
-  ...WARP_PRESETS,
-  ...COLOR_PRESETS,
-  ...RISO_PRESETS,
-  ...GRAPHIC_PRESETS,
-];
+/** Presets that show a control in this inspector section, in add-menu order. */
+export function effectSectionPresets(section: EffectControlSectionId): EffectPreset[] {
+  const params = new Set<string>(EFFECT_SECTIONS.find((item) => item.id === section)?.params ?? []);
+  return EFFECT_PRESET_MENU_ORDER.filter((preset) => presetParamKeys(preset).some((key) => params.has(key)));
+}
 
-const EFFECT_SECTION_PRESETS = [
-  { id: 'rays', presets: RAYS_PRESETS },
-  { id: 'glitch', presets: GLITCH_PRESETS },
-  { id: 'texture', presets: TEXTURE_PRESETS },
-  { id: 'tint', presets: TINT_PRESETS },
-  { id: 'warp', presets: WARP_PRESETS },
-  { id: 'color', presets: COLOR_PRESETS },
-  { id: 'riso', presets: RISO_PRESETS },
-  { id: 'graphic', presets: GRAPHIC_PRESETS },
-] as const satisfies Array<{ id: EffectSectionId; presets: readonly EffectPresetId[] }>;
+const EFFECT_SECTION_PRESETS = EFFECT_SECTIONS.map((section) => ({
+  id: section.id,
+  presets: effectSectionPresets(section.id),
+}));
+
+/** Presets with at least one inspector control. */
+export const EFFECT_CONTROL_PRESETS = EFFECT_SECTION_PRESETS.flatMap((section) => section.presets);
 
 export function initialEffectSection(layer: EffectLayer): EffectSectionId {
   return EFFECT_SECTION_PRESETS.find((section) => layer.preset && section.presets.includes(layer.preset))?.id ?? 'node';
@@ -105,7 +88,6 @@ const PRESET_SUMMARIES: Partial<Record<EffectSectionId, Partial<Record<EffectPre
     pixelate: (layer) => `${layer.pixelate}px blocks`,
     posterize: (layer) => `${layer.posterize} bands`,
     retroResolution: (layer) => `${layer.retroResolution}px edge`,
-    rgbSplit: (layer) => `${layer.rgbSplit} split`,
     sepia: (layer) => `${layer.sepia}% sepia`,
     solarize: (layer) => `${layer.solarize}% solarize`,
     splitTone: (layer) => `${layer.splitToneAmt}% split`,

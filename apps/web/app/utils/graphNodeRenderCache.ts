@@ -19,9 +19,7 @@ interface GraphNodeRenderCacheConfig {
 
 function graphNodeSignatures(graph: CanvasGraph) {
   const signatures = new Map<string, string>();
-  for (const [kind, nodes] of Object.entries(graphNodeRenderSigs(graph))) {
-    for (const { id, sig } of nodes) signatures.set(id, `${kind}:${sig}`);
-  }
+  for (const { id, kind, sig } of graphNodeRenderSigs(graph)) signatures.set(id, `${kind}:${sig}`);
   return signatures;
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatEntry, parseEntry, sliderPrecision, snapToStep } from './sliderEntry';
+import { entryLimitMessage, formatEntry, parseEntry, sliderPrecision, snapToStep } from './sliderEntry';
 
 describe('slider numeric entry', () => {
   it('snaps typed values to the step grid counted from min, like the range input', () => {
@@ -38,5 +38,16 @@ describe('slider numeric entry', () => {
     expect(formatEntry(0.1 + 0.2, { min: 0, step: 0.1 })).toBe('0.3');
     expect(formatEntry(24, { min: 0, step: 1 })).toBe('24');
     expect(formatEntry(12.6, { min: 0, step: 1 })).toBe('13');
+  });
+
+  it('names the limit a typed value was clamped to', () => {
+    const range = { min: 0, max: 100, step: 1 };
+    expect(entryLimitMessage('999', range)).toBe('Max 100');
+    expect(entryLimitMessage('-5', range, '%')).toBe('Min 0%');
+    expect(entryLimitMessage('0.25', { min: 0, max: 0.2, step: 0.05 })).toBe('Max 0.2');
+    expect(entryLimitMessage('100', range)).toBeNull();
+    expect(entryLimitMessage('42.4', range)).toBeNull();
+    expect(entryLimitMessage('', range)).toBeNull();
+    expect(entryLimitMessage('1e', range)).toBeNull();
   });
 });

@@ -195,7 +195,7 @@ export default function AccountPanel({
           ) : null}
 
           <Button className="account-submit" loading={pending} type="submit" variant="primary">
-            {pending ? 'Working' : mode === 'recover' ? 'Send reset link' : accountModeTitle[mode]}
+            {pending ? 'Working…' : mode === 'recover' ? 'Send reset link' : accountModeTitle[mode]}
           </Button>
           {mode === 'recover' ? (
             <Button className="account-secondary-action" onClick={() => updateMode('sign-in')} variant="quiet">

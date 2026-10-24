@@ -1,7 +1,9 @@
 import { useId, useMemo, useState } from 'react';
 import type { CanvasDocument, GraphArea, Layer } from '../../types/config';
 import { buildGraphLayerTree } from '../../utils/graphLayerTree';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById } from '../../utils/nodeGraph';
+import { makeGraphMaskNode } from '../../utils/nodeKinds/mask';
+import { makeGraphMergeNode } from '../../utils/nodeKinds/merge';
 import { EditorRowFrame, EditorRowPrimary } from '../editor-workflow/EditorRowFrame';
 import { GraphLayerTreeView } from './GraphLayerTreeView';
 import { type LayerPanelView, LayerPanelViewSwitch } from './LayerPanelViewSwitch';
@@ -34,10 +36,9 @@ function specimenDocument(layers: Layer[], area: GraphArea): CanvasDocument {
         { id: 'style-tree-out', fromId: MERGE_ID, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      mergeNodes: [{ id: MERGE_ID, name: 'Print glow', blendMode: 'screen', opacity: 70 }],
-      colorNodes: [],
-      maskNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphMergeNode({ id: MERGE_ID, name: 'Print glow', blendMode: 'screen', opacity: 70 }),
+        makeGraphMaskNode({
           id: 'style-tree-mask',
           name: 'Type cutout',
           mode: 'alpha',
@@ -46,8 +47,8 @@ function specimenDocument(layers: Layer[], area: GraphArea): CanvasDocument {
           feather: 0,
           expand: 0,
           opacity: 100,
-        },
-      ],
+        }),
+      ),
       areas: [area],
     },
     export: { format: 'png', scale: 1, target: 'cover' },

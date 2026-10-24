@@ -13,7 +13,6 @@ import { canDeleteNodeFromDocument } from './editorGuardrails';
 import { buildGraphLayerTree, type GraphLayerTree, type GraphTreeRow } from './graphLayerTree';
 import {
   createGraphEdge,
-  documentGraph,
   EXPORT_NODE_ID,
   listGraphNodeIds,
   nextDropPosition,
@@ -86,7 +85,12 @@ function consumerEdges(graph: CanvasGraph, nodeId: string) {
 
 /** How many inputs a node feeds. More than one makes it shared. */
 export function graphNodeConsumerCount(doc: CanvasDocument, nodeId: string): number {
-  return consumerEdges(documentGraph(doc), nodeId).length;
+  return consumerEdges(doc.graph, nodeId).length;
+}
+
+/** Whether deleting the node reconnects its consumers to something under it, rather than leaving their inputs empty. */
+export function graphNodeHasSourceBelow(doc: CanvasDocument, nodeId: string): boolean {
+  return Boolean(primaryInputEdge(doc, doc.graph.edges, nodeId));
 }
 
 function isRunRow(graph: CanvasGraph, stack: TreeStack, index: number) {
@@ -112,7 +116,7 @@ function stackRuns(graph: CanvasGraph, stack: TreeStack) {
 }
 
 export function buildGraphTreeEditIndex(doc: CanvasDocument, tree = buildGraphLayerTree(doc)): GraphTreeEditIndex {
-  const graph = documentGraph(doc);
+  const graph = doc.graph;
   const places = new Map<string, RowPlace>();
   for (const stack of collectStacks(tree)) {
     const runs = stackRuns(graph, stack);
@@ -277,7 +281,7 @@ function feedsOwnInputs(index: GraphTreeEditIndex, nodeId: string, slot: TreeSlo
 // ---- Splicing ----
 
 function primaryInputEdge(doc: CanvasDocument, edges: GraphEdge[], nodeId: string) {
-  const port = graphNodePrimaryPort(doc, { ...documentGraph(doc), edges }, nodeId);
+  const port = graphNodePrimaryPort(doc, { ...doc.graph, edges }, nodeId);
   return port ? edges.find((edge) => edge.toId === nodeId && edge.toPort === port) : undefined;
 }
 
@@ -304,7 +308,7 @@ function spliceIn(
   nodeId: string,
   slot: TreeSlot,
 ): { edges: GraphEdge[]; wiredEdgeIds: string[] } {
-  const port = graphNodePrimaryPort(doc, { ...documentGraph(doc), edges }, nodeId);
+  const port = graphNodePrimaryPort(doc, { ...doc.graph, edges }, nodeId);
   if ('above' in slot) {
     if (!port) return { edges, wiredEdgeIds: [] };
     const input = createGraphEdge(edges, slot.above, 'out', nodeId, port);
@@ -321,7 +325,7 @@ function spliceIn(
 }
 
 function withEdges(doc: CanvasDocument, edges: GraphEdge[]): CanvasDocument {
-  return { ...doc, graph: { ...documentGraph(doc), edges } };
+  return { ...doc, graph: { ...doc.graph, edges } };
 }
 
 // ---- doc.layers consistency ----
@@ -348,7 +352,7 @@ function nearestLayerInStack(
   layerIds: Set<string>,
   direction: 'below' | 'above',
 ): string | null {
-  const graph = documentGraph(doc);
+  const graph = doc.graph;
   const seen = new Set([nodeId]);
   let current = nodeId;
   for (let step = 0; step < MAX_WALK; step += 1) {
@@ -489,7 +493,7 @@ function feedsImageInput(
  */
 export function deleteTreeNode(doc: CanvasDocument, nodeId: string): TreeEditResult {
   if (!canDeleteNodeFromDocument(doc, nodeId)) return blocked('Locked layers can’t be deleted. Unlock it first.');
-  const graph = documentGraph(doc);
+  const graph = doc.graph;
   const reach = collectGraphRenderReachModes(doc, graph);
   const input = primaryInputEdge(doc, graph.edges, nodeId);
   let edges = graph.edges.filter((edge) => edge.toId !== nodeId);
@@ -544,10 +548,10 @@ export function addNodeAboveTreeRow(
   anchorId: string,
 ): AddNodeAtDocumentResult | null {
   if (isLayerStackGraph(doc)) return null;
-  const graph = documentGraph(doc);
+  const graph = doc.graph;
   const before = new Set(listGraphNodeIds(graph, doc.layers));
   const added = addNodeAtDocument(doc, action, nextDropPosition(graph));
-  const nodeId = listGraphNodeIds(documentGraph(added.doc), added.doc.layers).find((id) => !before.has(id));
+  const nodeId = listGraphNodeIds(added.doc.graph, added.doc.layers).find((id) => !before.has(id));
   if (!nodeId) return null;
   const result = insertNodeAboveTreeRow(added.doc, nodeId, anchorId);
   return result.ok ? { ...added, doc: result.doc } : null;

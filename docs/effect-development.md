@@ -6,19 +6,32 @@ update data, rendering, controls, docs, and tests in one slice.
 
 ## Required Surfaces
 
-- `apps/web/app/types/config.ts`: add durable fields to `EffectLayer`,
-  `DEFAULT_EFFECT_LAYER_PROPS`, focused preset metadata, and menu order.
-- `apps/web/app/components/node-canvas/inspector/EffectInspector.tsx`: expose durable
-  controls, labels, ranges, override ranges, and info-popover keys.
-- `apps/web/app/utils/effectInfo.ts`: add slider/help metadata and popup preview
-  overrides.
-- `apps/web/app/utils/effectDocs.ts`: add user-facing docs text, key parameters, and
-  ranges for the node docs page.
-- `apps/web/app/utils/render/layers/index.ts`: implement or route the actual pixel pass.
-- `apps/web/app/utils/randomConfig.ts`: include randomization/zeroing behavior if the
-  effect can be randomized from the classic layer controls.
-- `apps/web/app/utils/effectLayerMigration.ts`: migrate legacy combined effect state if
-  the new effect replaces or splits older behavior.
+- `apps/web/app/types/effectSchema.ts` is the source of truth. A new parameter
+  is one `EFFECT_PARAMS` entry (owning effect, label, default, slider range or
+  color, value format, help key) plus its place in an `EFFECT_SECTIONS`
+  list. A new effect also gets an `EFFECTS` entry: its backend
+  (`canvas` main-thread pass, `worker` pixel kernel, or `gpu` PixiJS filter),
+  the amounts that turn it on, and its help family. `EffectLayer`,
+  `DEFAULT_EFFECT_LAYER_PROPS`, `ZERO_EFFECT`, the backend activation checks,
+  inspector controls, preset splitting (`effectPresetPatch.ts`), docs ranges
+  (`effectDocs.ts`), and help families are derived from it.
+- The render code: the Canvas 2D pass in
+  `apps/web/app/utils/render/layers/index.ts`, a kernel in
+  `apps/web/app/utils/render/workers/effectPixelTransform.ts`, or a filter in
+  `apps/web/app/utils/pixiFilters.ts`, matching the declared backend.
+  `effectSchema.test.ts` renders every effect and fails if it makes pixels on
+  any other backend.
+- A new focused preset: `EffectPreset`, `EFFECT_PRESETS` (name, icon, values),
+  `EFFECT_PRESET_MENU_ORDER`, and its description in `effectDocs.ts`. A preset
+  that is a variant of another effect (like the codec block presets of Bad
+  Stream) goes in `EFFECT_PRESET_VARIANTS` with the parameters it shows.
+- Optional copy: slider help in `apps/web/app/utils/effectInfo.ts`, a docs note
+  for a parameter in `effectDocs.ts`, and a section summary in
+  `components/node-canvas/inspector/effectSectionModel.ts`.
+- If the effect changes how existing documents store data, add a schema
+  migration step under `apps/web/app/utils/migrations/` instead of a load-time
+  branch. The schema 3 -> 4 effect split is frozen in
+  `migrations/legacyEffectSplit.ts`; do not derive it from the schema.
 
 ## Validation
 
@@ -40,9 +53,17 @@ update data, rendering, controls, docs, and tests in one slice.
   re-rolling the whole document.
 - Every slider has numeric entry. It commits on Enter or blur, clamped to the
   range and snapped to the slider step from `min`, so it stores the same values
-  the slider can. If a slider needs creative values beyond the common range,
-  set `overrideMax` so numeric entry accepts them instead of hiding the
-  capability.
+  the slider can. A typed value outside the range briefly shows the limit it
+  was clamped to, such as "Max 100". If a slider needs creative values beyond
+  the common range, set `overrideMax` so numeric entry accepts them instead of
+  hiding the capability.
+- Help text in `effectInfo.ts` may only promise typing past the slider for a
+  control with `overrideMax`, and must name that control and its real limits
+  ("Type a Count up to 240; the slider stops at 96."). A unit test in
+  `EffectControlSections.test.ts` checks this.
+- Slider help opens from the "About …" button on click, Enter, or Space, closes
+  on Escape, and sits beside its row through the shared `Popover`
+  (`InspectorSlider` `help` prop).
 - Give a slider a `valueFormat`; it is read out through the slider's
   `aria-valuetext`, and `%`, `px`, and `deg` also show as a unit after the
   numeric entry.

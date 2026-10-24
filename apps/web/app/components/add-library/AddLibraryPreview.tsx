@@ -3,6 +3,7 @@ import {
   type CanvasDocument,
   DEFAULT_EXPORT,
   DEFAULT_MATERIAL_CONFIG,
+  makeDocument,
   makeEmojiLayer,
   makeFillLayer,
   makeImageLayer,
@@ -167,16 +168,16 @@ async function renderAddLibraryItemPreview(item: AddLibraryItem): Promise<string
 async function renderPreviewDocumentUrl(item: AddLibraryItem): Promise<string> {
   const { doc, imageCache } = await makeAddLibraryPreviewDocument(item);
   if (!doc) return '';
-  const canvas = await renderDocument(doc, PREVIEW_SIZE, PREVIEW_SIZE, imageCache, { graphMode: 'stack' });
+  const canvas = await renderDocument(doc, PREVIEW_SIZE, PREVIEW_SIZE, imageCache);
   return canvas.toDataURL('image/png');
 }
 
 function basePreviewDocument(layers: CanvasDocument['layers'], bg = 'transparent'): CanvasDocument {
-  return {
+  return makeDocument({
     global: { bg, seed: 241017, aspect: '1:1' },
     layers,
     export: { ...DEFAULT_EXPORT },
-  };
+  });
 }
 
 function previewResult(

@@ -1,5 +1,6 @@
 import { type RefObject, useCallback, useMemo, useState } from 'react';
 import type { CanvasGraph } from '../../../types/config';
+import type { GraphEditKind } from '../../../utils/documentDispatch';
 import {
   addGraphArea,
   addNodesToGraphArea,
@@ -13,12 +14,12 @@ export function useNodeAreaActions({
   graph,
   graphRef,
   selectedNodeIds,
-  onGraphChange,
+  onGraphEdit,
 }: {
   graph: CanvasGraph;
   graphRef: RefObject<CanvasGraph>;
   selectedNodeIds: string[];
-  onGraphChange: (graph: CanvasGraph) => void;
+  onGraphEdit: (graph: CanvasGraph, edit: GraphEditKind) => void;
 }) {
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
 
@@ -49,23 +50,23 @@ export function useNodeAreaActions({
   const handleCreateAreaFromSelection = useCallback(() => {
     if (areaActionDisabled) return;
     const result = createAreaSelectionAction(graphRef.current, areaActionNodeIds, areaActionTargetId);
-    onGraphChange(result.graph);
+    onGraphEdit(result.graph, 'area');
     setSelectedAreaId(result.selectedAreaId);
-  }, [areaActionDisabled, areaActionNodeIds, areaActionTargetId, graphRef, onGraphChange]);
+  }, [areaActionDisabled, areaActionNodeIds, areaActionTargetId, graphRef, onGraphEdit]);
 
   const handleRemoveArea = useCallback(
     (id: string) => {
       setSelectedAreaId((current) => (current === id ? null : current));
-      onGraphChange(removeGraphArea(graphRef.current, id));
+      onGraphEdit(removeGraphArea(graphRef.current, id), 'area');
     },
-    [graphRef, onGraphChange],
+    [graphRef, onGraphEdit],
   );
 
   const handleRemoveNodeFromArea = useCallback(
     (areaId: string, nodeId: string) => {
-      onGraphChange(removeNodesFromGraphArea(graphRef.current, areaId, [nodeId]));
+      onGraphEdit(removeNodesFromGraphArea(graphRef.current, areaId, [nodeId]), 'area');
     },
-    [graphRef, onGraphChange],
+    [graphRef, onGraphEdit],
   );
 
   return {

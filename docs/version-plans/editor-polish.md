@@ -1,0 +1,157 @@
+# Editor Polish
+
+Status: planned, unnumbered until it ships (see
+[`../version-planning.md`](../version-planning.md)). The Editor Polish Patch
+fixes it built on shipped in v0.51.0. Delivery is tracked
+in GitHub milestone
+[`Editor Polish`](https://github.com/shchilkin/artifact/milestone/15).
+AI-Assisted Creation is planned in [`ai-assisted-creation.md`](./ai-assisted-creation.md).
+
+## Purpose
+
+v0.50 made the editor stable and fast, but the
+[2026-10 editor polish audit](../discovery/editor-polish-audit-2026-10.md)
+scored it 23/40 on Nielsen's heuristics and found three UI generations rendered
+side by side: disciplined v0.50 surfaces next to older menus, rows, headers,
+native controls, 8-9 px text, and two token sets. The editor reads as
+assembled rather than designed.
+
+Editor Polish converges those surfaces before AI-Assisted Creation adds Chat and Change
+Preview. If the AI surfaces are built on today's mix, they become a fourth UI
+generation; converging first gives them one set of primitives to reuse.
+
+The release thesis is: every editor surface (Layers stack, Layers tree, Nodes,
+inspector, Add Library, dialogs and sheets) uses one control grammar: the same
+row anatomy, menus, focus, drop indicators, type floor and target header.
+Selecting or editing feels the same whichever mode you're in.
+
+Primary blast radius: design system (tokens, shared primitives, style-guide
+specimens) applied to editor chrome. Editor workflow semantics don't change.
+
+## Scope
+
+- Unified semantic tokens and a 10 px type floor in editor CSS.
+- One menu primitive and one shortcut map with visible hints in both modes.
+- One row anatomy and drop-indicator spec for the Layers stack and tree, a
+  pointer-usable "Move to…", an inline visibility toggle, and roving focus.
+- A two-line inspector header, and graph utility targets on the shared
+  inspector primitives.
+- The editor's own slider and switch controls, one SVG icon set, and a visible
+  focus style on every control.
+- Readable Nodes on entry, a toolbar that doesn't move, and the same words for
+  the same actions in Layers and Nodes.
+- Quiet start and nothing-selected states, and Add Library chrome on the shared
+  primitives.
+
+## Non-Goals
+
+- No renderer, graph, document schema, persistence, export, or thumbnail
+  semantic changes. The [`../rendering.md`](../rendering.md) parity rules are
+  unchanged.
+- No new node kinds, effects, presets, or editor capabilities: no export
+  popover and no group-into-merge from Layers.
+- No mobile task-flow redesign: no bottom-sheet inspector and no command bar
+  relocation. That stays in discovery with EP-33-EP-35.
+- No new visual direction. DESIGN.md and the warm-dark mono world stay; this is
+  convergence onto them. v0.50's "no token or visual-system redesign" is lifted
+  only in this narrow sense: tokens are unified, not redesigned.
+- No AI-Assisted Creation scope (see `ai-assisted-creation.md`).
+- No new route-level JavaScript above the current contract. The editor route
+  must not grow beyond its v0.50.0 size.
+
+## Delivery Issues
+
+Work the dependency frontier rather than the numeric order.
+
+1. [#449 Unify editor tokens and enforce a type floor](https://github.com/shchilkin/artifact/issues/449) (EP-37, EP-38 tokens)
+   - Blocked by: #448 (v0.50.1 gate).
+2. [#450 Use one menu primitive and one shortcut map](https://github.com/shchilkin/artifact/issues/450) (EP-38 menus, EP-13, EP-14)
+   - Blocked by: #449.
+3. [#451 Give Layers rows one anatomy, drop indicator and focus model](https://github.com/shchilkin/artifact/issues/451) (EP-09, EP-10, EP-11, EP-27 roving focus, EP-40)
+   - Blocked by: #449.
+4. [#452 Two-line inspector header and shared utility inspectors](https://github.com/shchilkin/artifact/issues/452) (EP-15, EP-05, EP-20)
+   - Blocked by: #449.
+5. [#453 Replace native controls and glyph icons, add visible focus](https://github.com/shchilkin/artifact/issues/453) (EP-16, EP-27 focus, EP-28)
+   - Blocked by: #449.
+6. [#454 Make Nodes readable on entry and consistent with Layers](https://github.com/shchilkin/artifact/issues/454) (EP-02, EP-04, EP-06)
+   - Blocked by: #449.
+7. [#455 Quiet the start and idle states](https://github.com/shchilkin/artifact/issues/455) (EP-29, EP-30, EP-32)
+   - Blocked by: #449.
+8. [#456 Complete the Editor Polish gate](https://github.com/shchilkin/artifact/issues/456)
+   - Blocked by: #450-#455.
+
+## Acceptance Criteria
+
+1. **Type floor.** The Impeccable detector reports 0 `design-system-font-size`
+   findings below 10 px in `components/**` and `routes/editor/**` (baseline:
+   80 and 13).
+2. **One menu primitive.** Layers row menus, the Nodes node and edge menus, the
+   command bar More menu and the Projects menus all render through one
+   component. Arrow keys, Home/End, type-ahead and Escape pass the same browser
+   test in each.
+3. **One row anatomy.** Every stack and tree row has a same-size icon slot, an
+   inline visibility toggle (`aria-pressed`) and an actions button visible on
+   coarse pointers. No row has a left border wider than 2 px. All row controls
+   are ≥ 44×44 under `pointer: coarse`.
+4. **One drop-indicator spec.** Stack and tree insertion lines share the same
+   CSS class. The indicator's left offset equals the target depth. Blocked
+   targets expose `data-drop="blocked"` with a not-allowed cursor.
+5. **Target header.** For every target kind in Layers and Nodes, the first
+   editable control starts ≤ 96 px below the top of the inspector at 1440×900.
+   A plain visible target shows no status badges.
+6. **Shared inspector primitives.** Graph utility targets (merge, mask, repeat,
+   colour, transform) render through the same section and row primitives as
+   layer targets. A browser test checks that the left edges of the first
+   controls match.
+7. **Controls.** In Chromium, Firefox and WebKit, range thumbs compute
+   `border-radius: 0`. Boolean controls compute `appearance: none` and expose
+   `role="switch"` or a checkbox with a visible focus ring.
+8. **Focus.** Every focusable editor control has a focus-visible style distinct
+   from hover. A browser sweep compares computed outline or box-shadow on focus
+   vs hover for all interactive elements on `/app`, in both modes.
+9. **Same words and keys.** Layers and Nodes use Hide/Show (no "Mute").
+   Delete, Duplicate, Hide and Rename have the same shortcut in the stack, the
+   tree and Nodes, and both modes' menus show the hints.
+10. **Start and idle states.** The empty document shows exactly one filled
+    button and one empty-state heading. With nothing selected, the inspector's
+    largest text is ≤ 13 px.
+11. **Nodes legibility.** On entry with the default document at 1024×768, node
+    header text renders at ≥ 9 px and the output node is fully visible.
+    Selecting a node doesn't change the toolbar's x position or button count.
+12. **Tokens.** Tailwind `@theme` colours resolve to the semantic tokens. The
+    detector reports 0 colour and radius drift outside tests. No raw z-index
+    above 100 remains in editor CSS.
+13. **Gates.** `npm run ux:gate` budgets pass unchanged. The editor route JS is
+    ≤ its v0.50.0 size. Style-guide specimens exist for the row, menu, header,
+    slider and switch primitives.
+
+## Validation
+
+The detector counts (criteria 1 and 12), focused Playwright specs (2-11), the
+existing `ux:gate` and route-loading contract (13), and one critique run on the
+release candidate, recorded next to the audit with its heuristic score compared
+to 23/40.
+
+Required release gate:
+
+```bash
+npm run check
+npm run build
+npm run loading:gate
+npm run ux:gate
+npm run test:browser:release
+npm run perf:node-editor
+```
+
+## Delivery Sequence
+
+1. Ship the Editor Polish Patch fixes (#448; shipped in v0.51.0).
+2. Unify tokens and the type floor (#449).
+3. Converge menus, rows, the inspector header, controls, Nodes, and the start
+   states in parallel (#450-#455), merging in dependency order where they touch
+   the same primitives.
+4. Run the complete gate and the critique against the exact revision prepared
+   for the release (#456).
+
+Editor Polish is complete only when #456 closes. Closing #456 unblocks
+AI-Assisted Creation (#126).

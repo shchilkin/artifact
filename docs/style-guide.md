@@ -209,7 +209,7 @@ until the migration is complete.
 ### Button
 
 - **Anatomy**: label, optional icon, optional loading indicator.
-- **Variants**: primary, secondary, quiet, danger, icon-only.
+- **Variants**: primary, secondary, quiet, danger, danger filled (the confirm of a destructive dialog), icon-only.
 - **States**: default, hover, active, focus-visible, disabled, loading.
 - **Accessibility**: 44px minimum target for touch workflows; visible focus;
   icon-only buttons require an accessible label.
@@ -282,7 +282,9 @@ until the migration is complete.
 
 - **Anatomy**: overlay, surface, title, description, body, actions, close.
 - **Foundation Popover contract**: compose `Popover`, `PopoverTrigger`, and
-  `PopoverContent`; use `PopoverClose` for explicit close actions. Preserve
+  `PopoverContent`; use `PopoverClose` for explicit close actions and
+  `PopoverAnchor` when the popover must sit beside a larger element than its
+  trigger, such as an inspector row. Preserve
   default initial focus, Escape and outside dismissal, collision handling, and
   focus return unless a documented product interaction requires an override.
 - **Variants**: dialog, sheet, anchored menu when a full modal is not needed.
@@ -393,7 +395,7 @@ until the migration is complete.
 - **Source**: product-owned patterns live in
   `apps/web/app/components/inspector-system/*`; the closed surface assignment
   and migration boundary live in
-  [`inspector-system-inventory.md`](./inspector-system-inventory.md).
+  [`inspector-system-inventory.md`](./archive/inspector-system-inventory.md).
 - **Anatomy**: `InspectorSection` groups properties, `InspectorField` composes
   UI Foundation fields, `PropertyRow` carries dense label/value/control
   alignment, and `InspectorStatus` presents bounded feedback.
@@ -443,6 +445,12 @@ until the migration is complete.
 - **Banned public copy**: agent workflow, migration notes, QA strategy, release
   notes, test names, and broad labels that characterize the final work as a
   whole.
+- **Versions**: UI copy never names a release version ("v0.28"). Describe the
+  behaviour instead.
+- **Ellipsis**: use the typographic "…", never "...". Placeholders that invite
+  input ("Search fonts…") and in-progress status words ("Loading…",
+  "Exporting image…") end with "…". Full sentences end with a period.
+  `apps/web/app/utils/userCopyBoundary.test.ts` enforces these rules.
 
 ## 6. Implementation Rules
 

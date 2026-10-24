@@ -20,7 +20,7 @@ aspect ratio support, and equirectangular environment map export.
 | Path        | File                   | Description                              |
 | ----------- | ---------------------- | ---------------------------------------- |
 | `/`         | `apps/web/app/routes/home.tsx`      | Landing page with animated hero covers   |
-| `/app`      | `apps/web/app/routes/generator.tsx` | Main editor: blank-canvas entry, layers, export |
+| `/app`      | `apps/web/app/routes/editor.tsx` | Main editor: blank-canvas entry, layers, export |
 | `/showcase` | `apps/web/app/routes/showcase.tsx`  | Infinite made-in-Artifact wall with editable projects |
 | `/docs/nodes` | `routes/docs.nodes.tsx` | Task-oriented node, source, and effect docs |
 
@@ -238,20 +238,12 @@ ignored.
 | [`docs/effect-development.md`](docs/effect-development.md) | Checklist for effect controls, metadata, renderer, and docs |
 | [`docs/testing.md`](docs/testing.md) | Testing strategy: unit, render parity, GPU smoke tests |
 | [`docs/performance.md`](docs/performance.md) | Node-editor benchmark workflow and render performance notes |
-| [`docs/improvement-plan.md`](docs/improvement-plan.md) | Phased quality checklist and exit criteria |
-| [`docs/roadmap.md`](docs/roadmap.md) | Product and architecture roadmap |
+| [`docs/roadmap.md`](docs/roadmap.md) | Active work, order, and known core risks |
 | [`docs/version-planning.md`](docs/version-planning.md) | Criteria for splitting versions by thesis, scope, risks, and acceptance criteria |
 | [`docs/agent-skills.md`](docs/agent-skills.md) | Preferred Codex skills for Artifact work |
-| [`docs/version-plans/v0.11.md`](docs/version-plans/v0.11.md) | v0.11 layer workflow and onboarding acceptance plan |
-| [`docs/version-plans/v0.12.md`](docs/version-plans/v0.12.md) | v0.12 examples, recipes, docs, and effect coverage acceptance plan |
-| [`docs/version-plans/v0.13.md`](docs/version-plans/v0.13.md) | v0.13 AI generation research and architecture acceptance plan |
-| [`docs/version-plans/v0.13-backend-contract.md`](docs/version-plans/v0.13-backend-contract.md) | v0.13 VPS backend API, schema, queue, and storage contract |
-| [`docs/version-plans/v0.14.md`](docs/version-plans/v0.14.md) | v0.14 editor beta, layer workflow, onboarding, and local-first reliability acceptance plan |
-| [`docs/version-plans/v0.15.md`](docs/version-plans/v0.15.md) | v0.15 visual clarity and cross-browser confidence acceptance plan |
-| [`docs/version-plans/v0.16.md`](docs/version-plans/v0.16.md) | v0.16 editor workflow polish, debug hygiene, and visual-system consolidation plan |
-| [`docs/version-plans/v0.17.md`](docs/version-plans/v0.17.md) | v0.17 creative controls, shared Add Library, and renderer-backed menu previews plan |
-| [`docs/production-readiness.md`](docs/production-readiness.md) | Release gate, manual QA checklist, and feature intake split |
+| [`docs/production-readiness.md`](docs/production-readiness.md) | Release gate and manual QA checklist |
 | [`docs/release-template.md`](docs/release-template.md) | Mandatory release notes template and release checklist |
+| [`docs/archive/`](docs/archive/) | Shipped version plans, old roadmap, and release evidence |
 
 ## Project structure
 

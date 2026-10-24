@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 import * as THREE from 'three';
-import type { GraphScene3DNode, MaterialConfig, ModelLayer, PrimitiveLayer } from '../types/config';
+import type { MaterialConfig, ModelLayer, PrimitiveLayer } from '../types/config';
 import {
   addModelSceneLights,
   applyModelTransform,
@@ -22,6 +22,7 @@ import {
   type SceneEnvironmentMap,
   type SceneMaterialTextureCanvases,
 } from '../utils/modelRenderer';
+import type { GraphScene3DNode } from '../utils/nodeKinds';
 import {
   applyViewStateToCamera,
   CAMERA_ZOOM_MAX,
@@ -578,7 +579,7 @@ export function ModelViewport3D({
     : loadFailure
       ? sourceLoadStatus(layer, loadFailure)
       : !hasRenderedFrame
-        ? 'Loading 3D model'
+        ? 'Loading 3D model…'
         : '3D model ready';
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!interactive || locked) return;

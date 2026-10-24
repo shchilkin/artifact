@@ -150,8 +150,8 @@
 }
 
 .layer-row:has(.layer-row-selection-control:focus-visible) {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: calc(-1 * var(--focus-ring-width));
+  outline: var(--focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
 }
 
 .layer-row.bg-accent-dim,
@@ -1282,31 +1282,6 @@
   }
 }
 
-.layer-empty-state {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4) 14px;
-  border-bottom: 1px solid var(--line-default);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  line-height: 1.5;
-  text-transform: uppercase;
-}
-
-.layer-empty-state p {
-  margin: 0;
-}
-
-.layer-empty-kicker {
-  color: var(--accent-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-}
-
 .layer-selection-actions {
   position: sticky;
   top: 0;
@@ -1953,6 +1928,52 @@
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
+  .layer-tree-folder-row,
+  .layer-tree-node-row,
+  .layer-tree-reference-row {
+    min-height: var(--touch);
+  }
+}
+
+/*
+ * Touch: row actions have no hover to reveal them, so they stay visible. Every row control gets a
+ * 44 px hit area (style-guide touch target) from a centered pseudo-element, so its visual size
+ * stays the same. Leaf carets are spacers, not controls.
+ */
+@media (pointer: coarse) {
+  .layer-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  .layer-row-action,
+  .layer-row-drag-handle,
+  .layer-tree-caret:not(.layer-tree-caret-leaf),
+  .layer-area-folder-toggle,
+  .layer-area-rename,
+  .layer-area-remove,
+  .layer-area-visibility {
+    position: relative;
+  }
+
+  .layer-row-action::before,
+  .layer-row-drag-handle::before,
+  .layer-tree-caret:not(.layer-tree-caret-leaf)::before,
+  .layer-area-folder-toggle::before,
+  .layer-area-rename::before,
+  .layer-area-remove::before,
+  .layer-area-visibility::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, var(--touch));
+    height: max(100%, var(--touch));
+    transform: translate(-50%, -50%);
+  }
+
+  .layer-area-folder-header,
   .layer-tree-folder-row,
   .layer-tree-node-row,
   .layer-tree-reference-row {

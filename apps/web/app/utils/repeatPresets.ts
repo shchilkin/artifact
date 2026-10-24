@@ -1,6 +1,5 @@
-import type { GraphRepeatNode } from '../types/config';
-import { makeGraphRepeatNode } from '../types/config';
-
+import type { GraphRepeatNode } from '../utils/nodeKinds';
+import { makeGraphRepeatNode } from './nodeKinds/repeat';
 export const REPEAT_PRESET_IDS = ['stickerGrid', 'echoTrail', 'orbitRings', 'typeCascade', 'burstField'] as const;
 export type RepeatPresetId = (typeof REPEAT_PRESET_IDS)[number];
 

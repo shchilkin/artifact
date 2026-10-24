@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 
-import { makeGraphMaterialNode, makeSourceLayer, type PrimitiveLayer } from '../types/config';
+import { makeSourceLayer, type PrimitiveLayer } from '../types/config';
+import { makeGraphMaterialNode } from './nodeKinds';
 import { primitiveRendererTestInternals, renderPrimitiveToCanvas } from './primitiveRenderer';
 import { createPrimitiveMaterial } from './primitiveScene';
 import { measureAlphaBounds } from './render/alphaBounds';

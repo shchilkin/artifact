@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { type CanvasDocument, makeFillLayer } from '../../types/config';
+import { graphNodesById } from '../nodeGraph';
 import { renderGraphTarget } from '../renderer';
 
 describe('graph render cache pruning', () => {
   it('evicts the least recently used entry, not the oldest one', async () => {
     const layers = ['a', 'b', 'c'].map((id) => makeFillLayer({ id, color: '#336699' }));
-    const graph = { edges: [], positions: {}, mergeNodes: [], colorNodes: [] };
+    const graph = { edges: [], positions: {}, nodes: graphNodesById() };
     const doc: CanvasDocument = {
       global: { bg: '#000000', seed: 1, aspect: '1:1' },
       layers,

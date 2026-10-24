@@ -5,7 +5,8 @@ import {
   aiAccessUsageLabel,
 } from '../../../features/ai-access/aiAccessPresentation';
 import { AI_SHADER_PROMPT_MAX_LENGTH } from '../../../types/aiGeneration';
-import type { GraphShaderNode, ShaderPropertyValue } from '../../../types/config';
+import type { ShaderPropertyValue } from '../../../types/config';
+import type { GraphShaderNode } from '../../../utils/nodeKinds';
 import { InspectorStatus } from '../../inspector-system';
 import type { AiShaderInspectorStatus, AiShaderInspectorViewModel } from './AiShaderInspectorModel';
 import { InspectorSection, InspectorSlider, InspectorTextArea } from './fields';
@@ -114,7 +115,7 @@ function AiShaderAccessStatus({ generation }: { generation: AiShaderGeneration }
   const check = generation.aiAccess;
   if (check.status === 'checking') {
     return (
-      <ShaderStatusMessage title="Checking AI access" message="Confirming what this account can create." tone="info" />
+      <ShaderStatusMessage title="Checking AI access…" message="Confirming what this account can create." tone="info" />
     );
   }
   if (check.status === 'error') {
@@ -274,7 +275,7 @@ function refineSummary(refining: boolean, instruction: string) {
 }
 
 function refineActionLabel(refining: boolean) {
-  return refining ? 'Refining...' : 'Refine with AI';
+  return refining ? 'Refining…' : 'Refine with AI';
 }
 
 export function AiShaderControlsSection({

@@ -15,7 +15,7 @@ Artifact's print-like visual language.
 | --- | --- |
 | One source of truth | Reused control sizing, typography, borders, focus rings, shadows, and state colors belong in tokens or shared primitives. |
 | Product-shaped primitives | Prefer Foundation `Button` / `ButtonLink` plus product-owned `SearchField`, `Panel`, `LayerRow`, `NodeFrame`, and `InspectorField` over generic wrappers that callers restyle each time. |
-| Explicit variants | Use named variants such as `primary`, `secondary`, `quiet`, `danger`, `selected`, `locked`, and `hidden`; avoid ad hoc boolean combinations. |
+| Explicit variants | Use named variants such as `primary`, `secondary`, `quiet`, `danger`, `danger-filled`, `selected`, `locked`, and `hidden`; avoid ad hoc boolean combinations. |
 | Accessible mechanics, Artifact visuals | Radix/shadcn can provide behavior and accessibility, but Artifact tokens define the appearance. |
 | Style guide before broad migration | New or migrated primitives should be visible in a deterministic style-guide route before broad editor adoption. |
 | UI copy is product copy | Internal migration plans, QA strategy, release-plan notes, and agent workflow text live in `docs/`, not in app surfaces. |
@@ -180,20 +180,32 @@ still consume the same tokens:
 - `EditorTargetHeader`
 - `EditorConfirmDialog` (replacing and destructive editor actions; modal,
   Cancel takes initial focus, Escape cancels; `useEditorConfirm` for
-  promise-style callers)
+  promise-style callers). Use `tone: 'danger'` for deletes (a project, a
+  shared node) and for replacing work that neither undo nor a recovery copy
+  brings back (opening a project over unsaved changes); it confirms with the
+  shared `danger-filled` Button variant. Replacements that undo or a recovery
+  copy restore, such as Randomize or New blank canvas, keep the default tone. `--state-danger` stays
+  at least 10° of hue from the flare accent.
 - `EditorWorkflowNotice` laid over a panel (`LayerTreeEditStatus`): the
   shared `InlineNotice` used as a non-shifting overlay for transient edit
   feedback. It stays mounted while empty, so its status live region is
   registered before the first message, and it ignores pointer events. Use it
   where an inline notice would push rows the person is dragging or
   navigating; otherwise use an inline `EditorWorkflowNotice`.
+  Numeric entry's clamp message ("Max 100%", `InspectorSlider`) uses the same
+  overlay, laid over the slider track inside the row so a section's clipped
+  edge never cuts it off.
+- `EditorExportStatus`: export feedback laid over the workspace. A success
+  `EditorWorkflowNotice` stays mounted as the status region and announces the
+  downloaded file name; an export error stays until Dismiss or Retry. The
+  `EXPORT` button keeps one width for its idle and busy ("Exporting…") labels.
 
 ### Route-Level Style Guide
 
 The deterministic internal route for the visual UI catalog is
 `/docs/style-guide`. It should show:
 
-- buttons: primary, secondary, quiet, danger, disabled, icon-only
+- buttons: primary, secondary, quiet, danger, danger filled, disabled, icon-only
 - inputs: default, search, focused, disabled, error
 - tabs and segmented controls
 - sheets/dialogs/floating menus
@@ -230,13 +242,14 @@ their behavior remains covered by browser/render tests.
 
 The release ownership, state matrix, keyboard requirements, responsive
 requirements, and five bounded source-owned patterns for the editor are closed
-in the [Artifact editor-workflow inventory](editor-workflow-inventory.md).
+in the [Artifact editor-workflow inventory](archive/editor-workflow-inventory.md).
 That inventory is the contract for v0.45 and the editor-pattern dependency used
 by v0.46 and v0.47. It also keeps the future Chat mode and assistant surfaces in
-v0.51 rather than treating them as current editor navigation.
+the AI-Assisted Creation plan rather than treating them as current editor
+navigation.
 
 The v0.46 property boundary is closed in the
-[Artifact inspector-system inventory](inspector-system-inventory.md). Its
+[Artifact inspector-system inventory](archive/inspector-system-inventory.md). Its
 source-owned `InspectorSection`, `InspectorField`, `PropertyRow`, and
 `InspectorStatus` patterns are represented by ordinary and dense live
 specimens. Production forms consume the contract directly through the
@@ -409,8 +422,16 @@ The accepted release sequence is:
 - **v0.50 — Editor UX**: make the editor stable, responsive, and explicit
   about state, and let Layers represent custom node graphs. See
   [`version-plans/v0.50.md`](version-plans/v0.50.md).
-- **v0.51 — AI-Assisted Creation**: the paused AI release resumes only after
-  the v0.50 gate.
+- **v0.51 — Core Reset**: shipped together with the Editor Polish Patch
+  fixes from the 2026-10 editor polish audit. See
+  [`version-plans/v0.51.md`](version-plans/v0.51.md) and
+  [`version-plans/v0.50.md`](version-plans/v0.50.md).
+- **Editor Polish** (unnumbered until it ships): one control grammar across
+  editor surfaces (menus, rows, drop indicators, inspector header, controls,
+  focus, type floor, and tokens). See
+  [`version-plans/editor-polish.md`](version-plans/editor-polish.md).
+- **AI-Assisted Creation** (unnumbered until it ships): resumes only after the
+  Editor Polish gate.
 
 Each UI-system milestone should contain four to eight implementation issues.
 Every issue must fit one fresh implementation context, produce an independently
@@ -433,7 +454,9 @@ The accepted cross-release blocking edges are:
 - v0.48 is blocked by v0.43, v0.44, v0.45, v0.46, and v0.47.
 - v0.48 blocks v0.49 Application Shell And Loading Boundaries.
 - v0.49 blocks v0.50 Editor UX.
-- v0.50 blocks v0.51 AI-Assisted Creation.
+- v0.50 blocks the Editor Polish Patch fixes, which shipped in v0.51.
+- v0.51 blocks Editor Polish.
+- Editor Polish blocks AI-Assisted Creation.
 
 Within each milestone, establish its inventory and prerequisite contract first,
 allow independent migration slices to work from that frontier, and keep the
@@ -458,7 +481,7 @@ Already represented in `/docs/style-guide`:
 - canvas-chrome reference surfaces: reduced deterministic `NodeCanvas`,
   `CanvasPreview`, `NodeGalleryCanvas`, and `PrimitiveViewport3D` fixtures.
   Their closed state map and semantic invariants live in
-  [`docs/canvas-chrome-inventory.md`](canvas-chrome-inventory.md).
+  [`docs/archive/canvas-chrome-inventory.md`](archive/canvas-chrome-inventory.md).
 
 High-priority follow-up specimens:
 

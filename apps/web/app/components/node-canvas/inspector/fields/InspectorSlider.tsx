@@ -1,12 +1,20 @@
-import { type ComponentPropsWithoutRef, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-
+import {
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createCoalescedCommit } from '../../../../utils/coalescedCommit';
 import { PREVIEW_FRAME_INTERVAL_MS } from '../../../../utils/interactionTiming';
+import { EditorWorkflowNotice } from '../../../editor-workflow/EditorWorkflowNotice';
 import { PropertyRow } from '../../../inspector-system';
 import { stopNodeEvent } from '../../helpers';
-import { NoPan } from '../../nodes/NoPan';
 import { InspectorTargetContext } from './inspectorTargetContext';
-import { formatEntry, parseEntry } from './sliderEntry';
+import { SliderHelp, SliderHelpTrigger } from './SliderHelp';
+import { entryLimitMessage, formatEntry, parseEntry } from './sliderEntry';
 
 /**
  * The slider shows every value at once and updates the document at most once per preview frame interval, so a drag
@@ -40,10 +48,8 @@ export function InspectorSlider({
   max,
   step = 1,
   overrideMax,
-  effectKey,
+  help,
   disabled = false,
-  onInfoEnter,
-  onInfoLeave,
   onChange,
 }: {
   label: string;
@@ -57,36 +63,18 @@ export function InspectorSlider({
   step?: number;
   /** Numeric entry accepts values up to this limit; the slider stops at `max`. */
   overrideMax?: number;
-  effectKey?: string;
+  /** Help for the control, opened from an "About …" button beside the row. */
+  help?: ReactNode;
   disabled?: boolean;
-  onInfoEnter?: (key: string, rect: DOMRect) => void;
-  onInfoLeave?: () => void;
   onChange: (value: number) => void;
 }) {
-  const infoRef = useRef<HTMLButtonElement>(null);
   const { displayValue, change, flush } = useCoalescedSliderValue(value, onChange);
   const sliderValue = Math.min(max, Math.max(min, displayValue));
-  return (
+  const row = (
     <PropertyRow
       className={`artifact-inspector-slider${disabled ? ' artifact-inspector-control-disabled' : ''}`}
       label={<span className="artifact-inspector-label">{label}</span>}
-      labelAction={
-        effectKey && onInfoEnter ? (
-          <NoPan
-            as="button"
-            ref={infoRef}
-            type="button"
-            className="artifact-inspector-info"
-            onMouseEnter={() => {
-              if (infoRef.current) onInfoEnter(effectKey, infoRef.current.getBoundingClientRect());
-            }}
-            onMouseLeave={onInfoLeave}
-            aria-label={`About ${label}`}
-          >
-            i
-          </NoPan>
-        ) : undefined
-      }
+      labelAction={help ? <SliderHelpTrigger label={label} /> : undefined}
       disabled={disabled}
     >
       <SliderInputs
@@ -103,6 +91,13 @@ export function InspectorSlider({
         onCommit={flush}
       />
     </PropertyRow>
+  );
+  return help ? (
+    <SliderHelp label={label} content={help}>
+      {row}
+    </SliderHelp>
+  ) : (
+    row
   );
 }
 
@@ -136,6 +131,7 @@ function SliderInputs({
   value: number;
   valueText?: string;
 }) {
+  const limit = useEntryLimitMessage();
   return (
     <div className="node-slider-row">
       <input
@@ -170,15 +166,28 @@ function SliderInputs({
         disabled={disabled}
         onChange={onChange}
         onCommit={onCommit}
+        onLimit={limit.show}
       />
+      {/* Laid over the slider track, so the message never moves the rows or gets clipped by a section edge. It stays
+          mounted while empty so its live region is registered before the first message. */}
+      <EditorWorkflowNotice
+        className="artifact-inspector-entry-limit"
+        variant="info"
+        data-visible={limit.message ? 'true' : 'false'}
+      >
+        {limit.message ?? ''}
+      </EditorWorkflowNotice>
     </div>
   );
 }
 
+/** How long numeric entry shows the limit it clamped a typed value to. */
+export const ENTRY_LIMIT_MESSAGE_MS = 2400;
+
 /**
  * Numeric entry for a slider. Typing only edits the text; Enter or blur commits it once, clamped to the range and
- * snapped to the step like a slider value, and Escape puts back the committed value. Text that is not a number is
- * discarded.
+ * snapped to the step like a slider value, and Escape puts back the committed value. A value outside the range
+ * briefly shows the limit it was clamped to. Text that is not a number is discarded.
  */
 function NumericEntry({
   label,
@@ -190,6 +199,7 @@ function NumericEntry({
   disabled,
   onChange,
   onCommit,
+  onLimit,
 }: {
   label: string;
   value: number;
@@ -200,6 +210,8 @@ function NumericEntry({
   disabled?: boolean;
   onChange: (value: number) => void;
   onCommit: () => void;
+  /** Reports the limit a committed value was clamped to, or `null` when it was in range. */
+  onLimit: (message: string | null) => void;
 }) {
   const [text, setText] = useState<string | null>(null);
   const range = { min, max, step };
@@ -207,6 +219,7 @@ function NumericEntry({
     if (text === null) return;
     const next = parseEntry(text, range);
     if (next !== null && next !== value) onChange(next);
+    onLimit(entryLimitMessage(text, range, unit));
     setText(null);
     onCommit();
   };
@@ -246,4 +259,25 @@ function NumericEntry({
       ) : null}
     </span>
   );
+}
+
+/** Gap between clearing the live region and the next message, so the same limit typed twice is announced twice. */
+const ENTRY_LIMIT_REANNOUNCE_MS = 50;
+
+function useEntryLimitMessage() {
+  const [message, setMessage] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return {
+    message,
+    show: (next: string | null) => {
+      clearTimeout(timer.current);
+      setMessage(null);
+      if (!next) return;
+      timer.current = setTimeout(() => {
+        setMessage(next);
+        timer.current = setTimeout(() => setMessage(null), ENTRY_LIMIT_MESSAGE_MS);
+      }, ENTRY_LIMIT_REANNOUNCE_MS);
+    },
+  };
 }

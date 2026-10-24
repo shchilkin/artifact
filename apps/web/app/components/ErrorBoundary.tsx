@@ -2,7 +2,14 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
+  /** A node, or a render function that receives `reset` to clear the error and render children again. */
+  fallback?: ReactNode | ((reset: () => void) => ReactNode);
+  /** Clears the error when any key changes, for example after Undo replaces the document. */
+  resetKeys?: readonly unknown[];
+}
+
+function resetKeysChanged(previous: readonly unknown[] = [], next: readonly unknown[] = []) {
+  return previous.length !== next.length || previous.some((key, index) => !Object.is(key, next[index]));
 }
 
 interface State {
@@ -24,10 +31,30 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('[ErrorBoundary]', error, info.componentStack);
   }
 
+  componentDidUpdate(previousProps: Props, previousState: State) {
+    // Skip the commit that caught the error: when a key change itself made a child throw, the keys differ from the
+    // previous props, and resetting then would only render the same failure again.
+    if (
+      this.state.hasError &&
+      previousState.hasError &&
+      resetKeysChanged(previousProps.resetKeys, this.props.resetKeys)
+    ) {
+      this.reset();
+    }
+  }
+
+  reset = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback != null) {
-        return this.props.fallback;
+      const { fallback } = this.props;
+      if (typeof fallback === 'function') {
+        return fallback(this.reset);
+      }
+      if (fallback != null) {
+        return fallback;
       }
 
       return (
@@ -48,7 +75,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <span>Something went wrong.</span>
           <button
             type="button"
-            onClick={() => this.setState({ hasError: false, error: null })}
+            onClick={this.reset}
             style={{
               padding: '0.4rem 1rem',
               background: 'transparent',

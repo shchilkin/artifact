@@ -7,7 +7,6 @@ import type {
   CanvasDocument,
   EffectPreset,
   GraphArea,
-  GraphScene3DNode,
   Layer,
   LayerKind,
   ModelLayer,
@@ -18,6 +17,8 @@ import { isLayerStackGraph } from '../../utils/documentCommands';
 import { buildGraphLayerTree, type GraphLayerTree } from '../../utils/graphLayerTree';
 import type { LayerAddPlacement, TreeEditResult } from '../../utils/graphTreeEdits';
 import { getLayerAreaMap } from '../../utils/layerAreas';
+import { graphNodesOfKind } from '../../utils/nodeGraph';
+import type { GraphScene3DNode } from '../../utils/nodeKinds';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import { collectDocumentOutputNodeIds } from '../../utils/renderer';
 import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
@@ -30,7 +31,6 @@ import {
   EditorRowPrimary,
 } from '../editor-workflow/EditorRowFrame';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { EmptyLayerPanelStart } from './EmptyLayerPanelStart';
 import { GraphLayerTreeView } from './GraphLayerTreeView';
 import { GraphLayerTreeEditingContext } from './graphLayerTreeEditing';
 import { graphTreeLayerOrder } from './graphTreeItems';
@@ -85,7 +85,7 @@ const ASPECT_OPTIONS: Array<{ ratio: AspectRatio; label: string; size: string }>
 ];
 
 function graphAreasForDocument(doc: CanvasDocument) {
-  return doc.graph?.areas ?? [];
+  return doc.graph.areas ?? [];
 }
 
 function graphTreeDisplayLayers(tree: GraphLayerTree | null, layers: Layer[]): Layer[] | null {
@@ -146,7 +146,7 @@ export function LayerPanel({
     () => [...doc.layers].reverse().filter((layer) => !isSceneModelInputLayer(layer, doc.graph)),
     [doc.layers, doc.graph],
   );
-  const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph?.areas), [doc.layers, doc.graph?.areas]);
+  const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph.areas), [doc.layers, doc.graph.areas]);
   const displayItems = useMemo(
     () => buildLayerDisplayItems(displayLayers, areasByLayerId, doc.graph),
     [areasByLayerId, displayLayers, doc.graph],
@@ -309,7 +309,6 @@ export function LayerPanel({
         role={graphTree ? undefined : 'list'}
         aria-label={graphTree ? undefined : 'Layer stack'}
       >
-        <LayerPanelEmptyState visible={displayLayers.length === 0} />
         {reorderDisabled && !graphTree && displayLayers.length > 1 ? (
           <p className="layer-panel-graph-order-note px-3 py-2 text-[11px] text-dim border-b border-border">
             Layer order follows the node graph. Reorder in Structure or in Nodes.
@@ -477,11 +476,6 @@ function LayerPanelHeader({
       </div>
     </div>
   );
-}
-
-function LayerPanelEmptyState({ visible }: { visible: boolean }) {
-  if (!visible) return null;
-  return <EmptyLayerPanelStart />;
 }
 
 function LayerSelectionActions({
@@ -656,7 +650,7 @@ function Scene3DLayerRows({
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
 }) {
-  const scenes = doc.graph?.scene3dNodes ?? [];
+  const scenes = graphNodesOfKind(doc.graph, 'scene3d');
   if (scenes.length === 0) return null;
   return (
     <>

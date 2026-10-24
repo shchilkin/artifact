@@ -5,10 +5,9 @@ import {
   type CanvasGraph,
   DEFAULT_DOCUMENT,
   DOCUMENT_SCHEMA_VERSION,
+  makeDocument,
   makeEffectLayer,
   makeFillLayer,
-  makeGraphMaterialNode,
-  makeGraphShaderNode,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
@@ -18,20 +17,25 @@ import {
   createBlankDocument,
   createDocumentShareUrl,
   DOC_KEY,
-  deletePreBlankDraft,
-  getInitialDocumentFromSources,
   isBlankDocument,
   loadPreBlankDraft,
   normalizeDocument,
   PRE_BLANK_DRAFT_KEY,
   parseArtifactDocument,
   removeDocParamFromUrl,
+  resolveInitialDocumentFromSources,
   saveDocumentToStorage,
-  savePreBlankDraft,
   serializeArtifactDocument,
   serializeDocument,
 } from './documentPersistence';
-import { EXPORT_NODE_ID } from './nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind } from './nodeGraph';
+import {
+  makeGraphColorNode,
+  makeGraphMaterialNode,
+  makeGraphMergeNode,
+  makeGraphRepeatNode,
+  makeGraphShaderNode,
+} from './nodeKinds';
 
 function encodeDoc(doc: unknown) {
   return JSON.stringify(doc);
@@ -88,16 +92,16 @@ describe('normalizeDocument', () => {
       },
     });
 
-    expect(doc.graph?.shaderNodes?.[0]?.shaderKind).toBe('liquidMetal');
-    expect(doc.graph?.shaderNodes?.[0]).toMatchObject({ opacity: 58, blendMode: 'screen' });
-    expect(doc.graph?.shaderNodes?.[1]?.shaderKind).toBe('meshGradient');
-    expect(doc.graph?.shaderNodes?.[1]?.distortion).toBe(0);
-    expect(doc.graph?.shaderNodes?.[2]?.shaderKind).toBe('borderRings');
-    expect(doc.graph?.shaderNodes?.[3]?.shaderKind).toBe('dotGrid');
-    expect(doc.graph?.shaderNodes?.[4]?.shaderKind).toBe('waves');
-    expect(doc.graph?.shaderNodes?.[5]?.shaderKind).toBe('smokeRing');
-    expect(doc.graph?.shaderNodes?.[6]?.shaderKind).toBe('tilelessTexture');
-    expect(doc.graph?.shaderNodes?.[7]?.shaderKind).toBe('meshGradient');
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[0]?.shaderKind).toBe('liquidMetal');
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[0]).toMatchObject({ opacity: 58, blendMode: 'screen' });
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[1]?.shaderKind).toBe('meshGradient');
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[1]?.distortion).toBe(0);
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[2]?.shaderKind).toBe('borderRings');
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[3]?.shaderKind).toBe('dotGrid');
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[4]?.shaderKind).toBe('waves');
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[5]?.shaderKind).toBe('smokeRing');
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[6]?.shaderKind).toBe('tilelessTexture');
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[7]?.shaderKind).toBe('meshGradient');
   });
 
   it('migrates old AI operation specs to a definition-backed local draft', () => {
@@ -136,7 +140,7 @@ describe('normalizeDocument', () => {
       },
     });
 
-    const node = doc.graph?.shaderNodes?.[0];
+    const node = graphNodesOfKind(doc.graph, 'shader')?.[0];
     expect(node?.shaderKind).toBe('aiShader');
     expect(node?.role).toBe('effect');
     expect(node?.aiPrompt).toBe(aiPrompt.slice(0, AI_SHADER_PROMPT_MAX_LENGTH));
@@ -184,8 +188,8 @@ describe('normalizeDocument', () => {
       },
     });
 
-    const node = doc.graph?.shaderNodes?.[0];
-    expect(doc.schemaVersion).toBe(3);
+    const node = graphNodesOfKind(doc.graph, 'shader')?.[0];
+    expect(doc.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(node?.shaderKind).toBe('customCode');
     expect(node?.role).toBe('effect');
     expect(node?.shaderInstance).toMatchObject({
@@ -233,7 +237,7 @@ describe('normalizeDocument', () => {
       },
     });
 
-    expect(doc.graph?.shaderNodes?.[0]).toMatchObject({
+    expect(graphNodesOfKind(doc.graph, 'shader')?.[0]).toMatchObject({
       role: 'effect',
       shaderInstance: {
         definition: { id: 'water-effect' },
@@ -262,7 +266,7 @@ describe('normalizeDocument', () => {
       },
     });
 
-    const shader = doc.graph?.shaderNodes?.[0];
+    const shader = graphNodesOfKind(doc.graph, 'shader')?.[0];
     expect(shader?.palette).toEqual(['#112233', '#5033a6']);
     expect(shader).not.toHaveProperty('colorA');
   });
@@ -294,15 +298,13 @@ describe('normalizeDocument', () => {
       graph: {
         edges: [{ id: 'e-ai-export', fromId: shaderNode.id, fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
         positions: { [shaderNode.id]: { x: 0, y: 80 }, [EXPORT_NODE_ID]: { x: 320, y: 80 } },
-        mergeNodes: [],
-        colorNodes: [],
-        shaderNodes: [shaderNode],
+        nodes: graphNodesById(shaderNode),
       },
       export: { format: 'png', scale: 1, target: 'cover' },
     });
 
     const parsed = parseArtifactDocument(serialized);
-    const parsedNode = parsed?.graph?.shaderNodes?.[0];
+    const parsedNode = parsed ? graphNodesOfKind(parsed.graph, 'shader')[0] : undefined;
 
     expect(parsedNode).toMatchObject({
       id: 'shader-ai',
@@ -392,7 +394,7 @@ describe('normalizeDocument', () => {
 
     expect(doc.envAssets).toHaveLength(1);
     expect(doc.envAssets?.[0]).toMatchObject({ id: 'env-a', label: 'studio.exr' });
-    expect(doc.graph?.environmentNodes?.[0]).toMatchObject({
+    expect(graphNodesOfKind(doc.graph, 'environment')?.[0]).toMatchObject({
       id: 'env-node-a',
       environmentSrc: 'artifact-env://env-a',
       environmentName: '',
@@ -469,7 +471,7 @@ describe('normalizeDocument', () => {
       },
     });
 
-    expect(doc.graph?.repeatNodes?.[0]).toMatchObject({ id: 'repeat-a', seedOffset: 0 });
+    expect(graphNodesOfKind(doc.graph, 'repeat')?.[0]).toMatchObject({ id: 'repeat-a', seedOffset: 0 });
   });
 
   it('adds interaction defaults to older transform nodes', () => {
@@ -483,7 +485,7 @@ describe('normalizeDocument', () => {
       },
     });
 
-    expect(doc.graph?.transformNodes?.[0]).toMatchObject({
+    expect(graphNodesOfKind(doc.graph, 'transform')?.[0]).toMatchObject({
       id: 'transform-a',
       scaleX: 100,
       scaleY: 100,
@@ -503,7 +505,7 @@ describe('normalizeDocument', () => {
       },
     });
 
-    expect(doc.graph?.grimeShadowNodes?.[0]).toMatchObject({
+    expect(graphNodesOfKind(doc.graph, 'grimeShadow')?.[0]).toMatchObject({
       id: 'shadow-a',
       x: 8,
       y: 10,
@@ -552,6 +554,27 @@ describe('normalizeDocument', () => {
     });
 
     expect(doc.layers[0]).toMatchObject({ id: 'effect-a', kind: 'effect', seedOffset: 0 });
+  });
+
+  it('applies no legacy migrations to current-schema documents', () => {
+    const doc = normalizeDocument({
+      schemaVersion: DOCUMENT_SCHEMA_VERSION,
+      layers: [
+        {
+          id: 'fx',
+          name: 'Already focused',
+          kind: 'effect',
+          preset: 'grain',
+          visible: true,
+          locked: false,
+          grain: 20,
+          scanlines: 10,
+        },
+      ],
+    });
+
+    expect(doc.layers.map((layer) => layer.id)).toEqual(['fx']);
+    expect(doc.layers[0]).toMatchObject({ preset: 'grain', grain: 20, scanlines: 10 });
   });
 
   it('splits legacy combined effect presets into focused effect layers', () => {
@@ -604,6 +627,74 @@ describe('normalizeDocument', () => {
     expect(doc.layers).toMatchObject([{ seedOffset: 77 }, { seedOffset: 77 }, { seedOffset: 77 }]);
   });
 
+  it('rewires graph edges, positions, and areas when splitting a legacy effect layer', () => {
+    const doc = normalizeDocument({
+      layers: [
+        { id: 'fill-a', name: 'Fill', kind: 'fill', color: '#ff0000', opacity: 100, blendMode: 'source-over' },
+        {
+          id: 'legacy-warp',
+          name: 'Warp FX',
+          kind: 'effect',
+          preset: 'warp',
+          visible: true,
+          locked: false,
+          noiseWarp: 40,
+          morphAmt: 30,
+        },
+      ],
+      graph: {
+        edges: [
+          { id: 'e-fill-warp', fromId: 'fill-a', fromPort: 'out', toId: 'legacy-warp', toPort: 'in' },
+          { id: 'e-warp-export', fromId: 'legacy-warp', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        ],
+        positions: { 'fill-a': { x: 0, y: 80 }, 'legacy-warp': { x: 300, y: 80 } },
+        mergeNodes: [],
+        colorNodes: [],
+        areas: [{ id: 'area-1', name: 'FX', nodeIds: ['legacy-warp'], color: '#00ff00' }],
+      },
+    });
+
+    const [first, second] = ['legacy-warp-morph-0', 'legacy-warp-noiseWarp-1'];
+    expect(doc.layers.map((layer) => layer.id)).toEqual(['fill-a', first, second]);
+    const edges = doc.graph?.edges.map(({ fromId, toId, toPort }) => ({ fromId, toId, toPort }));
+    expect(edges).toEqual(
+      expect.arrayContaining([
+        { fromId: 'fill-a', toId: first, toPort: 'in' },
+        { fromId: first, toId: second, toPort: 'in' },
+        { fromId: second, toId: EXPORT_NODE_ID, toPort: 'in' },
+      ]),
+    );
+    expect(edges).toHaveLength(3);
+    expect(doc.graph?.edges.some((edge) => edge.fromId === 'legacy-warp' || edge.toId === 'legacy-warp')).toBe(false);
+    expect(doc.graph?.positions[first]).toEqual({ x: 300, y: 80 });
+    expect(doc.graph?.positions[second]).toBeDefined();
+    expect(doc.graph?.positions['legacy-warp']).toBeUndefined();
+    expect(doc.graph?.areas?.[0]?.nodeIds).toEqual([first, second]);
+  });
+
+  it('bridges graph edges when a legacy effect layer splits into nothing', () => {
+    const doc = normalizeDocument({
+      layers: [
+        { id: 'fill-a', name: 'Fill', kind: 'fill', color: '#ff0000', opacity: 100, blendMode: 'source-over' },
+        { id: 'empty-warp', name: 'Warp FX', kind: 'effect', preset: 'warp', visible: true, locked: false },
+      ],
+      graph: {
+        edges: [
+          { id: 'e-fill-warp', fromId: 'fill-a', fromPort: 'out', toId: 'empty-warp', toPort: 'in' },
+          { id: 'e-warp-export', fromId: 'empty-warp', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
+        ],
+        positions: {},
+        mergeNodes: [],
+        colorNodes: [],
+      },
+    });
+
+    expect(doc.layers.map((layer) => layer.id)).toEqual(['fill-a']);
+    expect(doc.graph?.edges.map(({ fromId, toId, toPort }) => ({ fromId, toId, toPort }))).toEqual([
+      { fromId: 'fill-a', toId: EXPORT_NODE_ID, toPort: 'in' },
+    ]);
+  });
+
   it('fills newer effect defaults when loading older effect layers', () => {
     const doc = normalizeDocument({
       layers: [
@@ -628,29 +719,20 @@ describe('normalizeDocument', () => {
     });
   });
 
-  it('adds empty optional graph arrays to older graph documents', () => {
+  it('moves per-kind node arrays of older graph documents into the nodes map', () => {
     const doc = normalizeDocument({
       layers: [],
       graph: {
         edges: [],
         positions: {},
-        mergeNodes: [],
+        mergeNodes: [{ id: 'merge-a', name: 'Merge', blendMode: 'screen', opacity: 50 }],
       },
     });
 
     expect(doc.graph).toEqual({
       edges: [],
       positions: {},
-      mergeNodes: [],
-      colorNodes: [],
-      repeatNodes: [],
-      materialNodes: [],
-      maskNodes: [],
-      transformNodes: [],
-      grimeShadowNodes: [],
-      scene3dNodes: [],
-      environmentNodes: [],
-      shaderNodes: [],
+      nodes: { 'merge-a': { kind: 'merge', id: 'merge-a', name: 'Merge', blendMode: 'screen', opacity: 50 } },
       areas: [],
       primitiveViewStates: undefined,
     });
@@ -693,7 +775,7 @@ describe('normalizeDocument', () => {
       materialRoughness: 0.08,
       materialClearcoat: 0.7,
     });
-    expect(doc.graph?.materialNodes?.[0]).toMatchObject({
+    expect(graphNodesOfKind(doc.graph, 'material')?.[0]).toMatchObject({
       materialMetalness: 0.95,
       materialRoughness: 0.24,
       materialClearcoat: 0.34,
@@ -701,21 +783,21 @@ describe('normalizeDocument', () => {
   });
 });
 
-describe('getInitialDocumentFromSources', () => {
-  const storedDoc: CanvasDocument = {
+describe('resolveInitialDocumentFromSources', () => {
+  const storedDoc: CanvasDocument = makeDocument({
     global: { bg: '#101010', seed: 10, aspect: '1:1' },
     layers: [makeFillLayer({ id: 'stored-fill' })],
     export: { format: 'jpeg', scale: 2, target: 'cover' },
-  };
+  });
 
-  const linkedDoc: CanvasDocument = {
+  const linkedDoc: CanvasDocument = makeDocument({
     global: { bg: '#202020', seed: 20, aspect: '16:9' },
     layers: [makeTextLayer({ id: 'linked-text', content: 'linked' })],
     export: { format: 'png', scale: 1, target: 'envmap' },
-  };
+  });
 
   it('prefers a valid URL document over stored local state', () => {
-    const doc = getInitialDocumentFromSources({
+    const { doc } = resolveInitialDocumentFromSources({
       search: `?doc=${encodeURIComponent(encodeDoc(linkedDoc))}`,
       storageValue: encodeDoc(storedDoc),
     });
@@ -725,7 +807,7 @@ describe('getInitialDocumentFromSources', () => {
   });
 
   it('prefers an explicit blank start over stored local state', () => {
-    const doc = getInitialDocumentFromSources({
+    const { doc } = resolveInitialDocumentFromSources({
       search: '?new=blank',
       storageValue: encodeDoc(storedDoc),
     });
@@ -736,7 +818,7 @@ describe('getInitialDocumentFromSources', () => {
   });
 
   it('falls back to stored local state when the URL document is invalid', () => {
-    const doc = getInitialDocumentFromSources({
+    const { doc } = resolveInitialDocumentFromSources({
       search: '?doc=%7Bbad-json',
       storageValue: encodeDoc(storedDoc),
     });
@@ -746,8 +828,8 @@ describe('getInitialDocumentFromSources', () => {
   });
 
   it('returns independent default document clones when no source can be read', () => {
-    const first = getInitialDocumentFromSources({});
-    const second = getInitialDocumentFromSources({});
+    const first = resolveInitialDocumentFromSources({}).doc;
+    const second = resolveInitialDocumentFromSources({}).doc;
 
     first.layers.pop();
 
@@ -756,12 +838,47 @@ describe('getInitialDocumentFromSources', () => {
   });
 });
 
+describe('resolveInitialDocumentFromSources link status', () => {
+  const linkStatus = (sources: Parameters<typeof resolveInitialDocumentFromSources>[0]) =>
+    resolveInitialDocumentFromSources(sources).linkStatus;
+
+  const docParam = encodeURIComponent(encodeDoc({ global: { bg: '#000', seed: 1, aspect: '1:1' }, layers: [] }));
+  const storedValue = encodeDoc({ global: { bg: '#101010', seed: 10, aspect: '1:1' }, layers: [] });
+
+  it('reports no link when there is no doc param or the start is blank', () => {
+    expect(linkStatus({})).toEqual({ kind: 'none' });
+    expect(linkStatus({ search: `?doc=${docParam}&new=blank` })).toEqual({ kind: 'none' });
+  });
+
+  it('names the docs only for links marked as coming from the docs', () => {
+    expect(linkStatus({ search: `?doc=${docParam}&from=docs` })).toEqual({
+      kind: 'opened',
+      source: 'docs',
+    });
+    expect(linkStatus({ search: `?doc=${docParam}` })).toEqual({
+      kind: 'opened',
+      source: 'link',
+    });
+  });
+
+  it('reports an unreadable link and which document is shown instead', () => {
+    expect(linkStatus({ search: '?doc=%7Bbroken&from=docs' })).toEqual({
+      kind: 'unreadable',
+      fallback: 'default',
+    });
+    expect(linkStatus({ search: '?doc=%7Bbroken', storageValue: storedValue })).toEqual({
+      kind: 'unreadable',
+      fallback: 'stored',
+    });
+  });
+});
+
 describe('document serialization helpers', () => {
-  const doc: CanvasDocument = {
+  const doc: CanvasDocument = makeDocument({
     global: { bg: '#303030', seed: 30, aspect: '4:5' },
     layers: [makeTextLayer({ id: 'share-text', content: 'share' })],
     export: { format: 'png', scale: 3, target: 'cover' },
-  };
+  });
 
   it('saves serialized documents to the configured storage key', () => {
     const writes = new Map<string, string>();
@@ -787,26 +904,25 @@ describe('document serialization helpers', () => {
     expect(didSave).toBe(false);
   });
 
-  it('saves and deletes a recoverable pre-blank draft', () => {
-    const writes = new Map<string, string>();
-    const storage = {
-      getItem: (key: string) => writes.get(key) ?? null,
-      setItem: (key: string, value: string) => writes.set(key, value),
-      removeItem: (key: string) => writes.delete(key),
-    };
-
-    expect(savePreBlankDraft(doc, storage, new Date('2026-05-15T12:00:00.000Z'), 'data:image/webp;base64,thumb')).toBe(
-      true,
-    );
-    expect(writes.has(PRE_BLANK_DRAFT_KEY)).toBe(true);
+  it('loads a recoverable pre-blank draft left by an earlier version', () => {
+    const writes = new Map<string, string>([
+      [
+        PRE_BLANK_DRAFT_KEY,
+        JSON.stringify({
+          reason: 'before-blank',
+          savedAt: '2026-05-15T12:00:00.000Z',
+          doc,
+          thumbnail: 'data:image/webp;base64,thumb',
+        }),
+      ],
+    ]);
+    const storage = { getItem: (key: string) => writes.get(key) ?? null };
 
     const draft = loadPreBlankDraft(storage);
     expect(draft?.savedAt).toBe('2026-05-15T12:00:00.000Z');
     expect(draft?.doc.layers[0]?.id).toBe('share-text');
     expect(draft?.thumbnail).toBe('data:image/webp;base64,thumb');
-
-    expect(deletePreBlankDraft(storage)).toBe(true);
-    expect(loadPreBlankDraft(storage)).toBeNull();
+    expect(loadPreBlankDraft({ getItem: () => null })).toBeNull();
   });
 
   it('creates share URLs that round-trip through the doc query param', () => {
@@ -821,7 +937,7 @@ describe('document serialization helpers', () => {
   });
 
   it('removes doc query params while preserving unrelated params', () => {
-    const url = removeDocParamFromUrl('https://example.test/app?doc=%7B%7D&new=blank&tab=node#preview');
+    const url = removeDocParamFromUrl('https://example.test/app?doc=%7B%7D&from=docs&new=blank&tab=node#preview');
 
     expect(url).toBe('https://example.test/app?tab=node#preview');
   });
@@ -838,29 +954,26 @@ describe('document serialization helpers', () => {
     expect(
       isBlankDocument({
         ...blank,
-        graph: { edges: [], positions: { __export__: { x: 0, y: 80 } }, mergeNodes: [], colorNodes: [] },
+        graph: { edges: [], positions: { __export__: { x: 0, y: 80 } }, nodes: {} },
       }),
     ).toBe(true);
   });
 
   it('serializes artifact files as readable JSON that imports through normalization', () => {
-    // Legacy graph shape without colorNodes: normalization must fill the missing collections.
-    const legacyGraph: Omit<CanvasGraph, 'colorNodes'> = { edges: [], positions: {}, mergeNodes: [] };
+    // A stored graph without `nodes` or `areas`: normalization must fill the missing collections.
+    const partialGraph: Omit<CanvasGraph, 'nodes'> = { edges: [], positions: {} };
     const serialized = serializeArtifactDocument({
       ...doc,
       global: { ...doc.global, aspect: '4:5' },
-      graph: legacyGraph as CanvasGraph,
+      graph: partialGraph as CanvasGraph,
     });
     const parsed = parseArtifactDocument(serialized);
 
     expect(serialized).toContain('\n  "global":');
     expect(serialized.endsWith('\n')).toBe(true);
     expect(parsed?.layers[0]?.id).toBe('share-text');
-    expect(parsed?.graph?.colorNodes).toEqual([]);
-    expect(parsed?.graph?.repeatNodes).toEqual([]);
-    expect(parsed?.graph?.grimeShadowNodes).toEqual([]);
-    expect(parsed?.graph?.shaderNodes).toEqual([]);
-    expect(parsed?.graph?.areas).toEqual([]);
+    expect(parsed?.graph.nodes).toEqual({});
+    expect(parsed?.graph.areas).toEqual([]);
   });
 
   it('round-trips graph documents through storage-safe JSON without losing graph fields', () => {
@@ -869,10 +982,10 @@ describe('document serialization helpers', () => {
       graph: {
         edges: [{ id: 'e-text-export', fromId: 'share-text', fromPort: 'out', toId: '__export__', toPort: 'in' }],
         positions: { 'share-text': { x: 0, y: 80 }, __export__: { x: 216, y: 80 } },
-        mergeNodes: [{ id: 'merge-a', name: 'Merge', blendMode: 'multiply', opacity: 75 }],
-        colorNodes: [{ id: 'color-a', name: 'Color', contrast: 110, brightness: 90, saturation: 120, hue: 15 }],
-        repeatNodes: [
-          {
+        nodes: graphNodesById(
+          makeGraphMergeNode({ id: 'merge-a', name: 'Merge', blendMode: 'multiply', opacity: 75 }),
+          makeGraphColorNode({ id: 'color-a', name: 'Color', contrast: 110, brightness: 90, saturation: 120, hue: 15 }),
+          makeGraphRepeatNode({
             id: 'repeat-a',
             name: 'Repeater',
             pattern: 'grid',
@@ -889,16 +1002,8 @@ describe('document serialization helpers', () => {
             seedOffset: 0,
             opacity: 100,
             blendMode: 'source-over',
-          },
-        ],
-        materialNodes: [],
-        maskNodes: [],
-        transformNodes: [],
-        grimeShadowNodes: [],
-        scene3dNodes: [],
-        environmentNodes: [],
-        shaderNodes: [
-          {
+          }),
+          makeGraphShaderNode({
             id: 'shader-a',
             name: 'Mesh Shader',
             shaderKind: 'meshGradient',
@@ -915,8 +1020,8 @@ describe('document serialization helpers', () => {
             seedOffset: 3,
             opacity: 64,
             blendMode: 'screen',
-          },
-        ],
+          }),
+        ),
         areas: [
           {
             id: 'area-main',
@@ -969,17 +1074,13 @@ describe('document serialization helpers', () => {
           [primitive.id]: { x: 520, y: 90 },
           __export__: { x: 780, y: 90 },
         },
-        mergeNodes: [],
-        colorNodes: [],
-        materialNodes: [
+        nodes: graphNodesById(
           makeGraphMaterialNode({
             id: 'material-a',
             materialPreset: 'plastic',
             materialRoughness: 0.38,
             materialMetalness: 0.12,
           }),
-        ],
-        shaderNodes: [
           makeGraphShaderNode({
             id: 'shader-a',
             shaderKind: 'waterCaustic',
@@ -987,7 +1088,7 @@ describe('document serialization helpers', () => {
             distortion: 54,
             grain: 0,
           }),
-        ],
+        ),
       },
       export: { format: 'png', scale: 1, target: 'cover' },
     };
@@ -997,13 +1098,13 @@ describe('document serialization helpers', () => {
 
     expect(parsed.schemaVersion).toBe(DOCUMENT_SCHEMA_VERSION);
     expect(parsed.graph?.edges).toEqual(graphDoc.graph?.edges);
-    expect(parsed.graph?.materialNodes?.[0]).toMatchObject({
+    expect(graphNodesOfKind(parsed.graph, 'material')?.[0]).toMatchObject({
       id: 'material-a',
       materialPreset: 'plastic',
       materialRoughness: 0.38,
       materialMetalness: 0.12,
     });
-    expect(parsed.graph?.shaderNodes?.[0]).toMatchObject({
+    expect(graphNodesOfKind(parsed.graph, 'shader')?.[0]).toMatchObject({
       id: 'shader-a',
       shaderKind: 'waterCaustic',
       distortion: 54,
