@@ -158,7 +158,7 @@ scales are a nearest-neighbour upscale of that canvas).
   this is the only place GPU effect parameters are pinned in Node.
 - **Stack/graph parity** (every `npm test`): `stackMatchesGraph` in the recipe
   file records whether opening Nodes changes a stack document's pixels.
-  v0.53 Phase 3 must make this `true` for every case.
+  v0.51 Phase 3 must make this `true` for every case.
 - **Pixels** (`npm run test:golden`, CI job `render-golden`): SHA-256 of the
   RGBA output of every render, compared with `__golden__/pixels.json`. Text and
   emoji rasterize differently per OS, so pixel hashes are only valid inside the

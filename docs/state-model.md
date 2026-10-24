@@ -53,7 +53,7 @@ Rules:
 - Use layer factory functions when creating layers.
 - Update documents immutably.
 - Import external document JSON through normalization before committing it.
-- Every document has a `graph` (schema 5, v0.53). A layer-stack document stores
+- Every document has a `graph` (schema 5, v0.51). A layer-stack document stores
   the linear graph of its layers; `isLayerStackGraph` recognizes it, and Layers
   edits (add, remove, duplicate, reorder) keep that graph equal to the new
   stack. Build documents in code with `makeDocument`, which fills in the linear
@@ -63,7 +63,7 @@ Rules:
   no areas or saved camera views, because the layers fully determine it;
   `normalizeDocument` rebuilds it on open. This keeps links within URL size
   limits. Saved files, projects, and local storage keep the full graph.
-- Graph-only nodes are stored in `graph.nodes` (schema 6, v0.53), a map from id
+- Graph-only nodes are stored in `graph.nodes` (schema 6, v0.51), a map from id
   to node with a `kind` discriminant. The 5 -> 6 step moved the old per-kind
   arrays (`mergeNodes`, `colorNodes`, …) into it; when two arrays held the same
   id, the first in the old classification order won. Read nodes with the
@@ -79,10 +79,10 @@ Rules:
   runs once, raises `schemaVersion` by one, and never runs on newer documents.
   `normalizeDocument` itself only fills defaults for current-schema fields and
   validates; it has no legacy-format branches.
-- Schema 4 (v0.53) moved the legacy fixes that used to run on every load into
+- Schema 4 (v0.51) moved the legacy fixes that used to run on every load into
   the 3 -> 4 step: `kind: 'source'` aliases, 0-100 material percentages,
   removed shader kinds, and splitting combined effect layers (with graph
-  rewiring). Builds before v0.53 cannot open schema 4 documents.
+  rewiring). Builds before v0.51 cannot open schema 4 documents.
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.

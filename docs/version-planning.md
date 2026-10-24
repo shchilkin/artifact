@@ -20,6 +20,22 @@ Examples:
 Split work into a separate version when it introduces a second thesis, a second
 major risk surface, or a second critique/prototype loop.
 
+## Numbering
+
+Plans do not reserve version numbers. A plan is named by its topic
+(`docs/version-plans/editor-polish.md`) until it ships. Whatever ships next
+takes the next number: the release PR renames its plan to
+`docs/version-plans/vX.Y.md`, which `npm run release:verify` requires.
+
+- Minor (`vX.Y.0`): the next release from `development`, whatever it contains.
+- Patch (`vX.Y.Z`): fixes only, cut from the released tag when `development`
+  already holds unreleased work that should not ship yet.
+- Do not hold finished work back to protect a planned number. If `development`
+  contains finished work from two plans, release them together and say so in
+  the release notes.
+- GitHub milestones use the plan's topic name and gain the version number when
+  the release is tagged.
+
 ## Scope Boundaries
 
 Prefer one primary blast radius per version:

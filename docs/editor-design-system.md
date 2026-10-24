@@ -245,7 +245,8 @@ requirements, and five bounded source-owned patterns for the editor are closed
 in the [Artifact editor-workflow inventory](archive/editor-workflow-inventory.md).
 That inventory is the contract for v0.45 and the editor-pattern dependency used
 by v0.46 and v0.47. It also keeps the future Chat mode and assistant surfaces in
-v0.52 rather than treating them as current editor navigation.
+the AI-Assisted Creation plan rather than treating them as current editor
+navigation.
 
 The v0.46 property boundary is closed in the
 [Artifact inspector-system inventory](archive/inspector-system-inventory.md). Its
@@ -421,14 +422,16 @@ The accepted release sequence is:
 - **v0.50 — Editor UX**: make the editor stable, responsive, and explicit
   about state, and let Layers represent custom node graphs. See
   [`version-plans/v0.50.md`](version-plans/v0.50.md).
-- **v0.50.1 — Editor Polish Patch**: fixes from the 2026-10 editor polish
-  audit that need no new design direction. See
+- **v0.51 — Core Reset**: shipped together with the Editor Polish Patch
+  fixes from the 2026-10 editor polish audit. See
+  [`version-plans/v0.51.md`](version-plans/v0.51.md) and
   [`version-plans/v0.50.md`](version-plans/v0.50.md).
-- **v0.51 — Editor Polish**: one control grammar across editor surfaces (menus,
-  rows, drop indicators, inspector header, controls, focus, type floor, and
-  tokens). See [`version-plans/v0.51.md`](version-plans/v0.51.md).
-- **v0.52 — AI-Assisted Creation**: the paused AI release resumes only after
-  the v0.51 gate.
+- **Editor Polish** (unnumbered until it ships): one control grammar across
+  editor surfaces (menus, rows, drop indicators, inspector header, controls,
+  focus, type floor, and tokens). See
+  [`version-plans/editor-polish.md`](version-plans/editor-polish.md).
+- **AI-Assisted Creation** (unnumbered until it ships): resumes only after the
+  Editor Polish gate.
 
 Each UI-system milestone should contain four to eight implementation issues.
 Every issue must fit one fresh implementation context, produce an independently
@@ -451,8 +454,9 @@ The accepted cross-release blocking edges are:
 - v0.48 is blocked by v0.43, v0.44, v0.45, v0.46, and v0.47.
 - v0.48 blocks v0.49 Application Shell And Loading Boundaries.
 - v0.49 blocks v0.50 Editor UX.
-- v0.50 blocks v0.50.1 Editor Polish Patch, which blocks v0.51 Editor Polish.
-- v0.51 blocks v0.52 AI-Assisted Creation.
+- v0.50 blocks the Editor Polish Patch fixes, which shipped in v0.51.
+- v0.51 blocks Editor Polish.
+- Editor Polish blocks AI-Assisted Creation.
 
 Within each milestone, establish its inventory and prerequisite contract first,
 allow independent migration slices to work from that frontier, and keep the

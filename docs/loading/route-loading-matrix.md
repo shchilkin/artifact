@@ -125,7 +125,7 @@ measured against `development` at 8591980), and `motion` is now prohibited
 before render on the editor.
 
 The home hero renders through the graph renderer, which reads each node kind's
-model from the v0.53 node-kind registry. The models now also carry their
+model from the v0.51 node-kind registry. The models now also carry their
 canvas look and Add Library data, so the hero after-render bundle went from
 +183.0 to +187.1 KiB (renderer registry split +2.5, model look and library data
 +1.6). The budget moved from +185 to +188 for that one source of truth instead of
