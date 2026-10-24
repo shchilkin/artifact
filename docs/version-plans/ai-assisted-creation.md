@@ -1,13 +1,14 @@
-# v0.52 AI-Assisted Creation
+# AI-Assisted Creation
 
-Status: planned. Renumbered from v0.51 on 2026-10-10, when v0.51 became Editor
-Polish (see [`v0.51.md`](./v0.51.md)). The domain model and MVP boundary are
+Status: planned, unnumbered until it ships (see
+[`../version-planning.md`](../version-planning.md)); it follows
+[Editor Polish](./editor-polish.md). The domain model and MVP boundary are
 accepted; implementation is tracked in GitHub milestone
-[`v0.52 AI-Assisted Creation`](https://github.com/shchilkin/artifact/milestone/1).
+[`AI-Assisted Creation`](https://github.com/shchilkin/artifact/milestone/1).
 
 ## Purpose
 
-v0.52 makes Artifact usable through conversation without creating a separate,
+AI-Assisted Creation makes Artifact usable through conversation without creating a separate,
 flattened creative system. A signed-in user can describe a direction or concrete
 design, receive an editable Artifact document, revise it through previewed
 changes, and continue in Chat, Layers, or Nodes.
@@ -78,7 +79,7 @@ Work the dependency frontier rather than the numeric order when multiple issues
 become unblocked.
 
 1. [#126 Project-owned documents and revisions](https://github.com/shchilkin/artifact/issues/126)
-   - Blocked by: [#456](https://github.com/shchilkin/artifact/issues/456) (v0.51 Editor Polish gate).
+   - Blocked by: [#456](https://github.com/shchilkin/artifact/issues/456) (Editor Polish gate).
    - Proves that one Project can own and reopen multiple versioned editable
      documents without changing the renderer contract.
 2. [#127 Authenticated full-screen Chat and server history](https://github.com/shchilkin/artifact/issues/127)
@@ -112,7 +113,7 @@ become unblocked.
     - Blocked by: #134.
     - Adds selection, layer, node, and area scopes with temporary editor
       projections.
-11. [#136 Complete the v0.52 release gate](https://github.com/shchilkin/artifact/issues/136)
+11. [#136 Complete the AI-Assisted Creation release gate](https://github.com/shchilkin/artifact/issues/136)
     - Blocked by: #129 through #135.
     - Closes the version only after the product, security, accounting, browser,
       and production-shaped story passes.
@@ -170,7 +171,7 @@ npm run test:browser:release
 ```
 
 The final release run must include one controlled real provider smoke before the
-exact verified revision is promoted and tagged `v0.52.0`.
+exact verified revision is promoted and tagged.
 
 ## Delivery Sequence
 
@@ -184,5 +185,5 @@ exact verified revision is promoted and tagged `v0.52.0`.
    promotion.
 
 Each issue should fit one fresh implementation context and remain demoable on
-its own. v0.52 is complete only when #136 closes; partial Chat or assistant
+its own. AI-Assisted Creation is complete only when #136 closes; partial Chat or assistant
 surfaces are not release-complete by themselves.

@@ -25,7 +25,9 @@ PixiJS 7 (lazy-loaded), Three.js.
 ## Current focus
 
 `docs/roadmap.md` is the only place that says what is active now and in what
-order. Each version has one plan in `docs/version-plans/vX.Y.md`. Shipped plans
+order. Plans in `docs/version-plans/` are named by topic until they ship; the
+next release takes the next version number and its plan becomes `vX.Y.md`
+(`docs/version-planning.md`, "Numbering"). Shipped plans
 and historical docs live in `docs/archive/` and are not current scope.
 
 ## Read the doc for the area you touch
@@ -118,7 +120,7 @@ The release gate is the command list in `docs/production-readiness.md`
   registries; never switch on a node kind outside a kind's own modules
   (`nodeKindLocality.test.ts` checks this with grime shadow).
 
-The v0.53 core reset (`docs/version-plans/v0.53.md`) removed the parallel
+The v0.51 core reset (`docs/version-plans/v0.51.md`) removed the parallel
 paths: one topology source, node-kind and effect registries, one command
 dispatcher. Extend those instead of adding new parallel paths.
 

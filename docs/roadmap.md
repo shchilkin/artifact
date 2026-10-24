@@ -12,20 +12,23 @@ v0.50.0 Editor UX was released on 2026-10-05
 
 ## Active And Planned
 
-| Version | Thesis | Plan | Status |
-| --- | --- | --- | --- |
-| v0.50.1 | Editor Polish Patch ([#448](https://github.com/shchilkin/artifact/issues/448)) | [v0.50](./version-plans/v0.50.md) | in progress |
-| v0.51 | One control grammar across editor surfaces | [v0.51](./version-plans/v0.51.md) | planned |
-| v0.52 | AI-Assisted Creation | [v0.52](./version-plans/v0.52.md) | planned |
-| v0.53 | Core Reset: one topology source, node and effect registries | [v0.53](./version-plans/v0.53.md) | Phases 0-6 done, not released |
+Plans are listed in order and carry no version number until they ship; the
+next release takes the next number (see
+[`version-planning.md`](./version-planning.md), "Numbering").
 
-Sequencing note (2026-10-23): the owner started the Core Reset ahead of its
-version number. Whether v0.53 phases run before, alongside, or after v0.51 and
-v0.52 is an open owner decision; update this table when it is made.
+| Order | Plan | Thesis | Status |
+| --- | --- | --- | --- |
+| v0.51.0 | [Core Reset](./version-plans/v0.51.md) + Editor Polish Patch ([v0.50](./version-plans/v0.50.md), [#448](https://github.com/shchilkin/artifact/issues/448)) | One topology source, node and effect registries; the v0.50 editor keeps its promises | release prep |
+| next | [Editor Polish](./version-plans/editor-polish.md) | One control grammar across editor surfaces | planned |
+| after | [AI-Assisted Creation](./version-plans/ai-assisted-creation.md) | Chat and context assistant on the converged editor | planned |
+
+Decision (2026-10-24): the owner chose to release `development` as it is. The
+Core Reset (planned as v0.53) and the Editor Polish Patch (planned as v0.50.1)
+ship together as v0.51.0.
 
 ## Known Core Risks
 
-These are addressed by v0.53 unless noted.
+These are addressed by v0.51 unless noted.
 
 - Per-kind node arrays and a flat `EffectLayer`, so new nodes and effect
   parameters need edits across many files.

@@ -487,7 +487,7 @@ Guidelines:
   size.
 - Two or more GPU-only effect layers in a row run their filters in one GPU
   pass in every render. The v0.50 option that also merged a mixed Canvas 2D and
-  GPU layer into that pass was removed in v0.53: focused effect presets have
+  GPU layer into that pass was removed in v0.51: focused effect presets have
   one backend each, so no document reached it.
 - UI render hooks should avoid painting stale async results when a newer
   document, image-cache, or render-option change is already queued.
