@@ -1,6 +1,7 @@
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@artifact/ui';
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 
+import { useMediaQuery } from '../../../../hooks/useMediaQuery';
 import { NoPan } from '../../nodes/NoPan';
 
 type HelpOpen = 'hover' | 'pinned' | null;
@@ -28,7 +29,7 @@ const SliderHelpContext = createContext<SliderHelpState | null>(null);
  */
 export function SliderHelp({ label, content, children }: { label: string; content: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState<HelpOpen>(null);
-  const narrow = useNarrowLayout();
+  const narrow = useMediaQuery(NARROW_QUERY);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(closeTimer.current), []);
   const hover = {
@@ -92,17 +93,4 @@ export function SliderHelpTrigger({ label }: { label: string }) {
       </NoPan>
     </PopoverTrigger>
   );
-}
-
-function useNarrowLayout() {
-  const [narrow, setNarrow] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia?.(NARROW_QUERY);
-    if (!query) return;
-    const update = () => setNarrow(query.matches);
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-  return narrow;
 }
