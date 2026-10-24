@@ -15,6 +15,7 @@ import {
   addNodeAtDocument,
   deleteNodesFromDocument,
   duplicateLayerInDocument,
+  duplicateNodeInDocument,
   isLayerStackGraph,
   removeGraphAreaInDocument,
   removeLayerFromDocument,
@@ -165,6 +166,36 @@ function makeLockedFillDoc(): CanvasDocument {
 }
 
 describe('documentCommands', () => {
+  it('duplicates a graph-only node next to the original without its connections', () => {
+    const doc = makeDoc(makeGraph());
+    const result = duplicateNodeInDocument(doc, 'color-a', () => 'color-a-copy');
+
+    expect(result.id).toBe('color-a-copy');
+    expect(result.doc.graph.nodes['color-a-copy']).toEqual({
+      ...doc.graph.nodes['color-a'],
+      id: 'color-a-copy',
+      name: `${doc.graph.nodes['color-a'].name} copy`,
+    });
+    expect(result.doc.graph.positions['color-a-copy']).toEqual({ x: 688, y: 120 });
+    expect(result.doc.graph.edges).toEqual(doc.graph.edges);
+    expect(doc.graph.nodes['color-a-copy']).toBeUndefined();
+  });
+
+  it('duplicates layers through the same node command', () => {
+    const doc = makeDoc(makeGraph());
+    const result = duplicateNodeInDocument(doc, 'text-a', () => 'text-a-copy');
+
+    expect(result.id).toBe('text-a-copy');
+    expect(result.doc.layers.map((layer) => layer.id)).toContain('text-a-copy');
+  });
+
+  it('does not duplicate Output or unknown ids', () => {
+    const doc = makeDoc(makeGraph());
+
+    expect(duplicateNodeInDocument(doc, EXPORT_NODE_ID).id).toBeNull();
+    expect(duplicateNodeInDocument(doc, 'missing').doc).toBe(doc);
+  });
+
   it('keeps a layer-stack graph linked when a middle layer is removed or duplicated', () => {
     const doc = makeDocument({
       global: { bg: '#101010', seed: 12, aspect: '1:1' },

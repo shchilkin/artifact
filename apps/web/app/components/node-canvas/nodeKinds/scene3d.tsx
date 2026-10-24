@@ -3,7 +3,7 @@ import type { ModelLayer, PrimitiveLayer } from '../../../types/config';
 import { findGraphNodeOfKind } from '../../../utils/nodeGraph';
 import type { GraphMaterialNode, GraphScene3DNode } from '../../../utils/nodeKinds';
 import type { PrimitiveViewportState } from '../../PrimitiveViewportState';
-import { useNodeCanvasActions } from '../context';
+import { useGraphNodeHide, useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { NodeFrame } from '../nodes/NodeFrame';
 import { Scene3DPreviewSurface } from '../thumbnails/Scene3DPreviewSurface';
@@ -29,6 +29,7 @@ const Scene3DNodeComponent = memo(function Scene3DNodeComponent({
     connected,
   } = data;
 
+  const hideProps = useGraphNodeHide(scene3dNode);
   return (
     <NodeFrame
       id={scene3dNode.id}
@@ -46,6 +47,7 @@ const Scene3DNodeComponent = memo(function Scene3DNodeComponent({
         { id: 'bg', top: '79%' },
       ]}
       onSelect={(event) => selectNode(scene3dNode.id, event)}
+      {...hideProps}
       onDelete={() => deleteNode(scene3dNode.id)}
     >
       <Scene3DPreviewSurface

@@ -39,10 +39,12 @@ import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
 import {
   connectedPortIds,
   EXPORT_NODE_ID,
+  findGraphNode,
   graphNodesOfKind,
   removeGraphEdge,
   resolveOutputPath,
 } from '../../utils/nodeGraph';
+import { canHideGraphNode, type GraphNode } from '../../utils/nodeKinds';
 import { LazyModelViewport3D, LazyPrimitiveViewport3D } from '../LazyViewport3D';
 import { NodeGalleryCanvas } from '../NodeGalleryCanvas';
 import type { MediaViewState } from '../NodeGalleryViewState';
@@ -488,23 +490,37 @@ export function NodeCanvas({
     void rfInstanceRef.current?.fitView({ ...FOCUS_NODE_FIT_OPTIONS, nodes: [{ id: EXPORT_NODE_ID }], duration: 220 });
   }, []);
 
-  const handleToggleSelectedLayerVisibility = useCallback(() => {
+  const handleToggleSelectedVisibility = useCallback(() => {
     const selectedLayers = selectedNodeIds
       .map((id) => doc.layers.find((layer) => layer.id === id))
       .filter((layer): layer is Layer => Boolean(layer));
-    if (selectedLayers.length === 0) return false;
-    const nextVisible = !selectedLayers.some((layer) => layer.visible);
+    const selectedGraphNodes = selectedNodeIds
+      .map((id) => findGraphNode(graph, id))
+      .filter((node): node is GraphNode => Boolean(node && canHideGraphNode(node)));
+    if (selectedLayers.length + selectedGraphNodes.length === 0) return false;
+    const nextVisible = !(
+      selectedLayers.some((layer) => layer.visible) || selectedGraphNodes.some((node) => !node.hidden)
+    );
     selectedLayers.forEach((layer) => onUpdateLayer(layer.id, { visible: nextVisible }));
+    selectedGraphNodes.forEach((node) => onUpdateGraphNode(node.id, { hidden: !nextVisible }));
     return true;
-  }, [doc.layers, onUpdateLayer, selectedNodeIds]);
+  }, [doc.layers, graph, onUpdateGraphNode, onUpdateLayer, selectedNodeIds]);
+
+  const handleDuplicateSelectedNode = useCallback(() => {
+    const [id, ...rest] = selectedNodeIds;
+    if (!id || rest.length > 0 || id === EXPORT_NODE_ID) return false;
+    onDuplicateLayer(id);
+    return true;
+  }, [onDuplicateLayer, selectedNodeIds]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (shouldToggleSelectedLayerVisibility(event) && handleToggleSelectedLayerVisibility()) event.preventDefault();
+      if (shouldToggleSelectedVisibility(event) && handleToggleSelectedVisibility()) event.preventDefault();
+      if (shouldDuplicateSelectedNode(event) && handleDuplicateSelectedNode()) event.preventDefault();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleToggleSelectedLayerVisibility]);
+  }, [handleDuplicateSelectedNode, handleToggleSelectedVisibility]);
 
   const previewContextValue = useMemo<NodeCanvasPreviewContextValue>(
     () => ({
@@ -709,6 +725,7 @@ export function NodeCanvas({
             onDuplicateLayer={onDuplicateLayer}
             onRemoveNodeFromArea={handleRemoveNodeFromArea}
             onUpdateLayer={onUpdateLayer}
+            onUpdateGraphNode={onUpdateGraphNode}
           />
           <NodeGalleryDialog
             displayDoc={galleryDisplayDoc}
@@ -927,6 +944,7 @@ type NodeContextMenuCommonProps = {
   onDuplicateLayer: NodeCanvasProps['onDuplicateLayer'];
   onRemoveNodeFromArea: (areaId: string, nodeId: string) => void;
   onUpdateLayer: NodeCanvasProps['onUpdateLayer'];
+  onUpdateGraphNode: NodeCanvasProps['onUpdateGraphNode'];
 };
 
 function NodeContextMenuPortal({
@@ -940,6 +958,7 @@ function NodeContextMenuPortal({
   onDuplicateLayer,
   onRemoveNodeFromArea,
   onUpdateLayer,
+  onUpdateGraphNode,
 }: NodeContextMenuCommonProps & {
   contextMenu: ContextMenuState;
 }) {
@@ -957,6 +976,7 @@ function NodeContextMenuPortal({
         onDuplicateLayer,
         onRemoveNodeFromArea,
         onUpdateLayer,
+        onUpdateGraphNode,
       })}
     />,
     document.body,
@@ -979,20 +999,21 @@ function nodeContextMenuProps({
   onDuplicateLayer,
   onRemoveNodeFromArea,
   onUpdateLayer,
+  onUpdateGraphNode,
 }: NodeContextMenuCommonProps & {
   contextMenu: Extract<ContextMenuState, { type: 'node' }>;
 }) {
   const menuLayer = layers.find((layer) => layer.id === contextMenu.nodeId);
+  const menuGraphNode = findGraphNode(graph, contextMenu.nodeId);
   const menuArea = nodeMenuArea(contextMenu.nodeId, areaByNodeId, graph);
   return {
     x: contextMenu.x,
     y: contextMenu.y,
-    isMerge: contextMenu.isMerge,
     isExport: contextMenu.isExport,
-    muted: nodeMenuMuted(menuLayer),
+    muted: nodeMenuMuted(menuLayer, menuGraphNode),
     removeFromArea: nodeMenuAreaRemoval(menuArea, contextMenu.nodeId),
     onDuplicate: () => onDuplicateLayer(contextMenu.nodeId),
-    onToggleMuted: nodeMenuMuteHandler(menuLayer, onUpdateLayer),
+    onToggleMuted: nodeMenuMuteHandler(menuLayer, onUpdateLayer, menuGraphNode, onUpdateGraphNode),
     onRemoveFromArea: menuArea ? onRemoveNodeFromArea : undefined,
     onDelete: () => onDeleteNodes([contextMenu.nodeId]),
     deleteDisabled: menuLayer?.locked,
@@ -1001,16 +1022,26 @@ function nodeContextMenuProps({
   };
 }
 
-function nodeMenuMuted(layer: Layer | undefined) {
-  return layer ? !layer.visible : undefined;
+function nodeMenuMuted(layer: Layer | undefined, graphNode: GraphNode | undefined) {
+  if (layer) return !layer.visible;
+  return graphNode ? Boolean(graphNode.hidden) : undefined;
 }
 
 function nodeMenuAreaRemoval(area: NonNullable<CanvasGraph['areas']>[number] | undefined, nodeId: string) {
   return area ? { areaId: area.id, nodeId, areaName: area.name } : undefined;
 }
 
-function nodeMenuMuteHandler(layer: Layer | undefined, onUpdateLayer: NodeCanvasProps['onUpdateLayer']) {
-  return layer ? () => onUpdateLayer(layer.id, { visible: !layer.visible }) : undefined;
+function nodeMenuMuteHandler(
+  layer: Layer | undefined,
+  onUpdateLayer: NodeCanvasProps['onUpdateLayer'],
+  graphNode: GraphNode | undefined,
+  onUpdateGraphNode: NodeCanvasProps['onUpdateGraphNode'],
+) {
+  if (layer) return () => onUpdateLayer(layer.id, { visible: !layer.visible });
+  if (graphNode && canHideGraphNode(graphNode)) {
+    return () => onUpdateGraphNode(graphNode.id, { hidden: !graphNode.hidden });
+  }
+  return undefined;
 }
 
 function NodeGalleryDialog({
@@ -1446,7 +1477,17 @@ function edgeOpacityByState(visibleOutputPath: boolean, onOutputPath: boolean) {
   return onOutputPath ? 0.78 : 0.46;
 }
 
-function shouldToggleSelectedLayerVisibility(event: KeyboardEvent) {
+function shouldDuplicateSelectedNode(event: KeyboardEvent) {
+  return [
+    event.key.toLowerCase() === 'd',
+    event.metaKey || event.ctrlKey,
+    event.altKey === false,
+    event.shiftKey === false,
+    isEditableKeyTarget(event.target) === false,
+  ].every(Boolean);
+}
+
+function shouldToggleSelectedVisibility(event: KeyboardEvent) {
   return [
     event.key.toLowerCase() === 'm',
     event.metaKey === false,

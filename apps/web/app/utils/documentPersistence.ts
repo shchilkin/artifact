@@ -90,7 +90,9 @@ function normalizeGraphNodes(value: unknown): CanvasGraph['nodes'] {
   const nodes: CanvasGraph['nodes'] = {};
   for (const [id, stored] of Object.entries(value)) {
     if (!isRecord(stored) || !isGraphNodeKind(stored.kind)) continue;
-    nodes[id] = graphNodeModel(stored.kind).normalize({ ...stored, id });
+    const { hidden, ...fields } = stored;
+    const node = graphNodeModel(stored.kind).normalize({ ...fields, id });
+    nodes[id] = hidden === true ? { ...node, hidden: true } : node;
   }
   return nodes;
 }

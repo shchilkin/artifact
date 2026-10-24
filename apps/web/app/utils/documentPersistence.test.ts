@@ -246,6 +246,24 @@ describe('normalizeDocument', () => {
     });
   });
 
+  it('keeps the hidden flag of every graph node kind and drops non-boolean values', () => {
+    const doc = normalizeDocument({
+      schemaVersion: DOCUMENT_SCHEMA_VERSION,
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        nodes: {
+          'shader-h': { ...makeGraphShaderNode({ id: 'shader-h' }), hidden: true },
+          'merge-h': { ...makeGraphMergeNode({ id: 'merge-h' }), hidden: 'yes' },
+        },
+      },
+    });
+
+    expect(doc.graph.nodes['shader-h']?.hidden).toBe(true);
+    expect(doc.graph.nodes['merge-h']).not.toHaveProperty('hidden');
+  });
+
   it('normalizes malformed shader palettes without retaining removed color fields', () => {
     const doc = normalizeDocument({
       layers: [],

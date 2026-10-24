@@ -2,7 +2,7 @@ import type { CanvasDocument, CanvasGraph, EffectLayer, Layer } from '../../type
 import { EXPORT_NODE_ID, findGraphNode, findGraphNodeOfKind } from '../nodeGraph';
 import type { GraphNodeKind, GraphNodeOfKind } from '../nodeKinds';
 import { createCanvas, drawBackground, isDrawableCanvas } from './canvas';
-import { findIncomingSource, graphLayerInputPort } from './graphInputs';
+import { findIncomingSource, graphLayerInputPort, graphNodePrimaryPort } from './graphInputs';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 import {
   findLayer,
@@ -143,7 +143,15 @@ async function renderGraphNodeUncached(nodeId: string, context: GraphNodeRenderC
 }
 
 function renderGraphOnlyNode<K extends GraphNodeKind>(node: GraphNodeOfKind<K>, context: GraphNodeRenderContext) {
+  if (node.hidden) return renderHiddenGraphNode(node.id, context);
   return graphNodeRenderer<K>(node.kind as K)(node, context);
+}
+
+async function renderHiddenGraphNode(nodeId: string, context: GraphNodeRenderContext) {
+  const { doc, graph, W, H, renderDependency } = context;
+  const port = graphNodePrimaryPort(doc, graph, nodeId);
+  const sourceId = port ? findIncomingSource(graph, nodeId, port) : null;
+  return sourceId ? renderDependency(sourceId) : createCanvas(W, H);
 }
 
 function pruneGraphRenderCache(

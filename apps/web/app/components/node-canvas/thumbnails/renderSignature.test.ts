@@ -124,6 +124,12 @@ describe('graph node render signatures', () => {
     expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
+  it('changes when a graph node is hidden', () => {
+    const base = { kind: 'merge' as const, id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 };
+
+    expect(graphNodeRenderSig({ ...base, hidden: true })).not.toBe(graphNodeRenderSig(base));
+  });
+
   it('ignores color node identity and name', () => {
     const base = {
       kind: 'color' as const,

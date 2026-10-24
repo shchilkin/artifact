@@ -37,6 +37,7 @@ export const environmentNodeModel: GraphNodeKindModel<GraphEnvironmentNode> = {
   }),
   inputs: () => SINGLE_INPUT,
   insertion: () => ({ through: 'in' }),
+  hideable: false,
   look: {
     canvasSymbol: '◇',
     accent: 'var(--node-kind-color)',

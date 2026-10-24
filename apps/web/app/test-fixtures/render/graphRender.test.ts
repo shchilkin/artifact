@@ -1462,6 +1462,37 @@ describe('renderGraphTarget', () => {
     expect(a).toBe(255);
   });
 
+  it('passes a hidden merge node through its primary input', async () => {
+    const graph = mergeGraph();
+    const hidden: CanvasGraph = {
+      ...graph,
+      nodes: graphNodesById({ ...graphNodesOfKind(graph, 'merge')[0], hidden: true }),
+    };
+
+    const canvas = await renderGraphTarget(graphDocument(hidden), hidden, EXPORT_NODE_ID, 40, 40, new Map(), {
+      skipEffects: true,
+    });
+    const [r, g, b] = centerPixel(canvas);
+
+    expect(r).toBeGreaterThan(240);
+    expect(g).toBeLessThan(10);
+    expect(b).toBeLessThan(10);
+  });
+
+  it('renders a hidden node without a primary input as transparent', async () => {
+    const graph: CanvasGraph = {
+      edges: [{ id: 'e-shader-export', fromId: 'shader-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
+      positions: {},
+      nodes: graphNodesById({ ...makeGraphShaderNode({ id: 'shader-1', name: 'Shader' }), hidden: true }),
+    };
+
+    const canvas = await renderGraphTarget(graphDocument(graph), graph, 'shader-1', 40, 40, new Map(), {
+      skipEffects: true,
+    });
+
+    expect(centerPixel(canvas)[3]).toBe(0);
+  });
+
   it('applies color node adjustments to an upstream branch', async () => {
     const graph: CanvasGraph = {
       edges: [

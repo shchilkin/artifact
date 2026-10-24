@@ -64,6 +64,10 @@ const TEXTURE_CANDIDATES: InputCandidate[] = MATERIAL_TEXTURE_INPUT_PORTS.map((p
 function renderModeCandidates(doc: GraphDocument, graph: CanvasGraph, nodeId: string): readonly InputCandidate[] {
   if (nodeId === EXPORT_NODE_ID) return SINGLE_INPUT;
   const node = findGraphNode(graph, nodeId);
+  if (node?.hidden)
+    return modelOfNode(node)
+      .inputs(node)
+      .filter((input) => input.role === 'primary');
   if (node) return modelOfNode(node).inputs(node);
   const layer = doc.layers.find((item) => item.id === nodeId);
   if (!layer) return [];

@@ -33,6 +33,8 @@ export interface GraphNodeBase<K extends string> {
   kind: K;
   id: string;
   name: string;
+  /** Hidden nodes render as their primary input (or transparent without one), like a hidden layer. */
+  hidden?: boolean;
 }
 
 /**
@@ -57,6 +59,8 @@ export interface GraphNodeKindModel<N extends GraphNodeBase<string>> {
   insertion(node: N): GraphNodeInsertion;
   /** Graph changes that must follow a patch to this node, if any. */
   afterUpdate?(graph: CanvasGraph, node: N, patch: Partial<N>): CanvasGraph;
+  /** False when hiding the node means nothing: its consumers read its settings instead of rendering it. */
+  hideable?: false;
   /** How the editor shows the kind. Plain data, so it is safe on any route. */
   look: GraphNodeLook;
   /** How Add Library offers and describes the kind. */

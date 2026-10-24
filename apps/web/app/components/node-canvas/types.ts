@@ -163,7 +163,7 @@ export type ContextMenuState =
       flowPos: { x: number; y: number };
       insertion: InsertConnectionConfig;
     }
-  | { type: 'node'; x: number; y: number; nodeId: string; isMerge: boolean; isExport: boolean }
+  | { type: 'node'; x: number; y: number; nodeId: string; isExport: boolean }
   | null;
 
 export interface NodeCanvasUiState {
@@ -212,7 +212,6 @@ export interface PaneMenuProps {
 export interface NodeMenuProps {
   x: number;
   y: number;
-  isMerge: boolean;
   isExport: boolean;
   muted?: boolean;
   removeFromArea?: { areaId: string; nodeId: string; areaName?: string };

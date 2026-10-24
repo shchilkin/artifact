@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { GraphGrimeShadowNode } from '../../../utils/nodeKinds';
-import { useNodeCanvasActions } from '../context';
+import { useGraphNodeHide, useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { NodeFrame } from '../nodes/NodeFrame';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
@@ -12,6 +12,7 @@ const GrimeShadowNodeComponent = memo(function GrimeShadowNodeComponent({
   const { selectNode, deleteNode } = useNodeCanvasActions();
   const { node: grimeShadowNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
+  const hideProps = useGraphNodeHide(grimeShadowNode);
   return (
     <NodeFrame
       id={grimeShadowNode.id}
@@ -24,6 +25,7 @@ const GrimeShadowNodeComponent = memo(function GrimeShadowNodeComponent({
       connected={connected}
       targetHandles={[{ id: 'in' }]}
       onSelect={(event) => selectNode(grimeShadowNode.id, event)}
+      {...hideProps}
       onDelete={() => deleteNode(grimeShadowNode.id)}
     >
       <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />

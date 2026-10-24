@@ -16,7 +16,6 @@ const nodeMenu = (): Exclude<ContextMenuState, null> => ({
   x: 220,
   y: 180,
   nodeId: 'text-a',
-  isMerge: false,
   isExport: false,
 });
 

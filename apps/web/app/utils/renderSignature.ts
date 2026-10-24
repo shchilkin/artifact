@@ -110,7 +110,8 @@ export function viewStateRenderSig(view: PrimitiveViewportStateConfig | undefine
 
 /** Render-relevant fields for a graph-only node, from its kind's model. */
 export function graphNodeRenderSig(node: GraphNode): string {
-  return modelOfNode(node).renderSignature(node);
+  const sig = modelOfNode(node).renderSignature(node);
+  return node.hidden ? `hidden:${sig}` : sig;
 }
 
 /** Render signatures of every graph-only node. Layers and edges have their own signatures. */

@@ -16,7 +16,7 @@ import {
   createGraphAreaInDocument,
   type DocumentInsertConnectionConfig,
   deleteNodesFromDocument,
-  duplicateLayerInDocument,
+  duplicateNodeInDocument,
   removeGraphAreaInDocument,
   removeLayerFromDocument,
   removeNodesFromAllGraphAreasInDocument,
@@ -205,8 +205,8 @@ const DOCUMENT_COMMANDS: { [T in DocumentCommandType]: CommandSpec<CommandOf<T>>
   duplicateLayer: {
     history: 'snapshot',
     run: (doc, { id }) => {
-      const result = duplicateLayerInDocument(doc, id);
-      return result.layer ? { doc: result.doc, select: result.layer.id } : doc;
+      const result = duplicateNodeInDocument(doc, id);
+      return result.id ? { doc: result.doc, select: result.id } : doc;
     },
   },
   reorderLayers: { history: 'snapshot', run: (doc, { layers }) => reorderDocumentLayers(doc, layers) },

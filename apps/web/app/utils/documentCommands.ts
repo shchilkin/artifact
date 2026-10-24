@@ -47,6 +47,7 @@ import {
   graphNodeModel,
   isGraphNodeKind,
   modelOfNode,
+  newGraphNodeId,
 } from './nodeKinds';
 
 export { isLayerStackGraph } from './nodeGraph';
@@ -655,6 +656,25 @@ export function duplicateLayerInDocument(
     }),
     layer: duplicate,
   };
+}
+
+const DUPLICATE_NODE_OFFSET = 40;
+
+/** Duplicates a layer or graph-only node. A graph-only copy sits next to the original, unconnected. */
+export function duplicateNodeInDocument(
+  doc: CanvasDocument,
+  id: string,
+  createId?: () => string,
+): { doc: CanvasDocument; id: string | null } {
+  const node = findGraphNode(doc.graph, id);
+  if (!node) {
+    const result = duplicateLayerInDocument(doc, id, createId);
+    return { doc: result.doc, id: result.layer?.id ?? null };
+  }
+  const copy: GraphNode = { ...node, id: createId?.() ?? newGraphNodeId(node.kind), name: `${node.name} copy` };
+  const origin = doc.graph.positions[id] ?? nextDropPosition(doc.graph);
+  const position = { x: origin.x + DUPLICATE_NODE_OFFSET, y: origin.y + DUPLICATE_NODE_OFFSET };
+  return { doc: { ...doc, graph: addGraphNode(doc.graph, copy, position) }, id: copy.id };
 }
 
 export function setDocumentSeed(doc: CanvasDocument, seed: number): CanvasDocument {

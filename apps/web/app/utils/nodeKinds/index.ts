@@ -77,6 +77,11 @@ export function graphNodeModel<K extends GraphNodeKind>(kind: K): GraphNodeKindM
   return GRAPH_NODE_MODELS[kind];
 }
 
+/** Whether Hide applies to the node: false for kinds whose consumers read settings instead of rendering them. */
+export function canHideGraphNode(node: GraphNode): boolean {
+  return modelOfNode(node).hideable !== false;
+}
+
 /** The model for a node, typed loosely; use for generic code that only passes the node back to its own model. */
 export function modelOfNode(node: GraphNode): GraphNodeKindModel<GraphNode> {
   return GRAPH_NODE_MODELS[node.kind] as GraphNodeKindModel<GraphNode>;
