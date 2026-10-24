@@ -38,7 +38,13 @@ import { useEditorPrimitiveExportState } from './editor/useEditorPrimitiveExport
 import { useReplaceableWork } from './editor/useReplaceableWork';
 import { type ViewMode, ViewModeToggle } from './editor/ViewModeToggle';
 
-const NodeCanvas = lazy(() => import('../components/node-canvas').then((module) => ({ default: module.NodeCanvas })));
+let nodeCanvasModule: Promise<typeof import('../components/node-canvas')> | null = null;
+// Starts loading Nodes on first intent (hover or focus on the Nodes tab), so the switch itself is quick.
+function preloadNodeCanvas() {
+  nodeCanvasModule ??= import('../components/node-canvas');
+  return nodeCanvasModule;
+}
+const NodeCanvas = lazy(() => preloadNodeCanvas().then((module) => ({ default: module.NodeCanvas })));
 const MAX_ENVIRONMENT_BYTES = 80 * 1024 * 1024;
 const MAX_MODEL_BYTES = 50 * 1024 * 1024;
 
@@ -119,7 +125,14 @@ function EditorChromeSlot({
 }) {
   return (
     <div className="editor-chrome-slot">
-      <ViewModeToggle value={viewMode} onChange={onViewModeChange} variant="chrome" />
+      <ViewModeToggle
+        value={viewMode}
+        onChange={onViewModeChange}
+        onIntent={(mode) => {
+          if (mode === 'nodes') void preloadNodeCanvas();
+        }}
+        variant="chrome"
+      />
     </div>
   );
 }
@@ -608,7 +621,13 @@ export default function Editor() {
             </ErrorBoundary>
           ) : (
             <div className="node-mode-stage">
-              <Suspense fallback={<div style={{ flex: 1, background: 'var(--surface-app)' }} />}>
+              <Suspense
+                fallback={
+                  <div className="node-mode-loading" role="status">
+                    Opening Nodes…
+                  </div>
+                }
+              >
                 <NodeCanvas
                   key={documentSessionId}
                   doc={doc}

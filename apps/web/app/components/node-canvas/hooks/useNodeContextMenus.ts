@@ -376,7 +376,7 @@ export function useNodeContextMenus({
         },
       });
     },
-    [canvasSurfaceRef, graphRef, send],
+    [canvasSurfaceRef, send],
   );
 
   const onEdgeContextMenu = useCallback(

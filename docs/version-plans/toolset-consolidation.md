@@ -28,9 +28,8 @@ effect catalog, Add Library). Render output of existing documents is preserved.
 - Duplicate, Hide (bypass) and `⌘D` work on every graph node kind.
 - Every library item has its own one-line description (no family boilerplate).
 - Array's description says what it does.
-- scene3d is not offered in Layers until it works there.
-- Nodes shows the output preview while the graph mounts instead of a blank
-  canvas.
+- Nodes starts loading when the pointer or focus reaches the Nodes tab and
+  shows a loading state instead of a blank canvas.
 
 ### 2. Effect layer becomes an ordered effect stack
 
@@ -101,6 +100,8 @@ effect (searching "Sepia" adds Color Filter in sepia mode).
 
 - Array becomes a Repeat preset over a built-in shape, or stays with a
   correct name; decided by a prototype.
+- 3D Scene stays in Layers, where it wraps the selected primitive, until the
+  3D Object below replaces it.
 - Decided (2026-10-24): one "3D Object" source (primitive or model) with Material, Lighting and
   Environment inspector sections; environment folds into it; legacy
   `environmentSrc*` fields migrate away.

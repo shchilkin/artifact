@@ -8,10 +8,13 @@ type ViewModeToggleVariant = 'chrome' | 'floating' | 'node' | 'sidebar';
 export function ViewModeToggle({
   value,
   onChange,
+  onIntent,
   variant = 'floating',
 }: {
   value: ViewMode;
   onChange: (mode: ViewMode) => void;
+  /** Hover or focus on a mode before it is chosen. */
+  onIntent?: (mode: ViewMode) => void;
   variant?: ViewModeToggleVariant;
 }) {
   return (
@@ -24,7 +27,12 @@ export function ViewModeToggle({
         <TabsTrigger value="layers" aria-label="Switch to layers view">
           layers
         </TabsTrigger>
-        <TabsTrigger value="nodes" aria-label="Switch to nodes view">
+        <TabsTrigger
+          value="nodes"
+          aria-label="Switch to nodes view"
+          onPointerEnter={() => onIntent?.('nodes')}
+          onFocus={() => onIntent?.('nodes')}
+        >
           nodes
         </TabsTrigger>
       </TabsList>
