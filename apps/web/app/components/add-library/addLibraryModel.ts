@@ -99,17 +99,14 @@ export const ADD_LIBRARY_GROUPS: Array<{
 
 const EFFECT_FAMILIES: Array<{
   group: Extract<AddLibraryGroupId, 'light' | 'signal' | 'texture' | 'warp' | 'tone' | 'print' | 'graphic'>;
-  description: string;
   presets: readonly EffectPreset[];
 }> = [
   {
     group: 'light',
-    description: 'Atmosphere, bloom, flare, and energy treatments.',
     presets: ['rays', 'bloom', 'filmBurn', 'neonGlow', 'fog', 'speedLines'],
   },
   {
     group: 'signal',
-    description: 'Artifacts, channel breaks, and analog interference.',
     presets: [
       'glitch',
       'rgbSplit',
@@ -128,12 +125,10 @@ const EFFECT_FAMILIES: Array<{
   },
   {
     group: 'texture',
-    description: 'Surface noise, print feel, and tactile detail.',
     presets: ['grain', 'dotGrain', 'scanlines', 'matte', 'dither', 'emboss', 'linocut'],
   },
   {
     group: 'warp',
-    description: 'Motion, lens warps, and spatial distortion.',
     presets: [
       'noiseWarp',
       'morph',
@@ -151,7 +146,6 @@ const EFFECT_FAMILIES: Array<{
   },
   {
     group: 'tone',
-    description: 'Color grading, film looks, and low-resolution remapping.',
     presets: [
       'tint',
       'hueShift',
@@ -172,12 +166,10 @@ const EFFECT_FAMILIES: Array<{
   },
   {
     group: 'print',
-    description: 'Ink, halftone dots, overprint, and registration shifts.',
     presets: ['duotone', 'halftone', 'risoShift', 'overprint'],
   },
   {
     group: 'graphic',
-    description: 'Bold reductions, linework, blur, and gradient finishing.',
     presets: [
       'blur',
       'threshold',
@@ -227,7 +219,45 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
   dither: 'pixel pattern bayer print texture popular',
 };
 
-const EFFECT_DESCRIPTIONS: Partial<Record<EffectPreset, string>> = {
+const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
+  rays: 'Colored light beams bursting from the center of the frame.',
+  bloom: 'Soft glow bleeding out of the brightest areas, like overexposed film.',
+  filmBurn: 'Hot orange flare burning in from one corner.',
+  fog: 'Colored haze that fills highlights first, then the shadows.',
+  speedLines: 'Thin white manga motion streaks from the center.',
+  glitch: 'Horizontal cyan and magenta streaks screened over the image.',
+  rgbSplit: 'Offsets the red and blue channels diagonally for a prism fringe.',
+  ca: 'Red and blue fringe that grows toward the edges, like a cheap lens.',
+  interlace: 'Shifts alternating pixel rows sideways, like a dropped CRT signal.',
+  dataMosh: 'Displaces blocks of the frame, like a corrupted video keyframe.',
+  vhsTracking: 'Wobbling horizontal bands with a red offset, like bad VHS tracking.',
+  matte: 'Coarse, soft blotches of noise for a flat printed matte surface.',
+  emboss: 'Raised relief shading that makes edges look pressed into paper.',
+  linocut: 'Grey four-level dithered cut, like a carved lino print.',
+  noiseWarp: 'Organic distortion driven by smooth noise.',
+  morph: 'Liquid sine-wave distortion in both directions.',
+  vortex: 'Swirls the image around its center.',
+  barrel: 'Bulges the image outward, like a fisheye lens.',
+  mirror: 'Folds the image onto itself horizontally, vertically, or both.',
+  wave: 'Bends rows sideways along a sine wave.',
+  zoomBlur: 'Radial motion blur rushing out of the center.',
+  ripple: 'Concentric rings rippling out from the center, like water.',
+  squeeze: 'Stretches or squeezes the image horizontally and vertically.',
+  tint: 'Multiplies one color over the whole image.',
+  hueShift: 'Rotates every hue around the color wheel.',
+  vignette: 'Darkens the corners to pull focus to the center.',
+  posterize: 'Cuts each color channel down to a few flat bands.',
+  sepia: 'Warm brown old-photo color grade.',
+  infrared: 'False-color infrared film look with glowing foliage tones.',
+  solarize: 'Inverts the brightest tones, like a darkroom solarization.',
+  bleachBypass: 'Desaturated, high-contrast silver film look.',
+  cyanotype: 'Prussian-blue blueprint print look.',
+  duotone: 'Maps shadows and lights to two ink colors.',
+  overprint: 'Offset cyan, magenta, and yellow plates multiplied over the image.',
+  blur: 'Smooth Gaussian softening of the whole layer.',
+  threshold: 'Hard black-and-white cutoff by brightness.',
+  edgeDetect: 'Traces edges into bold linework.',
+  gradientOverlay: 'Lays a two-color linear gradient over the image.',
   grain: 'Fine surface noise for paper, dust, and old-photo finish.',
   dotGrain: 'Round tone-aware stipple dots for old-game shadows and chunky surface grain.',
   dither: 'Bayer-style pixel texture for crunchy low-color poster output.',
@@ -449,7 +479,7 @@ const layerItems: AddLibraryItem[] = [
     id: 'layer:array',
     label: 'Array',
     symbol: KIND_SYMBOL.array,
-    description: 'Repeat a source into a structured pattern.',
+    description: 'Draw discs, bars, or diamonds in a line, grid, or radial pattern.',
     group: 'source',
     action: { kind: 'layer', layerKind: 'array' },
     surfaces: ['layers', 'nodes'],
@@ -535,7 +565,7 @@ const effectItems: AddLibraryItem[] = EFFECT_PRESET_MENU_ORDER.map((preset) => {
   return {
     id: `effect:${preset}`,
     label: meta.name,
-    description: EFFECT_DESCRIPTIONS[preset] ?? family.description,
+    description: EFFECT_DESCRIPTIONS[preset],
     symbol: meta.icon,
     group: family.group,
     action: { kind: 'effect', preset },

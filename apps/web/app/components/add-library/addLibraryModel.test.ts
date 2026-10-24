@@ -234,6 +234,14 @@ describe('addLibraryModel', () => {
     expect(itemsById.get('effect:silhouetteCrush')?.description).toContain('sprite');
   });
 
+  it('gives every library item its own description', () => {
+    const owners = new Map<string, string[]>();
+    for (const item of ADD_LIBRARY_ITEMS)
+      owners.set(item.description, [...(owners.get(item.description) ?? []), item.id]);
+
+    expect([...owners.values()].filter((ids) => ids.length > 1)).toEqual([]);
+  });
+
   it('gives key effect items use-case tags', () => {
     const itemsById = new Map(ADD_LIBRARY_ITEMS.map((item) => [item.id, item]));
 
