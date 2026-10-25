@@ -1,6 +1,5 @@
 import { colorNodeModel, type GraphColorNode } from './color';
 import { environmentNodeModel, type GraphEnvironmentNode } from './environment';
-import { type GraphGrimeShadowNode, grimeShadowNodeModel } from './grimeShadow';
 import { type GraphMaskNode, maskNodeModel } from './mask';
 import { type GraphMaterialNode, materialNodeModel } from './material';
 import { type GraphMergeNode, mergeNodeModel } from './merge';
@@ -14,8 +13,6 @@ export type { GraphColorNode } from './color';
 export { makeGraphColorNode } from './color';
 export type { GraphEnvironmentNode } from './environment';
 export { makeGraphEnvironmentNode } from './environment';
-export type { GraphGrimeShadowNode } from './grimeShadow';
-export { makeGraphGrimeShadowNode } from './grimeShadow';
 export type { GraphMaskNode } from './mask';
 export { makeGraphMaskNode } from './mask';
 export type { GraphMaterialNode } from './material';
@@ -40,7 +37,6 @@ export type GraphNode =
   | GraphMaterialNode
   | GraphMaskNode
   | GraphTransformNode
-  | GraphGrimeShadowNode
   | GraphShaderNode
   | GraphEnvironmentNode
   | GraphScene3DNode;
@@ -55,7 +51,6 @@ export const GRAPH_NODE_MODELS: { [K in GraphNodeKind]: GraphNodeKindModel<Graph
   color: colorNodeModel,
   mask: maskNodeModel,
   transform: transformNodeModel,
-  grimeShadow: grimeShadowNodeModel,
   scene3d: scene3dNodeModel,
   environment: environmentNodeModel,
   repeat: repeatNodeModel,

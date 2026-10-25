@@ -31,7 +31,7 @@ function shadowLayer(id: string, stored: Record<string, unknown>): Record<string
   return {
     id,
     kind: 'effect',
-    name: typeof node.name === 'string' ? node.name : 'Grime Shadow',
+    name: typeof stored.name === 'string' ? stored.name : 'Grime Shadow',
     visible: stored.hidden !== true,
     locked: false,
     preset: 'grimeShadow',

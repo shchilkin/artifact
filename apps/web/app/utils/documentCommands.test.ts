@@ -36,7 +36,6 @@ import {
 import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind } from './nodeGraph';
 import {
   makeGraphColorNode,
-  makeGraphGrimeShadowNode,
   makeGraphMaterialNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
@@ -67,7 +66,6 @@ function makeGraph(): CanvasGraph {
       { id: 'e-color-export', fromId: 'color-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       { id: 'e-repeat-export', fromId: 'repeat-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       { id: 'e-transform-export', fromId: 'transform-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-      { id: 'e-shadow-export', fromId: 'shadow-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
     ],
     positions: {
       'fill-a': { x: 0, y: 80 },
@@ -76,7 +74,6 @@ function makeGraph(): CanvasGraph {
       'color-a': { x: 648, y: 80 },
       'repeat-a': { x: 756, y: 80 },
       'transform-a': { x: 810, y: 80 },
-      'shadow-a': { x: 830, y: 80 },
       'shader-a': { x: 840, y: 80 },
       [EXPORT_NODE_ID]: { x: 864, y: 80 },
     },
@@ -86,7 +83,6 @@ function makeGraph(): CanvasGraph {
       makeGraphRepeatNode({ id: 'repeat-a', count: 3 }),
       makeGraphMaterialNode({ id: 'material-a', materialPreset: 'chrome' }),
       makeGraphTransformNode({ id: 'transform-a', rotation: 12 }),
-      makeGraphGrimeShadowNode({ id: 'shadow-a', grime: 24 }),
       makeGraphShaderNode({ id: 'shader-a', distortion: 32 }),
     ),
   };
@@ -385,36 +381,6 @@ describe('documentCommands', () => {
     });
   });
 
-  it('inserts a grime shadow node with source and target edges', () => {
-    const doc = makeDoc(makeGraph());
-    const result = addNodeAtDocument(
-      doc,
-      { kind: 'grimeShadow' },
-      { x: 390, y: 250 },
-      { sourceId: 'fill-a', targetId: EXPORT_NODE_ID },
-      (fromId, toId, index) => `edge-${index}-${fromId}-${toId}`,
-    );
-    const shadowNode = graphNodesOfKind(result.doc.graph, 'grimeShadow')?.find((node) => node.id !== 'shadow-a');
-
-    expect(result.selectedLayerId).toBeNull();
-    expect(shadowNode).toBeDefined();
-    expect(result.doc.graph?.positions[shadowNode!.id]).toEqual({ x: 390, y: 250 });
-    expect(result.doc.graph?.edges).toContainEqual({
-      id: `edge-0-fill-a-${shadowNode!.id}`,
-      fromId: 'fill-a',
-      fromPort: 'out',
-      toId: shadowNode!.id,
-      toPort: 'in',
-    });
-    expect(result.doc.graph?.edges).toContainEqual({
-      id: `edge-1-${shadowNode!.id}-${EXPORT_NODE_ID}`,
-      fromId: shadowNode!.id,
-      fromPort: 'out',
-      toId: EXPORT_NODE_ID,
-      toPort: 'in',
-    });
-  });
-
   it('inserts repeater presets as configured graph utility nodes', () => {
     const doc = makeDoc(makeGraph());
     const result = addNodeAtDocument(doc, { kind: 'repeatPreset', preset: 'orbitRings' }, { x: 420, y: 280 });
@@ -622,17 +588,16 @@ describe('documentCommands', () => {
 
   it('deletes selected layer, merge, color, repeat, and shadow nodes from one document operation', () => {
     const doc = makeDoc(makeGraph());
-    const next = deleteNodesFromDocument(doc, ['fill-a', 'merge-a', 'color-a', 'repeat-a', 'shadow-a']);
+    const next = deleteNodesFromDocument(doc, ['fill-a', 'merge-a', 'color-a', 'repeat-a']);
 
     expect(next.layers.map((layer) => layer.id)).toEqual(['text-a']);
     expect(graphNodesOfKind(next.graph, 'merge')).toEqual([]);
     expect(graphNodesOfKind(next.graph, 'color')).toEqual([]);
     expect(graphNodesOfKind(next.graph, 'repeat')).toEqual([]);
-    expect(graphNodesOfKind(next.graph, 'grimeShadow')).toEqual([]);
     expect(Object.keys(next.graph?.positions ?? {})).not.toContain('fill-a');
-    expect(
-      next.graph?.edges.some((edge) => ['fill-a', 'merge-a', 'color-a', 'repeat-a', 'shadow-a'].includes(edge.fromId)),
-    ).toBe(false);
+    expect(next.graph?.edges.some((edge) => ['fill-a', 'merge-a', 'color-a', 'repeat-a'].includes(edge.fromId))).toBe(
+      false,
+    );
   });
 
   it('removes graph areas and graph-only area members without touching render graph nodes', () => {
@@ -903,9 +868,6 @@ describe('documentCommands', () => {
       graphNodesOfKind(updateGraphNodeInDocument(doc, 'transform-a', { rotation: 45 }).graph, 'transform')?.[0]
         ?.rotation,
     ).toBe(45);
-    expect(
-      graphNodesOfKind(updateGraphNodeInDocument(doc, 'shadow-a', { grime: 66 }).graph, 'grimeShadow')?.[0]?.grime,
-    ).toBe(66);
     expect(
       graphNodesOfKind(updateGraphNodeInDocument(doc, 'shader-a', { distortion: 70 }).graph, 'shader')?.[0]?.distortion,
     ).toBe(70);

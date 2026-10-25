@@ -128,7 +128,6 @@ describe('addLibraryModel', () => {
         'color',
         'mask',
         'transform',
-        'grimeShadow',
         'scene3d',
         'environment',
         'shader:mesh',
@@ -209,9 +208,9 @@ describe('addLibraryModel', () => {
     expect(firstIdsFor('transform')).toContain('transform');
     expect(firstIdsFor('rotate')).toContain('transform');
     expect(firstIdsFor('scale')).toContain('transform');
-    expect(firstIdsFor('grime shadow')).toContain('grimeShadow');
-    expect(firstIdsFor('drop shadow')).toContain('grimeShadow');
-    expect(firstIdsFor('dirty')).toContain('grimeShadow');
+    expect(firstIdsFor('grime shadow')).toContain('effect:grimeShadow');
+    expect(firstIdsFor('drop shadow')).toContain('effect:shadow');
+    expect(firstIdsFor('dirty')).toContain('effect:grimeShadow');
   });
 
   it('gives key effect items individual descriptions', () => {
@@ -352,7 +351,6 @@ describe('addLibraryModel', () => {
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'material' }))).toEqual({ kind: 'material' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'mask' }))).toEqual({ kind: 'mask' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'transform' }))).toEqual({ kind: 'transform' });
-    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'grimeShadow' }))).toEqual({ kind: 'grimeShadow' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'environment' }))).toEqual({ kind: 'environment' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'shader', role: 'fill' }))).toEqual({
       kind: 'shader',

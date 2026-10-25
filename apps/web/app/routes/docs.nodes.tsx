@@ -331,10 +331,6 @@ export const GRAPH_UTILITY_GUIDE = [
     name: 'Transform',
     desc: 'Moves, scales, rotates, and fades a completed upstream branch after masks, effects, and other graph utilities. Pivot can use the canvas center or the visible alpha center for masked objects.',
   },
-  {
-    name: 'Grime Shadow',
-    desc: 'Builds a layered dirty shadow from the visible alpha of an upstream branch. Use Shadow only when the shadow should be merged separately.',
-  },
 ];
 
 export const BLEND_GUIDE = BLEND_OPTIONS.map((mode) => ({

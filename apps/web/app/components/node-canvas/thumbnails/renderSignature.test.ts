@@ -301,30 +301,6 @@ describe('graph node render signatures', () => {
     expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
-  it('ignores grime shadow node identity and changes for render fields', () => {
-    const base = {
-      kind: 'grimeShadow' as const,
-      id: 'shadow-1',
-      name: 'Grime Shadow',
-      x: 8,
-      y: 10,
-      layers: 5,
-      blur: 10,
-      spread: 14,
-      grime: 45,
-      jitter: 10,
-      opacity: 58,
-      color: '#090606',
-      seedOffset: 0,
-      shadowOnly: false,
-    };
-    const renamed = { ...base, id: 'shadow-2', name: 'Renamed shadow' };
-    const edited = { ...base, grime: 80, shadowOnly: true };
-
-    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
-    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
-  });
-
   it('ignores environment node identity and changes for render fields', () => {
     const base = {
       kind: 'environment' as const,

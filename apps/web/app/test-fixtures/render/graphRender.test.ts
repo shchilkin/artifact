@@ -5,6 +5,7 @@ import {
   MATERIAL_TEXTURE_INPUT_PORTS,
   type MaterialTextureInputPort,
   makeEffectLayer,
+  makeEffectPresetLayer,
   makeFillLayer,
   makeImageLayer,
   makeSourceLayer,
@@ -17,7 +18,6 @@ import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind, inferLinearGraph } fr
 import {
   makeGraphColorNode,
   makeGraphEnvironmentNode,
-  makeGraphGrimeShadowNode,
   makeGraphMaskNode,
   makeGraphMaterialNode,
   makeGraphMergeNode,
@@ -1890,7 +1890,7 @@ describe('renderGraphTarget', () => {
     expect((visiblePivot!.minX + visiblePivot!.maxX) / 2).toBeLessThan(40);
   });
 
-  it('grime shadow can render a shifted shadow from visible source alpha', async () => {
+  it('the Shadow effect can render a shifted shadow from visible source alpha', async () => {
     const source = makeTextLayer({
       id: 'shadow-source',
       content: 'A',
@@ -1911,35 +1911,29 @@ describe('renderGraphTarget', () => {
       positions: {},
       nodes: graphNodesById(),
     };
+    const shadowLayer = makeEffectPresetLayer('shadow', {
+      id: 'shadow-1',
+      shadowOpacity: 100,
+      shadowColor: '#000000',
+      shadowX: 120,
+      shadowY: 0,
+      shadowBlur: 0,
+      shadowSpread: 0,
+      shadowSource: 'hide',
+    });
     const shadowGraph: CanvasGraph = {
       edges: [
         { id: 'e-source-shadow', fromId: source.id, fromPort: 'out', toId: 'shadow-1', toPort: 'in' },
         { id: 'e-shadow-export', fromId: 'shadow-1', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
       ],
       positions: {},
-      nodes: graphNodesById(
-        makeGraphGrimeShadowNode({
-          id: 'shadow-1',
-          name: 'Grime Shadow',
-          x: 120,
-          y: 0,
-          layers: 1,
-          blur: 0,
-          spread: 0,
-          grime: 0,
-          jitter: 0,
-          opacity: 100,
-          color: '#000000',
-          seedOffset: 0,
-          shadowOnly: true,
-        }),
-      ),
+      nodes: graphNodesById(),
     };
     const render = (graph: CanvasGraph) =>
       renderGraphTarget(
         {
           global: { bg: 'transparent', seed: 21, aspect: '1:1' },
-          layers: [source],
+          layers: [source, shadowLayer],
           graph,
           export: { format: 'png', scale: 1, target: 'cover' },
         },
@@ -1948,7 +1942,6 @@ describe('renderGraphTarget', () => {
         120,
         120,
         new Map(),
-        { skipEffects: true },
       );
 
     const sourceBounds = measureAlphaBounds(await render(sourceGraph), 24);

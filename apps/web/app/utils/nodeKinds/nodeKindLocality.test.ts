@@ -4,29 +4,26 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-// A graph node kind lives in its own modules plus one line in each registry. Grime shadow is the
-// witness: no other app source file may name it, so adding or removing a kind stays a local change.
+// A graph node kind lives in its own modules plus one line in each registry. The color node is the
+// witness: no other app source file may name its model, renderer, node, or inspector, so adding or
+// removing a kind stays a local change.
 
 const APP_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const TEST_FILE = /\.(test|spec)\.tsx?$/;
 const SOURCE_FILE = /\.tsx?$/;
-const KIND_MENTION = /grime/i;
+const KIND_MENTION = /GraphColorNode|colorNodeModel|ColorInspector|colorNodeUi|renderColorGraphNode|makeGraphColorNode/;
 
 const ALLOWED_FILES = [
   // Model, renderer, React Flow node, and inspector of the kind.
-  'utils/nodeKinds/grimeShadow.ts',
-  'utils/render/nodeKinds/grimeShadow.ts',
-  'components/node-canvas/nodeKinds/grimeShadow.tsx',
-  'components/node-canvas/inspector/GrimeShadowInspector.tsx',
+  'utils/nodeKinds/color.ts',
+  'utils/render/nodeKinds/color.ts',
+  'components/node-canvas/nodeKinds/color.tsx',
+  'components/node-canvas/inspector/ColorInspector.tsx',
   // One entry per registry.
   'utils/nodeKinds/index.ts',
   'utils/render/nodeKinds/index.ts',
   'components/node-canvas/nodeKinds/index.ts',
   'components/node-canvas/nodeKinds/inspectors.tsx',
-  // Frozen schema 5 → 6 migration names the old per-kind array.
-  'utils/migrations/v5ToV6.ts',
-  // Public node reference copy.
-  'routes/docs.nodes.tsx',
 ];
 
 function sourceFiles(dir: string): string[] {
@@ -38,7 +35,7 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe('graph node kind locality', () => {
-  it('names grime shadow only in its own modules and the registries', () => {
+  it('names the color node only in its own modules and the registries', () => {
     const mentions = sourceFiles(APP_ROOT)
       .filter((path) => KIND_MENTION.test(readFileSync(path, 'utf8')))
       .map((path) => relative(APP_ROOT, path))

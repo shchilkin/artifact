@@ -4,7 +4,6 @@ import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
 import type { GraphNodeKind, GraphNodeOfKind } from '../../../utils/nodeKinds';
 import { ColorInspector } from '../inspector/ColorInspector';
 import { EnvironmentInspector } from '../inspector/EnvironmentInspector';
-import { GrimeShadowInspector } from '../inspector/GrimeShadowInspector';
 import { MaskInspector } from '../inspector/MaskInspector';
 import { MaterialInspector } from '../inspector/MaterialInspector';
 import { MergeInspector } from '../inspector/MergeInspector';
@@ -46,9 +45,6 @@ export const GRAPH_NODE_INSPECTORS: { [K in GraphNodeKind]: GraphNodeInspectorUi
   mask: ({ node, onChange }) => <MaskInspector key={node.id} maskNode={node} onChange={onChange} detached />,
   transform: ({ node, onChange }) => (
     <TransformInspector key={node.id} transformNode={node} onChange={onChange} detached />
-  ),
-  grimeShadow: ({ node, onChange }) => (
-    <GrimeShadowInspector key={node.id} grimeShadowNode={node} onChange={onChange} detached />
   ),
   scene3d: ({ node, doc, onChange, onUpdateGraphNode, onReplaceEnvironmentNodeFile }) => (
     <SceneTargetInspector

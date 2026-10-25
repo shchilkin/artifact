@@ -2,7 +2,6 @@ import type { GraphNodeKind, GraphNodeOfKind } from '../../nodeKinds';
 import { renderColorGraphNode } from './color';
 import type { GraphNodeRenderContext } from './context';
 import { renderEnvironmentGraphNode } from './environment';
-import { renderGrimeShadowGraphNode } from './grimeShadow';
 import { renderMaskGraphNode } from './mask';
 import { renderMaterialGraphNode } from './material';
 import { renderMergeGraphNode } from './merge';
@@ -27,7 +26,6 @@ export const GRAPH_NODE_RENDERERS: { [K in GraphNodeKind]: GraphNodeRenderer<K> 
   material: renderMaterialGraphNode,
   mask: renderMaskGraphNode,
   transform: renderTransformGraphNode,
-  grimeShadow: renderGrimeShadowGraphNode,
   shader: renderShaderGraphNode,
   environment: renderEnvironmentGraphNode,
   scene3d: renderScene3DGraphNode,

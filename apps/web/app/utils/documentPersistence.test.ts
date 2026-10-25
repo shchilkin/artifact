@@ -512,7 +512,7 @@ describe('normalizeDocument', () => {
     });
   });
 
-  it('adds render defaults to older grime shadow nodes', () => {
+  it('turns older grime shadow nodes into Shadow effect layers', () => {
     const doc = normalizeDocument({
       layers: [],
       graph: {
@@ -523,14 +523,16 @@ describe('normalizeDocument', () => {
       },
     });
 
-    expect(graphNodesOfKind(doc.graph, 'grimeShadow')?.[0]).toMatchObject({
-      id: 'shadow-a',
-      x: 8,
-      y: 10,
-      layers: 5,
-      color: '#090606',
-      shadowOnly: false,
-    });
+    expect(doc.graph.nodes['shadow-a']).toBeUndefined();
+    expect(doc.layers).toMatchObject([
+      {
+        id: 'shadow-a',
+        kind: 'effect',
+        effects: [
+          { effect: 'shadow', params: { mode: 'grime', x: 8, y: 10, layers: 5, color: '#090606', source: 'show' } },
+        ],
+      },
+    ]);
   });
 
   it('adds seed defaults to older emoji layers', () => {
