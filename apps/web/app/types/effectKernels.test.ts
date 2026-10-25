@@ -49,6 +49,8 @@ function gradientCanvas(): HTMLCanvasElement {
   ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(W / 4, H / 4, W / 2, H / 8);
+  // A transparent band, so kernels that work from the source's alpha (shadow) have an edge to act on.
+  ctx.clearRect(0, (H * 3) / 4, W, H / 4);
   return canvas;
 }
 

@@ -135,6 +135,8 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
 };
 
 const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
+  shadow: 'A soft drop shadow under the visible shapes.',
+  grimeShadow: 'Layered dirty shadow built from the visible alpha.',
   adjust: 'Brightness, contrast, saturation, temperature, hue, and invert in one grade.',
   sharpen: 'Crisps edges and fine detail.',
   rays: 'Colored light beams bursting from the center of the frame.',
@@ -519,6 +521,10 @@ const EFFECT_ITEMS: Record<
   sharpen: { group: 'graphic', summary: 'Crisps edges and fine detail.' },
   alphaCrush: { group: 'graphic', summary: 'Hardens soft alpha edges or chips them into sprite-like silhouettes.' },
   gooeyMerge: { group: 'graphic', summary: 'Merges nearby shapes into soft liquid blobs.' },
+  shadow: {
+    group: 'light',
+    summary: 'A drop shadow, or a layered dirty shadow, cast by the visible shapes of the input.',
+  },
 };
 
 function effectPresets(effect: EffectId): EffectPreset[] {

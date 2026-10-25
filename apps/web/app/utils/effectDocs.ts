@@ -46,6 +46,8 @@ interface EffectDocCopy {
 }
 
 const EFFECT_DOC_COPY: Record<EffectPreset, EffectDocCopy> = {
+  shadow: { description: 'A soft drop shadow under the visible shapes of the input.' },
+  grimeShadow: { description: 'Stacked, dirty shadow layers built from the visible alpha.' },
   adjust: { description: 'Brightness, contrast, saturation, temperature, hue, and invert in one grade.' },
   sharpen: { description: 'Crisps edges by pushing each pixel away from its neighbours.' },
   rays: { description: 'Thick colored poster-burst beams from center.' },

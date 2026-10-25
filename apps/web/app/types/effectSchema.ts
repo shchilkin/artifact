@@ -22,8 +22,11 @@ export type EffectParamValue = number | string;
 /** An effect's stored parameters, keyed by the effect's own parameter names. */
 export type EffectParams = Record<string, EffectParamValue>;
 
-/** An effect parameter. `when` shows it only while another parameter (usually `mode`) has one of the values. */
-export type EffectParamSpec = ParamSpec & { when?: { param: string; values: readonly string[] } };
+/**
+ * An effect parameter. `when` shows it only while another parameter (usually `mode`) has one of the values; `hidden`
+ * keeps it out of the inspector (a value carried over from older documents).
+ */
+export type EffectParamSpec = ParamSpec & { when?: { param: string; values: readonly string[] }; hidden?: true };
 
 export interface KernelCall {
   kernel: KernelId;
@@ -79,6 +82,14 @@ function numParam(
   options: Pick<NumberParamSpec, 'overrideMax' | 'format' | 'help'> & Pick<EffectParamSpec, 'when'> = {},
 ): EffectParamSpec {
   return { type: 'number', label, default: defaultValue, min, max, ...options };
+}
+
+function choiceParam(
+  label: string,
+  options: ReadonlyArray<{ value: string; label: string }>,
+  when?: EffectParamSpec['when'],
+): EffectParamSpec {
+  return { type: 'choice', label, default: options[0].value, options, ...(when ? { when } : {}) };
 }
 
 function colorParam(label: string, defaultValue: string, when?: EffectParamSpec['when']): EffectParamSpec {
@@ -553,6 +564,69 @@ export const EFFECTS = {
     ],
   }),
   gooeyMerge: kernelEffect('gooeyMerge', 'Gooey Merge'),
+  shadow: {
+    label: 'Shadow',
+    family: 'light',
+    params: {
+      mode: choiceParam('Style', [
+        { value: 'drop', label: 'Drop' },
+        { value: 'grime', label: 'Grime' },
+      ]),
+      opacity: numParam('Opacity', 0, 0, 100, { format: 'percent' }),
+      color: colorParam('Color', '#090606'),
+      x: numParam('Offset X', 8, -100, 100, { format: 'px' }),
+      y: numParam('Offset Y', 10, -100, 100, { format: 'px' }),
+      blur: numParam('Blur', 10, 0, 60, { format: 'px' }),
+      spread: numParam('Spread', 14, 0, 60, { format: 'px' }),
+      layers: numParam('Layers', 5, 1, 12, { when: inModes('grime') }),
+      grime: numParam('Grime', 45, 0, 100, { format: 'percent', when: inModes('grime') }),
+      jitter: numParam('Jitter', 10, 0, 60, { format: 'px', when: inModes('grime') }),
+      source: choiceParam('Source', [
+        { value: 'show', label: 'Keep source' },
+        { value: 'hide', label: 'Shadow only' },
+      ]),
+      variation: { ...numParam('Variation', 0, 0, 4294967295), hidden: true },
+    },
+    kernels: (params) => {
+      const drop = params.mode !== 'grime';
+      return [
+        {
+          kernel: 'shadow',
+          values: {
+            shadowOpacity: numberOf(params.opacity),
+            shadowColor: String(params.color),
+            shadowX: numberOf(params.x),
+            shadowY: numberOf(params.y),
+            shadowBlur: numberOf(params.blur),
+            shadowSpread: numberOf(params.spread),
+            shadowLayers: drop ? 1 : numberOf(params.layers),
+            shadowGrime: drop ? 0 : numberOf(params.grime),
+            shadowJitter: drop ? 0 : numberOf(params.jitter),
+            shadowSource: String(params.source),
+            shadowVariation: numberOf(params.variation),
+          },
+        },
+      ];
+    },
+    absorbs: {
+      shadow: (values) => ({
+        mode: values.shadowLayers === 1 && values.shadowGrime === 0 && values.shadowJitter === 0 ? 'drop' : 'grime',
+        opacity: values.shadowOpacity,
+        color: values.shadowColor,
+        x: values.shadowX,
+        y: values.shadowY,
+        blur: values.shadowBlur,
+        spread: values.shadowSpread,
+        layers: values.shadowLayers,
+        grime: values.shadowGrime,
+        jitter: values.shadowJitter,
+        source: values.shadowSource,
+        variation: values.shadowVariation,
+      }),
+    },
+    starter: 'shadow',
+    modePresets: { drop: 'shadow', grime: 'grimeShadow' },
+  },
 } satisfies Record<string, EffectSpec>;
 
 export type EffectId = keyof typeof EFFECTS;

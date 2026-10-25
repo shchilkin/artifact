@@ -199,8 +199,8 @@ function IndexedPalettePanel({ entry, onChange }: EntryControlProps) {
 /** The controls of one stack entry: every parameter its effect owns, in schema order. */
 /** The controls of one stack entry: every parameter its effect shows for the current values, in spec order. */
 export function EffectEntryControls({ entry, onChange }: EntryControlProps) {
-  const fields = Object.entries(effectSpec(entry.effect).params).filter(([, param]) =>
-    isEffectParamShown(param, entry.params),
+  const fields = Object.entries(effectSpec(entry.effect).params).filter(
+    ([, param]) => !param.hidden && isEffectParamShown(param, entry.params),
   );
   const isPaletteColor = (field: string) => (INDEXED_COLOR_FIELDS as readonly string[]).includes(field);
   const hasPalette = fields.some(([field]) => isPaletteColor(field));

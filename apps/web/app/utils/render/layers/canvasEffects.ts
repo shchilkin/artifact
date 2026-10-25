@@ -4,6 +4,7 @@ import { createCanvas, REF } from '../canvas';
 import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
 import { renderEffectPixelTransforms } from '../workers/effectPixelTransformClient';
 import { applyBadStreamEffect } from './badStream';
+import { applyShadowEffect } from './shadowEffect';
 import { applyDotGrain, applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
 
 const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
@@ -437,4 +438,5 @@ export async function applyCanvas2DEffects(
     threshold: params.gooeyThreshold,
   });
   applySpeedLinesEffect(ctx, W, H, params, seed, scale);
+  applyShadowEffect(ctx, W, H, params, seed);
 }

@@ -16,6 +16,7 @@ import { migrateV13ToV14 } from './v13ToV14';
 import { migrateV14ToV15 } from './v14ToV15';
 import { migrateV15ToV16 } from './v15ToV16';
 import { migrateV16ToV17 } from './v16ToV17';
+import { migrateV17ToV18 } from './v17ToV18';
 
 export type { StoredDocument } from './shared';
 
@@ -43,6 +44,7 @@ export const MIGRATIONS: Readonly<Record<number, (doc: StoredDocument) => Stored
   14: migrateV14ToV15,
   15: migrateV15ToV16,
   16: migrateV16ToV17,
+  17: migrateV17ToV18,
 };
 
 export function storedSchemaVersion(doc: StoredDocument): number {

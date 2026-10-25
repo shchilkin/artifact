@@ -14,6 +14,8 @@ import { type EffectId, type EffectParams, effectDefaults, effectFromKernel, eff
 import { genId } from './layerIds';
 
 export type EffectPreset =
+  | 'shadow'
+  | 'grimeShadow'
   | 'adjust'
   | 'sharpen'
   | 'rays'
@@ -343,6 +345,28 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     primary: null,
     partial: { mirror: 1 },
   },
+  shadow: {
+    name: 'Shadow',
+    icon: '◖',
+    primary: 'shadowOpacity',
+    partial: {
+      shadowOpacity: 60,
+      shadowColor: '#000000',
+      shadowX: 6,
+      shadowY: 8,
+      shadowBlur: 8,
+      shadowSpread: 0,
+      shadowLayers: 1,
+      shadowGrime: 0,
+      shadowJitter: 0,
+    },
+  },
+  grimeShadow: {
+    name: 'Grime Shadow',
+    icon: '◖',
+    primary: 'shadowOpacity',
+    partial: { shadowOpacity: 58 },
+  },
   adjust: {
     name: 'Adjust',
     icon: '◑',
@@ -650,6 +674,8 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'neonGlow',
   'fog',
   'speedLines',
+  'shadow',
+  'grimeShadow',
   'glitch',
   'rgbSplit',
   'ca',

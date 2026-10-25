@@ -97,6 +97,7 @@ export const KERNELS = {
   linocut: { backend: 'canvas', amounts: ['linocut'], family: 'texture' },
   fog: { backend: 'worker', amounts: ['fog'], family: 'light' },
   speedLines: { backend: 'canvas', amounts: ['speedLines'], family: 'light' },
+  shadow: { backend: 'canvas', amounts: ['shadowOpacity'], family: 'light' },
 } as const satisfies Record<string, KernelDefinition>;
 
 export type KernelId = keyof typeof KERNELS;
@@ -296,6 +297,20 @@ export const KERNEL_PARAMS = {
   fog: num('fog', 'Haze', 0, 0, 100, { format: 'percent' }),
   fogColor: color('fog', 'Haze Color', '#c8d8e8'),
   speedLines: num('speedLines', 'Speed Lines', 0, 0, 140, { overrideMax: 300 }),
+  shadowOpacity: num('shadow', 'Opacity', 0, 0, 100, { format: 'percent' }),
+  shadowColor: color('shadow', 'Color', '#090606'),
+  shadowX: num('shadow', 'Offset X', 8, -100, 100, { format: 'px' }),
+  shadowY: num('shadow', 'Offset Y', 10, -100, 100, { format: 'px' }),
+  shadowBlur: num('shadow', 'Blur', 10, 0, 60, { format: 'px' }),
+  shadowSpread: num('shadow', 'Spread', 14, 0, 60, { format: 'px' }),
+  shadowLayers: num('shadow', 'Layers', 5, 1, 12),
+  shadowGrime: num('shadow', 'Grime', 45, 0, 100, { format: 'percent' }),
+  shadowJitter: num('shadow', 'Jitter', 10, 0, 60, { format: 'px' }),
+  shadowSource: choice('shadow', 'Source', [
+    { value: 'show', label: 'Keep source' },
+    { value: 'hide', label: 'Shadow only' },
+  ]),
+  shadowVariation: num('shadow', 'Variation', 0, 0, 4294967295),
 } satisfies Record<string, KernelParam>;
 
 export type KernelParamKey = keyof typeof KERNEL_PARAMS;
@@ -330,6 +345,7 @@ export const EFFECT_PRESET_VARIANTS: Partial<Record<EffectPreset, EffectPresetVa
     kernel: 'badStream',
     shows: ['badStream', 'badStreamBlockSize', 'badStreamDetail', 'badStreamChroma'],
   },
+  grimeShadow: { kernel: 'shadow' },
   blockDropout: {
     kernel: 'badStream',
     shows: ['badStream', 'badStreamBlockSize', 'badStreamDarkness'],
@@ -440,6 +456,7 @@ export const KERNEL_PASS_ORDER: readonly KernelId[] = [
   'fog',
   'gooeyMerge',
   'speedLines',
+  'shadow',
   'mirror',
   'dataMosh',
   'interlace',

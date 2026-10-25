@@ -313,6 +313,13 @@ export const EFFECT_META: Record<string, EffectMeta> = {
     valueLabel: 'y -35',
     cfgOverride: { squeezeY: -35 },
   },
+  shadowOpacity: {
+    title: 'Shadow',
+    description: 'Casts a shadow from the visible shapes of the input.',
+    valueLabel: 'opacity 60',
+    family: 'light',
+    cfgOverride: { shadowOpacity: 60, shadowLayers: 1, shadowGrime: 0, shadowJitter: 0, shadowSpread: 0 },
+  },
   adjust: {
     title: 'Adjust',
     description: 'Grades brightness, contrast, saturation, temperature, and invert in one pass.',
@@ -604,6 +611,8 @@ const EFFECT_THUMB_KEY_ALIASES: Partial<Record<EffectPreset, string>> = {
   ripple: 'rippleAmt',
   squeeze: 'squeezeX',
   splitTone: 'splitToneAmt',
+  shadow: 'shadowOpacity',
+  grimeShadow: 'shadowOpacity',
 };
 
 export function resolveEffectThumbKey(key: string) {
