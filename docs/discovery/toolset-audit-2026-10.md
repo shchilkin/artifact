@@ -1,7 +1,7 @@
 # Toolset Audit — v0.51.0 (2026-10)
 
 Status: discovery. Findings only; scope is adopted by
-[`../version-plans/toolset-consolidation.md`](../version-plans/toolset-consolidation.md).
+[`../version-plans/v0.52.md`](../version-plans/v0.52.md).
 
 Method: source read of the effect schema, node-kind registries, Add Library
 model and starters (usage counts cover curated examples, hero configs,

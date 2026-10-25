@@ -82,9 +82,9 @@ const BROWSER_STATES = [
     doc: BLANK_DOCUMENT,
     activate: async (page) => {
       await page.getByRole('button', { name: 'Add layer' }).click();
-      await page.getByPlaceholder('Add layer…').fill('Primitive');
+      await page.getByPlaceholder('Add layer…').fill('3D Object');
       await page
-        .getByRole('option', { name: /Primitive/ })
+        .getByRole('option', { name: /3D Object/ })
         .first()
         .dblclick();
       await page.locator('.layer-row').first().waitFor({ timeout: 20_000 });
