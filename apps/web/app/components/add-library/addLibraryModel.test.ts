@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EFFECT_PRESET_MENU_ORDER } from '../../types/config';
+import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../types/config';
 import { EFFECT_IDS } from '../../types/effectSchema';
 import {
   ADD_LIBRARY_ITEMS,
@@ -239,6 +239,18 @@ describe('addLibraryModel', () => {
         query,
       ).toContain(id);
     }
+  });
+
+  it('finds every effect preset by its name', () => {
+    const items = addLibraryItemsForSurface('layers');
+    const missed = Object.entries(EFFECT_PRESETS).flatMap(([preset, { name }]) =>
+      searchAddLibraryItems(items, name)
+        .slice(0, 3)
+        .some((item) => item.id === `effect:${preset}`)
+        ? []
+        : [name],
+    );
+    expect(missed).toEqual([]);
   });
 
   it('gives every library item its own description', () => {

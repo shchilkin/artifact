@@ -131,6 +131,15 @@ effect (searching "Sepia" adds Color Filter in sepia mode).
    recipe).
 8. `npm run check`, `npm run test:golden` and `npm run ux:gate` pass.
 
+Status (2026-10-25): all eight met. 27 effects; schema steps 7-19 each have
+fixture tests; goldens unchanged (no pixelate baseline update was needed);
+Nodes browses 45 items, descriptions are unique and every effect preset name
+finds its item (`addLibraryModel.test.ts`); `node-actions.spec.ts` covers
+Duplicate, Hide and `⌘D` on every graph node kind (a material has no Hide,
+since its consumers read its settings); `layers-cover-basics.spec.ts` covers
+criterion 6; `recipes.test.ts` renders every recipe; the gate, goldens,
+`ux:gate` and Playwright on all projects pass.
+
 ## Delivery Sequence
 
 1. Phase 1 fixes (independent PRs). Done.
