@@ -41,8 +41,8 @@ describe('effect stack rendering', () => {
   });
 
   it('applies stack entries top to bottom', async () => {
-    const dark = makeEffectEntry('tint', { tint: '#000000', tintOp: 80 }, 'dark');
-    const invert = makeEffectEntry('solarize', { solarize: 100 }, 'invert');
+    const dark = makeEffectEntry('colorOverlay', { mode: 'multiply', color: '#000000', amount: 80 }, 'dark');
+    const invert = makeEffectEntry('colorFilter', { mode: 'solarize', amount: 100 }, 'invert');
     const render = (effects: ReturnType<typeof makeEffectEntry>[]) =>
       centerRed(
         makeDocument({

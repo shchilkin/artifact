@@ -14,6 +14,7 @@ import {
   type KernelParamValues,
   kernelDefinition,
   kernelParamKeys,
+  type NumberParamSpec,
   type ParamSpec,
 } from './effectKernels';
 
@@ -33,14 +34,14 @@ export interface EffectSpec {
   label: string;
   family?: EffectFamilyId;
   params: Readonly<Record<string, EffectParamSpec>>;
-  /** The parameter the inspector summary reads. */
-  amount: string;
   /** The kernel calls these parameters make, in order. Calls whose kernel is inactive are skipped by the renderer. */
   kernels(params: EffectParams): KernelCall[];
   /** For each kernel the effect absorbs: parameters whose `kernels` call reproduces that kernel's values exactly. */
   absorbs: Partial<Record<KernelId, (values: KernelParamValues) => EffectParams>>;
   /** The preset whose values "Add effect" starts from. */
   starter: EffectPreset;
+  /** For a `mode` parameter: the preset a mode starts from when switching to it would leave the effect off. */
+  modePresets?: Readonly<Record<string, EffectPreset>>;
 }
 
 function pick(source: Partial<Record<string, unknown>>, keys: readonly string[]): EffectParams {
@@ -64,10 +65,110 @@ function kernelEffect(kernel: KernelId, label: string): EffectSpec {
     label,
     family: kernelDefinition(kernel).family,
     params: Object.fromEntries(keys.map((key) => [key, stripKernel(KERNEL_PARAMS[key])])),
-    amount: kernelDefinition(kernel).amounts[0],
     kernels: (params) => [{ kernel, values: pick(params, keys) as Partial<KernelParamValues> }],
     absorbs: { [kernel]: (values: KernelParamValues) => pick(values, keys) },
     starter: kernel as EffectPreset,
+  };
+}
+
+function numParam(
+  label: string,
+  defaultValue: number,
+  min: number,
+  max: number,
+  options: Pick<NumberParamSpec, 'overrideMax' | 'format' | 'help'> & Pick<EffectParamSpec, 'when'> = {},
+): EffectParamSpec {
+  return { type: 'number', label, default: defaultValue, min, max, ...options };
+}
+
+function colorParam(label: string, defaultValue: string, when?: EffectParamSpec['when']): EffectParamSpec {
+  return { type: 'color', label, default: defaultValue, ...(when ? { when } : {}) };
+}
+
+/** Shown only in these modes. */
+function inModes(...values: string[]): EffectParamSpec['when'] {
+  return { param: 'mode', values };
+}
+
+/** A kernel's own parameters, shown only in one mode of a modal effect. */
+function kernelParamsInMode(kernel: KernelId, mode: string): Record<string, EffectParamSpec> {
+  return Object.fromEntries(
+    kernelParamKeys(kernel).map((key) => [key, { ...stripKernel(KERNEL_PARAMS[key]), when: inModes(mode) }]),
+  );
+}
+
+interface EffectMode {
+  value: string;
+  label: string;
+  kernel: KernelId;
+  preset: EffectPreset;
+  /** Effect parameters to the kernel's values. Defaults to the kernel's own parameters under their names. */
+  toKernel?: (params: EffectParams) => Partial<KernelParamValues>;
+  /** The kernel's values to effect parameters (without `mode`). Defaults to the kernel's own parameters. */
+  fromKernel?: (values: KernelParamValues) => EffectParams;
+}
+
+/** An effect with a `mode` parameter; each mode runs one kernel. */
+function modalEffect({
+  label,
+  family,
+  modeLabel,
+  modes,
+  params,
+}: {
+  label: string;
+  family: EffectFamilyId;
+  modeLabel: string;
+  modes: readonly EffectMode[];
+  params: Record<string, EffectParamSpec>;
+}): EffectSpec {
+  const own = (kernel: KernelId) => kernelParamKeys(kernel);
+  const modeOf = (params: EffectParams) => modes.find((mode) => mode.value === params.mode) ?? modes[0];
+  return {
+    label,
+    family,
+    params: {
+      mode: {
+        type: 'choice',
+        label: modeLabel,
+        default: modes[0].value,
+        options: modes.map(({ value, label: optionLabel }) => ({ value, label: optionLabel })),
+      },
+      ...params,
+    },
+    kernels: (params) => {
+      const mode = modeOf(params);
+      const values = mode.toKernel?.(params) ?? (pick(params, own(mode.kernel)) as Partial<KernelParamValues>);
+      return [{ kernel: mode.kernel, values }];
+    },
+    absorbs: Object.fromEntries(
+      modes.map((mode) => [
+        mode.kernel,
+        (values: KernelParamValues) => ({
+          mode: mode.value,
+          ...(mode.fromKernel?.(values) ?? pick(values, own(mode.kernel))),
+        }),
+      ]),
+    ),
+    starter: modes[0].preset,
+    modePresets: Object.fromEntries(modes.map((mode) => [mode.value, mode.preset])),
+  };
+}
+
+function numberOf(value: EffectParamValue | undefined): number {
+  return typeof value === 'number' ? value : Number(value ?? 0);
+}
+
+/** A mode whose kernel reads one amount, shared by every mode of the effect as `amount`. */
+function amountMode(value: string, label: string, kernel: KernelId, preset: EffectPreset): EffectMode {
+  const [amountKey] = kernelDefinition(kernel).amounts as KernelParamKey[];
+  return {
+    value,
+    label,
+    kernel,
+    preset,
+    toKernel: (params) => ({ [amountKey]: numberOf(params.amount) }),
+    fromKernel: (values) => ({ amount: values[amountKey] }),
   };
 }
 
@@ -77,7 +178,53 @@ export const EFFECTS = {
   bloom: kernelEffect('bloom', 'Bloom'),
   filmBurn: kernelEffect('filmBurn', 'Film Burn'),
   neonGlow: kernelEffect('neonGlow', 'Neon Glow'),
-  fog: kernelEffect('fog', 'Fog'),
+  colorOverlay: modalEffect({
+    label: 'Color Overlay',
+    family: 'tone',
+    modeLabel: 'Style',
+    params: {
+      amount: numParam('Amount', 0, 0, 100, { format: 'percent' }),
+      color: colorParam('Color', '#350055'),
+      colorB: colorParam('End color', '#ff6ec7', inModes('gradient')),
+      angle: numParam('Direction', 0, 0, 360, { format: 'deg', when: inModes('gradient') }),
+    },
+    modes: [
+      {
+        value: 'multiply',
+        label: 'Tint',
+        kernel: 'tint',
+        preset: 'tint',
+        toKernel: (params) => ({ tintOp: numberOf(params.amount), tint: String(params.color) }),
+        fromKernel: (values) => ({ amount: values.tintOp, color: values.tint }),
+      },
+      {
+        value: 'gradient',
+        label: 'Gradient',
+        kernel: 'gradientOverlay',
+        preset: 'gradientOverlay',
+        toKernel: (params) => ({
+          gradMix: numberOf(params.amount),
+          gradA: String(params.color),
+          gradB: String(params.colorB),
+          gradAngle: numberOf(params.angle),
+        }),
+        fromKernel: (values) => ({
+          amount: values.gradMix,
+          color: values.gradA,
+          colorB: values.gradB,
+          angle: values.gradAngle,
+        }),
+      },
+      {
+        value: 'haze',
+        label: 'Haze',
+        kernel: 'fog',
+        preset: 'fog',
+        toKernel: (params) => ({ fog: numberOf(params.amount), fogColor: String(params.color) }),
+        fromKernel: (values) => ({ amount: values.fog, color: values.fogColor }),
+      },
+    ],
+  }),
   speedLines: kernelEffect('speedLines', 'Speed Lines'),
   glitch: kernelEffect('glitch', 'Glitch'),
   rgbSplit: kernelEffect('rgbSplit', 'RGB Split'),
@@ -91,10 +238,26 @@ export const EFFECTS = {
   dotGrain: kernelEffect('dotGrain', 'Dot Grain'),
   scanlines: kernelEffect('scanlines', 'Scanlines'),
   matte: kernelEffect('matte', 'Matte'),
-  dither: kernelEffect('dither', 'Dither'),
+  posterize: modalEffect({
+    label: 'Posterize',
+    family: 'tone',
+    modeLabel: 'Style',
+    params: {
+      ...kernelParamsInMode('posterize', 'levels'),
+      ...kernelParamsInMode('dither', 'dither'),
+      ...kernelParamsInMode('linocut', 'linocut'),
+      ...kernelParamsInMode('threshold', 'threshold'),
+      ...kernelParamsInMode('indexedPalette', 'palette'),
+    },
+    modes: [
+      { value: 'levels', label: 'Levels', kernel: 'posterize', preset: 'posterize' },
+      { value: 'dither', label: 'Dither', kernel: 'dither', preset: 'dither' },
+      { value: 'linocut', label: 'Linocut', kernel: 'linocut', preset: 'linocut' },
+      { value: 'threshold', label: 'Threshold', kernel: 'threshold', preset: 'threshold' },
+      { value: 'palette', label: 'Palette', kernel: 'indexedPalette', preset: 'indexedPalette' },
+    ],
+  }),
   emboss: kernelEffect('emboss', 'Emboss'),
-  linocut: kernelEffect('linocut', 'Linocut'),
-  tint: kernelEffect('tint', 'Tint'),
   noiseWarp: kernelEffect('noiseWarp', 'Noise Warp'),
   morph: kernelEffect('morph', 'Morph'),
   vortex: kernelEffect('vortex', 'Vortex'),
@@ -111,29 +274,106 @@ export const EFFECTS = {
   vignette: kernelEffect('vignette', 'Vignette'),
   retroResolution: kernelEffect('retroResolution', 'Retro Resolution'),
   pixelate: kernelEffect('pixelate', 'Pixelate'),
-  posterize: kernelEffect('posterize', 'Posterize'),
-  indexedPalette: kernelEffect('indexedPalette', 'Indexed Palette'),
-  gradientMap: kernelEffect('gradientMap', 'Gradient Map'),
-  channelMixer: kernelEffect('channelMixer', 'Channel Mixer'),
-  sepia: kernelEffect('sepia', 'Sepia'),
-  infrared: kernelEffect('infrared', 'Infrared'),
-  solarize: kernelEffect('solarize', 'Solarize'),
-  bleachBypass: kernelEffect('bleachBypass', 'Bleach Bypass'),
-  cyanotype: kernelEffect('cyanotype', 'Cyanotype'),
-  splitTone: kernelEffect('splitTone', 'Split Tone'),
-  duotone: kernelEffect('duotone', 'Duotone'),
+  gradientMap: modalEffect({
+    label: 'Gradient Map',
+    family: 'tone',
+    modeLabel: 'Stops',
+    params: {
+      amount: numParam('Amount', 0, 0, 100, { format: 'percent' }),
+      shadow: colorParam('Shadow', '#0a0020'),
+      mid: colorParam('Midtone', '#9c5a13', inModes('tri')),
+      highlight: colorParam('Highlight', '#ff6ec7'),
+    },
+    modes: [
+      {
+        value: 'duo',
+        label: 'Two colors',
+        kernel: 'duotone',
+        preset: 'duotone',
+        toKernel: (params) => ({
+          duotone: numberOf(params.amount),
+          duoA: String(params.shadow),
+          duoB: String(params.highlight),
+        }),
+        fromKernel: (values) => ({ amount: values.duotone, shadow: values.duoA, highlight: values.duoB }),
+      },
+      {
+        value: 'tri',
+        label: 'Three colors',
+        kernel: 'gradientMap',
+        preset: 'gradientMap',
+        toKernel: (params) => ({
+          gradientMap: numberOf(params.amount),
+          gradientMapShadow: String(params.shadow),
+          gradientMapMid: String(params.mid),
+          gradientMapHighlight: String(params.highlight),
+        }),
+        fromKernel: (values) => ({
+          amount: values.gradientMap,
+          shadow: values.gradientMapShadow,
+          mid: values.gradientMapMid,
+          highlight: values.gradientMapHighlight,
+        }),
+      },
+      {
+        value: 'split',
+        label: 'Split tone',
+        kernel: 'splitTone',
+        preset: 'splitTone',
+        toKernel: (params) => ({
+          splitToneAmt: numberOf(params.amount),
+          splitShadow: String(params.shadow),
+          splitHighlight: String(params.highlight),
+        }),
+        fromKernel: (values) => ({
+          amount: values.splitToneAmt,
+          shadow: values.splitShadow,
+          highlight: values.splitHighlight,
+        }),
+      },
+    ],
+  }),
+  colorFilter: modalEffect({
+    label: 'Color Filter',
+    family: 'tone',
+    modeLabel: 'Look',
+    params: {
+      amount: numParam('Amount', 0, 0, 100, { format: 'percent' }),
+      ...kernelParamsInMode('channelMixer', 'mixer'),
+    },
+    modes: [
+      amountMode('sepia', 'Sepia', 'sepia', 'sepia'),
+      amountMode('infrared', 'Infrared', 'infrared', 'infrared'),
+      amountMode('bleach', 'Bleach bypass', 'bleachBypass', 'bleachBypass'),
+      amountMode('solarize', 'Solarize', 'solarize', 'solarize'),
+      amountMode('cyanotype', 'Cyanotype', 'cyanotype', 'cyanotype'),
+      {
+        ...amountMode('mixer', 'Channel mixer', 'channelMixer', 'channelMixer'),
+        toKernel: (params) => ({
+          channelMixer: numberOf(params.amount),
+          channelRedMix: numberOf(params.channelRedMix),
+          channelGreenMix: numberOf(params.channelGreenMix),
+          channelBlueMix: numberOf(params.channelBlueMix),
+        }),
+        fromKernel: (values) => ({
+          amount: values.channelMixer,
+          channelRedMix: values.channelRedMix,
+          channelGreenMix: values.channelGreenMix,
+          channelBlueMix: values.channelBlueMix,
+        }),
+      },
+    ],
+  }),
   halftone: kernelEffect('halftone', 'Halftone'),
   risoShift: kernelEffect('risoShift', 'Misregister'),
   overprint: kernelEffect('overprint', 'Overprint'),
   blur: kernelEffect('blur', 'Blur'),
-  threshold: kernelEffect('threshold', 'Threshold'),
   edgeCrush: kernelEffect('edgeCrush', 'Alpha Crush'),
   silhouetteCrush: kernelEffect('silhouetteCrush', 'Silhouette Crush'),
   edgeDetect: kernelEffect('edgeDetect', 'Edge Detect'),
   bokehBlur: kernelEffect('bokehBlur', 'Bokeh Blur'),
   hatching: kernelEffect('hatching', 'Hatching'),
   gooeyMerge: kernelEffect('gooeyMerge', 'Gooey Merge'),
-  gradientOverlay: kernelEffect('gradientOverlay', 'Gradient'),
 } satisfies Record<string, EffectSpec>;
 
 export type EffectId = keyof typeof EFFECTS;

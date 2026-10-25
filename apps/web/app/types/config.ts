@@ -387,7 +387,7 @@ export interface CanvasDocument {
 
 export type { GraphNode, GraphNodeKind } from '../utils/nodeKinds';
 
-export const DOCUMENT_SCHEMA_VERSION = 7;
+export const DOCUMENT_SCHEMA_VERSION = 11;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: 'transparent',

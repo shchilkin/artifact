@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import type { EffectEntry, EffectLayer, EffectPreset } from '../../../types/config';
 import { EFFECT_PRESETS, effectStarterParams } from '../../../types/config';
-import { EFFECT_IDS, type EffectId, effectSpec, isEffectId } from '../../../types/effectSchema';
+import { EFFECT_IDS, type EffectId, effectSpec, isEffectId, isEffectParamShown } from '../../../types/effectSchema';
 import { EFFECT_META } from '../../../utils/effectInfo';
 import {
   addEffectEntry,
+  effectParamsPatch,
   isEffectEntryActive,
   moveEffectEntry,
   removeEffectEntry,
@@ -49,7 +50,9 @@ export function EffectInspector({
           count={layer.effects.length}
           open={openSection === entry.id}
           onToggle={() => toggleSection(entry.id)}
-          onParamsChange={(params) => setEffects(updateEffectEntry(layer.effects, entry.id, { params }))}
+          onParamsChange={(params) =>
+            setEffects(updateEffectEntry(layer.effects, entry.id, { params: effectParamsPatch(entry, params) }))
+          }
           onEnabledChange={(enabled) => setEffects(updateEffectEntry(layer.effects, entry.id, { enabled }))}
           onMove={(delta) => setEffects(moveEffectEntry(layer.effects, entry.id, delta))}
           onRemove={() => setEffects(removeEffectEntry(layer.effects, entry.id))}
@@ -80,15 +83,24 @@ function effectName(effect: EffectId) {
   return effectSpec(effect).label;
 }
 
-/** The section summary: the effect's first amount, or "off". */
+/** The section summary: the mode and the first shown amount, "no effect", or "off". */
 function effectEntrySummary(entry: EffectEntry) {
   if (!entry.enabled) return 'off';
   if (!isEffectEntryActive(entry)) return 'no effect';
-  const spec = effectSpec(entry.effect);
-  const param = spec.params[spec.amount];
-  const amount = entry.params[spec.amount];
-  if (param?.type !== 'number' || typeof amount !== 'number') return '';
-  return `${formatEffectSliderValue(amount, param.format)} ${param.label.toLowerCase()}`;
+  const shown = Object.entries(effectSpec(entry.effect).params).filter(([, param]) =>
+    isEffectParamShown(param, entry.params),
+  );
+  const parts: string[] = [];
+  for (const [key, param] of shown) {
+    const value = entry.params[key];
+    if (param.type === 'choice' && key === 'mode') {
+      parts.push(param.options.find((option) => option.value === value)?.label ?? String(value));
+    } else if (param.type === 'number' && typeof value === 'number') {
+      parts.push(`${formatEffectSliderValue(value, param.format)} ${param.label.toLowerCase()}`);
+      break;
+    }
+  }
+  return parts.join(' · ');
 }
 
 function EffectEntrySection({

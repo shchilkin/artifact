@@ -67,7 +67,13 @@ describe('effect catalog', () => {
   it('keeps parameter specs consistent', () => {
     for (const effect of EFFECT_IDS) {
       const spec = effectSpec(effect);
-      expect(spec.params[spec.amount]?.type, effect).toBe('number');
+      expect(
+        Object.values(spec.params).some((param) => param.type === 'number'),
+        effect,
+      ).toBe(true);
+      for (const preset of Object.values(spec.modePresets ?? {})) {
+        expect(effectOfKernel(kernelOfPreset(preset)), `${effect} mode preset ${preset}`).toBe(effect);
+      }
       for (const [key, param] of Object.entries(spec.params)) {
         if (!param.when) continue;
         const gate = spec.params[param.when.param];

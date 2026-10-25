@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { effectRuns, findEffectEntry } from '../utils/effectStack';
+import { effectRuns } from '../utils/effectStack';
 import { EFFECT_PRESET_MENU_ORDER, type EffectLayer, makeDocument, makeEffectPresetLayer } from './config';
 import {
   isGpuKernel,
@@ -114,9 +114,11 @@ describe('effect parameter schema', () => {
       const effect = kernelOfPreset(preset);
       expect(presetParamKeys(preset).length, preset).toBeGreaterThan(0);
       for (const key of presetParamKeys(preset)) expect(kernelParamKeys(effect), preset).toContain(key);
-      expect(isKernelActive(findEffectEntry(makeEffectPresetLayer(preset), effect)?.params ?? {}, effect), preset).toBe(
-        true,
-      );
+      const runs = effectRuns(makeEffectPresetLayer(preset));
+      expect(
+        runs.some((run) => isKernelActive(run.values, effect)),
+        preset,
+      ).toBe(true);
     }
   });
 

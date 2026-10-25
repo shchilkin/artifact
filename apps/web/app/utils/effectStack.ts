@@ -15,9 +15,10 @@ import {
   KERNEL_PASS_ORDER,
   type KernelId,
   type KernelParamValues,
+  kernelOfPreset,
 } from '../types/effectKernels';
-import { makeEffectEntry } from '../types/effectPresets';
-import { type EffectId, type EffectParams, effectSpec } from '../types/effectSchema';
+import { EFFECT_PRESETS, makeEffectEntry } from '../types/effectPresets';
+import { type EffectId, type EffectParams, effectFromKernel, effectSpec } from '../types/effectSchema';
 
 export type EffectPass = 'canvas' | 'gpu';
 
@@ -119,4 +120,17 @@ export function addEffectEntry(
   createId?: () => string,
 ): EffectEntry[] {
   return [...effects, makeEffectEntry(effect, params, createId?.())];
+}
+
+/**
+ * The patch an inspector edit applies. Switching `mode` to one that would leave the effect off (its own amount still
+ * at the default) starts that mode from its preset, keeping the entry visible.
+ */
+export function effectParamsPatch(entry: EffectEntry, patch: EffectParams): EffectParams {
+  const mode = patch.mode;
+  const preset = typeof mode === 'string' ? effectSpec(entry.effect).modePresets?.[mode] : undefined;
+  if (!preset || isEffectEntryActive({ ...entry, params: { ...entry.params, ...patch } })) return patch;
+  const kernel = kernelOfPreset(preset);
+  const { params } = effectFromKernel(kernel, { ...KERNEL_PARAM_DEFAULTS, ...EFFECT_PRESETS[preset].partial });
+  return { ...params, ...patch };
 }
