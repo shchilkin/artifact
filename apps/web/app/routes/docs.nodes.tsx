@@ -174,8 +174,8 @@ const SOURCE_NODES: NodeDef[] = [
   {
     id: 'primitive',
     symbol: '◍',
-    name: 'Primitive',
-    desc: 'A lightweight faux-3D form, rendered directly into the canvas. Material color and light color are durable; camera rotate/pan/zoom is controlled inside the node preview.',
+    name: '3D Object',
+    desc: 'A built-in 3D shape or an imported GLB model. Rotate, pan, and zoom the camera inside the node preview. Turn on scene lighting to light it with a key, fill, and rim rig, load an EXR or HDR environment map, and connect a material or environment branch.',
     params: [
       { key: 'primitiveDepth', range: '10–100' },
       { key: 'tiltX', range: '0–90' },

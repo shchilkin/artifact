@@ -98,10 +98,9 @@ effect (searching "Sepia" adds Color Filter in sepia mode).
 
 ### 5. Sources and 3D
 
-- Array becomes a Repeat preset over a built-in shape, or stays with a
-  correct name; decided by a prototype.
-- 3D Scene stays in Layers, where it wraps the selected primitive, until the
-  3D Object below replaces it.
+- Decided: Array keeps its own source under a correct name, **Shape
+  Pattern**; its pattern presets move into the inspector as a starting-point
+  picker.
 - Decided (2026-10-24): one "3D Object" source (primitive or model) with Material, Lighting and
   Environment inspector sections; environment folds into it; legacy
   `environmentSrc*` fields migrate away.
@@ -149,4 +148,9 @@ effect (searching "Sepia" adds Color Filter in sepia mode).
    nodes, pixel-identical), effect layers that apply to the layer below,
    gradient fills, text tracking/leading/outline/shadow, clip to layer below,
    and recipes that insert their wired graph.
-5. Sources and 3D, after a prototype.
+5. Sources and 3D. Done: schema 19 folds 3D Scene and Environment Map nodes
+   into 3D Object layers with optional scene lighting (`scene`), pixel-identical
+   in the WebGL parity check; one 3D Object library item with a Shape / Model
+   file Source switch and Lighting and Environment sections; Shape Pattern
+   naming and inspector preset pickers. Add Library browses 36 items in Layers
+   and 45 in Nodes.

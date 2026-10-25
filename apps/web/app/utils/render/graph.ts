@@ -1,4 +1,10 @@
-import type { CanvasDocument, CanvasGraph, EffectLayer, Layer } from '../../types/config';
+import {
+  type CanvasDocument,
+  type CanvasGraph,
+  type EffectLayer,
+  isObject3DLayer,
+  type Layer,
+} from '../../types/config';
 import { EXPORT_NODE_ID, findGraphNode, findGraphNodeOfKind } from '../nodeGraph';
 import type { GraphNodeKind, GraphNodeOfKind } from '../nodeKinds';
 import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas, toCompositeOperation } from './canvas';
@@ -12,6 +18,7 @@ import {
   shaderMaterialConfig,
   throwIfRenderAborted,
 } from './nodeKinds';
+import { renderScene3DLayer } from './scene3dLayer';
 
 const GRAPH_RENDER_CACHE_LIMIT = 160;
 export interface GraphRenderCache {
@@ -128,6 +135,8 @@ async function renderLayerGraphNode(nodeId: string, context: GraphNodeRenderCont
   if (!layer) return createCanvas(W, H);
   const gpuChain = await renderGpuOnlyLayerChain(nodeId, layer, context);
   if (gpuChain) return gpuChain;
+  if (isObject3DLayer(layer) && layer.scene && layer.visible)
+    return renderScene3DLayer({ ...layer, scene: layer.scene }, context);
   const sourceId = findIncomingSource(graph, nodeId, graphLayerInputPort(layer));
   if (layer.kind === 'effect' && layer.appliesTo === 'layerBelow' && layer.visible) {
     const scoped = await renderEffectOnLayerBelow(layer, sourceId, context);

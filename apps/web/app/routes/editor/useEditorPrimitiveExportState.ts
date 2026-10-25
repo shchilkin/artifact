@@ -3,7 +3,6 @@ import { type PrimitiveViewportState, primitiveViewStateMapsEqual } from '../../
 import type { CanvasDocument, CanvasGraph } from '../../types/config';
 import type { GraphEditKind } from '../../utils/documentDispatch';
 import type { DocumentUpdateMode } from '../../utils/documentHistory';
-import { graphNodesOfKind } from '../../utils/nodeGraph';
 
 export function useEditorPrimitiveExportState({
   doc,
@@ -36,7 +35,7 @@ export function useEditorPrimitiveExportState({
       const currentPersisted = graph.primitiveViewStates ?? {};
       if (primitiveViewStateMapsEqual(currentPersisted, next)) return;
       onGraphEdit(
-        { ...graph, primitiveViewStates: prunePrimitiveViewStates(next, currentDoc.layers, graph) },
+        { ...graph, primitiveViewStates: prunePrimitiveViewStates(next, currentDoc.layers) },
         mode === 'snapshot' ? 'cameraCommit' : 'cameraDrag',
       );
     },
@@ -56,12 +55,10 @@ export function useEditorPrimitiveExportState({
 export function prunePrimitiveViewStates(
   viewStates: Record<string, PrimitiveViewportState>,
   layers: Array<{ id: string; kind: string }>,
-  graph: Pick<CanvasGraph, 'nodes'>,
 ) {
-  const viewportIds = new Set([
-    ...layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id),
-    ...graphNodesOfKind(graph, 'scene3d').map((node) => node.id),
-  ]);
+  const viewportIds = new Set(
+    layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id),
+  );
   const entries = Object.entries(viewStates).filter(([id]) => viewportIds.has(id));
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }

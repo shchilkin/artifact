@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   type CanvasDocument,
   type CanvasGraph,
+  type GraphEdge,
+  type Layer,
   makeDocument,
   makeEmojiLayer,
   makeFillLayer,
   makeImageLayer,
+  makeScene3DSettings,
   makeSourceLayer,
   makeTextLayer,
+  SCENE3D_DEFAULTS,
 } from '../types/config';
 import {
   addLayerToDocument,
@@ -28,6 +32,8 @@ import {
   setDocumentGraph,
   setDocumentSeed,
   setLayersVisibilityInDocument,
+  setObject3DSourceInDocument,
+  setSceneEnvironmentInDocument,
   toggleLayerVisibilityInDocument,
   updateDocumentExportConfig,
   updateGraphNodeInDocument,
@@ -39,7 +45,6 @@ import {
   makeGraphMaterialNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
-  makeGraphScene3DNode,
   makeGraphShaderNode,
   makeGraphTransformNode,
 } from './nodeKinds';
@@ -744,23 +749,18 @@ describe('documentCommands', () => {
     });
   });
 
-  it('adds material nodes directly to 3D scene material inputs', () => {
-    const model = makeSourceLayer('model', { id: 'model-a', name: 'Model A' });
-    const scene = makeGraphScene3DNode({ id: 'scene-a', name: 'Scene A' });
+  it('adds material nodes directly to a lit 3D Object material input', () => {
+    const model = makeSourceLayer('model', { id: 'scene-a', name: 'Scene A', scene: makeScene3DSettings() });
     const doc: CanvasDocument = {
       ...makeDoc(),
       layers: [model],
       graph: {
-        edges: [
-          { id: 'e-model-scene', fromId: 'model-a', fromPort: 'out', toId: 'scene-a', toPort: 'model' },
-          { id: 'e-scene-export', fromId: 'scene-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' },
-        ],
+        edges: [{ id: 'e-scene-export', fromId: 'scene-a', fromPort: 'out', toId: EXPORT_NODE_ID, toPort: 'in' }],
         positions: {
-          'model-a': { x: 0, y: 80 },
           'scene-a': { x: 360, y: 80 },
           [EXPORT_NODE_ID]: { x: 720, y: 80 },
         },
-        nodes: graphNodesById(scene),
+        nodes: graphNodesById(),
       },
     };
 
@@ -914,23 +914,76 @@ describe('documentCommands', () => {
   });
 });
 
-describe('inserting an environment node on a connection', () => {
-  it('feeds the connection into the input the environment node renders', () => {
-    const fill = makeFillLayer({ id: 'env-source' });
-    const doc = makeDocument({
+describe('3D Object commands', () => {
+  const edge = (fromId: string, toId: string, toPort: GraphEdge['toPort']): GraphEdge => ({
+    id: `${fromId}-${toId}-${toPort}`,
+    fromId,
+    fromPort: 'out',
+    toId,
+    toPort,
+  });
+  const objectDoc = (object: Layer) =>
+    makeDocument({
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
-      layers: [fill],
+      layers: [makeFillLayer({ id: 'sky' }), object],
+      graph: {
+        edges: [edge('chrome', object.id, 'material'), edge('sky', object.id, 'env')],
+        positions: {},
+        nodes: graphNodesById(makeGraphMaterialNode({ id: 'chrome' })),
+      },
       export: { format: 'png', scale: 1, target: 'cover' },
     });
-    const edge = doc.graph.edges.find((item) => item.fromId === fill.id)!;
-    const result = addNodeAtDocument(
-      doc,
-      { kind: 'environment' },
-      { x: 0, y: 0 },
-      { sourceId: fill.id, targetId: edge.toId, targetPort: edge.toPort, replaceEdgeId: edge.id },
-    );
-    const environment = graphNodesOfKind(result.doc.graph, 'environment')[0]!;
-    const incoming = result.doc.graph.edges.filter((item) => item.toId === environment.id);
-    expect(incoming.map((item) => [item.fromId, item.toPort])).toEqual([[fill.id, 'in']]);
+  const modelAsset = {
+    modelSrc: 'artifact-model://model-a',
+    modelName: 'skull.glb',
+    modelMime: 'model/gltf-binary',
+    modelBytes: 2048,
+  };
+
+  it('switches a shape to a model file, keeping its placement and scene', () => {
+    const scene = makeScene3DSettings({ keyIntensity: 200 });
+    const shape = makeSourceLayer('primitive', { id: 'object', x: 0.3, scene });
+    const next = setObject3DSourceInDocument(objectDoc(shape), 'object', { kind: 'model', asset: modelAsset });
+
+    expect(next.layers[1]).toMatchObject({ kind: 'model', x: 0.3, scene, ...modelAsset });
+    expect(next.graph.edges.map((item) => item.toPort)).toEqual(['material', 'env']);
+  });
+
+  it('drops the material connection when an unlit shape becomes a model', () => {
+    const shape = makeSourceLayer('primitive', { id: 'object' });
+    const next = setObject3DSourceInDocument(objectDoc(shape), 'object', { kind: 'model', asset: modelAsset });
+
+    expect(next.graph.edges.map((item) => item.toPort)).toEqual([]);
+  });
+
+  it('switches a model back to a shape with material defaults', () => {
+    const model = makeSourceLayer('model', { id: 'object', ...modelAsset });
+    const next = setObject3DSourceInDocument(objectDoc(model), 'object', { kind: 'primitive' });
+
+    expect(next.layers[1]).toMatchObject({ kind: 'primitive', materialPreset: 'matte' });
+  });
+
+  it('removes environment and model material connections when scene lighting turns off', () => {
+    const shape = makeSourceLayer('primitive', { id: 'object', scene: makeScene3DSettings() });
+    const shapeOff = updateLayerInDocument(objectDoc(shape), 'object', { scene: undefined });
+    expect(shapeOff.graph.edges.map((item) => item.toPort)).toEqual(['material']);
+
+    const model = makeSourceLayer('model', { id: 'object', scene: makeScene3DSettings() });
+    const modelOff = updateLayerInDocument(objectDoc(model), 'object', { scene: undefined });
+    expect(modelOff.graph.edges).toEqual([]);
+  });
+
+  it('gives a 3D Object an environment map and turns its scene lighting on', () => {
+    const shape = makeSourceLayer('primitive', { id: 'object' });
+    const asset = {
+      environmentSrc: 'artifact-env://env-a',
+      environmentName: 'studio.exr',
+      environmentMime: 'image/x-exr',
+      environmentBytes: 512,
+    };
+    const next = setSceneEnvironmentInDocument(objectDoc(shape), 'object', asset);
+
+    expect(next.layers[1]).toMatchObject({ scene: { ...SCENE3D_DEFAULTS, ...asset } });
+    expect(setSceneEnvironmentInDocument(next, 'sky', asset)).toBe(next);
   });
 });

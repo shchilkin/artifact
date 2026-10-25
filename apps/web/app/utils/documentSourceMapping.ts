@@ -1,5 +1,12 @@
-import { type CanvasDocument, type ImageLayer, MATERIAL_TEXTURE_SOURCE_FIELDS, type ModelLayer } from '../types/config';
-import type { GraphEnvironmentNode, GraphMaterialNode, GraphScene3DNode } from '../utils/nodeKinds';
+import {
+  type CanvasDocument,
+  type ImageLayer,
+  isObject3DLayer,
+  MATERIAL_TEXTURE_SOURCE_FIELDS,
+  type ModelLayer,
+  type Scene3DSettings,
+} from '../types/config';
+import type { GraphMaterialNode } from '../utils/nodeKinds';
 import { mapGraphNodesAsync } from './nodeGraph';
 
 type SourceMapper = (source: string) => Promise<string>;
@@ -57,21 +64,19 @@ export async function mapDocumentModelSources(
   return layers.some((layer, index) => layer !== doc.layers[index]) ? { ...doc, layers } : doc;
 }
 
-async function mapEnvironmentNode<T extends GraphEnvironmentNode | GraphScene3DNode>(
-  node: T,
-  mapSource: (source: string, node: T) => Promise<string>,
-): Promise<T> {
-  if (!node.environmentSrc) return node;
-  const environmentSrc = await mapSource(node.environmentSrc, node);
-  return environmentSrc === node.environmentSrc ? node : ({ ...node, environmentSrc } satisfies T);
-}
-
+/** Maps the uploaded environment of every 3D layer's scene lighting. */
 export async function mapDocumentEnvironmentSources(
   doc: CanvasDocument,
-  mapSource: (source: string, node: GraphEnvironmentNode | GraphScene3DNode) => Promise<string>,
+  mapSource: (source: string, scene: Scene3DSettings) => Promise<string>,
 ): Promise<CanvasDocument> {
-  const graph = await mapGraphNodesAsync(doc.graph, async (node) =>
-    node.kind === 'environment' || node.kind === 'scene3d' ? mapEnvironmentNode(node, mapSource) : node,
+  const layers = await Promise.all(
+    doc.layers.map(async (layer) => {
+      if (!isObject3DLayer(layer) || !layer.scene?.environmentSrc) return layer;
+      const environmentSrc = await mapSource(layer.scene.environmentSrc, layer.scene);
+      return environmentSrc === layer.scene.environmentSrc
+        ? layer
+        : { ...layer, scene: { ...layer.scene, environmentSrc } };
+    }),
   );
-  return graph === doc.graph ? doc : { ...doc, graph };
+  return layers.some((layer, index) => layer !== doc.layers[index]) ? { ...doc, layers } : doc;
 }

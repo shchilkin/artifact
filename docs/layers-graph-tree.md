@@ -59,7 +59,7 @@ Output is at the top of its stack.
 | Mask (`in` + `mask`) | Row that continues through `in`; the `mask` source is a nested clip-style child stack. |
 | Merge (`a`, `b`) | **Decided:** a group folder showing blend and opacity. Its children are the `b` stack; `a` continues the parent stack below the folder, like an isolated Photoshop group. |
 | Repeat (`in` item, `bg` backdrop) | **Decided:** row that continues through `bg`; the `in` item is nested as a "Pattern source" child. This is the one node where `in` is not the primary port. |
-| Scene 3D (`bg`, `model`, `material`, `env`) | Row that continues through `bg`, with an "Inputs" child holding Model, Material, and Environment stacks. |
+| 3D Object (`bg`, `material`, and with scene lighting `env`) | Row that continues through `bg`, with an "Inputs" child holding Material and Environment stacks. |
 | Material, texture-map, and environment side inputs | Nested "Inputs" under the consuming node. |
 | Shader (`bg`) | Row that continues through `bg`. |
 | Node feeding more than one consumer | **Decided:** the full subtree appears once, where a depth-first walk first reaches it (primary port, then `b`, `mask`, side ports). Every other use is a childless reference row ("↪ Name") that selects the full entry. |
@@ -97,12 +97,12 @@ moved to a gap the person can see.
 
 - **Runs.** Within one tree stack, a row is in a run unless it is a reference
   row, it feeds more than one edge (shared), or it is the top row of a side-input
-  stack (Scene 3D model, material, environment, or a texture map). Those rows
+  stack (a 3D Object material or environment, or a texture map). Those rows
   end a run; a shared node below a run is the run's lower outer end and stays
   attached to whatever ends up at the bottom.
 - **Primary port.** Each node's primary port comes from the renderer's own input
   table (`graphNodePrimaryPort` in `render/graphInputs.ts`): `in` for effects and
-  single-input utilities, `bg` for other layers, repeat, Scene 3D, and shaders,
+  single-input utilities, `bg` for other layers, repeat, and shaders,
   `a` for merges, and `albedo` for a standalone material. For layers this is the
   `inferLinearGraph` rule. A node without one (a fill-role shader) can only sit
   at the bottom of a stack.
@@ -110,8 +110,6 @@ moved to a gap the person can see.
   the edge into the row's consumer on its original port; "below" is the edge into
   the row's primary port. These gaps are not editable:
   - the top gap of a side-input stack;
-  - the gap below a row that does not continue a stack (a Scene 3D model the
-    renderer only reads);
   - the gap above the top of a stack outside Output when that row still feeds an
     input the renderer ignores (a losing duplicate edge, or a port the consumer
     does not read). A row placed there would make it feed two inputs, which is
@@ -121,13 +119,13 @@ moved to a gap the person can see.
   A gap next to the row itself is a no-op.
 - **Within a run versus between runs.** A move whose gap lies inside the row's
   own run (including its outer ends) is a reorder, allowed for any movable row,
-  including merges and Scene 3D nodes with their inputs. Any other gap is a move
+  including merges and 3D Objects with their inputs. Any other gap is a move
   between runs.
   - A row moves with its structural children: a merge with its `b` group, a mask
     with its clip, a repeat with its pattern source. Only the row's primary edges
     are spliced, so those stacks stay attached.
-  - A row with side inputs (Scene 3D model, material, or environment, or a
-    primitive material) only moves within its run. Those inputs are wiring that
+  - A row with side inputs (a 3D Object material or environment) only moves
+    within its run. Those inputs are wiring that
     belongs in Nodes.
   - A row can't move into its own inputs: a move is blocked when the gap's
     consumer is upstream of the row once the row has left its place (for example
@@ -143,8 +141,8 @@ moved to a gap the person can see.
   pattern port, or Output) now reads the node's primary source on the same port,
   in the removed edge's place.
   - Side inputs it fed are dropped instead of rewired, because wiring side inputs
-    happens in Nodes. Side inputs are the Scene 3D model, material, and
-    environment, a primitive material, and texture ports. A port counts by how
+    happens in Nodes. Side inputs are a 3D Object's material and environment,
+    and texture ports. A port counts by how
     the renderer uses its consumer: a material read through a `material` port
     treats `albedo` as a texture map, so it is a side input there, while a
     standalone material's `albedo` is its stack.
@@ -158,8 +156,8 @@ moved to a gap the person can see.
     it (or that those inputs are left empty when nothing is under it), and that
     the delete can be undone. A shared node with nothing under it just leaves those inputs empty.
   - Locked layers are not deleted.
-- **Add above.** With a tree row selected, Add Library places a new layer or
-  Scene 3D node in the gap above that row and positions it between the row and
+- **Add above.** With a tree row selected, Add Library places a new layer in the
+  gap above that row and positions it between the row and
   its consumer in Nodes. With no selection, a side-input top selected, or a
   linear graph, Add works as before.
 - **Blocked edits** leave the document unchanged and say why. Reasons name the

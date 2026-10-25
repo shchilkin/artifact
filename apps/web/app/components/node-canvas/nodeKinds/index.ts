@@ -1,12 +1,10 @@
 import type { Node as RFNode } from '@xyflow/react';
 import type { GraphNodeKind, GraphNodeOfKind } from '../../../utils/nodeKinds';
 import { colorNodeUi } from './color';
-import { environmentNodeUi } from './environment';
 import { maskNodeUi } from './mask';
 import { materialNodeUi } from './material';
 import { mergeNodeUi } from './merge';
 import { repeatNodeUi } from './repeat';
-import { scene3dNodeUi } from './scene3d';
 import { shaderNodeUi } from './shader';
 import { transformNodeUi } from './transform';
 import type { BuildRFNodeContext, RegisteredGraphNodeUi } from './types';
@@ -24,8 +22,6 @@ export const GRAPH_NODE_UIS: { [K in GraphNodeKind]: RegisteredGraphNodeUi<K> } 
   material: materialNodeUi,
   mask: maskNodeUi,
   transform: transformNodeUi,
-  scene3d: scene3dNodeUi,
-  environment: environmentNodeUi,
   shader: shaderNodeUi,
 };
 

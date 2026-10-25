@@ -4,10 +4,12 @@ import type { EffectId, EffectParams } from './effectSchema';
 import { genId } from './layerIds';
 import { inferLinearGraph } from './linearGraph';
 import { DEFAULT_MATERIAL_CONFIG, type MaterialConfig, type MaterialTextureInputPort } from './materials';
+import type { Scene3DSettings } from './scene3d';
 import type { TextFontRef } from './typography';
 
 export * from './effectPresets';
 export * from './materials';
+export * from './scene3d';
 
 export {
   ALL_EMOJIS,
@@ -242,6 +244,8 @@ interface ProceduralLayerBase extends BaseLayer {
 
 export interface PrimitiveLayer extends ProceduralLayerBase, MaterialConfig {
   kind: 'primitive';
+  /** Scene lighting; without it the shape renders with its default light rig. */
+  scene?: Scene3DSettings;
 }
 
 export interface NoiseLayer extends ProceduralLayerBase {
@@ -262,6 +266,15 @@ export interface ModelLayer extends ProceduralLayerBase {
   modelName: string;
   modelMime: string;
   modelBytes: number;
+  /** Scene lighting; without it the model renders with the default light rig and no environment. */
+  scene?: Scene3DSettings;
+}
+
+/** A 3D Object layer: a built-in shape (`primitive`) or an imported model. */
+export type Object3DLayer = PrimitiveLayer | ModelLayer;
+
+export function isObject3DLayer(layer: Layer | undefined): layer is Object3DLayer {
+  return layer?.kind === 'primitive' || layer?.kind === 'model';
 }
 
 export type SourceLayer = PrimitiveLayer | NoiseLayer | ArrayLayer | LineFieldLayer | ModelLayer;
@@ -414,7 +427,7 @@ export interface CanvasDocument {
 
 export type { GraphNode, GraphNodeKind } from '../utils/nodeKinds';
 
-export const DOCUMENT_SCHEMA_VERSION = 18;
+export const DOCUMENT_SCHEMA_VERSION = 19;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: 'transparent',
@@ -528,13 +541,13 @@ type SourceLayerPartial = Partial<
 export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: SourceLayerPartial = {}): SourceLayer {
   const defaultName =
     sourceType === 'primitive'
-      ? 'Primitive'
+      ? '3D Object'
       : sourceType === 'noise'
         ? 'Noise'
         : sourceType === 'lineField'
           ? 'Line Field'
           : sourceType === 'model'
-            ? '3D Model'
+            ? '3D Object'
             : 'Shape Pattern';
   const base = {
     id: genId(),

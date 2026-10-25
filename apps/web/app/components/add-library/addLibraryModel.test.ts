@@ -33,14 +33,13 @@ describe('addLibraryModel', () => {
           item.action.kind === 'noisePreset' ||
           item.action.kind === 'arrayPreset' ||
           item.action.kind === 'aiImage' ||
-          item.action.kind === 'scene3d' ||
           item.action.kind === 'effect',
       ),
     ).toBe(true);
     expect(layerItems.map((item) => item.id)).toContain('effect:pixelate');
     expect(layerItems.map((item) => item.id)).toContain('textPreset:title');
     expect(layerItems.map((item) => item.id)).toContain('aiImage');
-    expect(layerItems.map((item) => item.id)).toContain('scene3d');
+    expect(layerItems.map((item) => item.id)).toContain('layer:primitive');
     expect(layerItems.map((item) => item.id)).not.toContain('layer:model');
     expect(layerItems.map((item) => item.id)).toContain('noisePreset:paper');
     expect(layerItems.map((item) => item.id)).toContain('arrayPreset:stickerGrid');
@@ -111,8 +110,7 @@ describe('addLibraryModel', () => {
         'color',
         'mask',
         'transform',
-        'scene3d',
-        'environment',
+        'layer:primitive',
         'shader:mesh',
         'shader:ai',
         'material',
@@ -218,6 +216,11 @@ describe('addLibraryModel', () => {
     expect(itemsById.get('effect:silhouetteCrush')?.description).toContain('sprite');
   });
 
+  it('keeps each library browse list short', () => {
+    expect(addLibraryBrowseItemsForSurface('layers').length).toBeLessThanOrEqual(40);
+    expect(addLibraryBrowseItemsForSurface('nodes').length).toBeLessThanOrEqual(60);
+  });
+
   it('browses one item per effect and keeps the older effect names searchable', () => {
     const browse = addLibraryBrowseItemsForSurface('layers').filter((item) => item.action.kind === 'effect');
     expect(browse.map((item) => item.id).sort()).toEqual(EFFECT_IDS.map((effect) => `effect:${effect}`).sort());
@@ -291,13 +294,13 @@ describe('addLibraryModel', () => {
     expect(itemsById.has('material:chrome')).toBe(false);
   });
 
-  it('keeps 3D primitives, models, scenes, and environments in the 3D / Primitive browse group', () => {
+  it('browses one 3D Object item and keeps the model-file start searchable', () => {
     const itemsById = new Map(ADD_LIBRARY_ITEMS.map((item) => [item.id, item]));
 
-    expect(itemsById.get('layer:primitive')?.group).toBe('primitive');
-    expect(itemsById.get('layer:model')?.group).toBe('primitive');
-    expect(itemsById.get('scene3d')?.group).toBe('primitive');
-    expect(itemsById.get('environment')?.group).toBe('primitive');
+    expect(itemsById.get('layer:primitive')).toMatchObject({ label: '3D Object', group: 'primitive' });
+    expect(itemsById.get('layer:model')).toMatchObject({ group: 'primitive', showInBrowse: false });
+    expect(itemsById.has('scene3d')).toBe(false);
+    expect(itemsById.has('environment')).toBe(false);
     expect(itemsById.get('material')?.group).toBe('material');
   });
 
@@ -334,7 +337,6 @@ describe('addLibraryModel', () => {
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'material' }))).toEqual({ kind: 'material' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'mask' }))).toEqual({ kind: 'mask' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'transform' }))).toEqual({ kind: 'transform' });
-    expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'environment' }))).toEqual({ kind: 'environment' });
     expect(parseAddLibraryAction(serializeAddLibraryAction({ kind: 'shader', role: 'fill' }))).toEqual({
       kind: 'shader',
       role: 'fill',

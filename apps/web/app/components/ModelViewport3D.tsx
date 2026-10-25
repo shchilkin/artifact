@@ -8,6 +8,7 @@ import {
 } from 'react';
 import * as THREE from 'three';
 import type { MaterialConfig, ModelLayer, PrimitiveLayer } from '../types/config';
+import type { Scene3DSettings } from '../types/scene3d';
 import {
   addModelSceneLights,
   applyModelTransform,
@@ -22,7 +23,6 @@ import {
   type SceneEnvironmentMap,
   type SceneMaterialTextureCanvases,
 } from '../utils/modelRenderer';
-import type { GraphScene3DNode } from '../utils/nodeKinds';
 import {
   applyViewStateToCamera,
   CAMERA_ZOOM_MAX,
@@ -53,7 +53,7 @@ import {
 
 export interface ModelViewport3DProps {
   layer: ModelLayer | PrimitiveLayer;
-  sceneNode?: GraphScene3DNode;
+  sceneNode?: Scene3DSettings;
   viewState: PrimitiveViewportState;
   onViewStateChange: (viewState: PrimitiveViewportState) => void;
   onViewStateDraft?: (viewState: PrimitiveViewportState) => void;
@@ -77,7 +77,7 @@ function modelViewportAriaLabel(interactive: boolean, layerName: string) {
 }
 
 function materialSignature(
-  sceneNode: GraphScene3DNode | undefined,
+  sceneNode: Scene3DSettings | undefined,
   materialConfig: MaterialConfig | undefined,
   materialTextures: SceneMaterialTextureCanvases | null | undefined,
 ) {
@@ -131,7 +131,7 @@ function sourceLayerSignature(layer: ModelLayer | PrimitiveLayer) {
 }
 
 function environmentSignature(
-  sceneNode: GraphScene3DNode | undefined,
+  sceneNode: Scene3DSettings | undefined,
   environmentSource: string | null | undefined,
   environmentCanvas: HTMLCanvasElement | null | undefined,
 ) {
@@ -155,7 +155,7 @@ function replaceSceneLights(
   scene: THREE.Scene,
   previousLights: THREE.Group | null,
   layer: ModelLayer | PrimitiveLayer,
-  sceneNode?: GraphScene3DNode,
+  sceneNode?: Scene3DSettings,
   environmentMap?: SceneEnvironmentMap | null,
 ) {
   if (previousLights) scene.remove(previousLights);
@@ -179,7 +179,7 @@ function applyLiveSceneSettings(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
   modelRoot: THREE.Object3D | null,
-  sceneNode: GraphScene3DNode | undefined,
+  sceneNode: Scene3DSettings | undefined,
   environmentMap: SceneEnvironmentMap | null,
 ) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;

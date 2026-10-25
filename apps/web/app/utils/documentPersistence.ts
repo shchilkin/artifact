@@ -19,6 +19,8 @@ import {
   type PortableFontAsset,
   type PortableModelAsset,
   type PrimitiveLayer,
+  SCENE3D_DEFAULTS,
+  type Scene3DSettings,
   SOURCE_TYPES,
   type SourceType,
   TEXT_TYPOGRAPHY_DEFAULTS,
@@ -270,13 +272,18 @@ const LAYER_FIELD_DEFAULTS: Partial<Record<Layer['kind'], () => Partial<Layer>>>
   },
 };
 
+/** A 3D layer's scene lighting with defaults for missing settings, or nothing when the layer has none. */
+function normalizeSceneField(scene: unknown): { scene?: Scene3DSettings } {
+  return isRecord(scene) ? { scene: { ...SCENE3D_DEFAULTS, ...scene } as Scene3DSettings } : {};
+}
+
 function normalizeLayer(layer: Record<string, unknown>): Layer {
   const kindDefaults = LAYER_FIELD_DEFAULTS[layer.kind as Layer['kind']];
   const withDefaults =
     layer.kind === 'effect'
       ? normalizeEffectLayer(layer)
       : SOURCE_TYPES.includes(layer.kind as SourceType)
-        ? { ...makeSourceLayer(layer.kind as SourceType), ...layer }
+        ? { ...makeSourceLayer(layer.kind as SourceType), ...layer, ...normalizeSceneField(layer.scene) }
         : kindDefaults
           ? { ...kindDefaults(), ...layer }
           : layer;

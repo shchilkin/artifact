@@ -62,7 +62,8 @@ export interface NodeCanvasProps {
   onFilesDrop?: (files: File[], position: { x: number; y: number }) => void;
   onFileDragPreviewChange?: (dataTransfer: DataTransfer | null) => void;
   onReplaceModelLayerFile?: (id: string, file: File) => void;
-  onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
+  onLoadSceneEnvironmentFile?: (id: string, file: File) => void;
+  onUseShapeSource?: (id: string) => void;
   onDeleteNodes: (ids: string[]) => void;
   onDuplicateLayer: (id: string) => void;
 }

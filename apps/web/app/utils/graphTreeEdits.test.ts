@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { allPixels, pixelsEqual } from '../test-fixtures/render/fixtures';
 import { expectDocumentTreeMatchesRenderer } from '../test-fixtures/render/graphTreeOracle';
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../types/config';
-import { makeEffectPresetLayer, makeFillLayer, makeSourceLayer, makeTextLayer } from '../types/config';
+import {
+  makeEffectPresetLayer,
+  makeFillLayer,
+  makeScene3DSettings,
+  makeSourceLayer,
+  makeTextLayer,
+} from '../types/config';
 import { isLayerStackGraph } from './documentCommands';
 import {
   importArtifactProjectPackage,
@@ -29,12 +35,10 @@ import {
 import { EXPORT_NODE_ID, graphNodesById, inferLinearGraph } from './nodeGraph';
 import {
   makeGraphColorNode,
-  makeGraphEnvironmentNode,
   makeGraphMaskNode,
   makeGraphMaterialNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
-  makeGraphScene3DNode,
   makeGraphShaderNode,
   makeGraphTransformNode,
 } from './nodeKinds';
@@ -178,21 +182,21 @@ function repeatDoc() {
   );
 }
 
-/** Output ← scene(bg: backdrop, model: sphere, material: chrome(roughness: rough), env: env ← sky). */
+/** Output ← scene, a lit 3D Object (bg: backdrop, material: chrome(roughness: rough), env: env ← sky). */
 function sceneDoc() {
-  const sphere = makeSourceLayer('primitive', { id: 'sphere', name: 'sphere', primitiveShape: 'sphere' });
-  const layers = [fill('backdrop'), fill('sky', '#88aaff'), fill('rough', '#777777'), sphere];
+  const scene = makeSourceLayer('primitive', {
+    id: 'scene',
+    name: '3D Scene',
+    primitiveShape: 'sphere',
+    scene: makeScene3DSettings(),
+  });
+  const layers = [fill('backdrop'), fill('sky', '#88aaff'), fill('rough', '#777777'), scene];
   return documentOf(
     layers,
     graphOf({
-      nodes: graphNodesById(
-        makeGraphScene3DNode({ id: 'scene', transparent: true }),
-        makeGraphMaterialNode({ id: 'chrome' }),
-        makeGraphEnvironmentNode({ id: 'env' }),
-      ),
+      nodes: graphNodesById(makeGraphMaterialNode({ id: 'chrome' }), makeGraphColorNode({ id: 'env' })),
       edges: [
         edge('backdrop', 'scene', 'bg'),
-        edge('sphere', 'scene', 'model'),
         edge('chrome', 'scene', 'material'),
         edge('rough', 'chrome', 'roughness'),
         edge('sky', 'env', 'in'),
@@ -321,7 +325,7 @@ describe('reorder within a run', () => {
       removed: ['backdrop>scene.bg', `scene>${EXPORT_NODE_ID}.in`],
       added: [`backdrop>${EXPORT_NODE_ID}.in`, 'scene>backdrop.bg'],
     });
-    await expectDocumentTreeMatchesRenderer(next, ['sphere', 'chrome']);
+    await expectDocumentTreeMatchesRenderer(next, ['chrome']);
   });
 
   it('reorders the masked run and the repeat backdrop run', async () => {
@@ -415,7 +419,7 @@ describe('move a row between runs', () => {
       removed: ['backdrop>scene.bg', 'sky>env.in'],
       added: ['backdrop>env.in', 'sky>backdrop.bg'],
     });
-    await expectDocumentTreeMatchesRenderer(next, ['sphere', 'chrome']);
+    await expectDocumentTreeMatchesRenderer(next, ['chrome']);
   });
 
   it('moves a row past a shared node into its other use', async () => {
@@ -496,17 +500,13 @@ describe('blocked moves', () => {
     });
 
     const scene = buildGraphTreeEditIndex(sceneDoc());
-    expect(checkTreeRowMovable(scene, 'sphere')).toEqual({
+    expect(checkTreeRowMovable(scene, 'chrome')).toEqual({
       ok: false,
-      reason: 'sphere is an input of 3D Scene. Change inputs in Nodes.',
+      reason: 'PBR Material is an input of 3D Scene. Change inputs in Nodes.',
     });
     expect(checkTreeMove(scene, 'backdrop', 'env', 'above')).toEqual({
       ok: false,
       reason: 'Inputs of 3D Scene are wired in Nodes.',
-    });
-    expect(checkTreeMove(scene, 'backdrop', 'sphere', 'below')).toEqual({
-      ok: false,
-      reason: 'Nothing can be placed below sphere.',
     });
 
     const merge = buildGraphTreeEditIndex(mergeDoc());
@@ -692,7 +692,7 @@ describe('delete', () => {
     const next = edited(deleteTreeNode(doc, 'paint'));
     // `albedo` is a texture map here, so `under` is not wired into it.
     expect(edgeDiff(doc, next)).toEqual({ removed: ['paint>chrome.albedo', 'under>paint.bg'], added: [] });
-    await expectDocumentTreeMatchesRenderer(next, ['sphere', 'chrome']);
+    await expectDocumentTreeMatchesRenderer(next, ['chrome']);
 
     // A standalone material renders through albedo, so there it is the stack and is reconnected.
     const standalone = documentOf(

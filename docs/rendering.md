@@ -134,8 +134,6 @@ A custom graph is any other graph. Nodes can be:
 - mask and transform nodes
 - material nodes
 - shader nodes
-- environment-map nodes
-- 3D scene nodes
 - export node
 
 `renderGraphTarget` recursively renders upstream dependencies and composes the result.
@@ -288,6 +286,7 @@ Layer rendering happens through `applyLayerToCanvas` in
 | `image` | Canvas 2D image fit/transform |
 | `fill` | Canvas 2D solid, linear, or radial gradient fill |
 | `primitive` | Three.js offscreen render, then Canvas 2D composite |
+| `model` | Three.js offscreen GLB render, then Canvas 2D composite |
 | `noise` | Canvas procedural source |
 | `array` | Canvas procedural source |
 | `effect` | Canvas effects plus PixiJS GPU filters |
@@ -398,6 +397,21 @@ If no override exists, the fallback comes from layer defaults:
 Important rule:
 
 > Interactive primitive camera rotation should not write back into `tiltX/tiltY`. Those fields are durable defaults, not the live camera.
+
+### Scene lighting
+
+A 3D Object layer (`primitive` or `model`) with `scene` settings renders through
+`renderScene3DLayer` (`apps/web/app/utils/render/scene3dLayer.ts`) instead of the
+plain source path: one full-frame `renderModelSceneToCanvas` call over the
+layer's `bg` input as backdrop, lit by the scene's rig and exposure, with the
+material from its `material` port and an environment from the scene's map file
+or, when none is loaded, the branch on its `env` port (rendered at
+`environmentRenderSize`, 2:1). The layer's opacity and blend do not apply on
+this path, as with the former 3D Scene node. Draft renders and contexts without
+WebGL use the Canvas 2D fallback shape. The live node preview
+(`Scene3DPreviewSurface`) uses the same settings, material, and environment
+inputs through `ModelViewport3D`. Camera state comes from
+`primitiveViewStates[layer.id]`.
 
 ## Node thumbnails
 

@@ -107,6 +107,7 @@ function layerKindRenderSig(layer: Layer): string {
         layer.tiltY,
         layer.tiltZ,
         layer.modelSrc,
+        layer.scene ?? null,
       ]);
     }
   }
@@ -117,7 +118,7 @@ export function edgeRenderSig(edge: GraphEdge): string {
   return JSON.stringify([edge.fromId, edge.fromPort, edge.toId, edge.toPort]);
 }
 
-/** Camera signature for a primitive, model, or 3D scene node; `default` when no view state is set. */
+/** Camera signature for a 3D Object layer; `default` when no view state is set. */
 export function viewStateRenderSig(view: PrimitiveViewportStateConfig | undefined): string {
   return view ? `${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}` : 'default';
 }

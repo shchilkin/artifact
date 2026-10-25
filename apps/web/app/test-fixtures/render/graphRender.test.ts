@@ -8,6 +8,7 @@ import {
   makeEffectPresetLayer,
   makeFillLayer,
   makeImageLayer,
+  makeScene3DSettings,
   makeSourceLayer,
   makeTextLayer,
   SHADER_KINDS,
@@ -17,12 +18,10 @@ import { reorderDocumentLayers } from '../../utils/documentCommands';
 import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind, inferLinearGraph } from '../../utils/nodeGraph';
 import {
   makeGraphColorNode,
-  makeGraphEnvironmentNode,
   makeGraphMaskNode,
   makeGraphMaterialNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
-  makeGraphScene3DNode,
   makeGraphShaderNode,
   makeGraphTransformNode,
 } from '../../utils/nodeKinds';
@@ -334,104 +333,39 @@ describe('renderDocument graph mode', () => {
 });
 
 describe('renderGraphTarget', () => {
-  it('renders an upstream branch through an environment map node', async () => {
+  it('does not treat an environment branch as a 3D Object backdrop', async () => {
+    const object = makeSourceLayer('primitive', {
+      id: 'object',
+      scaleX: 0.3,
+      scaleY: 0.3,
+      scene: makeScene3DSettings(),
+    });
     const graph: CanvasGraph = {
-      edges: [{ id: 'e-red-env', fromId: 'red-fill', fromPort: 'out', toId: 'env-a', toPort: 'in' }],
+      edges: [{ id: 'e-red-env', fromId: 'red-fill', fromPort: 'out', toId: object.id, toPort: 'env' }],
       positions: {},
-      nodes: graphNodesById(makeGraphEnvironmentNode({ id: 'env-a' })),
+      nodes: graphNodesById(),
     };
-    const doc = graphDocument(graph);
+    const doc = graphDocument(graph, [
+      makeFillLayer({ id: 'red-fill', color: '#ff0000', opacity: 100, blendMode: 'normal' }),
+      object,
+    ]);
 
-    const canvas = await renderGraphTarget(doc, graph, 'env-a', 80, 40, new Map(), { skipEffects: true });
-    const [r, g, b, a] = centerPixel(canvas);
+    const canvas = await renderGraphTarget(doc, graph, object.id, 80, 80, new Map(), { skipEffects: true });
 
-    expect(canvas.width).toBe(80);
-    expect(canvas.height).toBe(40);
-    expect(r).toBeGreaterThan(240);
-    expect(g).toBeLessThan(10);
-    expect(b).toBeLessThan(10);
-    expect(a).toBe(255);
+    expect(samplePixel(canvas, 2, 2)[3]).toBe(0);
   });
 
-  it('keeps generated environment map targets at a 2:1 render ratio', async () => {
-    const graph: CanvasGraph = {
-      edges: [{ id: 'e-red-env', fromId: 'red-fill', fromPort: 'out', toId: 'env-a', toPort: 'in' }],
-      positions: {},
-      nodes: graphNodesById(makeGraphEnvironmentNode({ id: 'env-a' })),
-    };
-    const doc = graphDocument(graph);
-
-    const canvas = await renderGraphTarget(doc, graph, 'env-a', 80, 80, new Map(), { skipEffects: true });
-
-    expect(canvas.width).toBe(160);
-    expect(canvas.height).toBe(80);
-  });
-
-  it('does not treat generated environment maps as scene backdrops', async () => {
-    const graph: CanvasGraph = {
-      edges: [
-        { id: 'e-red-env', fromId: 'red-fill', fromPort: 'out', toId: 'env-a', toPort: 'in' },
-        { id: 'e-env-scene', fromId: 'env-a', fromPort: 'out', toId: 'scene-a', toPort: 'env' },
-      ],
-      positions: {},
-      nodes: graphNodesById(
-        makeGraphEnvironmentNode({ id: 'env-a' }),
-        makeGraphScene3DNode({
-          id: 'scene-a',
-          name: '3D Scene',
-          environmentSrc: '',
-          environmentName: '',
-          environmentMime: '',
-          environmentBytes: 0,
-          materialMode: 'original',
-          transparent: true,
-          exposure: 100,
-          environmentStrength: 100,
-          environmentRotation: 0,
-          ambientIntensity: 115,
-          keyAzimuth: 38,
-          keyElevation: 42,
-          keyIntensity: 145,
-          fillIntensity: 65,
-          rimIntensity: 55,
-        }),
-      ),
-    };
-    const doc = graphDocument(graph);
-
-    const canvas = await renderGraphTarget(doc, graph, 'scene-a', 80, 80, new Map(), { skipEffects: true });
-    const [, , , a] = centerPixel(canvas);
-
-    expect(a).toBe(0);
-  });
-
-  it('keeps asset-only environment map nodes transparent in graph renders', async () => {
-    const graph: CanvasGraph = {
-      edges: [],
-      positions: {},
-      nodes: graphNodesById(makeGraphEnvironmentNode({ id: 'env-a', environmentSrc: 'artifact-env://env-a' })),
-    };
-    const doc = graphDocument(graph);
-
-    const canvas = await renderGraphTarget(doc, graph, 'env-a', 80, 40, new Map(), { skipEffects: true });
-    const [, , , a] = centerPixel(canvas);
-
-    expect(a).toBe(0);
-  });
-
-  it('renders primitive sources through 3D scene model inputs with PBR material nodes', async () => {
+  it('renders a 3D Object with scene lighting and a PBR material node', async () => {
     const primitive = makeSourceLayer('primitive', {
       id: 'primitive-a',
       name: 'Primitive A',
       primitiveShape: 'sphere',
       color: '#885533',
       accentColor: '#ffd36a',
+      scene: makeScene3DSettings({ materialMode: 'original', transparent: true }),
     });
     const graph: CanvasGraph = {
-      edges: [
-        { id: 'e-primitive-scene', fromId: primitive.id, fromPort: 'out', toId: 'scene-a', toPort: 'model' },
-        { id: 'e-material-scene', fromId: 'material-a', fromPort: 'out', toId: 'scene-a', toPort: 'material' },
-      ],
+      edges: [{ id: 'e-material', fromId: 'material-a', fromPort: 'out', toId: primitive.id, toPort: 'material' }],
       positions: {},
       nodes: graphNodesById(
         makeGraphMaterialNode({
@@ -441,7 +375,6 @@ describe('renderGraphTarget', () => {
           materialRoughness: 0.18,
           materialClearcoat: 0.65,
         }),
-        makeGraphScene3DNode({ id: 'scene-a', materialMode: 'original', transparent: true }),
       ),
     };
     const doc: CanvasDocument = {
@@ -451,7 +384,7 @@ describe('renderGraphTarget', () => {
       export: { format: 'png', scale: 1, target: 'cover' },
     };
 
-    const canvas = await renderGraphTarget(doc, graph, 'scene-a', 96, 96, new Map(), { skipEffects: true });
+    const canvas = await renderGraphTarget(doc, graph, primitive.id, 96, 96, new Map(), { skipEffects: true });
 
     const pixels = allPixels(canvas);
     let visible = false;

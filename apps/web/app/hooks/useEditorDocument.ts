@@ -6,6 +6,7 @@ import {
   type CanvasGraph,
   type EffectPreset,
   type ImageLayer,
+  isObject3DLayer,
   type Layer,
   type LayerKind,
   type ModelLayer,
@@ -24,6 +25,7 @@ import {
   createLayerOfKind,
   createModelLayerFromAsset,
   createTextPresetLayer,
+  type SceneEnvironmentAsset,
 } from '../utils/documentCommands';
 import {
   type DocumentCommand,
@@ -50,7 +52,7 @@ import {
 } from '../utils/documentPersistence';
 import type { LayerAddPlacement, TreeEditResult } from '../utils/graphTreeEdits';
 import { graphUtilityNodeKind } from '../utils/nodeGraph';
-import type { GraphEnvironmentNode, GraphNodePatch } from '../utils/nodeKinds';
+import type { GraphNodePatch } from '../utils/nodeKinds';
 import { makeNoisePresetLayer, type NoisePresetId } from '../utils/noisePresets';
 import { saveStoredPreBlankDraft } from '../utils/projectStore';
 import { randomDocument } from '../utils/randomConfig';
@@ -274,12 +276,15 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     [dispatch, nodeModeEnabled],
   );
 
-  const addEnvironmentFromAsset = useCallback(
-    (
-      asset: Pick<GraphEnvironmentNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,
-      nodePosition?: { x: number; y: number },
-    ) => dispatch({ type: 'addEnvironmentMap', asset, position: nodePosition }),
-    [dispatch],
+  /** Gives the selected 3D Object a dropped environment map; returns an error message when nothing can take it. */
+  const applyEnvironmentAsset = useCallback(
+    (asset: SceneEnvironmentAsset): string | null => {
+      const target = docRef.current.layers.find((layer) => layer.id === selectedLayerId);
+      if (!isObject3DLayer(target)) return 'Select a 3D Object to use this environment map';
+      dispatch({ type: 'setSceneEnvironment', id: target.id, asset });
+      return null;
+    },
+    [dispatch, selectedLayerId],
   );
 
   const removeLayer = useCallback((id: string) => dispatch({ type: 'removeLayer', id }), [dispatch]);
@@ -399,7 +404,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
     addArrayPreset,
     addImageFromSource,
     addModelFromAsset,
-    addEnvironmentFromAsset,
+    applyEnvironmentAsset,
     removeLayer,
     deleteNodeSelection,
     updateLayer,

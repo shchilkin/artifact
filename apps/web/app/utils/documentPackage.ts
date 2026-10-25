@@ -5,7 +5,7 @@ import type {
   PortableModelAsset,
   TextLayer,
 } from '../types/config';
-import { DOCUMENT_SCHEMA_VERSION } from '../types/config';
+import { DOCUMENT_SCHEMA_VERSION, isObject3DLayer } from '../types/config';
 import { getBundledFontRegistryItem, isBundledFontName } from '../types/typography';
 import { isAssetUri } from './assetStore';
 import {
@@ -25,7 +25,6 @@ import {
   stripDocumentFontAssets,
 } from './fontStore';
 import { modelUriFromId } from './modelAssetStore';
-import { graphNodesOfKind } from './nodeGraph';
 
 export const ARTIFACT_PROJECT_PACKAGE_KIND = 'artifact-project-package';
 const ARTIFACT_PROJECT_PACKAGE_VERSION = 1;
@@ -155,7 +154,8 @@ function modelSources(doc: CanvasDocument) {
 }
 
 function environmentSources(doc: CanvasDocument) {
-  return [...graphNodesOfKind(doc.graph, 'environment'), ...graphNodesOfKind(doc.graph, 'scene3d')].flatMap((node) =>
+  const scenes = doc.layers.flatMap((layer) => (isObject3DLayer(layer) && layer.scene ? [layer.scene] : []));
+  return scenes.flatMap((node) =>
     node.environmentSrc
       ? [
           [

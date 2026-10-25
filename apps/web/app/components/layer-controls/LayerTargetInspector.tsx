@@ -18,6 +18,8 @@ export function LayerTargetInspector({
   onChange,
   onImageSource,
   onLoadModelFile,
+  onLoadEnvironmentFile,
+  onUseShapeSource,
 }: {
   layer: Layer;
   aspect: AspectRatio;
@@ -26,6 +28,10 @@ export function LayerTargetInspector({
   /** Replaces this image layer's source with a stored image. */
   onImageSource: (src: string) => void;
   onLoadModelFile?: (file: File) => void;
+  /** Loads an environment map into this 3D Object layer's scene. */
+  onLoadEnvironmentFile?: (file: File) => void;
+  /** Switches this 3D Object layer to a built-in shape. */
+  onUseShapeSource?: () => void;
 }) {
   return (
     <>
@@ -44,6 +50,8 @@ export function LayerTargetInspector({
         showAiGenerationProvenance={false}
         onChange={onChange}
         onLoadModelFile={onLoadModelFile}
+        onLoadEnvironmentFile={onLoadEnvironmentFile}
+        onUseShapeSource={onUseShapeSource}
       />
     </>
   );

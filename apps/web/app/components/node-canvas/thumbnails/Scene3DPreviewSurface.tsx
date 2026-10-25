@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CanvasGraph } from '../../../types/config';
-
 import {
+  type CanvasGraph,
   DEFAULT_MATERIAL_CONFIG,
   type MaterialConfig,
-  type ModelLayer,
-  type PrimitiveLayer,
+  type Object3DLayer,
+  type Scene3DSettings,
 } from '../../../types/config';
-import { graphNodesOfKind } from '../../../utils/nodeGraph';
-import type { GraphMaterialNode, GraphScene3DNode } from '../../../utils/nodeKinds';
+import { findGraphNodeOfKind, graphNodesOfKind } from '../../../utils/nodeGraph';
+import type { GraphMaterialNode } from '../../../utils/nodeKinds';
 import { renderGraphTarget } from '../../../utils/renderer';
-import { Viewport3DControlStrip, Viewport3DStatusOverlay } from '../../canvas-chrome/Viewport3DChrome';
+import { Viewport3DControlStrip } from '../../canvas-chrome/Viewport3DChrome';
 import { LazyModelViewport3D } from '../../LazyViewport3D';
 import { defaultPrimitiveViewportState, type PrimitiveViewportState } from '../../PrimitiveViewportState';
 import { useNodeCanvasActions, useNodeCanvasPreview } from '../context';
@@ -19,88 +18,50 @@ import { useGeneratedMaterialTextureCanvases } from './materialTextureCanvases';
 import { NodeThumbnail } from './NodeThumbnail';
 
 interface Scene3DPreviewSurfaceProps {
-  scene3dNode: GraphScene3DNode;
+  layer: Object3DLayer & { scene: Scene3DSettings };
   selected: boolean;
   previewTargetId: string;
-  modelLayer: ModelLayer | PrimitiveLayer | null;
-  materialNode: GraphMaterialNode | null;
   sceneViewState?: PrimitiveViewportState;
-  backdropPreviewTargetId: string | null;
-  environmentPreviewTargetId: string | null;
-  environmentSource: string | null;
 }
 
+/**
+ * The live preview of a 3D Object layer with scene lighting: its backdrop (or environment) under an orbitable 3D
+ * viewport lit by the layer's scene settings, environment, and material inputs.
+ */
 export function Scene3DPreviewSurface({
-  scene3dNode,
+  layer,
   selected,
   previewTargetId,
-  modelLayer,
-  materialNode,
   sceneViewState,
-  backdropPreviewTargetId,
-  environmentPreviewTargetId,
-  environmentSource,
 }: Scene3DPreviewSurfaceProps) {
   if (!selected) return <NodeThumbnail previewTargetId={previewTargetId} />;
-  if (!modelLayer) {
-    return (
-      <div
-        className="node-preview-surface"
-        data-viewport-3d-workspace="scene"
-        data-viewport-3d-workspace-state="failed"
-      >
-        <NodeThumbnail
-          previewTargetId={previewTargetId}
-          priority
-          statusOverlay={
-            <Viewport3DStatusOverlay
-              status="failed"
-              label="3D model missing"
-              recovery="Connect a model or primitive source to build this scene."
-            />
-          }
-        />
-      </div>
-    );
-  }
-  return (
-    <SelectedScene3DPreviewSurface
-      scene3dNode={scene3dNode}
-      modelLayer={modelLayer}
-      materialNode={materialNode}
-      sceneViewState={sceneViewState}
-      backdropPreviewTargetId={backdropPreviewTargetId}
-      environmentPreviewTargetId={environmentPreviewTargetId}
-      environmentSource={environmentSource}
-    />
-  );
+  return <SelectedScene3DPreviewSurface layer={layer} sceneViewState={sceneViewState} />;
+}
+
+function incomingId(graph: Pick<CanvasGraph, 'edges'>, toId: string, port: string): string | null {
+  return graph.edges.find((edge) => edge.toId === toId && edge.toPort === port)?.fromId ?? null;
 }
 
 function SelectedScene3DPreviewSurface({
-  scene3dNode,
-  modelLayer,
-  materialNode,
+  layer,
   sceneViewState,
-  backdropPreviewTargetId,
-  environmentPreviewTargetId,
-  environmentSource,
 }: {
-  scene3dNode: GraphScene3DNode;
-  modelLayer: ModelLayer | PrimitiveLayer;
-  materialNode: GraphMaterialNode | null;
+  layer: Object3DLayer & { scene: Scene3DSettings };
   sceneViewState?: PrimitiveViewportState;
-  backdropPreviewTargetId: string | null;
-  environmentPreviewTargetId: string | null;
-  environmentSource: string | null;
 }) {
   const { doc, graph, imageCache, primitiveViewStates } = useNodeCanvasPreview();
   const { updatePrimitiveView, setPrimitiveViewportActive } = useNodeCanvasActions();
+  const scene = layer.scene;
+  const backdropPreviewTargetId = incomingId(graph, layer.id, 'bg');
+  const environmentPreviewTargetId = incomingId(graph, layer.id, 'env');
+  const materialSourceId = incomingId(graph, layer.id, 'material');
+  const materialNode = materialSourceId ? (findGraphNodeOfKind(graph, 'material', materialSourceId) ?? null) : null;
   const materialSource = useMemo(
-    () => sceneMaterialSource(graph, scene3dNode.id, materialNode),
-    [graph, materialNode, scene3dNode.id],
+    () => sceneMaterialSource(graph, layer.id, materialNode),
+    [graph, materialNode, layer.id],
   );
   const generatedEnvironmentCanvas = useGeneratedEnvironmentCanvas({
-    enabled: !environmentSource && Boolean(environmentPreviewTargetId),
+    enabled: !scene.environmentSrc && Boolean(environmentPreviewTargetId),
     previewTargetId: environmentPreviewTargetId,
     doc,
     graph,
@@ -117,8 +78,8 @@ function SelectedScene3DPreviewSurface({
   });
   const [draftViewState, setDraftViewState] = useState<{ baseKey: string; value: PrimitiveViewportState } | null>(null);
   const committedViewState = useMemo(
-    () => sceneViewState ?? defaultPrimitiveViewportState(modelLayer),
-    [modelLayer, sceneViewState],
+    () => sceneViewState ?? defaultPrimitiveViewportState(layer),
+    [layer, sceneViewState],
   );
   const committedViewStateKey = sceneViewStateKey(committedViewState);
   const effectiveViewState = activeSceneViewState(draftViewState, committedViewStateKey, committedViewState);
@@ -126,22 +87,22 @@ function SelectedScene3DPreviewSurface({
   const underlayPreviewTargetId = backdropPreviewTargetId ?? environmentPreviewTargetId;
 
   useEffect(() => {
-    return () => setPrimitiveViewportActive(scene3dNode.id, false);
-  }, [scene3dNode.id, setPrimitiveViewportActive]);
+    return () => setPrimitiveViewportActive(layer.id, false);
+  }, [layer.id, setPrimitiveViewportActive]);
 
   const setLocked = (nextLocked: boolean) => {
     const next = { ...effectiveViewState, locked: nextLocked };
     setDraftViewState(null);
-    updatePrimitiveView(scene3dNode.id, next, 'snapshot');
-    setPrimitiveViewportActive(scene3dNode.id, !nextLocked);
+    updatePrimitiveView(layer.id, next, 'snapshot');
+    setPrimitiveViewportActive(layer.id, !nextLocked);
   };
 
   const resetCamera = () => {
     setDraftViewState(null);
     updatePrimitiveView(
-      scene3dNode.id,
+      layer.id,
       {
-        ...defaultPrimitiveViewportState(modelLayer),
+        ...defaultPrimitiveViewportState(layer),
         locked,
       },
       'snapshot',
@@ -154,9 +115,9 @@ function SelectedScene3DPreviewSurface({
       data-viewport-3d-workspace="scene"
       data-viewport-3d-workspace-state={locked ? 'locked' : 'active'}
       onMouseEnter={() => {
-        if (!locked) setPrimitiveViewportActive(scene3dNode.id, true);
+        if (!locked) setPrimitiveViewportActive(layer.id, true);
       }}
-      onMouseLeave={() => setPrimitiveViewportActive(scene3dNode.id, false)}
+      onMouseLeave={() => setPrimitiveViewportActive(layer.id, false)}
     >
       <div
         className="node-primitive-live-frame artifact-viewport3d-frame"
@@ -170,17 +131,17 @@ function SelectedScene3DPreviewSurface({
         )}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'auto' }}>
           <LazyModelViewport3D
-            layer={modelLayer}
-            sceneNode={scene3dNode}
+            layer={layer}
+            sceneNode={scene}
             materialConfig={materialSource.config}
             materialTextures={materialTextures}
             environmentCanvas={generatedEnvironmentCanvas}
-            environmentSource={environmentSource ?? scene3dNode.environmentSrc ?? null}
+            environmentSource={scene.environmentSrc || null}
             viewState={effectiveViewState}
             onViewStateDraft={(next) => setDraftViewState({ baseKey: committedViewStateKey, value: next })}
             onViewStateChange={(next) => {
               setDraftViewState(null);
-              updatePrimitiveView(scene3dNode.id, next, 'snapshot');
+              updatePrimitiveView(layer.id, next, 'snapshot');
             }}
             className="node-primitive-preview node-primitive-preview-transparent"
           />

@@ -5,6 +5,7 @@ import {
   makeEmojiLayer,
   makeFillLayer,
   makeImageLayer,
+  makeScene3DSettings,
   makeSourceLayer,
   makeTextLayer,
 } from '../../../types/config';
@@ -301,21 +302,16 @@ describe('graph node render signatures', () => {
     expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
-  it('ignores environment node identity and changes for render fields', () => {
-    const base = {
-      kind: 'environment' as const,
-      id: 'env-1',
-      name: 'Environment Map',
-      environmentSrc: 'artifact-env://env-a',
-      environmentName: 'studio.exr',
-      environmentMime: 'image/x-exr',
-      environmentBytes: 1024,
-    };
-    const renamed = { ...base, id: 'env-2', name: 'Renamed environment' };
-    const edited = { ...base, environmentSrc: 'artifact-env://env-b', environmentBytes: 2048 };
+  it('changes 3D Object signatures with their scene lighting and environment map', () => {
+    const plain = makeSourceLayer('model', { id: 'model-1', modelSrc: 'artifact-model://model-a' });
+    const lit = { ...plain, scene: makeScene3DSettings() };
+    const withMap = { ...lit, scene: { ...lit.scene, environmentSrc: 'artifact-env://env-a' } };
+    const brighter = { ...lit, scene: { ...lit.scene, keyIntensity: 200 } };
 
-    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
-    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
+    expect(layerRenderSig(lit)).not.toBe(layerRenderSig(plain));
+    expect(layerRenderSig(withMap)).not.toBe(layerRenderSig(lit));
+    expect(layerRenderSig(brighter)).not.toBe(layerRenderSig(lit));
+    expect(layerRenderSig({ ...withMap, name: 'Renamed' })).toBe(layerRenderSig(withMap));
   });
 
   it('changes material node signatures when PBR texture sources change', () => {

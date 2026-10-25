@@ -214,7 +214,6 @@ function layerNodeInputPort(nodeId: string, layers: Layer[]): GraphEdge['toPort'
 
 function graphOnlyNodeInputPort(nodeId: string, graph: CanvasGraph): GraphEdge['toPort'] | null {
   if (graphNodesOfKind(graph, 'merge').some((mergeNode) => mergeNode.id === nodeId)) return 'a';
-  if (graphNodesOfKind(graph, 'scene3d').some((sceneNode) => sceneNode.id === nodeId)) return 'model';
   const shaderNode = graphNodesOfKind(graph, 'shader').find((node) => node.id === nodeId);
   if (shaderNode) return shaderNode.role === 'effect' ? 'bg' : null;
   return hasSingleInputGraphNode(graph, nodeId) ? 'in' : null;
@@ -222,7 +221,7 @@ function graphOnlyNodeInputPort(nodeId: string, graph: CanvasGraph): GraphEdge['
 
 function hasSingleInputGraphNode(graph: CanvasGraph, nodeId: string) {
   const kind = graphUtilityNodeKind(graph, nodeId);
-  return kind !== null && kind !== 'merge' && kind !== 'scene3d' && kind !== 'environment';
+  return kind !== null && kind !== 'merge';
 }
 
 function nodeCenterPoint(node: RFNode) {

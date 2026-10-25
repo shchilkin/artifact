@@ -1,13 +1,11 @@
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../../types/config';
-import { makeDocument, makeFillLayer, makeSourceLayer, makeTextLayer } from '../../types/config';
+import { makeDocument, makeFillLayer, makeScene3DSettings, makeSourceLayer, makeTextLayer } from '../../types/config';
 import { EXPORT_NODE_ID, graphNodesById } from '../../utils/nodeGraph';
 import { makeGraphColorNode } from '../../utils/nodeKinds/color';
-import { makeGraphEnvironmentNode } from '../../utils/nodeKinds/environment';
 import { makeGraphMaskNode } from '../../utils/nodeKinds/mask';
 import { makeGraphMaterialNode } from '../../utils/nodeKinds/material';
 import { makeGraphMergeNode } from '../../utils/nodeKinds/merge';
 import { makeGraphRepeatNode } from '../../utils/nodeKinds/repeat';
-import { makeGraphScene3DNode } from '../../utils/nodeKinds/scene3d';
 import { makeGraphShaderNode } from '../../utils/nodeKinds/shader';
 import { makeGraphTransformNode } from '../../utils/nodeKinds/transform';
 import { renderGraphTarget } from '../../utils/renderer';
@@ -36,6 +34,9 @@ export function documentFor(layers: Layer[], canvasGraph?: CanvasGraph): CanvasD
 
 export const fill = (id: string) => makeFillLayer({ id, name: id, color: '#336699' });
 
+/** A built-in shape with scene lighting. */
+export const litObject = (id: string) => makeSourceLayer('primitive', { id, scene: makeScene3DSettings() });
+
 /** The node ids the renderer actually rendered, read back from its cache. */
 export async function renderedNodeIds(doc: CanvasDocument, canvasGraph: CanvasGraph) {
   const entries = new Map<string, Promise<HTMLCanvasElement>>();
@@ -48,7 +49,7 @@ export interface GraphReachFixture {
   name: string;
   layers: Layer[];
   graph: CanvasGraph;
-  /** Nodes the renderer reads without rendering them (Scene 3D model and material, a sourceless environment). */
+  /** Nodes the renderer reads without rendering them (a material node's settings). */
   readOnly?: string[];
 }
 
@@ -136,42 +137,34 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
     ),
   },
   {
-    name: 'Scene 3D reads its model, material and environment',
-    layers: [makeSourceLayer('primitive', { id: 'model' }), fill('albedo'), fill('backdrop')],
+    name: '3D Object with scene lighting reads its material and renders its environment and backdrop',
+    layers: [fill('albedo'), fill('backdrop'), fill('sky'), litObject('object')],
     graph: graph(
       [
-        edge('model', 'scene', 'model'),
-        edge('material', 'scene', 'material'),
+        edge('material', 'object', 'material'),
         edge('albedo', 'material', 'albedo'),
-        edge('env', 'scene', 'env'),
-        edge('backdrop', 'scene', 'bg'),
-        edge('scene', EXPORT_NODE_ID, 'in'),
+        edge('sky', 'object', 'env'),
+        edge('backdrop', 'object', 'bg'),
+        edge('object', EXPORT_NODE_ID, 'in'),
       ],
       {
-        nodes: graphNodesById(
-          makeGraphScene3DNode({ id: 'scene' }),
-          makeGraphMaterialNode({ id: 'material' }),
-          makeGraphEnvironmentNode({ id: 'env' }),
-        ),
+        nodes: graphNodesById(makeGraphMaterialNode({ id: 'material' })),
       },
     ),
-    readOnly: ['model', 'material', 'env'],
+    readOnly: ['material'],
   },
   {
-    name: 'Scene 3D renders an environment that has a source',
-    layers: [fill('sky'), fill('backdrop')],
+    name: 'model without scene lighting ignores its environment and material ports',
+    layers: [fill('sky'), fill('backdrop'), makeSourceLayer('model', { id: 'object' })],
     graph: graph(
       [
-        edge('sky', 'env', 'in'),
-        edge('env', 'scene', 'env'),
-        edge('backdrop', 'scene', 'bg'),
-        edge('scene', EXPORT_NODE_ID, 'in'),
+        edge('sky', 'object', 'env'),
+        edge('material', 'object', 'material'),
+        edge('backdrop', 'object', 'bg'),
+        edge('object', EXPORT_NODE_ID, 'in'),
       ],
       {
-        nodes: graphNodesById(
-          makeGraphScene3DNode({ id: 'scene', transparent: true }),
-          makeGraphEnvironmentNode({ id: 'env' }),
-        ),
+        nodes: graphNodesById(makeGraphMaterialNode({ id: 'material' })),
       },
     ),
   },
@@ -203,48 +196,32 @@ export const GRAPH_REACH_FIXTURES: GraphReachFixture[] = [
   },
   {
     name: 'shader on a material port renders as the albedo, ignoring its fill-role backdrop',
-    layers: [fill('backdrop'), fill('ignored-backdrop')],
+    layers: [fill('backdrop'), fill('ignored-backdrop'), litObject('object')],
     graph: graph(
       [
-        edge('backdrop', 'scene', 'bg'),
-        edge('gradient', 'scene', 'material'),
+        edge('backdrop', 'object', 'bg'),
+        edge('gradient', 'object', 'material'),
         edge('ignored-backdrop', 'gradient', 'bg'),
-        edge('scene', EXPORT_NODE_ID, 'in'),
+        edge('object', EXPORT_NODE_ID, 'in'),
       ],
       {
-        nodes: graphNodesById(
-          makeGraphScene3DNode({ id: 'scene', transparent: true }),
-          makeGraphShaderNode({ id: 'gradient', role: 'fill' }),
-        ),
-      },
-    ),
-  },
-  {
-    name: 'a node that is not a 3D source on a model port is ignored',
-    layers: [fill('backdrop'), fill('not-a-model')],
-    graph: graph(
-      [edge('backdrop', 'scene', 'bg'), edge('not-a-model', 'scene', 'model'), edge('scene', EXPORT_NODE_ID, 'in')],
-      {
-        nodes: graphNodesById(makeGraphScene3DNode({ id: 'scene', transparent: true })),
+        nodes: graphNodesById(makeGraphShaderNode({ id: 'gradient', role: 'fill' })),
       },
     ),
   },
   {
     name: 'a node that is not a material on a material port is ignored, but its texture maps render',
-    layers: [fill('backdrop'), fill('graded'), fill('rough')],
+    layers: [fill('backdrop'), fill('graded'), fill('rough'), litObject('object')],
     graph: graph(
       [
-        edge('backdrop', 'scene', 'bg'),
-        edge('grade', 'scene', 'material'),
+        edge('backdrop', 'object', 'bg'),
+        edge('grade', 'object', 'material'),
         edge('graded', 'grade', 'in'),
         edge('rough', 'grade', 'roughness'),
-        edge('scene', EXPORT_NODE_ID, 'in'),
+        edge('object', EXPORT_NODE_ID, 'in'),
       ],
       {
-        nodes: graphNodesById(
-          makeGraphScene3DNode({ id: 'scene', transparent: true }),
-          makeGraphColorNode({ id: 'grade' }),
-        ),
+        nodes: graphNodesById(makeGraphColorNode({ id: 'grade' })),
       },
     ),
   },

@@ -39,7 +39,6 @@ export interface GraphNodeInspectorProps<N extends GraphNode> {
   graph: CanvasGraph;
   onChange: (patch: Partial<Omit<N, 'id' | 'kind'>>) => void;
   onUpdateGraphNode: (id: string, patch: GraphNodePatch) => void;
-  onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
 }
 
 /**

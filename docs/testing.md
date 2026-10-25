@@ -203,7 +203,7 @@ Use Playwright for behavior that Node/Vitest cannot honestly exercise.
 `tests/browser/v036-3d-model-retro.spec.ts` includes the editable-package 3D
 portability regression: UI export with embedded GLB and EXR payloads, import in
 a new browser context with empty localStorage/IndexedDB, stable model/environment
-refs, preserved graph/scene settings, and a nonblank 3D Scene output without
+refs, preserved graph and scene-lighting settings, and a nonblank lit 3D Object output without
 fallback badges.
 
 **Location:** `tests/browser/`

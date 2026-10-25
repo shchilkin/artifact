@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import type { PortableEnvironmentAsset, PortableModelAsset } from '../types/config';
+import { isObject3DLayer, type Layer, type PortableEnvironmentAsset, type PortableModelAsset } from '../types/config';
 import type { ImportedFontAsset } from './fontStore';
 
 export function makePortableAssetLoaders({
@@ -30,4 +30,9 @@ export function makePortableAssetLoaders({
       environment === environmentRef ? (environmentAsset ?? null) : null,
     ),
   };
+}
+
+/** A 3D Object layer's scene settings, for asserting on environment references. */
+export function sceneOf(layer: Layer | undefined) {
+  return isObject3DLayer(layer) ? layer.scene : undefined;
 }

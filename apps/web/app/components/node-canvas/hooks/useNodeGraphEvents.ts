@@ -136,9 +136,9 @@ export function isGraphPortConnectionAllowed(connection: Connection | RFEdge, gr
     return targetIsMaterial && !sourceIsMaterial && sourceReady;
   }
   if (targetPort === 'material') {
-    const targetIsPrimitive = layers.some((layer) => layer.id === connection.target && layer.kind === 'primitive');
-    const targetIsScene3D = graphNodesOfKind(graph, 'scene3d').some((node) => node.id === connection.target);
-    return (sourceIsMaterial || sourceIsShader) && (targetIsPrimitive || targetIsScene3D);
+    const target = layers.find((layer) => layer.id === connection.target);
+    const takesMaterial = target?.kind === 'primitive' || (target?.kind === 'model' && Boolean(target.scene));
+    return (sourceIsMaterial || sourceIsShader) && takesMaterial;
   }
   return !sourceIsMaterial;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { graphNodesById, graphNodesOfKind } from '../utils/nodeGraph';
-import { makeGraphEnvironmentNode, makeGraphRepeatNode, makeGraphShaderNode } from '../utils/nodeKinds';
+import { makeGraphRepeatNode, makeGraphShaderNode } from '../utils/nodeKinds';
 import type { CanvasDocument } from './config';
 import {
   cloneDocument,
@@ -408,29 +408,13 @@ describe('cloneDocument', () => {
       graph: {
         edges: [],
         positions: {},
-        nodes: graphNodesById(
-          makeGraphEnvironmentNode({
-            id: 'env-node-a',
-            name: 'Environment Map',
-            environmentSrc: 'artifact-env://env-a',
-            environmentName: 'studio.exr',
-            environmentMime: 'image/x-exr',
-            environmentBytes: 512,
-          }),
-        ),
+        nodes: graphNodesById(makeGraphRepeatNode({ id: 'repeat-a' })),
         areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['text-1'] }],
       },
     };
     const cloned = cloneDocument(original);
     cloned.graph?.areas?.[0]?.nodeIds.push('other');
-    cloned.graph.nodes['env-node-b'] = makeGraphEnvironmentNode({
-      id: 'env-node-b',
-      name: 'Other Environment',
-      environmentSrc: 'artifact-env://env-b',
-      environmentName: 'other.exr',
-      environmentMime: 'image/x-exr',
-      environmentBytes: 1024,
-    });
+    cloned.graph.nodes['repeat-b'] = makeGraphRepeatNode({ id: 'repeat-b' });
     cloned.modelAssets?.push({
       id: 'model-b',
       dataUrl: 'data:model/gltf-binary;base64,BBBB',
@@ -448,7 +432,7 @@ describe('cloneDocument', () => {
       createdAt: '2026-06-13T00:00:00.000Z',
     });
     expect(original.graph?.areas?.[0]?.nodeIds).toEqual(['text-1']);
-    expect(graphNodesOfKind(original.graph, 'environment')).toHaveLength(1);
+    expect(graphNodesOfKind(original.graph, 'repeat')).toHaveLength(1);
     expect(original.modelAssets).toHaveLength(1);
     expect(original.envAssets).toHaveLength(1);
   });

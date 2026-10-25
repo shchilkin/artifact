@@ -169,7 +169,7 @@ export default function Editor() {
     addArrayPreset,
     addImageFromSource,
     addModelFromAsset,
-    addEnvironmentFromAsset,
+    applyEnvironmentAsset,
     removeLayer,
     deleteNodeSelection,
     updateLayer,
@@ -178,7 +178,6 @@ export default function Editor() {
     reorderLayers,
     duplicateLayer,
     handleAddLayerAt,
-    addNodeFromLayers,
     applyTreeEdit,
     handleRandomize,
     handleNewBlank,
@@ -219,7 +218,7 @@ export default function Editor() {
     doc,
     (src, position) => addImageFromSource(src, undefined, position),
     addModelFromAsset,
-    addEnvironmentFromAsset,
+    applyEnvironmentAsset,
     storeImageAssetSource,
   );
   const handleDroppedFiles = useCallback(
@@ -237,7 +236,7 @@ export default function Editor() {
     [handleDroppedFile],
   );
 
-  const handleReplaceEnvironmentNodeFile = useCallback(
+  const handleLoadSceneEnvironmentFile = useCallback(
     async (id: string, file: File) => {
       setEnvironmentFileError(null);
       if (!isSupportedEnvironmentFile(file)) {
@@ -250,17 +249,21 @@ export default function Editor() {
       }
       try {
         const asset = await saveEnvironmentFileAsset(file);
-        updateGraphNode(id, {
-          environmentSrc: environmentUriFromId(asset.id),
-          environmentName: asset.label,
-          environmentMime: asset.mime,
-          environmentBytes: asset.bytes,
+        dispatch({
+          type: 'setSceneEnvironment',
+          id,
+          asset: {
+            environmentSrc: environmentUriFromId(asset.id),
+            environmentName: asset.label,
+            environmentMime: asset.mime,
+            environmentBytes: asset.bytes,
+          },
         });
       } catch {
         setEnvironmentFileError('Could not read environment map.');
       }
     },
-    [updateGraphNode],
+    [dispatch],
   );
   const handleReplaceModelLayerFile = useCallback(
     async (id: string, file: File) => {
@@ -275,17 +278,28 @@ export default function Editor() {
       }
       try {
         const asset = await saveModelFileAsset(file);
-        updateLayer(id, {
-          modelSrc: modelUriFromId(asset.id),
-          modelName: asset.label,
-          modelMime: asset.mime,
-          modelBytes: asset.bytes,
+        dispatch({
+          type: 'setObject3DSource',
+          id,
+          source: {
+            kind: 'model',
+            asset: {
+              modelSrc: modelUriFromId(asset.id),
+              modelName: asset.label,
+              modelMime: asset.mime,
+              modelBytes: asset.bytes,
+            },
+          },
         });
       } catch {
         setModelFileError('Could not read model.');
       }
     },
-    [updateLayer],
+    [dispatch],
+  );
+  const handleUseShapeSource = useCallback(
+    (id: string) => dispatch({ type: 'setObject3DSource', id, source: { kind: 'primitive' } }),
+    [dispatch],
   );
   const {
     effectivePrimitiveViewStates,
@@ -643,7 +657,8 @@ export default function Editor() {
                   onUpdateLayer={updateLayer}
                   onUpdateGraphNode={updateGraphNode}
                   onReplaceModelLayerFile={handleReplaceModelLayerFile}
-                  onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
+                  onLoadSceneEnvironmentFile={handleLoadSceneEnvironmentFile}
+                  onUseShapeSource={handleUseShapeSource}
                   onUpdateExportConfig={handleExportConfigChange}
                   onUpdateAspectRatio={setAspect}
                   exportBusy={exportBusy}
@@ -693,7 +708,6 @@ export default function Editor() {
             onAddTextPreset={addTextPreset}
             onAddNoisePreset={addNoisePreset}
             onAddArrayPreset={addArrayPreset}
-            onAddScene3D={(placement) => addNodeFromLayers({ kind: 'scene3d' }, { x: 360, y: 180 }, placement)}
             onStartAiImage={handleStartAiImage}
             onRemoveLayer={removeLayer}
             onReorderLayers={reorderLayers}
@@ -704,7 +718,8 @@ export default function Editor() {
             onGeneratedImageSource={handleGeneratedImageSource}
             mobileActionBar={<BottomBar {...bottomBarProps} />}
             onReplaceModelLayerFile={handleReplaceModelLayerFile}
-            onReplaceEnvironmentNodeFile={handleReplaceEnvironmentNodeFile}
+            onLoadSceneEnvironmentFile={handleLoadSceneEnvironmentFile}
+            onUseShapeSource={handleUseShapeSource}
           />
         )}
 

@@ -145,7 +145,8 @@ export function NodeCanvas({
   onFilesDrop,
   onFileDragPreviewChange,
   onReplaceModelLayerFile,
-  onReplaceEnvironmentNodeFile,
+  onLoadSceneEnvironmentFile,
+  onUseShapeSource,
   onDeleteNodes,
   onDuplicateLayer,
 }: NodeCanvasProps) {
@@ -689,7 +690,8 @@ export function NodeCanvas({
             onUpdateLayer={onUpdateLayer}
             onUpdateGraphNode={onUpdateGraphNode}
             onReplaceModelLayerFile={onReplaceModelLayerFile}
-            onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
+            onLoadSceneEnvironmentFile={onLoadSceneEnvironmentFile}
+            onUseShapeSource={onUseShapeSource}
             onUpdateExportConfig={onUpdateExportConfig}
             onUpdateAspectRatio={onUpdateAspectRatio}
             onExport={onExport}
@@ -1154,7 +1156,7 @@ function NodeGalleryViewport({
   onMediaViewChange: (id: string, next: MediaViewState) => void;
   onPrimitiveViewChange: (id: string, next: PrimitiveViewportState) => void;
 }) {
-  if (displayLayer.kind === 'primitive') {
+  if (displayLayer.kind === 'primitive' && !displayLayer.scene) {
     return (
       <PrimitiveGalleryViewport
         displayLayer={displayLayer}
@@ -1165,7 +1167,7 @@ function NodeGalleryViewport({
       />
     );
   }
-  if (displayLayer.kind === 'model') {
+  if (displayLayer.kind === 'model' && !displayLayer.scene) {
     return <ModelGalleryViewport displayLayer={displayLayer} primitiveViewState={primitiveViewState} />;
   }
   return (

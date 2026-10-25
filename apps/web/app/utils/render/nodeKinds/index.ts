@@ -1,12 +1,10 @@
 import type { GraphNodeKind, GraphNodeOfKind } from '../../nodeKinds';
 import { renderColorGraphNode } from './color';
 import type { GraphNodeRenderContext } from './context';
-import { renderEnvironmentGraphNode } from './environment';
 import { renderMaskGraphNode } from './mask';
 import { renderMaterialGraphNode } from './material';
 import { renderMergeGraphNode } from './merge';
 import { renderRepeatGraphNode } from './repeat';
-import { renderScene3DGraphNode } from './scene3d';
 import { renderShaderGraphNode } from './shader';
 import { renderTransformGraphNode } from './transform';
 
@@ -27,8 +25,6 @@ export const GRAPH_NODE_RENDERERS: { [K in GraphNodeKind]: GraphNodeRenderer<K> 
   mask: renderMaskGraphNode,
   transform: renderTransformGraphNode,
   shader: renderShaderGraphNode,
-  environment: renderEnvironmentGraphNode,
-  scene3d: renderScene3DGraphNode,
 };
 
 export function graphNodeRenderer<K extends GraphNodeKind>(kind: K): GraphNodeRenderer<K> {

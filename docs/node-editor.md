@@ -81,12 +81,22 @@ Current React Flow node types:
 | `transformNode` | Moves, scales, rotates, or fades an upstream branch. |
 | `materialNode` | Defines a reusable 3D material and texture-map inputs. |
 | `shaderNode` | Generates one procedural raster shader source or processes a connected backdrop (`Shader Fill` / `Shader Effect` / `AI Shader Effect` in the UI). |
-| `environmentNode` | Provides an environment map source for 3D scene lighting. |
-| `scene3dNode` | Renders a 3D scene from model, material, lighting, environment, and backdrop inputs. |
 | `exportNode` | Terminal output target. |
 
 Layer nodes map to `CanvasDocument.layers`. Graph-only utility, material,
-shader, environment, scene, and export nodes live in `CanvasGraph`.
+shader, and export nodes live in `CanvasGraph`.
+
+A **3D Object** is a layer node (`primitive` for a built-in shape, `model` for
+an imported GLB; the inspector's Source switch converts between them with the
+`setObject3DSource` command). Turning on its Lighting section's **Scene
+lighting** stores `scene` settings on the layer (`types/scene3d.ts`): the object
+then renders full frame over its `backdrop` with those lights, an optional
+EXR/HDR environment map (loaded in the Environment section or dropped on the
+canvas with the object selected), and two more ports: `material` and `env`. A
+built-in shape always has the `material` port. The `env` port takes any image
+branch as the environment when no map file is loaded. Turning scene lighting
+off removes connections to ports the object no longer has. Schema 19 folded the
+former 3D Scene and Environment Map nodes into this layer.
 
 ### Single-purpose node contract
 
@@ -96,16 +106,13 @@ silently combine unrelated roles.
 
 Use these boundaries:
 
-- **Source nodes** create pixels or assets: image, fill, noise, array, line
-  field, primitive/model source, shader fill, environment map.
+- **Source nodes** create pixels or assets: image, fill, noise, shape pattern,
+  line field, 3D Object, shader fill.
 - **Process nodes** transform one upstream branch: effect, color, transform,
   mask.
 - **Combine nodes** join multiple branches: merge and repeat-over-backdrop.
 - **Resource nodes** describe reusable non-image data for another node:
-  material and environment.
-- **Scene nodes** render a domain object from explicit inputs: 3D Scene owns
-  camera, lighting, scene material mode, environment strength, and backdrop
-  composition.
+  material.
 - **Output nodes** define a render target and export path.
 
 When a node starts needing controls from two roles, split the roles instead of
@@ -113,7 +120,7 @@ adding another mode. For example, a shader fill node may switch between mesh,
 marble, liquid, noise, water-surface, or tileable texture algorithms because
 each still produces one texture source. It should not also own 3D lighting,
 material scalar controls, export settings, or input-dependent image
-transforms. Those belong to Material, 3D Scene, Output, and Effect nodes.
+transforms. Those belong to Material, 3D Object, Output, and Effect nodes.
 
 Exceptions must be explicit in docs and tests. A temporary MVP shortcut is
 acceptable only when it preserves serialized state clarity, render/export
@@ -190,8 +197,8 @@ Shader work follows the same single-purpose split:
   Artifact.
 - **Material** nodes describe PBR surface parameters and texture-map inputs:
   `albedo`, `roughness`, `metalness`, `normal`, and `alpha`.
-- **Primitive** and **3D Scene** nodes consume a material or texture source while
-  keeping model, camera, view, lighting, and composition controls separate from
+- **3D Object** layers consume a material or texture source while keeping
+  model, camera, view, lighting, and composition controls separate from
   material authoring.
 
 Material texture-map ports may receive either a Shader Fill output directly or
@@ -212,8 +219,7 @@ The Add Node library should keep this taxonomy visible:
   further split them by tone, warp, print, light, signal, texture, or graphic
   family.
 - **Materials** for reusable PBR surface nodes and texture-map ports.
-- **3D / Primitive** for primitive/model source nodes, scene renderers, and
-  environment-map resources.
+- **3D** for the one 3D Object item (a model-file start stays searchable).
 - **Output** for the fixed graph terminal/export target. It is not currently an
   add-library item because each graph owns one canonical output node.
 

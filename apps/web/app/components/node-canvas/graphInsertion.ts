@@ -1,6 +1,6 @@
 import type { CanvasGraph, GraphEdge, Layer } from '../../types/config';
 import type { AddAction } from '../../utils/addActions';
-import { EXPORT_NODE_ID, graphNodesOfKind } from '../../utils/nodeGraph';
+import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
 import { distancePointToSegment } from './helpers';
 import type { InsertConnectionConfig } from './types';
 
@@ -67,8 +67,6 @@ export function inputPortForAddedAction(action: AddAction): GraphEdge['toPort'] 
   if (action.kind === 'shader') return action.role === 'effect' ? 'bg' : null;
   if (action.kind === 'material') return 'material';
   if (action.kind === 'merge') return 'a';
-  if (action.kind === 'scene3d') return 'model';
-  if (action.kind === 'environment') return 'env';
   if (
     action.kind === 'color' ||
     action.kind === 'repeat' ||
@@ -137,7 +135,7 @@ export function resolveNodeInsertionTarget({
 }): NodeInsertionTarget | null {
   const node = topmostNodeAtPoint(nodes, graph, point);
   if (!node) return null;
-  const targetPort = nodeTargetPortForAddedAction(action, node.id, graph, layers);
+  const targetPort = nodeTargetPortForAddedAction(action, node.id, layers);
   if (!targetPort) return null;
   return {
     nodeId: node.id,
@@ -151,34 +149,16 @@ export function resolveNodeInsertionTarget({
 function nodeTargetPortForAddedAction(
   action: AddAction,
   nodeId: string,
-  graph: CanvasGraph,
   layers: readonly Layer[],
 ): GraphEdge['toPort'] | null {
-  if (action.kind === 'material' && isMaterialTargetNode(nodeId, graph, layers)) return 'material';
-  if (action.kind === 'environment' && graphNodesOfKind(graph, 'scene3d').some((node) => node.id === nodeId))
-    return 'env';
-  if (
-    isEnvironmentRenderSourceAction(action) &&
-    graphNodesOfKind(graph, 'environment').some((node) => node.id === nodeId)
-  )
-    return 'in';
-  if (
-    action.kind === 'scene3d' &&
-    layers.some((layer) => layer.id === nodeId && (layer.kind === 'model' || layer.kind === 'primitive'))
-  )
-    return 'model';
+  if (action.kind === 'material' && isMaterialTargetNode(nodeId, layers)) return 'material';
   return null;
 }
 
-function isEnvironmentRenderSourceAction(action: AddAction) {
-  return !['environment', 'material', 'scene3d'].includes(action.kind);
-}
-
-function isMaterialTargetNode(nodeId: string, graph: CanvasGraph, layers: readonly Layer[]) {
-  return (
-    layers.some((layer) => layer.id === nodeId && layer.kind === 'primitive') ||
-    graphNodesOfKind(graph, 'scene3d').some((node) => node.id === nodeId)
-  );
+/** Shapes always take a material; a model takes one once its scene lighting is on. */
+function isMaterialTargetNode(nodeId: string, layers: readonly Layer[]) {
+  const layer = layers.find((item) => item.id === nodeId);
+  return layer?.kind === 'primitive' || (layer?.kind === 'model' && Boolean(layer.scene));
 }
 
 function topmostNodeAtPoint(

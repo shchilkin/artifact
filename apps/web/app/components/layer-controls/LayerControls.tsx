@@ -20,6 +20,7 @@ import {
   type FillLayer,
   getBundledFontRegistryItem,
   type ImageLayer,
+  isObject3DLayer,
   type Layer,
   MATERIAL_PRESETS,
   type MaterialPreset,
@@ -51,6 +52,7 @@ import {
   InspectorToggle,
   ScaleLockRow,
 } from '../node-canvas/inspector/fields';
+import { Scene3DSections } from '../node-canvas/inspector/Scene3DInspector';
 import { layerHasPlacementControls } from './controlModel';
 import {
   ARRAY_PATTERN_OPTIONS,
@@ -1196,11 +1198,6 @@ function ModelFileAction({
   onLoadFile?: (file: File) => void;
 }) {
   if (!onLoadFile) return null;
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = '';
-    if (file) onLoadFile(file);
-  };
   return (
     <>
       <button
@@ -1210,14 +1207,65 @@ function ModelFileAction({
       >
         {hasModel ? 'Replace model' : 'Load GLB'}
       </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".glb,model/gltf-binary,application/octet-stream"
-        className="node-hidden-file-input"
-        onChange={handleFileChange}
-        tabIndex={-1}
+      <ModelFileInput inputRef={inputRef} onLoadFile={onLoadFile} />
+    </>
+  );
+}
+
+function ModelFileInput({
+  inputRef,
+  onLoadFile,
+}: {
+  inputRef: RefObject<HTMLInputElement | null>;
+  onLoadFile: (file: File) => void;
+}) {
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (file) onLoadFile(file);
+  };
+  return (
+    <input
+      ref={inputRef}
+      type="file"
+      accept=".glb,model/gltf-binary,application/octet-stream"
+      aria-label="Model file"
+      className="node-hidden-file-input"
+      onChange={handleFileChange}
+      tabIndex={-1}
+    />
+  );
+}
+
+/** A 3D Object's source: a built-in shape, or a GLB file. Choosing Model file opens the file picker. */
+function Object3DSourceSelect({
+  layer,
+  inputRef,
+  onLoadModelFile,
+  onUseShapeSource,
+}: {
+  layer: SourceLayer;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onLoadModelFile?: (file: File) => void;
+  onUseShapeSource?: () => void;
+}) {
+  if (!isObject3DLayer(layer) || !onLoadModelFile || !onUseShapeSource) return null;
+  return (
+    <>
+      <InspectorSelect
+        label="Source"
+        value={layer.kind}
+        options={[
+          { value: 'primitive', label: 'Shape' },
+          { value: 'model', label: 'Model file' },
+        ]}
+        onChange={(value) => {
+          if (value === layer.kind) return;
+          if (value === 'model') inputRef.current?.click();
+          else onUseShapeSource();
+        }}
       />
+      {layer.kind === 'primitive' ? <ModelFileInput inputRef={inputRef} onLoadFile={onLoadModelFile} /> : null}
     </>
   );
 }
@@ -1247,18 +1295,38 @@ function SourceStructureControls({
   onChange,
   modelFileInputRef,
   onLoadModelFile,
+  onUseShapeSource,
 }: {
   layer: SourceLayer;
   onChange: (patch: Partial<Layer>) => void;
   modelFileInputRef: RefObject<HTMLInputElement | null>;
   onLoadModelFile?: (file: File) => void;
+  onUseShapeSource?: () => void;
 }) {
+  const sourceSelect = (
+    <Object3DSourceSelect
+      layer={layer}
+      inputRef={modelFileInputRef}
+      onLoadModelFile={onLoadModelFile}
+      onUseShapeSource={onUseShapeSource}
+    />
+  );
   if (layer.kind === 'primitive')
-    return <PrimitiveStructureControls layer={layer as PrimitiveLayer} onChange={onChange} />;
+    return (
+      <>
+        {sourceSelect}
+        <PrimitiveStructureControls layer={layer as PrimitiveLayer} onChange={onChange} />
+      </>
+    );
   if (layer.kind === 'noise') return <NoiseStructureControls layer={layer} onChange={onChange} />;
   if (layer.kind === 'lineField') return <LineFieldStructureControls layer={layer} onChange={onChange} />;
   if (layer.kind === 'model')
-    return <ModelStructureControls layer={layer} inputRef={modelFileInputRef} onLoadFile={onLoadModelFile} />;
+    return (
+      <>
+        {sourceSelect}
+        <ModelStructureControls layer={layer} inputRef={modelFileInputRef} onLoadFile={onLoadModelFile} />
+      </>
+    );
   return <ArrayStructureControls layer={layer} onChange={onChange} />;
 }
 
@@ -1272,6 +1340,8 @@ function SourceLayerControls({
   onChange,
   modelFileInputRef,
   onLoadModelFile,
+  onLoadEnvironmentFile,
+  onUseShapeSource,
 }: {
   layer: SourceLayer;
   sectionClassName: string;
@@ -1282,6 +1352,8 @@ function SourceLayerControls({
   onChange: (patch: Partial<Layer>) => void;
   modelFileInputRef: RefObject<HTMLInputElement | null>;
   onLoadModelFile?: (file: File) => void;
+  onLoadEnvironmentFile?: (file: File) => void;
+  onUseShapeSource?: () => void;
 }) {
   return (
     <div className={sectionClassName}>
@@ -1300,7 +1372,7 @@ function SourceLayerControls({
         onChange={onChange}
       />
       <InspectorSection
-        title={layer.kind === 'primitive' ? 'Structure' : layer.kind === 'model' ? 'Model' : 'Pattern'}
+        title={isObject3DLayer(layer) ? 'Object' : 'Pattern'}
         summary={structureSummary(layer)}
         open={openSection === 'structure'}
         onToggle={() => toggleOpenSection(setOpenSection, 'structure', 'style')}
@@ -1310,8 +1382,16 @@ function SourceLayerControls({
           onChange={onChange}
           modelFileInputRef={modelFileInputRef}
           onLoadModelFile={onLoadModelFile}
+          onUseShapeSource={onUseShapeSource}
         />
       </InspectorSection>
+      {isObject3DLayer(layer) ? (
+        <Scene3DSections
+          scene={layer.scene}
+          onChange={(scene) => onChange({ scene } as Partial<Layer>)}
+          onLoadEnvironmentFile={onLoadEnvironmentFile}
+        />
+      ) : null}
       <LayerStyleForLayer layer={layer} openSection={openSection} setOpenSection={setOpenSection} onChange={onChange} />
     </div>
   );
@@ -1346,6 +1426,8 @@ export function LayerControls({
   detached = false,
   showAiGenerationProvenance = true,
   onLoadModelFile,
+  onLoadEnvironmentFile,
+  onUseShapeSource,
 }: {
   layer: Layer;
   onChange: (patch: Partial<Layer>) => void;
@@ -1353,6 +1435,8 @@ export function LayerControls({
   detached?: boolean;
   showAiGenerationProvenance?: boolean;
   onLoadModelFile?: (file: File) => void;
+  onLoadEnvironmentFile?: (file: File) => void;
+  onUseShapeSource?: () => void;
 }) {
   const [scaleLocked, setScaleLocked] = useState(true);
   const [openSection, setOpenSection] = useState<LayerControlSection>('content');
@@ -1379,6 +1463,8 @@ export function LayerControls({
       layer={layer as SourceLayer}
       modelFileInputRef={modelFileInputRef}
       onLoadModelFile={onLoadModelFile}
+      onLoadEnvironmentFile={onLoadEnvironmentFile}
+      onUseShapeSource={onUseShapeSource}
     />
   ) : layer.kind === 'effect' ? (
     <EffectInspector layer={layer} onChange={(patch) => onChange(patch as Partial<Layer>)} detached={detached} />

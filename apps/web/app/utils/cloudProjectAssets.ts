@@ -4,6 +4,7 @@ import { apiErrorFields, fetchApiResponse, readApiJson } from './apiClient';
 import {
   type PreparePortableDocumentOptions,
   preparePortableDocument,
+  sceneEnvironmentSources,
   storePortableDocumentAssets,
   stripPortableDocumentAssets,
 } from './documentAssets';
@@ -113,13 +114,13 @@ export async function prepareCloudProjectDocument(
         })
       : Promise.resolve(source),
   );
-  cloudDoc = await mapDocumentEnvironmentSources(cloudDoc, (source, node) =>
+  cloudDoc = await mapDocumentEnvironmentSources(cloudDoc, (source, scene) =>
     isEnvironmentDataUrl(source)
       ? uploader.upload({
           kind: 'environment',
           dataUrl: source,
-          mime: node.environmentMime,
-          label: node.environmentName || environmentLabelsByDataUrl.get(source) || 'Project environment',
+          mime: scene.environmentMime,
+          label: scene.environmentName || environmentLabelsByDataUrl.get(source) || 'Project environment',
         })
       : Promise.resolve(source),
   );
@@ -268,8 +269,7 @@ function collectDocumentSources(doc: CanvasDocument): string[] {
     ...graphNodesOfKind(doc.graph, 'material').flatMap((node) =>
       MATERIAL_TEXTURE_SOURCE_FIELDS.map((field) => node[field]).filter((source): source is string => Boolean(source)),
     ),
-    ...graphNodesOfKind(doc.graph, 'environment').flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
-    ...graphNodesOfKind(doc.graph, 'scene3d').flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
+    ...sceneEnvironmentSources(doc),
   ];
 }
 

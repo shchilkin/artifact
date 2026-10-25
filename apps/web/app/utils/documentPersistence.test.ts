@@ -412,12 +412,8 @@ describe('normalizeDocument', () => {
 
     expect(doc.envAssets).toHaveLength(1);
     expect(doc.envAssets?.[0]).toMatchObject({ id: 'env-a', label: 'studio.exr' });
-    expect(graphNodesOfKind(doc.graph, 'environment')?.[0]).toMatchObject({
-      id: 'env-node-a',
-      environmentSrc: 'artifact-env://env-a',
-      environmentName: '',
-      environmentBytes: 0,
-    });
+    // A loose environment node lit nothing; schema 19 removes it.
+    expect(doc.graph.nodes['env-node-a']).toBeUndefined();
   });
 
   it('falls back to the default aspect when stored aspect is invalid', () => {
