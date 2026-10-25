@@ -174,19 +174,21 @@ describe('makeEffectLayer', () => {
   });
 
   it('turns flat parameter values into entries that own only their parameters', () => {
-    const layer = makeEffectLayer({ id: 'fx', grain: 99, dotGrain: 40, dotGrainSize: 6 });
+    const layer = makeEffectLayer({ id: 'fx', scanlines: 30, vignette: 40 });
     expect(layer.effects).toEqual([
-      {
-        id: 'fx-grain',
-        effect: 'grain',
-        enabled: true,
-        params: { grain: 99 },
-      },
+      { id: 'fx-scanlines', effect: 'scanlines', enabled: true, params: { scanlines: 30, scanlineWidth: 1 } },
+      { id: 'fx-vignette', effect: 'vignette', enabled: true, params: { vignette: 40 } },
+    ]);
+  });
+
+  it('turns kernel values into the effect and mode that absorb them', () => {
+    const layer = makeEffectLayer({ id: 'fx', grain: 99, dotGrain: 40, dotGrainSize: 6 });
+    expect(layer.effects).toMatchObject([
+      { id: 'fx-grain', effect: 'grain', params: { mode: 'fine', amount: 99 } },
       {
         id: 'fx-dotGrain',
-        effect: 'dotGrain',
-        enabled: true,
-        params: { dotGrain: 40, dotGrainSize: 6, dotGrainDensity: 62, dotGrainJitter: 35 },
+        effect: 'halftone',
+        params: { mode: 'stochastic', dotGrain: 40, dotGrainSize: 6, dotGrainDensity: 62, dotGrainJitter: 35 },
       },
     ]);
   });

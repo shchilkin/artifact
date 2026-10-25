@@ -46,6 +46,8 @@ interface EffectDocCopy {
 }
 
 const EFFECT_DOC_COPY: Record<EffectPreset, EffectDocCopy> = {
+  adjust: { description: 'Brightness, contrast, saturation, temperature, hue, and invert in one grade.' },
+  sharpen: { description: 'Crisps edges by pushing each pixel away from its neighbours.' },
   rays: { description: 'Thick colored poster-burst beams from center.' },
   bloom: { description: 'Highlights bleed outward into surrounding pixels.' },
   filmBurn: { description: 'Overexposed edges and chemical flare.' },

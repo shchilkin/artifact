@@ -147,6 +147,7 @@ const EFFECT_FAMILIES: Array<{
   {
     group: 'tone',
     presets: [
+      'adjust',
       'tint',
       'hueShift',
       'vignette',
@@ -171,6 +172,7 @@ const EFFECT_FAMILIES: Array<{
   {
     group: 'graphic',
     presets: [
+      'sharpen',
       'blur',
       'threshold',
       'edgeCrush',
@@ -220,6 +222,8 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
 };
 
 const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
+  adjust: 'Brightness, contrast, saturation, temperature, hue, and invert in one grade.',
+  sharpen: 'Crisps edges and fine detail.',
   rays: 'Colored light beams bursting from the center of the frame.',
   bloom: 'Soft glow bleeding out of the brightest areas, like overexposed film.',
   filmBurn: 'Hot orange flare burning in from one corner.',

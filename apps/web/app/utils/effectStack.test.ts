@@ -13,7 +13,7 @@ function stack(...entries: ReturnType<typeof makeEffectEntry>[]) {
   return makeEffectLayer({ id: 'fx', effects: entries });
 }
 
-const grain = makeEffectEntry('grain', { grain: 20 }, 'grain');
+const grain = makeEffectEntry('grain', { mode: 'fine', amount: 20 }, 'grain');
 const scanlines = makeEffectEntry('scanlines', { scanlines: 30 }, 'scanlines');
 const vignette = makeEffectEntry('vignette', { vignette: 40 }, 'vignette');
 const blur = makeEffectEntry('blur', { blurAmt: 8 }, 'blur');
@@ -65,8 +65,13 @@ describe('effect stack edits', () => {
   });
 
   it('adds and removes entries', () => {
-    const added = addEffectEntry(effects, 'bloom', { bloom: 30 }, () => 'bloom');
-    expect(added.at(-1)).toEqual({ id: 'bloom', effect: 'bloom', enabled: true, params: { bloom: 30 } });
+    const added = addEffectEntry(effects, 'glow', { mode: 'bloom', amount: 30 }, () => 'bloom');
+    expect(added.at(-1)).toEqual({
+      id: 'bloom',
+      effect: 'glow',
+      enabled: true,
+      params: { mode: 'bloom', amount: 30, color: '#ff00ff' },
+    });
     expect(removeEffectEntry(added, 'scanlines').map((entry) => entry.id)).toEqual(['grain', 'vignette', 'bloom']);
   });
 });

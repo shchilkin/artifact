@@ -313,6 +313,20 @@ export const EFFECT_META: Record<string, EffectMeta> = {
     valueLabel: 'y -35',
     cfgOverride: { squeezeY: -35 },
   },
+  adjust: {
+    title: 'Adjust',
+    description: 'Grades brightness, contrast, saturation, temperature, and invert in one pass.',
+    valueLabel: 'contrast 30',
+    family: 'tone',
+    cfgOverride: { adjustContrast: 30, adjustSaturation: 25 },
+  },
+  sharpen: {
+    title: 'Sharpen',
+    description: 'Crisps edges by pushing each pixel away from its neighbours.',
+    valueLabel: 'sharpen 60',
+    family: 'print',
+    cfgOverride: { sharpen: 60 },
+  },
   hueShift: {
     title: 'Hue Shift',
     description: 'Rotates all colors around the hue wheel.',

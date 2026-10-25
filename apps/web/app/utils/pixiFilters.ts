@@ -123,6 +123,46 @@ void main() {
   gl_FragColor = ${SAMPLE('warped')};
 }`;
 
+const ADJUST_FRAG = `${HEADER}
+uniform float uBrightness;
+uniform float uContrast;
+uniform float uSaturation;
+uniform float uTemperature;
+uniform float uInvert;
+
+void main() {
+  vec4 col = texture2D(uSampler, vTextureCoord);
+  if (col.a <= 0.0) {
+    gl_FragColor = col;
+    return;
+  }
+  vec3 c = col.rgb / col.a;
+  c += uBrightness * 0.5;
+  c = (c - 0.5) * (1.0 + uContrast) + 0.5;
+  float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = mix(vec3(luma), c, 1.0 + uSaturation);
+  c += vec3(uTemperature, 0.0, -uTemperature) * 0.15;
+  c = mix(c, 1.0 - c, uInvert);
+  gl_FragColor = vec4(clamp(c, 0.0, 1.0) * col.a, col.a);
+}`;
+
+const SHARPEN_FRAG = `${HEADER}
+uniform float uAmount;
+uniform vec2  uPx;
+
+vec4 sSharpen(vec2 uv) {
+  return texture2D(uSampler, clamp(uv, inputClamp.xy, inputClamp.zw));
+}
+
+void main() {
+  vec2 uv = vTextureCoord;
+  vec4 center = sSharpen(uv);
+  vec4 around = sSharpen(uv + vec2(uPx.x, 0.0)) + sSharpen(uv - vec2(uPx.x, 0.0))
+              + sSharpen(uv + vec2(0.0, uPx.y)) + sSharpen(uv - vec2(0.0, uPx.y));
+  vec4 result = center * (1.0 + 4.0 * uAmount) - around * uAmount;
+  gl_FragColor = vec4(clamp(result.rgb, vec3(0.0), vec3(result.a)), clamp(result.a, 0.0, 1.0));
+}`;
+
 const HUE_FRAG = `${HEADER}
 uniform float uAngle;
 
@@ -405,6 +445,22 @@ function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 
     }),
   );
   addFilter(filters, cfg.posterize, () => f(POSTERIZE_FRAG, { uSteps: Math.max(2, cfg.posterize) }));
+  const adjustActive = [
+    cfg.adjustBrightness,
+    cfg.adjustContrast,
+    cfg.adjustSaturation,
+    cfg.adjustTemperature,
+    cfg.adjustInvert,
+  ].some((value) => value !== 0);
+  addFilter(filters, adjustActive ? 1 : 0, () =>
+    f(ADJUST_FRAG, {
+      uBrightness: cfg.adjustBrightness / 100,
+      uContrast: cfg.adjustContrast / 100,
+      uSaturation: cfg.adjustSaturation / 100,
+      uTemperature: cfg.adjustTemperature / 100,
+      uInvert: cfg.adjustInvert / 100,
+    }),
+  );
   addFilter(filters, cfg.hueShift, () => f(HUE_FRAG, { uAngle: (cfg.hueShift * Math.PI) / 180 }));
   addFilter(filters, cfg.duotone, () =>
     f(DUOTONE_FRAG, {
@@ -428,6 +484,9 @@ function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 
   );
   addFilter(filters, cfg.bloom, () => f(BLOOM_FRAG, { uIntensity: cfg.bloom / 100 }));
   addFilter(filters, cfg.blurAmt, () => createBlurFilter(cfg.blurAmt));
+  addFilter(filters, cfg.sharpen, () =>
+    f(SHARPEN_FRAG, { uAmount: (cfg.sharpen / 100) * 1.5, uPx: [1 / refSize, 1 / canvasH] }),
+  );
   addFilter(filters, cfg.threshold, () => f(THRESHOLD_FRAG, { uCut: cfg.threshold / 100 }));
   addFilter(filters, cfg.edgeDetect, () =>
     f(EDGE_FRAG, {

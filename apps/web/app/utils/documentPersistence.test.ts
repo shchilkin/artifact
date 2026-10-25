@@ -618,13 +618,13 @@ describe('normalizeDocument', () => {
         id: 'legacy-warp-morph-0',
         kind: 'effect',
         preset: 'morph',
-        effects: [{ effect: 'morph', params: { morphAmt: 30, morphFreq: 7 } }],
+        effects: [{ effect: 'displace', params: { mode: 'liquid', morphAmt: 30, morphFreq: 7 } }],
       },
       {
         id: 'legacy-warp-noiseWarp-1',
         kind: 'effect',
         preset: 'noiseWarp',
-        effects: [{ effect: 'noiseWarp', params: { noiseWarp: 40 } }],
+        effects: [{ effect: 'displace', params: { mode: 'noise', noiseWarp: 40 } }],
       },
     ]);
   });
@@ -732,9 +732,14 @@ describe('normalizeDocument', () => {
           kind: 'effect',
           mix: 140,
           effects: [
-            { id: 'a', effect: 'grain', params: { grain: 'loud', scanlines: 40 } },
+            { id: 'a', effect: 'scanlines', params: { scanlines: 'loud', grain: 40 } },
             { effect: 'notAnEffect', params: {} },
-            { id: 'b', effect: 'badStream', enabled: false, params: { badStream: 50, badStreamStages: 'nonsense' } },
+            {
+              id: 'b',
+              effect: 'compression',
+              enabled: false,
+              params: { mode: 'codec', badStream: 50, badStreamStages: 'nonsense' },
+            },
             'junk',
           ],
         },
@@ -744,11 +749,16 @@ describe('normalizeDocument', () => {
     expect(doc.layers[0]).toMatchObject({
       mix: 100,
       effects: [
-        { id: 'a', effect: 'grain', enabled: true, params: { grain: 0 } },
-        { id: 'b', effect: 'badStream', enabled: false, params: { badStream: 50, badStreamStages: 'all' } },
+        { id: 'a', effect: 'scanlines', enabled: true, params: { scanlines: 0, scanlineWidth: 1 } },
+        {
+          id: 'b',
+          effect: 'compression',
+          enabled: false,
+          params: { mode: 'codec', badStream: 50, badStreamStages: 'all' },
+        },
       ],
     });
-    expect(doc.layers[0].kind === 'effect' && doc.layers[0].effects[0].params).not.toHaveProperty('scanlines');
+    expect(doc.layers[0].kind === 'effect' && doc.layers[0].effects[0].params).not.toHaveProperty('grain');
   });
 
   it('fills newer effect defaults when loading older effect layers', () => {
@@ -1177,8 +1187,8 @@ describe('document serialization helpers', () => {
       preset: 'patternRefraction',
       effects: [
         {
-          effect: 'patternRefraction',
-          params: { patternRefraction: 72, patternRefractionScale: 24, patternRefractionAngle: 42 },
+          effect: 'displace',
+          params: { mode: 'pattern', patternRefraction: 72, patternRefractionScale: 24, patternRefractionAngle: 42 },
         },
       ],
     });

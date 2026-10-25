@@ -14,6 +14,8 @@ import { type EffectId, type EffectParams, effectDefaults, effectFromKernel, eff
 import { genId } from './layerIds';
 
 export type EffectPreset =
+  | 'adjust'
+  | 'sharpen'
   | 'rays'
   | 'bloom'
   | 'filmBurn'
@@ -340,6 +342,18 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '║',
     primary: null,
     partial: { mirror: 1 },
+  },
+  adjust: {
+    name: 'Adjust',
+    icon: '◑',
+    primary: 'adjustContrast',
+    partial: { adjustContrast: 20, adjustSaturation: 15 },
+  },
+  sharpen: {
+    name: 'Sharpen',
+    icon: '◇',
+    primary: 'sharpen',
+    partial: { sharpen: 40 },
   },
   hueShift: {
     name: 'Hue Shift',
@@ -669,6 +683,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'patternRefraction',
   'kaleidoscope',
   'squeeze',
+  'adjust',
   'hueShift',
   'vignette',
   'retroResolution',
@@ -688,6 +703,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'risoShift',
   'overprint',
   'blur',
+  'sharpen',
   'threshold',
   'edgeCrush',
   'silhouetteCrush',
