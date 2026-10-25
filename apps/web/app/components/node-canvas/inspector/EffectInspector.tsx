@@ -194,8 +194,22 @@ function EffectNodeSection({
   onChange: (patch: Partial<EffectLayer>) => void;
 }) {
   return (
-    <InspectorSection title="Blend" summary={`${Math.round(layer.mix)}% mix`} open={open} onToggle={onToggle}>
+    <InspectorSection
+      title="Blend"
+      summary={`${Math.round(layer.mix)}% mix${layer.appliesTo === 'layerBelow' ? ' · layer below' : ''}`}
+      open={open}
+      onToggle={onToggle}
+    >
       <InspectorTextInput label="Name" value={layer.name} onChange={(value) => onChange({ name: value })} />
+      <InspectorSelect
+        label="Applies to"
+        value={layer.appliesTo}
+        options={[
+          { value: 'all', label: 'Everything below' },
+          { value: 'layerBelow', label: 'Layer below' },
+        ]}
+        onChange={(value) => onChange({ appliesTo: value === 'layerBelow' ? 'layerBelow' : 'all' })}
+      />
       <InspectorSlider
         label="Mix"
         value={Math.round(layer.mix)}

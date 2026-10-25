@@ -256,7 +256,8 @@ function normalizeEffectLayer(layer: Record<string, unknown>): Record<string, un
     ? layer.effects.flatMap((entry, index) => normalizeEffectEntry(entry, layerId, index) ?? [])
     : [];
   const mix = typeof layer.mix === 'number' && Number.isFinite(layer.mix) ? Math.min(100, Math.max(0, layer.mix)) : 100;
-  return { ...DEFAULT_EFFECT_LAYER_PROPS, ...layer, effects, mix };
+  const appliesTo = layer.appliesTo === 'layerBelow' ? 'layerBelow' : 'all';
+  return { ...DEFAULT_EFFECT_LAYER_PROPS, ...layer, effects, mix, appliesTo };
 }
 
 /** Fields added to a kind since documents were first saved, with the value that keeps their old look. */

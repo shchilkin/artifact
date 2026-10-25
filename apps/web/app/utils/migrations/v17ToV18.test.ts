@@ -37,7 +37,7 @@ describe('migrateV17ToV18', () => {
           id: 'shade-shadow',
           effect: 'shadow',
           params: {
-            mode: 'drop',
+            mode: 'grime',
             opacity: 58,
             x: 8,
             y: 10,

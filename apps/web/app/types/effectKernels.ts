@@ -310,6 +310,10 @@ export const KERNEL_PARAMS = {
     { value: 'show', label: 'Keep source' },
     { value: 'hide', label: 'Shadow only' },
   ]),
+  shadowFalloff: choice('shadow', 'Falloff', [
+    { value: 'stack', label: 'Fade outer layers' },
+    { value: 'flat', label: 'Flat' },
+  ]),
   shadowVariation: num('shadow', 'Variation', 0, 0, 4294967295),
 } satisfies Record<string, KernelParam>;
 

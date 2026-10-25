@@ -16,6 +16,8 @@ interface ShadowSettings {
   grime: number;
   jitter: number;
   opacity: number;
+  /** Every layer at full opacity, instead of fading the outer layers. */
+  flat: boolean;
   variation: number;
 }
 
@@ -54,7 +56,7 @@ function renderShadow(silhouette: HTMLCanvasElement, shadow: ShadowSettings, see
     const t = (i + 1) / layers;
     const x = shadow.x * unit * t + (jitter > 0 ? (rng() - 0.5) * jitter : 0);
     const y = shadow.y * unit * t + (jitter > 0 ? (rng() - 0.5) * jitter : 0);
-    ctx.globalAlpha = (shadow.opacity / 100) * (1.15 - t * 0.55);
+    ctx.globalAlpha = (shadow.opacity / 100) * (shadow.flat ? 1 : 1.15 - t * 0.55);
     ctx.filter = shadow.blur > 0 ? `blur(${shadow.blur * unit * t}px)` : 'none';
     drawSpreadSilhouette(ctx, silhouette, x, y, spread * t);
   }
@@ -146,6 +148,7 @@ export function applyShadowEffect(
     grime: params.shadowGrime,
     jitter: params.shadowJitter,
     opacity: params.shadowOpacity,
+    flat: params.shadowFalloff === 'flat',
     variation: params.shadowVariation >>> 0,
   };
   const source = cloneCanvas(ctx.canvas as HTMLCanvasElement, W, H);

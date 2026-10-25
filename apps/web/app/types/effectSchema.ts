@@ -581,6 +581,14 @@ export const EFFECTS = {
       layers: numParam('Layers', 5, 1, 12, { when: inModes('grime') }),
       grime: numParam('Grime', 45, 0, 100, { format: 'percent', when: inModes('grime') }),
       jitter: numParam('Jitter', 10, 0, 60, { format: 'px', when: inModes('grime') }),
+      falloff: choiceParam(
+        'Falloff',
+        [
+          { value: 'stack', label: 'Fade outer layers' },
+          { value: 'flat', label: 'Flat' },
+        ],
+        inModes('grime'),
+      ),
       source: choiceParam('Source', [
         { value: 'show', label: 'Keep source' },
         { value: 'hide', label: 'Shadow only' },
@@ -588,7 +596,7 @@ export const EFFECTS = {
       variation: { ...numParam('Variation', 0, 0, 4294967295), hidden: true },
     },
     kernels: (params) => {
-      const drop = params.mode !== 'grime';
+      const drop = params.mode === 'drop';
       return [
         {
           kernel: 'shadow',
@@ -603,6 +611,7 @@ export const EFFECTS = {
             shadowGrime: drop ? 0 : numberOf(params.grime),
             shadowJitter: drop ? 0 : numberOf(params.jitter),
             shadowSource: String(params.source),
+            shadowFalloff: drop ? 'flat' : String(params.falloff),
             shadowVariation: numberOf(params.variation),
           },
         },
@@ -610,7 +619,13 @@ export const EFFECTS = {
     },
     absorbs: {
       shadow: (values) => ({
-        mode: values.shadowLayers === 1 && values.shadowGrime === 0 && values.shadowJitter === 0 ? 'drop' : 'grime',
+        mode:
+          values.shadowFalloff === 'flat' &&
+          values.shadowLayers === 1 &&
+          values.shadowGrime === 0 &&
+          values.shadowJitter === 0
+            ? 'drop'
+            : 'grime',
         opacity: values.shadowOpacity,
         color: values.shadowColor,
         x: values.shadowX,
@@ -620,6 +635,7 @@ export const EFFECTS = {
         layers: values.shadowLayers,
         grime: values.shadowGrime,
         jitter: values.shadowJitter,
+        falloff: values.shadowFalloff,
         source: values.shadowSource,
         variation: values.shadowVariation,
       }),

@@ -110,6 +110,7 @@ async function runGpuPass(
 export function isGpuOnlyEffectLayer(layer: EffectLayer): boolean {
   return (
     layer.visible &&
+    layer.appliesTo !== 'layerBelow' &&
     !layer.maskAlpha &&
     !compositesOverBase(layer) &&
     hasEffectPass(layer, 'gpu') &&

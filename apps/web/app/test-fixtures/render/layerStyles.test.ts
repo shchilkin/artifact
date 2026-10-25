@@ -141,3 +141,30 @@ describe('clip to layer below', () => {
     expect(await pixel(unclipped, 20, 20, 540)).toEqual([255, 0, 0, 255]);
   });
 });
+
+describe('effects applied to the layer below', () => {
+  const ground = makeFillLayer({ id: 'ground', color: '#ff0000' });
+  const shape = makeTextLayer({ id: 'shape', content: 'I', size: 300, color: '#ffffff' });
+  const shadow = (appliesTo: 'all' | 'layerBelow') =>
+    makeEffectPresetLayer('shadow', {
+      id: 'shadow',
+      appliesTo,
+      shadowOpacity: 100,
+      shadowColor: '#000000',
+      shadowX: 120,
+      shadowY: 0,
+      shadowBlur: 0,
+    });
+
+  it('casts a shadow from the layer below only, over what is under it', async () => {
+    const scoped = doc([ground, shape, shadow('layerBelow')]);
+    expect(await pixel(scoped, 270, 270, 540)).toEqual([255, 255, 255, 255]);
+    expect((await pixel(scoped, 390, 270, 540)).slice(0, 3)).toEqual([0, 0, 0]);
+    expect(await pixel(scoped, 20, 20, 540)).toEqual([255, 0, 0, 255]);
+  });
+
+  it('shadows everything below by default, which an opaque ground hides', async () => {
+    const all = doc([ground, shape, shadow('all')]);
+    expect(await pixel(all, 390, 270, 540)).toEqual([255, 0, 0, 255]);
+  });
+});

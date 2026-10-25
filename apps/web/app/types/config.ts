@@ -282,6 +282,8 @@ export interface EffectLayer extends BaseLayer {
   effects: EffectEntry[];
   /** How much of the effected result replaces the input, 0-100. */
   mix: number;
+  /** `all` runs the stack on everything below; `layerBelow` runs it on the layer below alone, over what is under it. */
+  appliesTo: 'all' | 'layerBelow';
   /** Composites the effect result over its input; defaults to normal (replace). */
   blendMode?: string;
   maskAlpha: boolean;

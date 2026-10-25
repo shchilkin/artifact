@@ -1,7 +1,7 @@
 import type { CanvasDocument, CanvasGraph, EffectLayer, Layer } from '../../types/config';
 import { EXPORT_NODE_ID, findGraphNode, findGraphNodeOfKind } from '../nodeGraph';
 import type { GraphNodeKind, GraphNodeOfKind } from '../nodeKinds';
-import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas } from './canvas';
+import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas, toCompositeOperation } from './canvas';
 import { findIncomingSource, graphLayerInputPort, graphNodePrimaryPort } from './graphInputs';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 import {
@@ -129,6 +129,10 @@ async function renderLayerGraphNode(nodeId: string, context: GraphNodeRenderCont
   const gpuChain = await renderGpuOnlyLayerChain(nodeId, layer, context);
   if (gpuChain) return gpuChain;
   const sourceId = findIncomingSource(graph, nodeId, graphLayerInputPort(layer));
+  if (layer.kind === 'effect' && layer.appliesTo === 'layerBelow' && layer.visible) {
+    const scoped = await renderEffectOnLayerBelow(layer, sourceId, context);
+    if (scoped) return scoped;
+  }
   const base = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
   throwIfRenderAborted(options);
   const applied = await applyLayerToCanvas(
@@ -143,6 +147,30 @@ async function renderLayerGraphNode(nodeId: string, context: GraphNodeRenderCont
   if (!isClippedLayer(layer) || applied === base) return applied;
   const clip = await renderClipBase(sourceId, context);
   return clip ? blendInsideClip(base, applied, clip, W, H) : applied;
+}
+
+/**
+ * An effect layer set to the layer below: its stack runs on that layer alone, and the result is drawn over what is
+ * under that layer with the layer's blend mode. Null when the layer below is not a plain content layer (an effect,
+ * a clipped layer, a graph-only node, or nothing), in which case the effect applies to everything below.
+ */
+async function renderEffectOnLayerBelow(effect: EffectLayer, sourceId: string | null, context: GraphNodeRenderContext) {
+  const { doc, graph, W, H, imageCache, options, renderDependency } = context;
+  const below = sourceId ? findLayer(doc, sourceId) : undefined;
+  if (!below || below.kind === 'effect' || below.clipToBelow) return null;
+  const underId = findIncomingSource(graph, below.id, graphLayerInputPort(below));
+  const under = underId ? await renderDependency(underId) : createCanvas(W, H);
+  if (!below.visible) return under;
+  const belowOptions = await primitiveLayerRenderOptions(below, context);
+  const alone = await applyLayerToCanvas(createCanvas(W, H), below, doc, W, H, imageCache, belowOptions);
+  const effected = await applyLayerToCanvas(alone, effect, doc, W, H, imageCache, options);
+  throwIfRenderAborted(options);
+  const result = cloneCanvas(under, W, H);
+  const ctx = result.getContext('2d')!;
+  ctx.globalCompositeOperation = toCompositeOperation(below.blendMode);
+  ctx.drawImage(effected, 0, 0, W, H);
+  ctx.globalCompositeOperation = 'source-over';
+  return result;
 }
 
 function isClippedLayer(layer: Layer) {

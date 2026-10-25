@@ -27,7 +27,6 @@ function hashString(value: string): number {
 
 function shadowLayer(id: string, stored: Record<string, unknown>): Record<string, unknown> {
   const node = { ...GRIME_SHADOW_DEFAULTS, ...stored };
-  const drop = node.layers === 1 && node.grime === 0 && node.jitter === 0;
   return {
     id,
     kind: 'effect',
@@ -44,7 +43,7 @@ function shadowLayer(id: string, stored: Record<string, unknown>): Record<string
         effect: 'shadow',
         enabled: true,
         params: {
-          mode: drop ? 'drop' : 'grime',
+          mode: 'grime',
           opacity: node.opacity,
           color: node.color,
           x: node.x,

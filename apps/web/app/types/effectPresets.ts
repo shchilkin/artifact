@@ -89,6 +89,7 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   kind: 'effect',
   effects: [],
   mix: 100,
+  appliesTo: 'all',
   maskAlpha: false,
   seedOffset: 0,
 };
@@ -359,6 +360,7 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
       shadowLayers: 1,
       shadowGrime: 0,
       shadowJitter: 0,
+      shadowFalloff: 'flat',
     },
   },
   grimeShadow: {
