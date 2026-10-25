@@ -1392,7 +1392,15 @@ function SourceLayerControls({
           onLoadEnvironmentFile={onLoadEnvironmentFile}
         />
       ) : null}
-      <LayerStyleForLayer layer={layer} openSection={openSection} setOpenSection={setOpenSection} onChange={onChange} />
+      {/* A scene-lit 3D Object renders full frame over its backdrop, so opacity and blend do not apply. */}
+      {isObject3DLayer(layer) && layer.scene ? null : (
+        <LayerStyleForLayer
+          layer={layer}
+          openSection={openSection}
+          setOpenSection={setOpenSection}
+          onChange={onChange}
+        />
+      )}
     </div>
   );
 }

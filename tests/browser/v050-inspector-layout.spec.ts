@@ -6,7 +6,6 @@ import {
   makeGraphMaskNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
-  makeGraphScene3DNode,
   makeGraphShaderNode,
   makeGraphTransformNode,
 } from '../../apps/web/app/utils/nodeKinds';
@@ -83,7 +82,8 @@ const LAYER_TARGETS = [
 ];
 
 const graphNodes = {
-  scene: makeGraphScene3DNode({ id: 'u4-scene', name: 'Scene' }),
+  // A schema-3 scene node; it opens as the lit 3D Object layer `u4-scene`.
+  scene: { id: 'u4-scene', name: 'Scene' },
   merge: makeGraphMergeNode({ id: 'u4-merge' }),
   color: makeGraphColorNode({ id: 'u4-color' }),
   repeat: makeGraphRepeatNode({ id: 'u4-repeat' }),
@@ -254,11 +254,17 @@ test('every layer kind renders the same inspector layout in Layers and Nodes', a
   expect(slider.x + slider.width).toBeLessThanOrEqual(entry.x);
 });
 
-test('a 3D Scene renders the same inspector layout in Layers and Nodes', async ({ page }) => {
+test('a lit 3D Object renders the same inspector layout in Layers and Nodes', async ({ page }) => {
   await gotoDocument(page, graphDocument);
   await page.locator('.sidebar .layer-row').filter({ hasText: 'Scene' }).first().click();
   const layers = await readInspectorLayout(await readyInspector(layerInspector(page)));
-  expect(layers.sections[0]?.title).toBe('Scene Inputs');
+  expect(layers.sections.map((section) => section.title)).toEqual([
+    'Content',
+    'Object',
+    'Lighting',
+    'Environment',
+    'Layer',
+  ]);
 
   await enterNodes(page);
   expect(await readInspectorLayout(await selectNode(page, 'u4-scene'))).toEqual(layers);

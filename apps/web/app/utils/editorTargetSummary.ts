@@ -155,8 +155,16 @@ export function buildGraphTargetSummary(
   };
 }
 
+/** Product names for layer kinds whose stored name differs. */
+const LAYER_KIND_LABELS: Partial<Record<Layer['kind'], string>> = {
+  primitive: '3D Object',
+  model: '3D Object',
+  array: 'Shape Pattern',
+  lineField: 'Line Field',
+};
+
 function getLayerKindLabel(layer: Layer): string {
-  if (layer.kind !== 'effect') return capitalize(layer.kind);
+  if (layer.kind !== 'effect') return LAYER_KIND_LABELS[layer.kind] ?? capitalize(layer.kind);
   const preset = (layer as EffectLayer).preset;
   return preset ? (EFFECT_PRESETS[preset]?.name ?? preset) : 'Custom effect';
 }

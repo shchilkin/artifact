@@ -407,7 +407,8 @@ layer's `bg` input as backdrop, lit by the scene's rig and exposure, with the
 material from its `material` port and an environment from the scene's map file
 or, when none is loaded, the branch on its `env` port (rendered at
 `environmentRenderSize`, 2:1). The layer's opacity and blend do not apply on
-this path, as with the former 3D Scene node. Draft renders and contexts without
+this path, as with the former 3D Scene node, so the inspector hides its Style
+section while scene lighting is on. Draft renders and contexts without
 WebGL use the Canvas 2D fallback shape. The live node preview
 (`Scene3DPreviewSurface`) uses the same settings, material, and environment
 inputs through `ModelViewport3D`. Camera state comes from

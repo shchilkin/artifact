@@ -1904,6 +1904,8 @@ test('layer add library shows source previews and can add source presets', async
   await aiRow.hover();
   await expect(menu.getByAltText('AI Image preview')).toBeVisible({ timeout: 15_000 });
 
+  // Source presets are searchable; browsing shows the source they start from.
+  await page.getByLabel('Search layers and effects').fill('paper');
   const paperRow = menu.locator('.add-library-row').filter({
     has: page.locator('.add-library-row-label', { hasText: /^Paper$/ }),
   });
@@ -2468,7 +2470,7 @@ test('primitive node exposes interactive camera controls', async ({ page }) => {
   await page.getByRole('button', { name: 'Add layer' }).click();
   await page
     .locator('.add-library-row')
-    .filter({ has: page.locator('.add-library-row-label', { hasText: /^Primitive$/ }) })
+    .filter({ has: page.locator('.add-library-row-label', { hasText: /^3D Object$/ }) })
     .click();
   await expect(page.getByText('Camera framing is set on the node preview in Nodes')).toBeVisible({ timeout: 15_000 });
 
@@ -3054,7 +3056,7 @@ test('v0.35 graph nodes mount and select without recursive React updates', async
   await gotoDocument(page, v035NodeSmokeDocument);
   await switchToNodeView(page);
 
-  const lineFieldNode = page.getByRole('group', { name: /Line Field Smoke, lineField node/ });
+  const lineFieldNode = page.getByRole('group', { name: /Line Field Smoke, line field node/ });
   const maskNode = page.getByRole('group', { name: /Mask Smoke, mask node/ });
   const transformNode = page.getByRole('group', { name: /Transform Smoke, transform node/ });
   const shadowNode = page.getByRole('group', { name: /Grime Shadow Smoke, effect node/ });
