@@ -236,8 +236,9 @@ test('node Add Library lists recipes as one more filter', async ({ page }) => {
   const surface = page.locator('.add-library-node-menu');
   const filters = surface.getByRole('group', { name: 'Filter library' });
   await filters.getByRole('button', { name: 'Recipes' }).click();
-  await expect(surface.getByRole('group', { name: 'Print Damage' })).toBeVisible();
-  await expect(surface.getByRole('group', { name: 'Photo + Type' })).toBeVisible();
+  const recipes = surface.getByRole('group', { name: 'Recipes' });
+  await expect(recipes.getByRole('option', { name: /Print Damage/ })).toBeVisible();
+  await expect(recipes.getByRole('option', { name: /Photo \+ Type/ })).toBeVisible();
   const ids = await surface.locator('[role="option"]').evaluateAll((options) => options.map((option) => option.id));
   expect(new Set(ids).size).toBe(ids.length);
 });

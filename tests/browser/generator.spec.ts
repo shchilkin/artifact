@@ -2947,12 +2947,10 @@ test('add-node menu exposes recipe groups and workflow search', async ({ page })
   await clickEditorControl(intentRail.getByRole('button', { name: /^All$/ }));
 
   await clickEditorControl(intentRail.getByRole('button', { name: 'Recipes' }));
-  await expect(page.getByRole('group', { name: 'Photo + Type' })).toBeVisible();
-  await expect(page.getByRole('group', { name: 'Texture Type' })).toBeVisible();
-  const printDamage = page.getByRole('group', { name: 'Print Damage' });
-  await expect(printDamage).toBeVisible();
-  for (const label of ['Halftone', 'Tear', 'Paper']) {
-    await expect(printDamage.getByRole('option', { name: new RegExp(label) })).toBeVisible();
+  const recipes = page.getByRole('group', { name: 'Recipes' });
+  await expect(recipes).toBeVisible();
+  for (const label of ['Photo + Type', 'Texture Type', 'Print Damage']) {
+    await expect(recipes.getByRole('option', { name: new RegExp(label.replace('+', '\\+')) })).toBeVisible();
   }
 
   await page.getByLabel('Search nodes and effects').fill('photo type');
@@ -3059,7 +3057,7 @@ test('v0.35 graph nodes mount and select without recursive React updates', async
   const lineFieldNode = page.getByRole('group', { name: /Line Field Smoke, lineField node/ });
   const maskNode = page.getByRole('group', { name: /Mask Smoke, mask node/ });
   const transformNode = page.getByRole('group', { name: /Transform Smoke, transform node/ });
-  const shadowNode = page.getByRole('group', { name: /Grime Shadow Smoke, shadow node/ });
+  const shadowNode = page.getByRole('group', { name: /Grime Shadow Smoke, effect node/ });
   const repeatNode = page.getByRole('group', { name: /Repeat Smoke, repeat node/ });
 
   await expect(lineFieldNode).toBeVisible({ timeout: 15_000 });
