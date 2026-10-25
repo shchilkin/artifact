@@ -55,6 +55,7 @@ export { isLayerStackGraph } from './nodeGraph';
 import { makeGraphEnvironmentNode } from './nodeKinds/environment';
 import { makeGraphShaderNode } from './nodeKinds/shader';
 import { makeNoisePresetLayer } from './noisePresets';
+import { insertRecipeInDocument } from './recipes';
 import { makeRepeatPresetNode } from './repeatPresets';
 import { makeTextPresetLayer, type TextPresetId } from './textPresets';
 
@@ -478,7 +479,7 @@ function isGraphOnlyAddAction(action: DocumentAddAction): action is GraphNodeAdd
   return action.kind === 'repeatPreset' || isGraphNodeKind(action.kind);
 }
 
-function layerForAddAction(action: Exclude<DocumentAddAction, GraphNodeAddAction>) {
+function layerForAddAction(action: Exclude<DocumentAddAction, GraphNodeAddAction | { kind: 'recipe' }>) {
   if (action.kind === 'effect') return createEffectPresetLayer(action.preset);
   if (action.kind === 'noisePreset') return withGeneratedNodeSeed(makeNoisePresetLayer(action.preset));
   if (action.kind === 'arrayPreset') return makeArrayPresetLayer(action.preset);
@@ -498,6 +499,13 @@ export function addNodeAtDocument(
   insertion?: DocumentInsertConnectionConfig,
   createEdgeId?: CreateGraphEdgeId,
 ): AddNodeAtDocumentResult {
+  if (action.kind === 'recipe') {
+    const { doc: next, outputId } = insertRecipeInDocument(doc, action.recipe, position);
+    return {
+      doc: next,
+      selectedLayerId: outputId && next.layers.some((layer) => layer.id === outputId) ? outputId : null,
+    };
+  }
   if (isGraphOnlyAddAction(action)) return addGraphOnlyNodeAtDocument(doc, action, position, insertion, createEdgeId);
 
   const layer = layerForAddAction(action);

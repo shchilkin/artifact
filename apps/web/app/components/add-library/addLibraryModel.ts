@@ -6,6 +6,7 @@ import type { AddAction } from '../../utils/addActions';
 import { ARRAY_PRESET_IDS, ARRAY_PRESETS } from '../../utils/arrayPresets';
 import { GRAPH_NODE_KINDS, GRAPH_NODE_MODELS } from '../../utils/nodeKinds';
 import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
+import { isRecipeId, RECIPES } from '../../utils/recipes';
 import { REPEAT_PRESET_IDS, REPEAT_PRESETS } from '../../utils/repeatPresets';
 import { TEXT_PRESET_IDS, TEXT_PRESETS } from '../../utils/textPresets';
 
@@ -70,11 +71,12 @@ const MATERIAL_PRESET_IDS = [
   'fabric',
 ] as const;
 
+/** A recipe in the Recipes view: one item that inserts a wired group of nodes. */
 export type AddLibraryRecipe = {
   id: string;
   label: string;
   hint: string;
-  itemIds: readonly string[];
+  item: AddLibraryItem;
   surfaces: readonly AddLibrarySurface[];
 };
 
@@ -618,6 +620,19 @@ const materialItems: AddLibraryItem[] = [
   },
 ];
 
+const recipeItems: AddLibraryItem[] = RECIPES.map((recipe) => ({
+  id: `recipe:${recipe.id}`,
+  label: recipe.label,
+  symbol: '⊕',
+  description: recipe.starter.description,
+  group: 'utility',
+  action: { kind: 'recipe', recipe: recipe.id },
+  surfaces: ['nodes'],
+  tags: ['recipe', 'graph'],
+  keywords: `recipe group template wired ${recipe.hint.replaceAll('/', ' ')}`,
+  showInBrowse: false,
+}));
+
 export const ADD_LIBRARY_ITEMS: AddLibraryItem[] = [
   ...layerItems,
   ...sourcePresetItems,
@@ -625,99 +640,16 @@ export const ADD_LIBRARY_ITEMS: AddLibraryItem[] = [
   ...effectItems,
   ...effectVariantItems,
   ...utilityItems,
+  ...recipeItems,
 ];
 
-export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
-  {
-    id: 'photo-type',
-    label: 'Photo + Type',
-    hint: 'image / duotone / title / grain',
-    surfaces: ['nodes'],
-    itemIds: ['layer:fill', 'layer:image', 'effect:duotone', 'textPreset:title', 'effect:grain'],
-  },
-  {
-    id: 'texture-type',
-    label: 'Texture Type',
-    hint: 'noise / title / print finish',
-    surfaces: ['nodes'],
-    itemIds: [
-      'layer:fill',
-      'layer:noise',
-      'noisePreset:paper',
-      'textPreset:title',
-      'effect:risoShift',
-      'effect:scanlines',
-      'effect:grain',
-    ],
-  },
-  {
-    id: 'sticker-grid',
-    label: 'Sticker Grid',
-    hint: 'paper / array / registration',
-    surfaces: ['nodes'],
-    itemIds: [
-      'noisePreset:paper',
-      'arrayPreset:stickerGrid',
-      'repeatPreset:stickerGrid',
-      'effect:risoShift',
-      'textPreset:label',
-      'effect:overprint',
-    ],
-  },
-  {
-    id: 'primitive-image',
-    label: 'Primitive + Image',
-    hint: 'object branch / image branch / merge',
-    surfaces: ['nodes'],
-    itemIds: [
-      'layer:image',
-      'layer:primitive',
-      'effect:cyanotype',
-      'effect:neonGlow',
-      'merge',
-      'textPreset:title',
-      'effect:vignette',
-    ],
-  },
-  {
-    id: 'shader-material',
-    label: 'Shader Material',
-    hint: 'shader fill / material maps / primitive',
-    surfaces: ['nodes'],
-    itemIds: ['shader:mesh', 'material', 'layer:primitive', 'effect:gradientMap', 'effect:patternRefraction'],
-  },
-  {
-    id: 'print-damage',
-    label: 'Print Damage',
-    hint: 'paper / halftone / tear / dust',
-    surfaces: ['nodes'],
-    itemIds: [
-      'noisePreset:paper',
-      'textPreset:poster',
-      'effect:halftone',
-      'effect:tear',
-      'effect:grain',
-      'effect:threshold',
-    ],
-  },
-  {
-    id: 'retro-3d-cover',
-    label: 'Retro 3D Cover',
-    hint: 'model / scene / palette / dots',
-    surfaces: ['nodes'],
-    itemIds: [
-      'layer:fill',
-      'layer:model',
-      'environment',
-      'scene3d',
-      'effect:retroResolution',
-      'effect:indexedPalette',
-      'effect:dotGrain',
-      'effect:edgeCrush',
-      'effect:silhouetteCrush',
-    ],
-  },
-];
+export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = RECIPES.map((recipe, index) => ({
+  id: recipe.id,
+  label: recipe.label,
+  hint: recipe.hint,
+  item: recipeItems[index],
+  surfaces: ['nodes'],
+}));
 
 export function addLibraryItemsForSurface(surface: AddLibrarySurface) {
   return ADD_LIBRARY_ITEMS.filter((item) => item.surfaces.includes(surface));
@@ -790,14 +722,24 @@ function isAddLibraryAction(value: unknown): value is AddLibraryAction {
   return validateAddLibraryActionPayload(value);
 }
 
-function isActionRecord(
-  value: unknown,
-): value is { kind: string; layerKind?: unknown; preset?: unknown; shaderKind?: unknown; role?: unknown } {
+function isActionRecord(value: unknown): value is {
+  kind: string;
+  layerKind?: unknown;
+  preset?: unknown;
+  recipe?: unknown;
+  shaderKind?: unknown;
+  role?: unknown;
+} {
   if (!value || typeof value !== 'object') return false;
   return 'kind' in value && typeof value.kind === 'string';
 }
 
-function validateAddLibraryActionPayload(value: { kind: string; layerKind?: unknown; preset?: unknown }) {
+function validateAddLibraryActionPayload(value: {
+  kind: string;
+  layerKind?: unknown;
+  preset?: unknown;
+  recipe?: unknown;
+}) {
   const validators: Record<string, () => boolean> = {
     layer: () => isLayerAddKind(value.layerKind),
     textPreset: () => isPresetId(value.preset, TEXT_PRESET_IDS),
@@ -805,6 +747,7 @@ function validateAddLibraryActionPayload(value: { kind: string; layerKind?: unkn
     noisePreset: () => isPresetId(value.preset, NOISE_PRESET_IDS),
     arrayPreset: () => isPresetId(value.preset, ARRAY_PRESET_IDS),
     repeatPreset: () => isPresetId(value.preset, REPEAT_PRESET_IDS),
+    recipe: () => isRecipeId(value.recipe),
   };
   return validators[value.kind]?.() ?? false;
 }

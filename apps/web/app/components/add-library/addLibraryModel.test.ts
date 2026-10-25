@@ -48,33 +48,16 @@ describe('addLibraryModel', () => {
     expect(layerItems.map((item) => item.id)).not.toContain('merge');
   });
 
-  it('keeps node recipes valid and node-only', () => {
-    const nodeItemIds = new Set(addLibraryItemsForSurface('nodes').map((item) => item.id));
-
+  it('offers recipes in Nodes as items that insert a wired recipe', () => {
     expect(addLibraryRecipesForSurface('layers')).toEqual([]);
     expect(addLibraryRecipesForSurface('nodes')).toEqual(ADD_LIBRARY_RECIPES);
+    const nodeItemIds = new Set(addLibraryItemsForSurface('nodes').map((item) => item.id));
     for (const recipe of ADD_LIBRARY_RECIPES) {
-      expect(recipe.itemIds.every((id) => nodeItemIds.has(id))).toBe(true);
+      expect(nodeItemIds.has(recipe.item.id), recipe.id).toBe(true);
+      expect(recipe.item.action).toEqual({ kind: 'recipe', recipe: recipe.id });
+      expect(parseAddLibraryAction(serializeAddLibraryAction(recipe.item.action))).toEqual(recipe.item.action);
     }
-  });
-
-  it('offers a shader material recipe with single-purpose nodes for the material bridge workflow', () => {
-    const recipe = ADD_LIBRARY_RECIPES.find((item) => item.id === 'shader-material');
-
-    expect(recipe).toMatchObject({
-      label: 'Shader Material',
-      hint: 'shader fill / material maps / primitive',
-      surfaces: ['nodes'],
-    });
-    expect(recipe?.itemIds).toEqual(
-      expect.arrayContaining([
-        'shader:mesh',
-        'material',
-        'layer:primitive',
-        'effect:gradientMap',
-        'effect:patternRefraction',
-      ]),
-    );
+    expect(parseAddLibraryAction(JSON.stringify({ kind: 'recipe', recipe: 'not-real' }))).toBeNull();
   });
 
   it('exposes AI Shader Effect as a prompt-ready input-driven shader node', () => {
