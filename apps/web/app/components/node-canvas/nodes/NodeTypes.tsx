@@ -2,6 +2,7 @@ import type { Node, NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
+import { KIND_LABEL } from '../constants';
 import { useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { LayerPreviewSurface } from '../thumbnails/LayerPreviewSurface';
@@ -29,7 +30,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
     <NodeFrame
       id={layer.id}
       kind={layer.kind}
-      label={layer.kind}
+      label={KIND_LABEL[layer.kind] ?? layer.kind}
       name={layer.name}
       selected={selected}
       outputPath={outputPath}

@@ -535,7 +535,7 @@ export function makeSourceLayer(sourceType: SourceType = 'primitive', partial: S
           ? 'Line Field'
           : sourceType === 'model'
             ? '3D Model'
-            : 'Array';
+            : 'Shape Pattern';
   const base = {
     id: genId(),
     name: defaultName,

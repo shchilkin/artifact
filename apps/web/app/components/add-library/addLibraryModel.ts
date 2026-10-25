@@ -398,14 +398,14 @@ const layerItems: AddLibraryItem[] = [
   },
   {
     id: 'layer:array',
-    label: 'Array',
+    label: 'Shape Pattern',
     symbol: KIND_SYMBOL.array,
     description: 'Draw discs, bars, or diamonds in a line, grid, or radial pattern.',
     group: 'source',
     action: { kind: 'layer', layerKind: 'array' },
     surfaces: ['layers', 'nodes'],
     tags: ['source', 'pattern'],
-    keywords: 'motif sticker grid pattern repeated marks',
+    keywords: 'array motif sticker grid pattern repeated marks discs bars diamonds',
   },
   {
     id: 'layer:lineField',
@@ -466,6 +466,8 @@ const sourcePresetItems: AddLibraryItem[] = [
     surfaces: ['layers', 'nodes'] as const,
     tags: ['source', 'texture'],
     keywords: 'texture paper grain static source recipe',
+    // Presets stay searchable; browsing shows the source or node they start from.
+    showInBrowse: false,
   })),
   ...ARRAY_PRESET_IDS.map((preset) => ({
     id: `arrayPreset:${preset}`,
@@ -477,6 +479,8 @@ const sourcePresetItems: AddLibraryItem[] = [
     surfaces: ['layers', 'nodes'] as const,
     tags: ['source', 'pattern'],
     keywords: 'motif sticker grid orbit shard pattern recipe',
+    // Presets stay searchable; browsing shows the source or node they start from.
+    showInBrowse: false,
   })),
 ];
 
@@ -601,6 +605,8 @@ const utilityItems: AddLibraryItem[] = [
     surfaces: ['nodes'] as const,
     tags: ['utility', 'repeat'],
     keywords: 'motif sticker grid echo orbit repeat recipe',
+    // Presets stay searchable; browsing shows the source or node they start from.
+    showInBrowse: false,
   })),
 ];
 

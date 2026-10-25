@@ -32,7 +32,9 @@ import {
   getAiGenerationStatusLabel,
   getAiGenerationUiState,
 } from '../../utils/aiGenerationStatus';
+import { ARRAY_PRESETS } from '../../utils/arrayPresets';
 import { getCachedImportedFont, isFontUri, normalizeImportedFontLabel } from '../../utils/fontStore';
+import { NOISE_PRESETS } from '../../utils/noisePresets';
 import { EffectInspector } from '../node-canvas/inspector/EffectInspector';
 import {
   BlendModeNote,
@@ -65,6 +67,7 @@ import {
   TEXT_ALIGN_OPTIONS,
 } from './fieldDefs';
 import { LayerStateSection } from './LayerStateSection';
+import { PresetStartSelect } from './PresetStartSelect';
 
 const R = FIELD_RANGES;
 const DEFAULT_PLACEMENT = { x: 0.5, y: 0.5, scaleX: 1, scaleY: 1, rotation: 0 };
@@ -972,6 +975,7 @@ function NoiseStructureControls({
 }) {
   return (
     <>
+      <PresetStartSelect presets={NOISE_PRESETS} onApply={(patch) => onChange(patch as Partial<Layer>)} />
       <InspectorSelect
         label="Noise"
         value={layer.noiseType}
@@ -1038,6 +1042,7 @@ function ArrayStructureControls({
   const arrayLabels = getArrayControlLabels(layer);
   return (
     <>
+      <PresetStartSelect presets={ARRAY_PRESETS} onApply={(patch) => onChange(patch as Partial<Layer>)} />
       <InspectorSelect
         label="Pattern"
         value={layer.arrayPattern}

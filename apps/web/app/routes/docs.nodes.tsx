@@ -233,7 +233,7 @@ const SOURCE_NODES: NodeDef[] = [
   {
     id: 'array',
     symbol: '▦',
-    name: 'Array',
+    name: 'Shape Pattern',
     desc: 'A motif repeater for lines, grids, and radial bursts. Start from sticker grid, radial burst, barcode line, orbit rings, or shard field presets, then tune the same array fields.',
     params: [
       { key: 'arrayCount', range: '2–18' },
