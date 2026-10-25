@@ -10,7 +10,6 @@ import type {
   PrimitiveLayer,
   TextLayer,
 } from '../../types/config';
-import type { EffectControlSectionId } from '../../types/effectSchema';
 import type { AddAction } from '../../utils/addActions';
 import type { GraphEditKind } from '../../utils/documentDispatch';
 import type { DocumentUpdateMode } from '../../utils/documentHistory';
@@ -196,8 +195,6 @@ export interface PortRowProps {
   outputs: Array<{ label: string; portId: string; nodeId: string }>;
   connected: ConnectedNodePorts;
 }
-
-export type EffectSectionId = 'node' | EffectControlSectionId;
 
 export interface PaneMenuProps {
   x: number;

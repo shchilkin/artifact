@@ -236,8 +236,8 @@ test('every layer kind renders the same inspector layout in Layers and Nodes', a
   ).toEqual(['Image Source', 'Generate']);
   expect(layersLayouts.get('u4-emoji')?.sections[0]?.title).toBe('Emoji Set');
   expect(layersLayouts.get('u4-effect-scanlines')?.sections.map((section) => section.title)).toEqual([
-    'Texture',
-    'Node',
+    'Scanlines',
+    'Blend',
     'Layer',
   ]);
 

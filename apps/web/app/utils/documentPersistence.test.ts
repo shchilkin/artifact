@@ -614,8 +614,18 @@ describe('normalizeDocument', () => {
 
     expect(doc.layers).toHaveLength(2);
     expect(doc.layers).toMatchObject([
-      { id: 'legacy-warp-morph-0', kind: 'effect', preset: 'morph', morphAmt: 30, morphFreq: 7 },
-      { id: 'legacy-warp-noiseWarp-1', kind: 'effect', preset: 'noiseWarp', noiseWarp: 40 },
+      {
+        id: 'legacy-warp-morph-0',
+        kind: 'effect',
+        preset: 'morph',
+        effects: [{ effect: 'morph', params: { morphAmt: 30, morphFreq: 7 } }],
+      },
+      {
+        id: 'legacy-warp-noiseWarp-1',
+        kind: 'effect',
+        preset: 'noiseWarp',
+        effects: [{ effect: 'noiseWarp', params: { noiseWarp: 40 } }],
+      },
     ]);
   });
 
@@ -713,6 +723,34 @@ describe('normalizeDocument', () => {
     ]);
   });
 
+  it('keeps only known effects and the parameters each one owns', () => {
+    const doc = normalizeDocument({
+      schemaVersion: DOCUMENT_SCHEMA_VERSION,
+      layers: [
+        {
+          id: 'fx',
+          kind: 'effect',
+          mix: 140,
+          effects: [
+            { id: 'a', effect: 'grain', params: { grain: 'loud', scanlines: 40 } },
+            { effect: 'notAnEffect', params: {} },
+            { id: 'b', effect: 'badStream', enabled: false, params: { badStream: 50, badStreamStages: 'nonsense' } },
+            'junk',
+          ],
+        },
+      ],
+    });
+
+    expect(doc.layers[0]).toMatchObject({
+      mix: 100,
+      effects: [
+        { id: 'a', effect: 'grain', enabled: true, params: { grain: 0 } },
+        { id: 'b', effect: 'badStream', enabled: false, params: { badStream: 50, badStreamStages: 'all' } },
+      ],
+    });
+    expect(doc.layers[0].kind === 'effect' && doc.layers[0].effects[0].params).not.toHaveProperty('scanlines');
+  });
+
   it('fills newer effect defaults when loading older effect layers', () => {
     const doc = normalizeDocument({
       layers: [
@@ -732,8 +770,15 @@ describe('normalizeDocument', () => {
       id: 'legacy-scanlines',
       kind: 'effect',
       preset: 'scanlines',
-      scanlines: 24,
-      scanlineWidth: 1,
+      mix: 100,
+      effects: [
+        {
+          id: 'legacy-scanlines-scanlines',
+          effect: 'scanlines',
+          enabled: true,
+          params: { scanlines: 24, scanlineWidth: 1 },
+        },
+      ],
     });
   });
 
@@ -1130,9 +1175,12 @@ describe('document serialization helpers', () => {
     expect(parsedEffect).toMatchObject({
       id: effect.id,
       preset: 'patternRefraction',
-      patternRefraction: 72,
-      patternRefractionScale: 24,
-      patternRefractionAngle: 42,
+      effects: [
+        {
+          effect: 'patternRefraction',
+          params: { patternRefraction: 72, patternRefractionScale: 24, patternRefractionAngle: 42 },
+        },
+      ],
     });
   });
 

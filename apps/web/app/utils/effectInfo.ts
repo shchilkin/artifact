@@ -1,9 +1,10 @@
-import type { CanvasDocument, EffectLayer, EffectPreset } from '../types/config';
-import { DEFAULT_EXPORT, makeDocument, makeEmojiLayer, ZERO_EFFECT } from '../types/config';
+import type { CanvasDocument, EffectPreset } from '../types/config';
+import { DEFAULT_EXPORT, makeDocument, makeEmojiLayer } from '../types/config';
 import {
   EFFECT_PARAMS,
   type EffectFamilyId,
   type EffectParamKey,
+  type EffectParamValues,
   effectDefinition,
   effectParam,
   isEffectId,
@@ -15,7 +16,7 @@ export interface EffectMeta {
   title: string;
   description: string;
   valueLabel: string;
-  cfgOverride: Partial<EffectLayer>;
+  cfgOverride: Partial<EffectParamValues>;
   family?: EffectFamilyId;
   goodFor?: string;
 }
@@ -31,8 +32,7 @@ const BASE_EMOJI_LAYER = makeEmojiLayer({
   blur: 40,
 });
 
-const BASE_EFFECT: Partial<EffectLayer> = {
-  ...ZERO_EFFECT,
+const BASE_EFFECT: Partial<EffectParamValues> = {
   rayInt: 50,
   rays: 10,
   tintOp: 20,

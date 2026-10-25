@@ -1,15 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { effectRuns, findEffectEntry } from '../utils/effectStack';
 import { EFFECT_PRESET_MENU_ORDER, type EffectLayer, makeDocument, makeEffectPresetLayer } from './config';
 import {
   EFFECT_IDS,
+  EFFECT_PARAM_DEFAULTS,
   EFFECT_PARAM_KEYS,
   EFFECT_PARAMS,
-  EFFECT_SECTIONS,
+  EFFECT_PASS_ORDER,
   type EffectId,
   effectDefinition,
   effectOfPreset,
   effectParamKeys,
   isEffectActive,
+  isGpuEffect,
   presetParamKeys,
 } from './effectSchema';
 
@@ -74,10 +77,14 @@ describe('effect parameter schema', () => {
     workerOps.length = 0;
   });
 
-  it('gives every parameter exactly one inspector control', () => {
-    const placed = EFFECT_SECTIONS.flatMap((section) => section.params);
-    expect([...placed].sort()).toEqual([...EFFECT_PARAM_KEYS].sort());
-    expect(new Set(placed).size).toBe(placed.length);
+  it('lists every effect once in pass order, Canvas 2D and worker effects before GPU effects', () => {
+    expect([...EFFECT_PASS_ORDER].sort()).toEqual([...EFFECT_IDS].sort());
+    const firstGpu = EFFECT_PASS_ORDER.findIndex(isGpuEffect);
+    expect(EFFECT_PASS_ORDER.slice(firstGpu).every(isGpuEffect)).toBe(true);
+  });
+
+  it('keeps every effect off at its defaults', () => {
+    for (const effect of EFFECT_IDS) expect(isEffectActive(EFFECT_PARAM_DEFAULTS, effect), effect).toBe(false);
   });
 
   it('gives every effect a backend, parameters, and amounts it owns', () => {
@@ -107,15 +114,19 @@ describe('effect parameter schema', () => {
       const effect = effectOfPreset(preset);
       expect(presetParamKeys(preset).length, preset).toBeGreaterThan(0);
       for (const key of presetParamKeys(preset)) expect(effectParamKeys(effect), preset).toContain(key);
-      expect(isEffectActive(makeEffectPresetLayer(preset), effect), preset).toBe(true);
+      expect(isEffectActive(findEffectEntry(makeEffectPresetLayer(preset), effect)?.params ?? {}, effect), preset).toBe(
+        true,
+      );
     }
   });
 
   it.each(EFFECT_IDS)('renders %s only on its declared backend', async (effect) => {
     const layer = effectLayer(effect);
     const { backend } = effectDefinition(effect);
-    const { buildFiltersFromEffectLayer } = await import('../utils/pixiFilters');
-    const gpuFilters = buildFiltersFromEffectLayer(layer, 1, W, H) ?? [];
+    const { buildEffectFilters } = await import('../utils/pixiFilters');
+    const gpuFilters = effectRuns(layer)
+      .filter((run) => run.pass === 'gpu')
+      .flatMap((run) => buildEffectFilters(run.values, 1, W, H) ?? []);
     const { before, after } = await renderCanvasPass(layer);
     const canvasChanged = before.some((value, index) => value !== after[index]);
 

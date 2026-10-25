@@ -1,65 +1,20 @@
 /* eslint-disable react-refresh/only-export-components */
+import type { EffectEntry } from '../../../types/config';
 import {
-  EFFECT_PRESET_MENU_ORDER,
-  type EffectLayer,
-  type EffectNumericField,
-  type EffectPreset,
-} from '../../../types/config';
-import {
-  EFFECT_SECTIONS,
   type EffectParamKey,
+  type EffectParamValues,
   type EffectSliderValueFormat,
   effectParam,
-  presetParamKeys,
+  effectParamKeys,
 } from '../../../types/effectSchema';
 import { hasEffectInfo } from '../../../utils/effectInfo';
 import { EffectInfoContent } from '../../EffectInfoContent';
 import { NoPan } from '../nodes/NoPan';
-import type { EffectSectionId } from '../types';
-import { effectSectionPresets, effectSectionSummary } from './effectSectionModel';
-import { InspectorColorInput, InspectorSection, InspectorSlider } from './fields';
-
-type EffectStringField = {
-  [K in keyof EffectLayer]-?: EffectLayer[K] extends string ? K : never;
-}[keyof EffectLayer];
-
-type IndexedColorField =
-  | 'indexedColorA'
-  | 'indexedColorB'
-  | 'indexedColorC'
-  | 'indexedColorD'
-  | 'indexedColorE'
-  | 'indexedColorF';
+import { InspectorColorInput, InspectorSelect, InspectorSlider } from './fields';
 
 export type { EffectSliderValueFormat };
 
-export type EffectSliderControl = {
-  type: 'slider';
-  presets: readonly EffectPreset[];
-  label: string;
-  field: EffectNumericField;
-  min: number;
-  max: number;
-  valueFormat?: EffectSliderValueFormat;
-  overrideMax?: number;
-  effectKey?: string;
-};
-
-export type EffectColorControl = {
-  type: 'color';
-  presets: readonly EffectPreset[];
-  label: string;
-  field: EffectStringField;
-};
-
-export type EffectControl = EffectSliderControl | EffectColorControl;
-
-export type EffectSectionDefinition = {
-  id: EffectSectionId;
-  title: string;
-  presets: readonly EffectPreset[];
-  controls: EffectControl[];
-};
+type EffectParamsPatch = Partial<EffectParamValues>;
 
 export function formatEffectSliderValue(value: number, format: EffectSliderValueFormat = 'number'): string {
   const rounded = Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '');
@@ -101,7 +56,7 @@ const INDEXED_COLOR_FIELDS = [
   'indexedColorD',
   'indexedColorE',
   'indexedColorF',
-] as const satisfies readonly IndexedColorField[];
+] as const satisfies readonly EffectParamKey[];
 
 type IndexedPalettePreset = {
   name: string;
@@ -119,106 +74,63 @@ const INDEXED_PALETTE_PRESETS: readonly IndexedPalettePreset[] = [
   { name: 'PS fire', colors: ['#12002b', '#3b1590', '#d400b8', '#ff1d1d', '#f6c400', '#fff1df'] },
 ];
 
-export function activeIndexedPaletteCount(layer: Pick<EffectLayer, 'indexedPaletteCount'>): number {
-  return Math.min(6, Math.max(2, Math.round(layer.indexedPaletteCount ?? 6)));
+export function activeIndexedPaletteCount(params: Pick<EffectParamsPatch, 'indexedPaletteCount'>): number {
+  return Math.min(6, Math.max(2, Math.round(params.indexedPaletteCount ?? 6)));
 }
 
-function indexedPalettePresetPatch(preset: IndexedPalettePreset): Partial<EffectLayer> {
-  return Object.fromEntries(
-    INDEXED_COLOR_FIELDS.map((field, index) => [field, preset.colors[index] ?? '#000000']),
-  ) as Partial<EffectLayer>;
+function indexedPalettePresetPatch(preset: IndexedPalettePreset): EffectParamsPatch {
+  return Object.fromEntries(INDEXED_COLOR_FIELDS.map((field, index) => [field, preset.colors[index] ?? '#000000']));
 }
 
-export function randomIndexedPalettePatch(random: () => number = Math.random): Partial<EffectLayer> {
+export function randomIndexedPalettePatch(random: () => number = Math.random): EffectParamsPatch {
   const preset =
     INDEXED_PALETTE_PRESETS[Math.floor(random() * INDEXED_PALETTE_PRESETS.length)] ?? INDEXED_PALETTE_PRESETS[0];
   return indexedPalettePresetPatch(preset);
 }
 
-function effectControl(field: EffectParamKey): EffectControl {
+interface EntryControlProps {
+  entry: EffectEntry;
+  onChange: (patch: EffectParamsPatch) => void;
+}
+
+function EffectParamControl({ field, entry, onChange }: EntryControlProps & { field: EffectParamKey }) {
   const param = effectParam(field);
-  const presets = EFFECT_PRESET_MENU_ORDER.filter((preset) => presetParamKeys(preset).includes(field));
-  if (param.type === 'color') return { type: 'color', presets, label: param.label, field: field as EffectStringField };
-  return {
-    type: 'slider',
-    presets,
-    label: param.label,
-    field: field as EffectNumericField,
-    min: param.min,
-    max: param.max,
-    valueFormat: param.format,
-    overrideMax: param.overrideMax,
-    effectKey: param.help,
-  };
-}
-
-/** Inspector sections and their controls, from the effect parameter schema. */
-export const EFFECT_SECTION_DEFINITIONS: EffectSectionDefinition[] = EFFECT_SECTIONS.map((section) => ({
-  id: section.id,
-  title: section.title,
-  presets: effectSectionPresets(section.id),
-  controls: section.params.map(effectControl),
-}));
-
-interface Props {
-  layer: EffectLayer;
-  openSection: EffectSectionId | null;
-  setOpenSection: (updater: (current: EffectSectionId | null) => EffectSectionId | null) => void;
-  showSection: (presets: readonly EffectPreset[]) => boolean;
-  showControl: (presets: readonly EffectPreset[]) => boolean;
-  onChange: (patch: Partial<EffectLayer>) => void;
-}
-
-function renderControl(control: EffectControl, props: Props) {
-  const { layer, showControl, onChange } = props;
-  if (!showControl(control.presets)) return null;
-
-  if (control.type === 'color') {
+  const value = entry.params[field] ?? param.default;
+  if (param.type === 'color') {
     return (
-      <InspectorColorInput
-        key={control.field}
-        label={control.label}
-        value={String(layer[control.field])}
-        onChange={(value) => onChange({ [control.field]: value } as Partial<EffectLayer>)}
+      <InspectorColorInput label={param.label} value={String(value)} onChange={(next) => onChange({ [field]: next })} />
+    );
+  }
+  if (param.type === 'choice') {
+    return (
+      <InspectorSelect
+        label={param.label}
+        value={String(value)}
+        options={param.options}
+        onChange={(next) => onChange({ [field]: next })}
       />
     );
   }
-
-  const effectKey = control.effectKey ?? control.field;
+  const helpKey = param.help ?? field;
   return (
     <InspectorSlider
-      key={control.field}
-      label={control.label}
-      value={Number(layer[control.field])}
-      min={control.min}
-      max={control.max}
-      formatValue={(value) => formatEffectSliderValue(value, control.valueFormat)}
-      unit={effectSliderUnit(control.valueFormat)}
-      overrideMax={control.overrideMax}
-      help={hasEffectInfo(effectKey) ? <EffectInfoContent effectKey={effectKey} /> : undefined}
-      onChange={(value) => onChange({ [control.field]: value } as Partial<EffectLayer>)}
+      label={param.label}
+      value={Number(value)}
+      min={param.min}
+      max={param.max}
+      formatValue={(next) => formatEffectSliderValue(next, param.format)}
+      unit={effectSliderUnit(param.format)}
+      overrideMax={param.overrideMax}
+      help={hasEffectInfo(helpKey) ? <EffectInfoContent effectKey={helpKey} /> : undefined}
+      onChange={(next) => onChange({ [field]: next })}
     />
   );
 }
 
-function isIndexedPaletteControl(control: EffectControl): boolean {
-  return control.presets.includes('indexedPalette');
-}
-
-function isIndexedPaletteColorControl(
-  control: EffectControl,
-): control is EffectColorControl & { field: IndexedColorField } {
-  return control.type === 'color' && (INDEXED_COLOR_FIELDS as readonly string[]).includes(control.field);
-}
-
-function renderIndexedPaletteControls(section: EffectSectionDefinition, props: Props) {
-  const { layer, onChange } = props;
-  const activeCount = activeIndexedPaletteCount(layer);
-  const sliders = section.controls.filter((control) => control.type === 'slider' && isIndexedPaletteControl(control));
-  const colors = section.controls.filter(isIndexedPaletteColorControl);
+function IndexedPalettePanel({ entry, onChange }: EntryControlProps) {
+  const activeCount = activeIndexedPaletteCount(entry.params);
   return (
     <>
-      {sliders.map((control) => renderControl(control, props))}
       <div className="indexed-palette-panel">
         <div className="indexed-palette-panel-head">
           <div className="indexed-palette-panel-copy">
@@ -243,7 +155,7 @@ function renderIndexedPaletteControls(section: EffectSectionDefinition, props: P
               <span
                 key={field}
                 className={`indexed-palette-strip-swatch${active ? ' indexed-palette-strip-swatch-active' : ''}`}
-                style={{ backgroundColor: String(layer[field]) }}
+                style={{ backgroundColor: String(entry.params[field]) }}
                 title={`${active ? 'Active' : 'Parked'} color ${index + 1}`}
               />
             );
@@ -268,53 +180,43 @@ function renderIndexedPaletteControls(section: EffectSectionDefinition, props: P
           ))}
         </div>
       </div>
-      {colors.map((control, index) => (
-        <InspectorColorInput
-          key={control.field}
-          label={`${control.label} ${index < activeCount ? 'active' : 'parked'}`}
-          value={String(layer[control.field])}
-          inactive={index >= activeCount}
-          onChange={(value) => onChange({ [control.field]: value } as Partial<EffectLayer>)}
-        />
-      ))}
+      {INDEXED_COLOR_FIELDS.map((field, index) => {
+        const param = effectParam(field);
+        return (
+          <InspectorColorInput
+            key={field}
+            label={`${param.label} ${index < activeCount ? 'active' : 'parked'}`}
+            value={String(entry.params[field] ?? param.default)}
+            inactive={index >= activeCount}
+            onChange={(value) => onChange({ [field]: value })}
+          />
+        );
+      })}
     </>
   );
 }
 
-function renderSectionControls(section: EffectSectionDefinition, props: Props) {
-  if (section.id === 'color' && props.layer.preset === 'indexedPalette') {
+/** The controls of one stack entry: every parameter its effect owns, in schema order. */
+export function EffectEntryControls({ entry, onChange }: EntryControlProps) {
+  const fields = effectParamKeys(entry.effect);
+  if (entry.effect === 'indexedPalette') {
+    const isColor = (field: EffectParamKey) => (INDEXED_COLOR_FIELDS as readonly string[]).includes(field);
     return (
       <>
-        {section.controls
-          .filter((control) => !isIndexedPaletteControl(control))
-          .map((control) => renderControl(control, props))}
-        {renderIndexedPaletteControls(section, props)}
+        {fields
+          .filter((field) => !isColor(field))
+          .map((field) => (
+            <EffectParamControl key={field} field={field} entry={entry} onChange={onChange} />
+          ))}
+        <IndexedPalettePanel entry={entry} onChange={onChange} />
       </>
     );
   }
-  return section.controls.map((control) => renderControl(control, props));
-}
-
-export function EffectControlSections(props: Props) {
-  const { layer, openSection, setOpenSection, showSection } = props;
-
   return (
     <>
-      {EFFECT_SECTION_DEFINITIONS.map((section) => {
-        if (!showSection(section.presets)) return null;
-
-        return (
-          <InspectorSection
-            key={section.id}
-            title={section.title}
-            summary={effectSectionSummary(layer, section.id)}
-            open={openSection === section.id}
-            onToggle={() => setOpenSection((current) => (current === section.id ? null : section.id))}
-          >
-            {renderSectionControls(section, props)}
-          </InspectorSection>
-        );
-      })}
+      {fields.map((field) => (
+        <EffectParamControl key={field} field={field} entry={entry} onChange={onChange} />
+      ))}
     </>
   );
 }

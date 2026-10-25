@@ -134,8 +134,11 @@ effect (searching "Sepia" adds Color Filter in sepia mode).
 
 ## Delivery Sequence
 
-1. Phase 1 fixes (independent PRs).
-2. Effect stack schema + migration (one PR, model first).
+1. Phase 1 fixes (independent PRs). Done.
+2. Effect stack schema + migration (one PR, model first). Done: schema 7,
+   golden fixtures unchanged. Bad Stream's sub-presets became its
+   `badStreamStages` parameter; the retro-finish recipe card in the effect
+   inspector was removed with the old per-family sections.
 3. Catalog merges, one family per PR, each with its migration step.
 4. Layers capabilities.
 5. Sources and 3D, after a prototype.

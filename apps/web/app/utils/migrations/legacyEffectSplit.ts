@@ -3,9 +3,12 @@
  * migration shipped. Current code splits through `effectPresetPatch.ts`, which derives its rules from the effect
  * parameter schema; do not change these rules when the schema changes.
  */
-import { type EffectLayer, type EffectPreset, makeEffectPresetLayer } from '../../types/config';
+import { EFFECT_PRESETS, type EffectPreset } from '../../types/config';
 
-type EffectField = keyof EffectLayer;
+/** A schema-4 effect layer: every effect parameter as a field on the layer. */
+export type StoredEffectLayer = Record<string, unknown>;
+
+type EffectField = string;
 
 interface SplitRule {
   preset: EffectPreset;
@@ -125,16 +128,14 @@ function numericValue(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
-function hasActiveValue(layer: Partial<EffectLayer>, keys: EffectField[]): boolean {
+function hasActiveValue(layer: StoredEffectLayer, keys: EffectField[]): boolean {
   return keys.some((key) => numericValue(layer[key]) !== 0);
 }
 
-function copyPresetFields(source: Partial<EffectLayer>, rule: SplitRule): Partial<EffectLayer> {
-  const patch: Partial<EffectLayer> = {};
+function copyPresetFields(source: StoredEffectLayer, rule: SplitRule): StoredEffectLayer {
+  const patch: StoredEffectLayer = {};
   for (const key of rule.copy) {
-    if (source[key] !== undefined) {
-      (patch as Record<string, unknown>)[key] = source[key];
-    }
+    if (source[key] !== undefined) patch[key] = source[key];
   }
   if (source.maskAlpha !== undefined) patch.maskAlpha = source.maskAlpha;
   if (source.seedOffset !== undefined) patch.seedOffset = source.seedOffset;
@@ -142,22 +143,37 @@ function copyPresetFields(source: Partial<EffectLayer>, rule: SplitRule): Partia
 }
 
 /** Presets whose fields are active (non-zero) in the patch, in rule order. */
-export function activeEffectPatchPresets(patch: Partial<EffectLayer>): EffectPreset[] {
+export function activeEffectPatchPresets(patch: StoredEffectLayer): EffectPreset[] {
   return SPLIT_RULES.filter((rule) => hasActiveValue(patch, rule.active)).map((rule) => rule.preset);
 }
 
+/** A schema-4 focused preset layer: the preset's values, then the copied fields. Absent parameters are defaults. */
+function presetLayer(preset: EffectPreset, fields: StoredEffectLayer): StoredEffectLayer {
+  const { name, partial } = EFFECT_PRESETS[preset];
+  const { badStreamStages, ...presetValues } = partial;
+  void badStreamStages;
+  return {
+    name,
+    visible: true,
+    locked: false,
+    kind: 'effect',
+    maskAlpha: false,
+    seedOffset: 0,
+    ...presetValues,
+    ...fields,
+    preset,
+  };
+}
+
 export function splitEffectPatchIntoPresetLayers(
-  source: Partial<EffectLayer>,
+  source: StoredEffectLayer,
   options: { idPrefix?: string } = {},
-): EffectLayer[] {
-  return SPLIT_RULES.filter((rule) => hasActiveValue(source, rule.active)).map((rule, index) => {
-    const layer = makeEffectPresetLayer(rule.preset, copyPresetFields(source, rule));
-    return {
-      ...layer,
-      id: options.idPrefix ? `${options.idPrefix}-${rule.preset}-${index}` : layer.id,
-      visible: source.visible ?? layer.visible,
-      locked: source.locked ?? layer.locked,
-      ...(source.blendMode ? { blendMode: source.blendMode } : {}),
-    };
-  });
+): StoredEffectLayer[] {
+  return SPLIT_RULES.filter((rule) => hasActiveValue(source, rule.active)).map((rule, index) => ({
+    ...presetLayer(rule.preset, copyPresetFields(source, rule)),
+    id: `${options.idPrefix ?? 'effect'}-${rule.preset}-${index}`,
+    visible: source.visible ?? true,
+    locked: source.locked ?? false,
+    ...(source.blendMode ? { blendMode: source.blendMode } : {}),
+  }));
 }

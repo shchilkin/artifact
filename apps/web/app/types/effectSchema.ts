@@ -117,7 +117,14 @@ export interface EffectColorParam extends EffectParamBase {
   default: string;
 }
 
-export type EffectParam = EffectNumberParam | EffectColorParam;
+/** A parameter that picks one of a few named variants of its effect. */
+export interface EffectChoiceParam extends EffectParamBase {
+  type: 'choice';
+  default: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+}
+
+export type EffectParam = EffectNumberParam | EffectColorParam | EffectChoiceParam;
 
 type NumberParamOptions = Pick<EffectNumberParam, 'overrideMax' | 'format' | 'help'>;
 
@@ -134,6 +141,15 @@ function num(
 
 function color(effect: EffectId, label: string, defaultValue: string): EffectColorParam {
   return { type: 'color', effect, label, default: defaultValue };
+}
+
+function choice(
+  effect: EffectId,
+  label: string,
+  options: EffectChoiceParam['options'],
+  defaultValue: string = options[0].value,
+): EffectChoiceParam {
+  return { type: 'choice', effect, label, options, default: defaultValue };
 }
 
 /** Every effect parameter, in stored field order. A parameter belongs to exactly one effect and one inspector section. */
@@ -153,6 +169,14 @@ export const EFFECT_PARAMS = {
   badStreamSmear: num('badStream', 'Smear', 35, 0, 100, { format: 'percent' }),
   badStreamChroma: num('badStream', 'Chroma Drift', 28, 0, 100, { format: 'percent' }),
   badStreamDarkness: num('badStream', 'Darkness', 38, 0, 100, { format: 'percent' }),
+  badStreamStages: choice('badStream', 'Stages', [
+    { value: 'all', label: 'All stages' },
+    { value: 'macroblocks', label: 'Macroblocks' },
+    { value: 'detailBlocks', label: 'Detail blocks' },
+    { value: 'blockSmear', label: 'Block smear' },
+    { value: 'chromaBlocks', label: 'Chroma blocks' },
+    { value: 'blockDropout', label: 'Block dropout' },
+  ]),
   pixelStretch: num('pixelStretch', 'Stretch', 0, 0, 100, { format: 'percent' }),
   pixelStretchLength: num('pixelStretch', 'Length', 24, 1, 80, { overrideMax: 160, format: 'px' }),
   pixelStretchAngle: num('pixelStretch', 'Angle', 0, 0, 180, { format: 'deg' }),
@@ -261,167 +285,10 @@ export const EFFECT_PARAMS = {
 
 export type EffectParamKey = keyof typeof EFFECT_PARAMS;
 
-/** Stored values of every effect parameter: colors are hex strings, everything else a number. */
+/** Stored values of every effect parameter: colors and choices are strings, everything else a number. */
 export type EffectParamValues = {
-  [K in EffectParamKey]: (typeof EFFECT_PARAMS)[K]['type'] extends 'color' ? string : number;
+  [K in EffectParamKey]: (typeof EFFECT_PARAMS)[K]['type'] extends 'color' | 'choice' ? string : number;
 };
-
-export type EffectControlSectionId = 'rays' | 'glitch' | 'texture' | 'tint' | 'warp' | 'color' | 'riso' | 'graphic';
-
-/** Inspector sections and the order of their controls. Every parameter appears in exactly one section. */
-export const EFFECT_SECTIONS: ReadonlyArray<{
-  id: EffectControlSectionId;
-  title: string;
-  params: readonly EffectParamKey[];
-}> = [
-  {
-    id: 'rays',
-    title: 'Light Rays',
-    params: [
-      'rayColor',
-      'rayInt',
-      'rays',
-      'bloom',
-      'filmBurn',
-      'neonGlow',
-      'neonColor',
-      'fog',
-      'fogColor',
-      'speedLines',
-    ],
-  },
-  {
-    id: 'glitch',
-    title: 'Glitch',
-    params: [
-      'glitch',
-      'rgbSplit',
-      'ca',
-      'interlace',
-      'dataMosh',
-      'vhsTracking',
-      'badStream',
-      'badStreamBlockSize',
-      'badStreamDetail',
-      'badStreamSmear',
-      'badStreamChroma',
-      'badStreamDarkness',
-      'pixelStretch',
-      'pixelStretchLength',
-      'pixelStretchAngle',
-    ],
-  },
-  {
-    id: 'texture',
-    title: 'Texture',
-    params: [
-      'grain',
-      'dotGrain',
-      'dotGrainSize',
-      'dotGrainDensity',
-      'dotGrainJitter',
-      'scanlines',
-      'scanlineWidth',
-      'matte',
-      'dither',
-      'emboss',
-      'linocut',
-    ],
-  },
-  {
-    id: 'tint',
-    title: 'Tint',
-    params: ['tint', 'tintOp'],
-  },
-  {
-    id: 'warp',
-    title: 'Warp',
-    params: [
-      'noiseWarp',
-      'morphAmt',
-      'morphFreq',
-      'vortex',
-      'barrel',
-      'tearAmt',
-      'tearSize',
-      'mirror',
-      'waveAmt',
-      'waveFreq',
-      'zoomBlur',
-      'rippleAmt',
-      'rippleFreq',
-      'patternRefraction',
-      'patternRefractionScale',
-      'patternRefractionAngle',
-      'kaleidoscope',
-      'squeezeX',
-      'squeezeY',
-    ],
-  },
-  {
-    id: 'color',
-    title: 'Color',
-    params: [
-      'hueShift',
-      'vignette',
-      'retroResolution',
-      'pixelate',
-      'posterize',
-      'indexedPalette',
-      'indexedPaletteCount',
-      'indexedColorA',
-      'indexedColorB',
-      'indexedColorC',
-      'indexedColorD',
-      'indexedColorE',
-      'indexedColorF',
-      'gradientMap',
-      'gradientMapShadow',
-      'gradientMapMid',
-      'gradientMapHighlight',
-      'channelMixer',
-      'channelRedMix',
-      'channelGreenMix',
-      'channelBlueMix',
-      'sepia',
-      'infrared',
-      'solarize',
-      'bleachBypass',
-      'cyanotype',
-      'splitToneAmt',
-      'splitShadow',
-      'splitHighlight',
-    ],
-  },
-  {
-    id: 'riso',
-    title: 'Riso',
-    params: ['duotone', 'duoA', 'duoB', 'halftone', 'risoShift', 'risoAngle', 'overprint'],
-  },
-  {
-    id: 'graphic',
-    title: 'Graphic',
-    params: [
-      'blurAmt',
-      'threshold',
-      'edgeCrush',
-      'silhouetteCrush',
-      'edgeDetect',
-      'bokehBlur',
-      'bokehThreshold',
-      'hatching',
-      'hatchScale',
-      'hatchAngle',
-      'gooeyMerge',
-      'gooeyRadius',
-      'gooeyThreshold',
-      'gradMix',
-      'gradA',
-      'gradB',
-      'gradAngle',
-    ],
-  },
-];
 
 export interface EffectPresetVariant {
   /** The effect the preset adds, when the preset is not named after it. */
@@ -511,6 +378,84 @@ export function isEffectActive(values: Partial<Record<EffectParamKey, unknown>>,
     default:
       return amountValues.some((value) => value > 0);
   }
+}
+
+/**
+ * The order the renderer runs effects in when a layer's stack lists them in this order: the Canvas 2D / worker
+ * chain, then the GPU filter chain. A stack is rendered in runs that follow this order (see `utils/effectStack.ts`).
+ */
+export const EFFECT_PASS_ORDER: readonly EffectId[] = [
+  'retroResolution',
+  'rays',
+  'glitch',
+  'badStream',
+  'rgbSplit',
+  'scanlines',
+  'grain',
+  'dotGrain',
+  'tint',
+  'sepia',
+  'infrared',
+  'ca',
+  'dither',
+  'indexedPalette',
+  'gradientMap',
+  'channelMixer',
+  'edgeCrush',
+  'silhouetteCrush',
+  'pixelStretch',
+  'bokehBlur',
+  'hatching',
+  'vhsTracking',
+  'matte',
+  'wave',
+  'zoomBlur',
+  'neonGlow',
+  'overprint',
+  'solarize',
+  'bleachBypass',
+  'cyanotype',
+  'splitTone',
+  'ripple',
+  'patternRefraction',
+  'kaleidoscope',
+  'squeeze',
+  'emboss',
+  'linocut',
+  'fog',
+  'gooeyMerge',
+  'speedLines',
+  'mirror',
+  'dataMosh',
+  'interlace',
+  'noiseWarp',
+  'morph',
+  'vortex',
+  'barrel',
+  'tear',
+  'pixelate',
+  'posterize',
+  'hueShift',
+  'duotone',
+  'halftone',
+  'risoShift',
+  'bloom',
+  'blur',
+  'threshold',
+  'edgeDetect',
+  'gradientOverlay',
+  'vignette',
+  'filmBurn',
+];
+
+/** Whether an effect runs in the GPU filter pass rather than the Canvas 2D / worker pass. */
+export function isGpuEffect(effect: EffectId): boolean {
+  return EFFECT_DEFINITIONS[effect].backend === 'gpu';
+}
+
+/** Defaults of the parameters an effect owns. */
+export function effectParamDefaults(effect: EffectId): Partial<EffectParamValues> {
+  return Object.fromEntries(effectParamKeys(effect).map((key) => [key, EFFECT_PARAM_SPECS[key].default]));
 }
 
 /** Effects with this backend, in split order. */

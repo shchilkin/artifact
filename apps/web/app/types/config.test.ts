@@ -14,6 +14,7 @@ import {
   GOOGLE_FONT_STYLESHEET_URL,
   makeDocument,
   makeEffectLayer,
+  makeEffectPresetLayer,
   makeEmojiLayer,
   makeImageLayer,
   makeSourceLayer,
@@ -160,131 +161,45 @@ describe('cloneDocument shader state', () => {
 });
 
 describe('makeEffectLayer', () => {
-  it('returns a layer with kind: effect', () => {
+  it('returns an empty effect stack at full mix', () => {
     const layer = makeEffectLayer();
-    expect(layer.kind).toBe('effect');
+    expect(layer).toMatchObject({
+      kind: 'effect',
+      name: 'Effect',
+      effects: [],
+      mix: 100,
+      maskAlpha: false,
+      seedOffset: 0,
+    });
   });
 
-  it('returns all required numeric effect fields', () => {
-    const layer = makeEffectLayer();
-    const numericFields = [
-      'grain',
-      'dotGrain',
-      'dotGrainSize',
-      'dotGrainDensity',
-      'dotGrainJitter',
-      'scanlines',
-      'scanlineWidth',
-      'glitch',
-      'badStream',
-      'badStreamBlockSize',
-      'badStreamDetail',
-      'badStreamSmear',
-      'badStreamChroma',
-      'badStreamDarkness',
-      'pixelStretch',
-      'pixelStretchLength',
-      'pixelStretchAngle',
-      'tintOp',
-      'rays',
-      'rayInt',
-      'morphAmt',
-      'morphFreq',
-      'tearAmt',
-      'tearSize',
-      'noiseWarp',
-      'vortex',
-      'barrel',
-      'mirror',
-      'dataMosh',
-      'interlace',
-      'retroResolution',
-      'pixelate',
-      'hueShift',
-      'rgbSplit',
-      'vignette',
-      'bloom',
-      'posterize',
-      'indexedPalette',
-      'indexedPaletteCount',
-      'gradientMap',
-      'channelMixer',
-      'channelRedMix',
-      'channelGreenMix',
-      'channelBlueMix',
-      'filmBurn',
-      'duotone',
-      'halftone',
-      'risoShift',
-      'risoAngle',
-      'blurAmt',
-      'threshold',
-      'edgeCrush',
-      'silhouetteCrush',
-      'edgeDetect',
-      'bokehBlur',
-      'bokehThreshold',
-      'hatching',
-      'hatchScale',
-      'hatchAngle',
-      'gooeyMerge',
-      'gooeyRadius',
-      'gooeyThreshold',
-      'gradMix',
-      'gradAngle',
-      'sepia',
-      'neonGlow',
-      'zoomBlur',
-      'vhsTracking',
-      'dither',
-      'infrared',
-      'ca',
-      'waveAmt',
-      'waveFreq',
-      'matte',
-      'overprint',
-      'solarize',
-      'bleachBypass',
-      'cyanotype',
-      'splitToneAmt',
-      'rippleAmt',
-      'rippleFreq',
-      'patternRefraction',
-      'patternRefractionScale',
-      'patternRefractionAngle',
-      'kaleidoscope',
-      'squeezeX',
-      'squeezeY',
-      'emboss',
-      'linocut',
-      'fog',
-      'speedLines',
-      'seedOffset',
-    ] as const;
-
-    for (const field of numericFields) {
-      expect(typeof layer[field]).toBe('number');
-    }
+  it('turns flat parameter values into entries that own only their parameters', () => {
+    const layer = makeEffectLayer({ id: 'fx', grain: 99, dotGrain: 40, dotGrainSize: 6 });
+    expect(layer.effects).toEqual([
+      {
+        id: 'fx-grain',
+        effect: 'grain',
+        enabled: true,
+        params: { grain: 99 },
+      },
+      {
+        id: 'fx-dotGrain',
+        effect: 'dotGrain',
+        enabled: true,
+        params: { dotGrain: 40, dotGrainSize: 6, dotGrainDensity: 62, dotGrainJitter: 35 },
+      },
+    ]);
   });
 
-  it('accepts partial overrides', () => {
-    const layer = makeEffectLayer({ grain: 99 });
-    expect(layer.grain).toBe(99);
-    expect(layer.kind).toBe('effect');
+  it('keeps the preset effect editable at zero', () => {
+    const layer = makeEffectPresetLayer('vignette', { id: 'v', vignette: 0 });
+    expect(layer.effects.map((entry) => entry.effect)).toEqual(['vignette']);
+    expect(layer.preset).toBe('vignette');
   });
 
-  it('defaults to an inert custom effect instead of the old combined FX stack', () => {
-    const layer = makeEffectLayer();
-    expect(layer.name).toBe('Effect');
-    expect(layer.grain).toBe(0);
-    expect(layer.dotGrain).toBe(0);
-    expect(layer.dotGrainSize).toBe(4);
-    expect(layer.scanlines).toBe(0);
-    expect(layer.scanlineWidth).toBe(1);
-    expect(layer.rgbSplit).toBe(0);
-    expect(layer.rays).toBe(0);
-    expect(layer.tintOp).toBe(0);
-    expect(layer.seedOffset).toBe(0);
+  it('records Bad Stream sub-presets as a stage choice on the effect', () => {
+    const layer = makeEffectPresetLayer('blockSmear', { id: 'b' });
+    expect(layer.effects[0]?.params.badStreamStages).toBe('blockSmear');
   });
 });
 

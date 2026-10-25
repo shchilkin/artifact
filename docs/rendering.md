@@ -292,11 +292,21 @@ Layer rendering happens through `applyLayerToCanvas` in
 | `array` | Canvas procedural source |
 | `effect` | Canvas effects plus PixiJS GPU filters |
 
-Effect layers accept an optional `blendMode`. Unset or `normal` replaces the
-input with the effect result, as before. Any other mode composites the effect
-result over the untouched input with that Canvas 2D composite operation, after
-`maskAlpha`. Effect layers with a non-normal blend mode are excluded from the
-fused GPU-only effect chain in graph mode so stack and graph output match.
+An effect layer renders its stack top to bottom (`utils/effectStack.ts`).
+Enabled, active entries are cut into runs: consecutive entries of one pass
+(Canvas 2D / worker, or GPU) whose effects follow `EFFECT_PASS_ORDER`. A Canvas
+2D run is one `applyCanvas2DEffects` call and all Canvas 2D runs of a layer
+share one seeded random stream; consecutive GPU runs share one GPU pass. A stack
+listed in pass order therefore renders exactly as the schema-6 parameter bag
+did, which keeps the golden fixtures unchanged across the schema 6 -> 7
+migration.
+
+Effect layers accept an optional `blendMode` and a `mix` (0-100, default 100).
+With `normal` and full mix the effect result replaces the input, as before.
+Otherwise the result is composited over the untouched input with that Canvas 2D
+composite operation at `mix` opacity, after `maskAlpha`. Such layers are
+excluded from the fused GPU-only effect chain in graph mode so stack and graph
+output match.
 
 Primitive layers are rendered as frame-fitted sources in both stack and graph paths. Their old document placement fields may still exist for compatibility, but the UI no longer exposes primitive placement controls; camera and framing are handled by the primitive viewport state instead.
 

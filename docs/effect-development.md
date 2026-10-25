@@ -7,14 +7,22 @@ update data, rendering, controls, docs, and tests in one slice.
 ## Required Surfaces
 
 - `apps/web/app/types/effectSchema.ts` is the source of truth. A new parameter
-  is one `EFFECT_PARAMS` entry (owning effect, label, default, slider range or
-  color, value format, help key) plus its place in an `EFFECT_SECTIONS`
-  list. A new effect also gets an `EFFECTS` entry: its backend
-  (`canvas` main-thread pass, `worker` pixel kernel, or `gpu` PixiJS filter),
-  the amounts that turn it on, and its help family. `EffectLayer`,
-  `DEFAULT_EFFECT_LAYER_PROPS`, `ZERO_EFFECT`, the backend activation checks,
-  inspector controls, preset splitting (`effectPresetPatch.ts`), docs ranges
-  (`effectDocs.ts`), and help families are derived from it.
+  is one `EFFECT_PARAMS` entry (owning effect, label, default, and a slider
+  range, a color, or a `choice` of named variants; value format, help key). A
+  new effect also gets an `EFFECTS` entry: its backend (`canvas` main-thread
+  pass, `worker` pixel kernel, or `gpu` PixiJS filter), the amounts that turn
+  it on, and its help family, and a place in `EFFECT_PASS_ORDER` matching
+  where its kernel runs. Stack entries (`makeEffectEntry`), defaults, the
+  inspector controls of an entry, preset splitting (`effectPresetPatch.ts`),
+  docs ranges (`effectDocs.ts`), and help families are derived from it. Every
+  amount must default to off: `effectSchema.test.ts` checks this.
+- An effect layer is an ordered stack: `EffectLayer.effects` lists
+  `EffectEntry` items (`effect`, `enabled`, and `params` holding exactly the
+  parameters that effect owns), plus a layer `mix`. Kernels never read the
+  layer: they take flat `EffectParamValues` built per render run by
+  `utils/effectStack.ts`. A kernel must read only its own effect's parameters;
+  a variant that depends on something else (like Bad Stream's stages, which
+  used to come from the layer preset) becomes a parameter of the effect.
 - The render code: the Canvas 2D pass in
   `apps/web/app/utils/render/layers/index.ts`, a kernel in
   `apps/web/app/utils/render/workers/effectPixelTransform.ts`, or a filter in
@@ -24,14 +32,16 @@ update data, rendering, controls, docs, and tests in one slice.
 - A new focused preset: `EffectPreset`, `EFFECT_PRESETS` (name, icon, values),
   `EFFECT_PRESET_MENU_ORDER`, and its description in `effectDocs.ts`. A preset
   that is a variant of another effect (like the codec block presets of Bad
-  Stream) goes in `EFFECT_PRESET_VARIANTS` with the parameters it shows.
-- Optional copy: slider help in `apps/web/app/utils/effectInfo.ts`, a docs note
-  for a parameter in `effectDocs.ts`, and a section summary in
-  `components/node-canvas/inspector/effectSectionModel.ts`.
+  Stream) goes in `EFFECT_PRESET_VARIANTS`, and its values set the variant
+  parameter (`badStreamStages`).
+- Optional copy: slider help in `apps/web/app/utils/effectInfo.ts` and a docs
+  note for a parameter in `effectDocs.ts`.
 - If the effect changes how existing documents store data, add a schema
   migration step under `apps/web/app/utils/migrations/` instead of a load-time
   branch. The schema 3 -> 4 effect split is frozen in
-  `migrations/legacyEffectSplit.ts`; do not derive it from the schema.
+  `migrations/legacyEffectSplit.ts`, and the schema 6 -> 7 move to effect
+  stacks freezes the schema-6 effects and pass order in `migrations/v6ToV7.ts`;
+  do not derive either from the live schema.
 
 ## Validation
 
@@ -44,7 +54,8 @@ update data, rendering, controls, docs, and tests in one slice.
 
 ## Product Rules
 
-- Prefer focused single-effect nodes over legacy combined FX.
+- A new effect layer holds one effect. Users add more to the same layer from
+  the inspector ("Add effect"), reorder them, and switch them off.
 - Keep controls named by what the user sees, not by implementation details.
 - If an effect uses output size, make the scale behavior explicit so preview
   and export density match.

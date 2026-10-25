@@ -9,6 +9,7 @@ import {
   DEFAULT_EXPORT,
   DEFAULT_GLOBAL,
   DOCUMENT_SCHEMA_VERSION,
+  type EffectEntry,
   type Layer,
   makeDocument,
   makeEmojiLayer,
@@ -20,6 +21,7 @@ import {
   SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
+import { type EffectParamKey, effectParam, effectParamKeys, isEffectId } from '../types/effectSchema';
 import { serializeDocumentForLink } from './documentLink';
 import { migrateDocument } from './migrations';
 import { hasGraphNodes } from './nodeGraph';
@@ -220,10 +222,43 @@ function fontAssetEmbeddingPolicyField(
     : {};
 }
 
+function normalizeEffectParam(key: EffectParamKey, value: unknown): number | string {
+  const param = effectParam(key);
+  if (param.type === 'number') return typeof value === 'number' && Number.isFinite(value) ? value : param.default;
+  if (param.type === 'choice') {
+    return param.options.some((option) => option.value === value) ? (value as string) : param.default;
+  }
+  return typeof value === 'string' ? value : param.default;
+}
+
+/** A stored stack entry with exactly its effect's parameters, or null when its effect is unknown. */
+function normalizeEffectEntry(stored: unknown, layerId: string, index: number): EffectEntry | null {
+  if (!isRecord(stored) || typeof stored.effect !== 'string' || !isEffectId(stored.effect)) return null;
+  const { effect } = stored;
+  const storedParams = isRecord(stored.params) ? stored.params : {};
+  return {
+    id: typeof stored.id === 'string' && stored.id ? stored.id : `${layerId}-${effect}-${index}`,
+    effect,
+    enabled: stored.enabled !== false,
+    params: Object.fromEntries(
+      effectParamKeys(effect).map((key) => [key, normalizeEffectParam(key, storedParams[key])]),
+    ),
+  };
+}
+
+function normalizeEffectLayer(layer: Record<string, unknown>): Record<string, unknown> {
+  const layerId = typeof layer.id === 'string' ? layer.id : 'effect';
+  const effects = Array.isArray(layer.effects)
+    ? layer.effects.flatMap((entry, index) => normalizeEffectEntry(entry, layerId, index) ?? [])
+    : [];
+  const mix = typeof layer.mix === 'number' && Number.isFinite(layer.mix) ? Math.min(100, Math.max(0, layer.mix)) : 100;
+  return { ...DEFAULT_EFFECT_LAYER_PROPS, ...layer, effects, mix };
+}
+
 function normalizeLayer(layer: Record<string, unknown>): Layer {
   const withDefaults =
     layer.kind === 'effect'
-      ? { ...DEFAULT_EFFECT_LAYER_PROPS, ...layer }
+      ? normalizeEffectLayer(layer)
       : SOURCE_TYPES.includes(layer.kind as SourceType)
         ? { ...makeSourceLayer(layer.kind as SourceType), ...layer }
         : layer.kind === 'emoji'

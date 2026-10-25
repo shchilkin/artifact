@@ -751,7 +751,7 @@ describe('renderDocument — preview/export size parity', () => {
 
   it('renders legacy rays layers that are missing rayColor', async () => {
     const legacyRays = makeEffectPresetLayer('rays', { rays: 12, rayInt: 70 });
-    delete (legacyRays as Partial<typeof legacyRays>).rayColor;
+    delete legacyRays.effects[0]?.params.rayColor;
     const effectDoc: CanvasDocument = makeDocument({
       global: { bg: 'transparent', seed: 1, aspect: '1:1' },
       layers: [makeFillLayer({ color: '#221144', opacity: 100 }), legacyRays],

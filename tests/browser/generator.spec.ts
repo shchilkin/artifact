@@ -2271,7 +2271,7 @@ test('effect node inspector exposes and persists local seed offsets', async ({ p
   await effectNode.locator('.node-shell-frame').click();
 
   const nodeInspector = page.locator('.node-props-panel-open');
-  await nodeInspector.getByRole('button', { name: 'Node', exact: true }).click();
+  await nodeInspector.getByRole('button', { name: 'Blend', exact: true }).click();
   const seedSlider = nodeInspector.getByRole('slider', { name: 'Seed', exact: true });
   await expect(seedSlider).toBeVisible({ timeout: 15_000 });
   await seedSlider.evaluate((input) => {
@@ -2996,7 +2996,11 @@ test('node add menu can add Bad Stream with compression controls', async ({ page
   await expect(page.locator('.node-props-panel')).toContainText('Chroma Drift');
 
   const layer = await getStoredLayerBy(page, 'name', 'Bad Stream');
-  expect(layer).toMatchObject({ kind: 'effect', preset: 'badStream', badStream: 72, badStreamBlockSize: 54 });
+  expect(layer).toMatchObject({
+    kind: 'effect',
+    preset: 'badStream',
+    effects: [{ effect: 'badStream', params: { badStream: 72, badStreamBlockSize: 54, badStreamStages: 'all' } }],
+  });
 });
 
 test('node add menu can add Macroblocks as a focused Bad Stream block', async ({ page }) => {
@@ -3011,7 +3015,13 @@ test('node add menu can add Macroblocks as a focused Bad Stream block', async ({
   await expect(page.locator('.node-props-panel')).toContainText('Macroblocks');
 
   const layer = await getStoredLayerBy(page, 'name', 'Macroblocks');
-  expect(layer).toMatchObject({ kind: 'effect', preset: 'macroblocks', badStream: 72, badStreamBlockSize: 64 });
+  expect(layer).toMatchObject({
+    kind: 'effect',
+    preset: 'macroblocks',
+    effects: [
+      { effect: 'badStream', params: { badStream: 72, badStreamBlockSize: 64, badStreamStages: 'macroblocks' } },
+    ],
+  });
 });
 
 test('node add menu can add poster text starts', async ({ page }) => {

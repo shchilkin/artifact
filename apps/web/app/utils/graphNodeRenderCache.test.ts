@@ -7,6 +7,7 @@ import {
   makeFillLayer,
   makeImageLayer,
 } from '../types/config';
+import { updateEffectEntry } from './effectStack';
 import { createGraphNodeRenderCache } from './graphNodeRenderCache';
 import { EXPORT_NODE_ID, graphNodesById, inferLinearGraph } from './nodeGraph';
 import { makeGraphColorNode } from './nodeKinds';
@@ -35,7 +36,13 @@ describe('createGraphNodeRenderCache', () => {
 
   it('keeps upstream keys and changes the edited node and everything downstream', () => {
     const before = keysFor(makeDoc([fill, grain, scanlines]));
-    const after = keysFor(makeDoc([fill, { ...grain, grain: 40 }, scanlines]));
+    const after = keysFor(
+      makeDoc([
+        fill,
+        { ...grain, effects: updateEffectEntry(grain.effects, grain.effects[0].id, { params: { grain: 40 } }) },
+        scanlines,
+      ]),
+    );
 
     expect(after.key('fill')).toBe(before.key('fill'));
     expect(after.key('grain')).not.toBe(before.key('grain'));

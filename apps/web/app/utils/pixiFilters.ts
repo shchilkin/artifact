@@ -1,5 +1,5 @@
 import { BlurFilter, Filter } from 'pixi.js';
-import type { EffectLayer } from '../types/config';
+import type { EffectParamValues } from '../types/effectSchema';
 
 const NORM_UV = `
   vec2 extent = inputClamp.zw - inputClamp.xy;
@@ -357,7 +357,7 @@ function f(frag: string, uniforms: Record<string, unknown>): Filter {
   return filter;
 }
 
-type FilterConfig = Pick<EffectLayer, keyof Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'>>;
+type FilterConfig = EffectParamValues;
 
 function addFilter(filters: Filter[], amount: number, create: () => Filter) {
   if (amount <= 0) return;
@@ -449,4 +449,5 @@ function buildFilters(cfg: FilterConfig, seed: number, refSize = 540, canvasH = 
   return filters.length > 0 ? filters : null;
 }
 
-export const buildFiltersFromEffectLayer = buildFilters;
+/** GPU filters for a run of effect parameter values, in GPU pass order. */
+export const buildEffectFilters = buildFilters;

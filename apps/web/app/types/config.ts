@@ -1,6 +1,6 @@
 import type { GraphNode } from '../utils/nodeKinds';
 import { type EffectPreset, makeEffectPresetLayer } from './effectPresets';
-import type { EffectParamValues } from './effectSchema';
+import type { EffectId, EffectParamValues } from './effectSchema';
 import { genId } from './layerIds';
 import { inferLinearGraph } from './linearGraph';
 import { DEFAULT_MATERIAL_CONFIG, type MaterialConfig, type MaterialTextureInputPort } from './materials';
@@ -241,10 +241,22 @@ export interface ModelLayer extends ProceduralLayerBase {
 
 export type SourceLayer = PrimitiveLayer | NoiseLayer | ArrayLayer | LineFieldLayer | ModelLayer;
 
-/** An effect layer: one focused effect preset. Its parameters are declared in `EFFECT_PARAMS` (`types/effectSchema.ts`). */
-export interface EffectLayer extends BaseLayer, EffectParamValues {
+/** One effect in an effect layer's stack. `params` holds exactly the parameters its effect owns (`EFFECT_PARAMS`). */
+export interface EffectEntry {
+  id: string;
+  effect: EffectId;
+  enabled: boolean;
+  params: Partial<EffectParamValues>;
+}
+
+/** An effect layer: an ordered stack of effects applied to its input, top to bottom. */
+export interface EffectLayer extends BaseLayer {
   kind: 'effect';
-  preset?: EffectPreset; // which preset created this layer (drives panel icon)
+  /** The library preset that created this layer; drives its icon and name. */
+  preset?: EffectPreset;
+  effects: EffectEntry[];
+  /** How much of the effected result replaces the input, 0-100. */
+  mix: number;
   /** Composites the effect result over its input; defaults to normal (replace). */
   blendMode?: string;
   maskAlpha: boolean;
@@ -375,7 +387,7 @@ export interface CanvasDocument {
 
 export type { GraphNode, GraphNodeKind } from '../utils/nodeKinds';
 
-export const DOCUMENT_SCHEMA_VERSION = 6;
+export const DOCUMENT_SCHEMA_VERSION = 7;
 
 export const DEFAULT_GLOBAL: GlobalConfig = {
   bg: 'transparent',
@@ -552,7 +564,7 @@ export type DocumentInput = Omit<CanvasDocument, 'graph'> & { graph?: CanvasGrap
 
 /** Every document has a graph. Use this to build documents in code from a layer list. */
 export function makeDocument(input: DocumentInput): CanvasDocument {
-  return { ...input, graph: input.graph ?? inferLinearGraph(input.layers) };
+  return { schemaVersion: DOCUMENT_SCHEMA_VERSION, ...input, graph: input.graph ?? inferLinearGraph(input.layers) };
 }
 
 export const DEFAULT_DOCUMENT: CanvasDocument = makeDocument({

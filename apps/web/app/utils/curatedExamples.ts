@@ -4,6 +4,7 @@ import {
   type CanvasGraph,
   DEFAULT_EXPORT,
   type EffectLayer,
+  type EffectLayerInit,
   type EffectPreset,
   makeDocument,
   makeEffectPresetLayer,
@@ -44,8 +45,8 @@ export interface CuratedExample {
   doc: CanvasDocument;
 }
 
-function fx(preset: EffectPreset, name: string, partial: Partial<EffectLayer> = {}): EffectLayer {
-  return { ...makeEffectPresetLayer(preset), name, ...partial };
+function fx(preset: EffectPreset, name: string, partial: EffectLayerInit = {}): EffectLayer {
+  return makeEffectPresetLayer(preset, { name, ...partial });
 }
 
 function noise(

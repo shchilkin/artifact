@@ -192,7 +192,7 @@ describe('documentHistory', () => {
     expect(graphNodesOfKind(redoResult?.doc.graph ?? { nodes: {} }, 'material')?.[0]?.materialPreset).toBe('plastic');
     expect(redoResult?.doc.layers.find((layer) => layer.id === 'shader-effect-a')).toMatchObject({
       preset: 'gradientMap',
-      gradientMap: 85,
+      effects: [{ effect: 'gradientMap', params: { gradientMap: 85 } }],
     });
   });
 

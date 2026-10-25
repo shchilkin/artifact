@@ -83,6 +83,12 @@ Rules:
   the 3 -> 4 step: `kind: 'source'` aliases, 0-100 material percentages,
   removed shader kinds, and splitting combined effect layers (with graph
   rewiring). Builds before v0.51 cannot open schema 4 documents.
+- Schema 7 stores an effect layer as an ordered stack (`effects`, each entry
+  owning only its effect's parameters) plus `mix`, instead of every parameter of
+  every effect. The 6 -> 7 step lists the active effects in schema-6 pass order,
+  always keeps the layer's preset effect, and turns Bad Stream sub-presets into
+  its `badStreamStages` parameter. `makeDocument` stamps the current schema
+  version, so documents built in code skip migrations.
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.
