@@ -139,6 +139,11 @@ effect (searching "Sepia" adds Color Filter in sepia mode).
    golden fixtures unchanged. Bad Stream's sub-presets became its
    `badStreamStages` parameter; the retro-finish recipe card in the effect
    inspector was removed with the old per-family sections.
-3. Catalog merges, one family per PR, each with its migration step.
+3. Catalog merges, one schema step per family (8-17). Done: 61 kernels are
+   now 26 effects; golden fixtures unchanged. Adjust and Sharpen are new
+   kernels. Shadow moves to step 4 with the Grime Shadow node, since it needs a
+   graph-node migration. Add Library browses 48 items in Layers (from 88) and
+   65 in Nodes (from 105); the rest of the Nodes target needs the source and
+   3D work of step 5.
 4. Layers capabilities.
 5. Sources and 3D, after a prototype.

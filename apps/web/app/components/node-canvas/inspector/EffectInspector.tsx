@@ -128,7 +128,7 @@ function EffectEntrySection({
   return (
     <InspectorSection title={name} summary={effectEntrySummary(entry)} open={open} onToggle={onToggle}>
       <EffectEntryControls entry={entry} onChange={onParamsChange} />
-      <InspectorToggle label="On" checked={entry.enabled} onChange={onEnabledChange} />
+      <InspectorToggle label="On" ariaLabel={`${name} on`} checked={entry.enabled} onChange={onEnabledChange} />
       <div className="artifact-inspector-effect-actions">
         <NoPan
           as="button"

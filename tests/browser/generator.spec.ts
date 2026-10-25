@@ -2999,7 +2999,12 @@ test('node add menu can add Bad Stream with compression controls', async ({ page
   expect(layer).toMatchObject({
     kind: 'effect',
     preset: 'badStream',
-    effects: [{ effect: 'badStream', params: { badStream: 72, badStreamBlockSize: 54, badStreamStages: 'all' } }],
+    effects: [
+      {
+        effect: 'compression',
+        params: { mode: 'codec', badStream: 72, badStreamBlockSize: 54, badStreamStages: 'all' },
+      },
+    ],
   });
 });
 
@@ -3019,7 +3024,10 @@ test('node add menu can add Macroblocks as a focused Bad Stream block', async ({
     kind: 'effect',
     preset: 'macroblocks',
     effects: [
-      { effect: 'badStream', params: { badStream: 72, badStreamBlockSize: 64, badStreamStages: 'macroblocks' } },
+      {
+        effect: 'compression',
+        params: { mode: 'codec', badStream: 72, badStreamBlockSize: 64, badStreamStages: 'macroblocks' },
+      },
     ],
   });
 });

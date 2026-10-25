@@ -89,6 +89,12 @@ Rules:
   always keeps the layer's preset effect, and turns Bad Stream sub-presets into
   its `badStreamStages` parameter. `makeDocument` stamps the current schema
   version, so documents built in code skip migrations.
+- Schemas 8-17 merge effects into fewer effects with a `mode` (Color Filter,
+  Gradient Map, Color Overlay, Posterize, Glow, Rays, Grain, Halftone, Edges,
+  Channel Split, Line Glitch, Compression, Displace, Lens, Symmetry, Blur,
+  Pixelate, Alpha Crush, Adjust). Each step rewrites only the stack entries of
+  the effects it merges, through `migrateEffectEntries` and its own frozen
+  table.
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.

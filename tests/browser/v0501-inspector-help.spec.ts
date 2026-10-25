@@ -236,12 +236,12 @@ test('effect help opens below its row on a narrow screen', async ({ page }) => {
 test("the clamp message is fully visible on a section's first row and repeats for the same value", async ({ page }) => {
   await gotoDocument(page, helpDocument);
   const inspector = await selectLayer(page, 'h-bloom');
-  const entry = inspector.getByRole('spinbutton', { name: 'Bloom value' });
-  const bloomEntry = page.getByRole('spinbutton', { name: 'Bloom value' });
+  const entry = inspector.getByRole('spinbutton', { name: 'Amount value' });
+  const bloomEntry = page.getByRole('spinbutton', { name: 'Amount value' });
   const row = inspector.locator('[data-inspector-property-row="true"]').filter({ has: bloomEntry });
   const section = inspector.locator('[data-inspector-section="true"]').filter({ has: bloomEntry });
-  // The row is the first in its section, right under the section header.
-  await expect(section.locator('[data-inspector-property-row="true"]').first()).toContainText('Bloom');
+  // The Amount row is the first property row of the Glow section, right under its style picker.
+  await expect(section.locator('[data-inspector-property-row="true"]').first()).toContainText('Amount');
   const limit = row.getByRole('status');
 
   await entry.fill('500');

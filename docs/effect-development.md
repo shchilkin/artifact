@@ -6,42 +6,51 @@ update data, rendering, controls, docs, and tests in one slice.
 
 ## Required Surfaces
 
-- `apps/web/app/types/effectSchema.ts` is the source of truth. A new parameter
-  is one `EFFECT_PARAMS` entry (owning effect, label, default, and a slider
-  range, a color, or a `choice` of named variants; value format, help key). A
-  new effect also gets an `EFFECTS` entry: its backend (`canvas` main-thread
-  pass, `worker` pixel kernel, or `gpu` PixiJS filter), the amounts that turn
-  it on, and its help family, and a place in `EFFECT_PASS_ORDER` matching
-  where its kernel runs. Stack entries (`makeEffectEntry`), defaults, the
-  inspector controls of an entry, preset splitting (`effectPresetPatch.ts`),
-  docs ranges (`effectDocs.ts`), and help families are derived from it. Every
-  amount must default to off: `effectSchema.test.ts` checks this.
+Effects have two levels. **Kernels** are the pixel routines the renderer runs;
+**effects** are what users add and what a layer's stack stores. One effect can
+run several kernels, usually one per `mode`.
+
+- `apps/web/app/types/effectKernels.ts` declares kernels. A kernel parameter is
+  one `KERNEL_PARAMS` entry (owning kernel, label, default, and a slider range,
+  a color, or a `choice`; value format, help key). A kernel is one `KERNELS`
+  entry (backend: `canvas` main-thread pass, `worker` pixel kernel, or `gpu`
+  PixiJS filter; the amounts that turn it on; help family) and a place in
+  `KERNEL_PASS_ORDER` matching where its code runs. Every amount must default
+  to off. Presets, starters, help previews, and `makeEffectLayer` describe
+  looks in flat kernel values.
+- `apps/web/app/types/effectSchema.ts` is the catalog of effects (`EFFECTS`,
+  in library order). An effect owns its parameters (with `when` to show a
+  parameter only in some modes), turns them into kernel calls (`kernels`), and
+  says how to rebuild each kernel's values (`absorbs`). Every kernel belongs to
+  exactly one effect, and `kernels(absorb(values))` must reproduce the kernel's
+  values exactly: `effectSchema.test.ts` checks both, which is what keeps
+  pixels unchanged when effects merge. Use `kernelEffect` for an effect that is
+  one kernel, and `modalEffect` (with `amountMode` when modes share one Amount)
+  for a merged effect. `modePresets` start a mode from a preset when switching
+  to it would leave the effect off.
 - An effect layer is an ordered stack: `EffectLayer.effects` lists
-  `EffectEntry` items (`effect`, `enabled`, and `params` holding exactly the
-  parameters that effect owns), plus a layer `mix`. Kernels never read the
-  layer: they take flat `EffectParamValues` built per render run by
-  `utils/effectStack.ts`. A kernel must read only its own effect's parameters;
-  a variant that depends on something else (like Bad Stream's stages, which
-  used to come from the layer preset) becomes a parameter of the effect.
-- The render code: the Canvas 2D pass in
-  `apps/web/app/utils/render/layers/index.ts`, a kernel in
-  `apps/web/app/utils/render/workers/effectPixelTransform.ts`, or a filter in
-  `apps/web/app/utils/pixiFilters.ts`, matching the declared backend.
-  `effectSchema.test.ts` renders every effect and fails if it makes pixels on
+  `EffectEntry` items (`effect`, `enabled`, and `params` holding exactly that
+  effect's parameters), plus a layer `mix`. `utils/effectStack.ts` turns the
+  stack into kernel calls and render runs. A kernel reads only its own
+  parameters; a variant that depends on something else becomes a parameter.
+- The render code: `utils/render/layers/canvasEffects.ts`, a kernel in
+  `utils/render/workers/effectPixelTransform.ts`, or a filter in
+  `utils/pixiFilters.ts`, matching the declared backend.
+  `effectKernels.test.ts` renders every kernel and fails if it makes pixels on
   any other backend.
-- A new focused preset: `EffectPreset`, `EFFECT_PRESETS` (name, icon, values),
-  `EFFECT_PRESET_MENU_ORDER`, and its description in `effectDocs.ts`. A preset
-  that is a variant of another effect (like the codec block presets of Bad
-  Stream) goes in `EFFECT_PRESET_VARIANTS`, and its values set the variant
-  parameter (`badStreamStages`).
+- A preset: `EffectPreset`, `EFFECT_PRESETS` (name, icon, kernel values),
+  `EFFECT_PRESET_MENU_ORDER`, a description in `effectDocs.ts`, and its Add
+  Library copy in `addLibraryModel.ts`. Add Library browses one item per
+  effect (`EFFECT_ITEMS`); presets that are not an effect stay searchable and
+  add their effect in the matching mode.
 - Optional copy: slider help in `apps/web/app/utils/effectInfo.ts` and a docs
   note for a parameter in `effectDocs.ts`.
-- If the effect changes how existing documents store data, add a schema
-  migration step under `apps/web/app/utils/migrations/` instead of a load-time
-  branch. The schema 3 -> 4 effect split is frozen in
-  `migrations/legacyEffectSplit.ts`, and the schema 6 -> 7 move to effect
-  stacks freezes the schema-6 effects and pass order in `migrations/v6ToV7.ts`;
-  do not derive either from the live schema.
+- If a change alters what documents store (merging effects, renaming or
+  removing parameters), add a schema step under
+  `apps/web/app/utils/migrations/`. Effect merges use `migrateEffectEntries`
+  with a frozen table in the step file; do not derive a step from the live
+  catalog. The 3 -> 4 split (`legacyEffectSplit.ts`) and the 6 -> 7 move to
+  stacks (`v6ToV7.ts`) are frozen the same way.
 
 ## Validation
 
@@ -54,8 +63,9 @@ update data, rendering, controls, docs, and tests in one slice.
 
 ## Product Rules
 
-- A new effect layer holds one effect. Users add more to the same layer from
-  the inspector ("Add effect"), reorder them, and switch them off.
+- Prefer a mode of an existing effect over a new effect. A new effect layer
+  holds one effect; users add more to the same layer from the inspector ("Add
+  effect"), reorder them, and switch them off.
 - Keep controls named by what the user sees, not by implementation details.
 - If an effect uses output size, make the scale behavior explicit so preview
   and export density match.

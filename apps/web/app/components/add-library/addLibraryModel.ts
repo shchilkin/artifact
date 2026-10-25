@@ -1,5 +1,7 @@
 import type { EffectPreset, LayerKind } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS, LEGACY_SHADER_KINDS, SHADER_KINDS } from '../../types/config';
+import { kernelOfPreset } from '../../types/effectKernels';
+import { type EffectId, effectOfKernel, effectSpec, isEffectId } from '../../types/effectSchema';
 import type { AddAction } from '../../utils/addActions';
 import { ARRAY_PRESET_IDS, ARRAY_PRESETS } from '../../utils/arrayPresets';
 import { GRAPH_NODE_KINDS, GRAPH_NODE_MODELS } from '../../utils/nodeKinds';
@@ -95,95 +97,6 @@ export const ADD_LIBRARY_GROUPS: Array<{
   { id: 'print', label: 'Print', hint: 'Ink, dots, registration' },
   { id: 'graphic', label: 'Graphic', hint: 'Cutoff, edges, blur' },
   { id: 'utility', label: 'Utility', hint: 'Graph helpers' },
-];
-
-const EFFECT_FAMILIES: Array<{
-  group: Extract<AddLibraryGroupId, 'light' | 'signal' | 'texture' | 'warp' | 'tone' | 'print' | 'graphic'>;
-  presets: readonly EffectPreset[];
-}> = [
-  {
-    group: 'light',
-    presets: ['rays', 'bloom', 'filmBurn', 'neonGlow', 'fog', 'speedLines'],
-  },
-  {
-    group: 'signal',
-    presets: [
-      'glitch',
-      'rgbSplit',
-      'ca',
-      'interlace',
-      'dataMosh',
-      'vhsTracking',
-      'badStream',
-      'macroblocks',
-      'detailBlocks',
-      'blockSmear',
-      'chromaBlocks',
-      'blockDropout',
-      'pixelStretch',
-    ],
-  },
-  {
-    group: 'texture',
-    presets: ['grain', 'dotGrain', 'scanlines', 'matte', 'dither', 'emboss', 'linocut'],
-  },
-  {
-    group: 'warp',
-    presets: [
-      'noiseWarp',
-      'morph',
-      'vortex',
-      'barrel',
-      'tear',
-      'mirror',
-      'wave',
-      'zoomBlur',
-      'ripple',
-      'patternRefraction',
-      'kaleidoscope',
-      'squeeze',
-    ],
-  },
-  {
-    group: 'tone',
-    presets: [
-      'adjust',
-      'tint',
-      'hueShift',
-      'vignette',
-      'retroResolution',
-      'pixelate',
-      'posterize',
-      'indexedPalette',
-      'gradientMap',
-      'channelMixer',
-      'sepia',
-      'infrared',
-      'solarize',
-      'bleachBypass',
-      'cyanotype',
-      'splitTone',
-    ],
-  },
-  {
-    group: 'print',
-    presets: ['duotone', 'halftone', 'risoShift', 'overprint'],
-  },
-  {
-    group: 'graphic',
-    presets: [
-      'sharpen',
-      'blur',
-      'threshold',
-      'edgeCrush',
-      'silhouetteCrush',
-      'edgeDetect',
-      'bokehBlur',
-      'hatching',
-      'gooeyMerge',
-      'gradientOverlay',
-    ],
-  },
 ];
 
 const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
@@ -563,22 +476,104 @@ const sourcePresetItems: AddLibraryItem[] = [
   })),
 ];
 
-const effectItems: AddLibraryItem[] = EFFECT_PRESET_MENU_ORDER.map((preset) => {
-  const family = EFFECT_FAMILIES.find((entry) => entry.presets.includes(preset)) ?? EFFECT_FAMILIES[0];
-  const meta = EFFECT_PRESETS[preset];
+/** Library group and one-line summary of every effect, in browse order. */
+const EFFECT_ITEMS: Record<
+  EffectId,
+  {
+    group: Extract<AddLibraryGroupId, 'light' | 'signal' | 'texture' | 'warp' | 'tone' | 'print' | 'graphic'>;
+    summary: string;
+  }
+> = {
+  adjust: { group: 'tone', summary: 'Brightness, contrast, saturation, temperature, hue, and invert in one grade.' },
+  colorFilter: {
+    group: 'tone',
+    summary: 'Film and darkroom looks: sepia, infrared, bleach bypass, solarize, cyanotype, or a channel mix.',
+  },
+  gradientMap: { group: 'tone', summary: 'Maps brightness to two or three colors, or splits shadows and highlights.' },
+  colorOverlay: {
+    group: 'tone',
+    summary: 'A color tint, a two-color gradient, or a brightness-weighted haze over the image.',
+  },
+  posterize: {
+    group: 'tone',
+    summary: 'Cuts tones to flat bands, dither, linocut, a hard threshold, or a fixed palette.',
+  },
+  pixelate: { group: 'tone', summary: 'Chunky blocks or a fixed low resolution that keeps its pixel grid at export.' },
+  vignette: { group: 'tone', summary: 'Darkens the corners to pull focus to the center.' },
+  glow: { group: 'light', summary: 'Soft bloom or saturated neon around the brightest pixels.' },
+  rays: { group: 'light', summary: 'Colored beams or thin speed lines bursting from the center.' },
+  filmBurn: { group: 'light', summary: 'Hot orange flare burning in from one corner.' },
+  grain: { group: 'texture', summary: 'Fine film noise or coarse matte blotches over the surface.' },
+  halftone: { group: 'texture', summary: 'Print screens of dots, hatch lines, or tone-aware stipple.' },
+  scanlines: { group: 'texture', summary: 'CRT-style horizontal bands for monitor and video texture.' },
+  edges: { group: 'texture', summary: 'Embossed relief or bold traced outlines.' },
+  risoShift: { group: 'print', summary: 'Ink misregistration for risograph-style color drift.' },
+  overprint: { group: 'print', summary: 'Offset cyan, magenta, and yellow plates multiplied over the image.' },
+  channelSplit: { group: 'signal', summary: 'Red and blue channels pulled apart diagonally or toward the edges.' },
+  lineGlitch: { group: 'signal', summary: 'Row damage: screened streaks, torn chunks, interlace, or VHS tracking.' },
+  compression: { group: 'signal', summary: 'Codec failure: macroblocks and smear, or displaced data-mosh blocks.' },
+  displace: { group: 'warp', summary: 'Pushes pixels along noise, liquid, wave, ripple, or pattern fields.' },
+  lens: { group: 'warp', summary: 'Barrel bulge, center swirl, or a horizontal and vertical squeeze.' },
+  symmetry: { group: 'warp', summary: 'Mirrors the image onto itself or folds it into a kaleidoscope.' },
+  blur: { group: 'graphic', summary: 'Soft, lens, zoom, or motion blur.' },
+  sharpen: { group: 'graphic', summary: 'Crisps edges and fine detail.' },
+  alphaCrush: { group: 'graphic', summary: 'Hardens soft alpha edges or chips them into sprite-like silhouettes.' },
+  gooeyMerge: { group: 'graphic', summary: 'Merges nearby shapes into soft liquid blobs.' },
+};
+
+function effectPresets(effect: EffectId): EffectPreset[] {
+  return EFFECT_PRESET_MENU_ORDER.filter((preset) => effectOfKernel(kernelOfPreset(preset)) === effect);
+}
+
+/** The presets each effect absorbs, as search words for its browse item. */
+function effectVariantKeywords(effect: EffectId): string {
+  return effectPresets(effect)
+    .flatMap((preset) => [EFFECT_PRESETS[preset].name.toLowerCase(), EFFECT_KEYWORDS[preset] ?? ''])
+    .join(' ');
+}
+
+function effectVariantTags(effect: EffectId): string[] {
+  return [...new Set(effectPresets(effect).flatMap((preset) => EFFECT_TAGS[preset] ?? []))];
+}
+
+/** One browse item per effect; it adds the effect's starter preset. */
+const effectItems: AddLibraryItem[] = (Object.keys(EFFECT_ITEMS) as EffectId[]).map((effect) => {
+  const { starter, label } = effectSpec(effect);
   return {
-    id: `effect:${preset}`,
-    label: meta.name,
-    description: EFFECT_DESCRIPTIONS[preset],
-    symbol: meta.icon,
-    group: family.group,
-    action: { kind: 'effect', preset },
+    id: `effect:${effect}`,
+    label,
+    description: EFFECT_ITEMS[effect].summary,
+    symbol: EFFECT_PRESETS[starter].icon,
+    group: EFFECT_ITEMS[effect].group,
+    action: { kind: 'effect', preset: starter },
     surfaces: ['layers', 'nodes'],
-    tags: EFFECT_TAGS[preset],
-    keywords: EFFECT_KEYWORDS[preset],
-    popular: ['grain', 'pixelate', 'dither', 'risoShift'].includes(preset),
+    tags: effectVariantTags(effect),
+    keywords: effectVariantKeywords(effect),
+    popular: ['grain', 'pixelate', 'posterize', 'risoShift'].includes(effect),
   };
 });
+
+/**
+ * The older focused presets (Sepia, Bloom, Wave, ...) stay findable by search and add their effect in the matching
+ * mode, but do not show while browsing.
+ */
+const effectVariantItems: AddLibraryItem[] = EFFECT_PRESET_MENU_ORDER.filter((preset) => !isEffectId(preset)).map(
+  (preset) => {
+    const effect = effectOfKernel(kernelOfPreset(preset));
+    return {
+      id: `effect:${preset}`,
+      label: EFFECT_PRESETS[preset].name,
+      description: EFFECT_DESCRIPTIONS[preset],
+      symbol: EFFECT_PRESETS[preset].icon,
+      group: EFFECT_ITEMS[effect].group,
+      action: { kind: 'effect', preset },
+      surfaces: ['layers', 'nodes'],
+      tags: EFFECT_TAGS[preset],
+      keywords: `${EFFECT_KEYWORDS[preset] ?? ''} ${effectSpec(effect).label.toLowerCase()}`,
+      showInBrowse: false,
+    };
+  },
+);
 
 // Graph-only node kinds with a single library entry, in model registry order, then the repeat presets.
 const graphNodeItems: AddLibraryItem[] = GRAPH_NODE_KINDS.flatMap((kind) => {
@@ -622,6 +617,7 @@ export const ADD_LIBRARY_ITEMS: AddLibraryItem[] = [
   ...sourcePresetItems,
   ...materialItems,
   ...effectItems,
+  ...effectVariantItems,
   ...utilityItems,
 ];
 

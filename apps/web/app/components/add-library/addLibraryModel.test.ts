@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-
 import { EFFECT_PRESET_MENU_ORDER } from '../../types/config';
+import { EFFECT_IDS } from '../../types/effectSchema';
 import {
   ADD_LIBRARY_ITEMS,
   ADD_LIBRARY_RECIPES,
@@ -178,7 +178,7 @@ describe('addLibraryModel', () => {
     expect(firstIdsFor('stipple')).toContain('effect:dotGrain');
     expect(firstIdsFor('old photo')).toEqual(expect.arrayContaining(['effect:grain', 'effect:duotone']));
     expect(firstIdsFor('old game')).toEqual(expect.arrayContaining(['effect:dotGrain', 'effect:indexedPalette']));
-    expect(firstIdsFor('ps1')).toEqual(expect.arrayContaining(['effect:dotGrain', 'effect:indexedPalette']));
+    expect(firstIdsFor('ps1')).toContain('effect:dotGrain');
     expect(firstIdsFor('retro resolution')).toContain('effect:retroResolution');
     expect(firstIdsFor('indexed palette')).toContain('effect:indexedPalette');
     expect(firstIdsFor('gradient map')).toContain('effect:gradientMap');
@@ -192,7 +192,8 @@ describe('addLibraryModel', () => {
     expect(firstIdsFor('edge crush')).toContain('effect:silhouetteCrush');
     expect(firstIdsFor('silhouette crush')).toContain('effect:silhouetteCrush');
     expect(firstIdsFor('hard alpha')).toContain('effect:edgeCrush');
-    expect(firstIdsFor('crt')).toEqual(expect.arrayContaining(['effect:scanlines', 'effect:vhsTracking']));
+    expect(firstIdsFor('crt')).toContain('effect:scanlines');
+    expect(firstIdsFor('vhs tracking')).toContain('effect:vhsTracking');
     expect(firstIdsFor('paper')).toContain('effect:grain');
     expect(firstIdsFor('line')).toContain('layer:lineField');
     expect(firstIdsFor('linefield')).toContain('layer:lineField');
@@ -203,7 +204,8 @@ describe('addLibraryModel', () => {
     expect(firstIdsFor('chrome material')).toContain('material');
     expect(firstIdsFor('mask')).toContain('mask');
     expect(firstIdsFor('matte')).toContain('mask');
-    expect(firstIdsFor('alpha')).toContain('mask');
+    expect(firstIdsFor('alpha')).toContain('effect:alphaCrush');
+    expect(firstIdsFor('luma mask')).toContain('mask');
     expect(firstIdsFor('transform')).toContain('transform');
     expect(firstIdsFor('rotate')).toContain('transform');
     expect(firstIdsFor('scale')).toContain('transform');
@@ -215,7 +217,7 @@ describe('addLibraryModel', () => {
   it('gives key effect items individual descriptions', () => {
     const itemsById = new Map(ADD_LIBRARY_ITEMS.map((item) => [item.id, item]));
 
-    expect(itemsById.get('effect:pixelate')?.description).toContain('block size');
+    expect(itemsById.get('effect:pixelate')?.description).toContain('pixel grid');
     expect(itemsById.get('effect:splitTone')?.description).toContain('shadows');
     expect(itemsById.get('effect:dotGrain')?.description).toContain('stipple');
     expect(itemsById.get('effect:retroResolution')?.description).toContain('export');
@@ -223,7 +225,7 @@ describe('addLibraryModel', () => {
     expect(itemsById.get('effect:macroblocks')?.description).toContain('Large');
     expect(itemsById.get('effect:detailBlocks')?.description).toContain('Small');
     expect(itemsById.get('effect:indexedPalette')?.description).toContain('swatches');
-    expect(itemsById.get('effect:gradientMap')?.description).toContain('luminance');
+    expect(itemsById.get('effect:gradientMap')?.description).toContain('brightness');
     expect(itemsById.get('effect:channelMixer')?.description).toContain('RGB channels');
     expect(itemsById.get('effect:bokehBlur')?.description).toContain('highlight');
     expect(itemsById.get('effect:hatching')?.description).toContain('hatch');
@@ -232,6 +234,26 @@ describe('addLibraryModel', () => {
     expect(itemsById.get('effect:gooeyMerge')?.description).toContain('blobs');
     expect(itemsById.get('effect:edgeCrush')?.description).toContain('alpha');
     expect(itemsById.get('effect:silhouetteCrush')?.description).toContain('sprite');
+  });
+
+  it('browses one item per effect and keeps the older effect names searchable', () => {
+    const browse = addLibraryBrowseItemsForSurface('layers').filter((item) => item.action.kind === 'effect');
+    expect(browse.map((item) => item.id).sort()).toEqual(EFFECT_IDS.map((effect) => `effect:${effect}`).sort());
+    const items = addLibraryItemsForSurface('layers');
+    for (const [query, id] of [
+      ['sepia', 'effect:sepia'],
+      ['bloom', 'effect:bloom'],
+      ['wave', 'effect:wave'],
+      ['duotone', 'effect:duotone'],
+      ['hue shift', 'effect:adjust'],
+    ]) {
+      expect(
+        searchAddLibraryItems(items, query)
+          .slice(0, 3)
+          .map((item) => item.id),
+        query,
+      ).toContain(id);
+    }
   });
 
   it('gives every library item its own description', () => {

@@ -90,10 +90,16 @@ function inModes(...values: string[]): EffectParamSpec['when'] {
   return { param: 'mode', values };
 }
 
-/** A kernel's own parameters, shown only in one mode of a modal effect. */
-function kernelParamsInMode(kernel: KernelId, mode: string): Record<string, EffectParamSpec> {
+/** A kernel's own parameters, shown only in one mode of a modal effect; `except` leaves out shared ones. */
+function kernelParamsInMode(
+  kernel: KernelId,
+  mode: string,
+  except: readonly KernelParamKey[] = [],
+): Record<string, EffectParamSpec> {
   return Object.fromEntries(
-    kernelParamKeys(kernel).map((key) => [key, { ...stripKernel(KERNEL_PARAMS[key]), when: inModes(mode) }]),
+    kernelParamKeys(kernel)
+      .filter((key) => !except.includes(key))
+      .map((key) => [key, { ...stripKernel(KERNEL_PARAMS[key]), when: inModes(mode) }]),
   );
 }
 
@@ -174,248 +180,6 @@ function amountMode(value: string, label: string, kernel: KernelId, preset: Effe
 
 /** Every effect, in library order. */
 export const EFFECTS = {
-  glow: modalEffect({
-    label: 'Glow',
-    family: 'light',
-    modeLabel: 'Style',
-    params: {
-      amount: numParam('Amount', 0, 0, 100, { format: 'percent' }),
-      color: colorParam('Glow color', '#ff00ff', inModes('neon')),
-    },
-    modes: [
-      amountMode('bloom', 'Bloom', 'bloom', 'bloom'),
-      {
-        ...amountMode('neon', 'Neon', 'neonGlow', 'neonGlow'),
-        toKernel: (params) => ({ neonGlow: numberOf(params.amount), neonColor: String(params.color) }),
-        fromKernel: (values) => ({ amount: values.neonGlow, color: values.neonColor }),
-      },
-    ],
-  }),
-  rays: modalEffect({
-    label: 'Rays',
-    family: 'light',
-    modeLabel: 'Style',
-    params: { ...kernelParamsInMode('rays', 'beams'), ...kernelParamsInMode('speedLines', 'lines') },
-    modes: [
-      { value: 'beams', label: 'Beams', kernel: 'rays', preset: 'rays' },
-      { value: 'lines', label: 'Speed lines', kernel: 'speedLines', preset: 'speedLines' },
-    ],
-  }),
-  filmBurn: kernelEffect('filmBurn', 'Film Burn'),
-  colorOverlay: modalEffect({
-    label: 'Color Overlay',
-    family: 'tone',
-    modeLabel: 'Style',
-    params: {
-      amount: numParam('Amount', 0, 0, 100, { format: 'percent' }),
-      color: colorParam('Color', '#350055'),
-      colorB: colorParam('End color', '#ff6ec7', inModes('gradient')),
-      angle: numParam('Direction', 0, 0, 360, { format: 'deg', when: inModes('gradient') }),
-    },
-    modes: [
-      {
-        value: 'multiply',
-        label: 'Tint',
-        kernel: 'tint',
-        preset: 'tint',
-        toKernel: (params) => ({ tintOp: numberOf(params.amount), tint: String(params.color) }),
-        fromKernel: (values) => ({ amount: values.tintOp, color: values.tint }),
-      },
-      {
-        value: 'gradient',
-        label: 'Gradient',
-        kernel: 'gradientOverlay',
-        preset: 'gradientOverlay',
-        toKernel: (params) => ({
-          gradMix: numberOf(params.amount),
-          gradA: String(params.color),
-          gradB: String(params.colorB),
-          gradAngle: numberOf(params.angle),
-        }),
-        fromKernel: (values) => ({
-          amount: values.gradMix,
-          color: values.gradA,
-          colorB: values.gradB,
-          angle: values.gradAngle,
-        }),
-      },
-      {
-        value: 'haze',
-        label: 'Haze',
-        kernel: 'fog',
-        preset: 'fog',
-        toKernel: (params) => ({ fog: numberOf(params.amount), fogColor: String(params.color) }),
-        fromKernel: (values) => ({ amount: values.fog, color: values.fogColor }),
-      },
-    ],
-  }),
-  channelSplit: modalEffect({
-    label: 'Channel Split',
-    family: 'signal',
-    modeLabel: 'Direction',
-    params: { amount: numParam('Distance', 0, 0, 40, { format: 'px' }) },
-    modes: [amountMode('linear', 'Diagonal', 'rgbSplit', 'rgbSplit'), amountMode('radial', 'Radial', 'ca', 'ca')],
-  }),
-  lineGlitch: modalEffect({
-    label: 'Line Glitch',
-    family: 'signal',
-    modeLabel: 'Style',
-    params: {
-      ...kernelParamsInMode('glitch', 'streaks'),
-      ...kernelParamsInMode('tear', 'tear'),
-      ...kernelParamsInMode('interlace', 'interlace'),
-      ...kernelParamsInMode('vhsTracking', 'tracking'),
-    },
-    modes: [
-      { value: 'streaks', label: 'Streaks', kernel: 'glitch', preset: 'glitch' },
-      { value: 'tear', label: 'Tear', kernel: 'tear', preset: 'tear' },
-      { value: 'interlace', label: 'Interlace', kernel: 'interlace', preset: 'interlace' },
-      { value: 'tracking', label: 'VHS tracking', kernel: 'vhsTracking', preset: 'vhsTracking' },
-    ],
-  }),
-  compression: modalEffect({
-    label: 'Compression',
-    family: 'signal',
-    modeLabel: 'Style',
-    params: { ...kernelParamsInMode('badStream', 'codec'), ...kernelParamsInMode('dataMosh', 'blocks') },
-    modes: [
-      { value: 'codec', label: 'Bad stream', kernel: 'badStream', preset: 'badStream' },
-      { value: 'blocks', label: 'Data mosh', kernel: 'dataMosh', preset: 'dataMosh' },
-    ],
-  }),
-  blur: modalEffect({
-    label: 'Blur',
-    family: 'print',
-    modeLabel: 'Type',
-    params: {
-      ...kernelParamsInMode('blur', 'gaussian'),
-      ...kernelParamsInMode('bokehBlur', 'lens'),
-      ...kernelParamsInMode('zoomBlur', 'zoom'),
-      ...kernelParamsInMode('pixelStretch', 'motion'),
-    },
-    modes: [
-      { value: 'gaussian', label: 'Soft', kernel: 'blur', preset: 'blur' },
-      { value: 'lens', label: 'Lens', kernel: 'bokehBlur', preset: 'bokehBlur' },
-      { value: 'zoom', label: 'Zoom', kernel: 'zoomBlur', preset: 'zoomBlur' },
-      { value: 'motion', label: 'Motion', kernel: 'pixelStretch', preset: 'pixelStretch' },
-    ],
-  }),
-  pixelate: modalEffect({
-    label: 'Pixelate',
-    family: 'tone',
-    modeLabel: 'Style',
-    params: { ...kernelParamsInMode('pixelate', 'blocks'), ...kernelParamsInMode('retroResolution', 'retro') },
-    modes: [
-      { value: 'blocks', label: 'Blocks', kernel: 'pixelate', preset: 'pixelate' },
-      { value: 'retro', label: 'Retro resolution', kernel: 'retroResolution', preset: 'retroResolution' },
-    ],
-  }),
-  alphaCrush: modalEffect({
-    label: 'Alpha Crush',
-    family: 'print',
-    modeLabel: 'Edge',
-    params: { amount: numParam('Amount', 0, 0, 100, { format: 'percent' }) },
-    modes: [
-      amountMode('harden', 'Harden', 'edgeCrush', 'edgeCrush'),
-      amountMode('chip', 'Chip', 'silhouetteCrush', 'silhouetteCrush'),
-    ],
-  }),
-  grain: modalEffect({
-    label: 'Grain',
-    family: 'texture',
-    modeLabel: 'Size',
-    params: { amount: numParam('Amount', 0, 0, 100, { format: 'percent' }) },
-    modes: [amountMode('fine', 'Fine', 'grain', 'grain'), amountMode('coarse', 'Coarse', 'matte', 'matte')],
-  }),
-  halftone: modalEffect({
-    label: 'Halftone',
-    family: 'print',
-    modeLabel: 'Screen',
-    params: {
-      ...kernelParamsInMode('halftone', 'dots'),
-      ...kernelParamsInMode('hatching', 'lines'),
-      ...kernelParamsInMode('dotGrain', 'stochastic'),
-    },
-    modes: [
-      { value: 'dots', label: 'Dots', kernel: 'halftone', preset: 'halftone' },
-      { value: 'lines', label: 'Lines', kernel: 'hatching', preset: 'hatching' },
-      { value: 'stochastic', label: 'Stipple', kernel: 'dotGrain', preset: 'dotGrain' },
-    ],
-  }),
-  edges: modalEffect({
-    label: 'Edges',
-    family: 'texture',
-    modeLabel: 'Style',
-    params: { amount: numParam('Amount', 0, 0, 100, { format: 'percent' }) },
-    modes: [
-      amountMode('emboss', 'Emboss', 'emboss', 'emboss'),
-      amountMode('outline', 'Outline', 'edgeDetect', 'edgeDetect'),
-    ],
-  }),
-  scanlines: kernelEffect('scanlines', 'Scanlines'),
-  posterize: modalEffect({
-    label: 'Posterize',
-    family: 'tone',
-    modeLabel: 'Style',
-    params: {
-      ...kernelParamsInMode('posterize', 'levels'),
-      ...kernelParamsInMode('dither', 'dither'),
-      ...kernelParamsInMode('linocut', 'linocut'),
-      ...kernelParamsInMode('threshold', 'threshold'),
-      ...kernelParamsInMode('indexedPalette', 'palette'),
-    },
-    modes: [
-      { value: 'levels', label: 'Levels', kernel: 'posterize', preset: 'posterize' },
-      { value: 'dither', label: 'Dither', kernel: 'dither', preset: 'dither' },
-      { value: 'linocut', label: 'Linocut', kernel: 'linocut', preset: 'linocut' },
-      { value: 'threshold', label: 'Threshold', kernel: 'threshold', preset: 'threshold' },
-      { value: 'palette', label: 'Palette', kernel: 'indexedPalette', preset: 'indexedPalette' },
-    ],
-  }),
-  displace: modalEffect({
-    label: 'Displace',
-    family: 'warp',
-    modeLabel: 'Field',
-    params: {
-      ...kernelParamsInMode('noiseWarp', 'noise'),
-      ...kernelParamsInMode('morph', 'liquid'),
-      ...kernelParamsInMode('wave', 'wave'),
-      ...kernelParamsInMode('ripple', 'ripple'),
-      ...kernelParamsInMode('patternRefraction', 'pattern'),
-    },
-    modes: [
-      { value: 'noise', label: 'Noise', kernel: 'noiseWarp', preset: 'noiseWarp' },
-      { value: 'liquid', label: 'Liquid', kernel: 'morph', preset: 'morph' },
-      { value: 'wave', label: 'Wave', kernel: 'wave', preset: 'wave' },
-      { value: 'ripple', label: 'Ripple', kernel: 'ripple', preset: 'ripple' },
-      { value: 'pattern', label: 'Pattern refraction', kernel: 'patternRefraction', preset: 'patternRefraction' },
-    ],
-  }),
-  lens: modalEffect({
-    label: 'Lens',
-    family: 'warp',
-    modeLabel: 'Shape',
-    params: {
-      ...kernelParamsInMode('barrel', 'barrel'),
-      ...kernelParamsInMode('vortex', 'swirl'),
-      ...kernelParamsInMode('squeeze', 'squeeze'),
-    },
-    modes: [
-      { value: 'barrel', label: 'Barrel', kernel: 'barrel', preset: 'barrel' },
-      { value: 'swirl', label: 'Swirl', kernel: 'vortex', preset: 'vortex' },
-      { value: 'squeeze', label: 'Squeeze', kernel: 'squeeze', preset: 'squeeze' },
-    ],
-  }),
-  symmetry: modalEffect({
-    label: 'Symmetry',
-    family: 'warp',
-    modeLabel: 'Fold',
-    params: { ...kernelParamsInMode('mirror', 'mirror'), ...kernelParamsInMode('kaleidoscope', 'kaleidoscope') },
-    modes: [
-      { value: 'mirror', label: 'Mirror', kernel: 'mirror', preset: 'mirror' },
-      { value: 'kaleidoscope', label: 'Kaleidoscope', kernel: 'kaleidoscope', preset: 'kaleidoscope' },
-    ],
-  }),
   adjust: {
     label: 'Adjust',
     family: 'tone',
@@ -452,8 +216,37 @@ export const EFFECTS = {
     },
     starter: 'adjust',
   },
-  sharpen: kernelEffect('sharpen', 'Sharpen'),
-  vignette: kernelEffect('vignette', 'Vignette'),
+  colorFilter: modalEffect({
+    label: 'Color Filter',
+    family: 'tone',
+    modeLabel: 'Look',
+    params: {
+      amount: numParam('Amount', 0, 0, 100, { format: 'percent' }),
+      ...kernelParamsInMode('channelMixer', 'mixer', ['channelMixer']),
+    },
+    modes: [
+      amountMode('sepia', 'Sepia', 'sepia', 'sepia'),
+      amountMode('infrared', 'Infrared', 'infrared', 'infrared'),
+      amountMode('bleach', 'Bleach bypass', 'bleachBypass', 'bleachBypass'),
+      amountMode('solarize', 'Solarize', 'solarize', 'solarize'),
+      amountMode('cyanotype', 'Cyanotype', 'cyanotype', 'cyanotype'),
+      {
+        ...amountMode('mixer', 'Channel mixer', 'channelMixer', 'channelMixer'),
+        toKernel: (params) => ({
+          channelMixer: numberOf(params.amount),
+          channelRedMix: numberOf(params.channelRedMix),
+          channelGreenMix: numberOf(params.channelGreenMix),
+          channelBlueMix: numberOf(params.channelBlueMix),
+        }),
+        fromKernel: (values) => ({
+          amount: values.channelMixer,
+          channelRedMix: values.channelRedMix,
+          channelGreenMix: values.channelGreenMix,
+          channelBlueMix: values.channelBlueMix,
+        }),
+      },
+    ],
+  }),
   gradientMap: modalEffect({
     label: 'Gradient Map',
     family: 'tone',
@@ -513,39 +306,252 @@ export const EFFECTS = {
       },
     ],
   }),
-  colorFilter: modalEffect({
-    label: 'Color Filter',
+  colorOverlay: modalEffect({
+    label: 'Color Overlay',
     family: 'tone',
-    modeLabel: 'Look',
+    modeLabel: 'Style',
     params: {
       amount: numParam('Amount', 0, 0, 100, { format: 'percent' }),
-      ...kernelParamsInMode('channelMixer', 'mixer'),
+      color: colorParam('Color', '#350055'),
+      colorB: colorParam('End color', '#ff6ec7', inModes('gradient')),
+      angle: numParam('Direction', 0, 0, 360, { format: 'deg', when: inModes('gradient') }),
     },
     modes: [
-      amountMode('sepia', 'Sepia', 'sepia', 'sepia'),
-      amountMode('infrared', 'Infrared', 'infrared', 'infrared'),
-      amountMode('bleach', 'Bleach bypass', 'bleachBypass', 'bleachBypass'),
-      amountMode('solarize', 'Solarize', 'solarize', 'solarize'),
-      amountMode('cyanotype', 'Cyanotype', 'cyanotype', 'cyanotype'),
       {
-        ...amountMode('mixer', 'Channel mixer', 'channelMixer', 'channelMixer'),
+        value: 'multiply',
+        label: 'Tint',
+        kernel: 'tint',
+        preset: 'tint',
+        toKernel: (params) => ({ tintOp: numberOf(params.amount), tint: String(params.color) }),
+        fromKernel: (values) => ({ amount: values.tintOp, color: values.tint }),
+      },
+      {
+        value: 'gradient',
+        label: 'Gradient',
+        kernel: 'gradientOverlay',
+        preset: 'gradientOverlay',
         toKernel: (params) => ({
-          channelMixer: numberOf(params.amount),
-          channelRedMix: numberOf(params.channelRedMix),
-          channelGreenMix: numberOf(params.channelGreenMix),
-          channelBlueMix: numberOf(params.channelBlueMix),
+          gradMix: numberOf(params.amount),
+          gradA: String(params.color),
+          gradB: String(params.colorB),
+          gradAngle: numberOf(params.angle),
         }),
         fromKernel: (values) => ({
-          amount: values.channelMixer,
-          channelRedMix: values.channelRedMix,
-          channelGreenMix: values.channelGreenMix,
-          channelBlueMix: values.channelBlueMix,
+          amount: values.gradMix,
+          color: values.gradA,
+          colorB: values.gradB,
+          angle: values.gradAngle,
         }),
       },
+      {
+        value: 'haze',
+        label: 'Haze',
+        kernel: 'fog',
+        preset: 'fog',
+        toKernel: (params) => ({ fog: numberOf(params.amount), fogColor: String(params.color) }),
+        fromKernel: (values) => ({ amount: values.fog, color: values.fogColor }),
+      },
+    ],
+  }),
+  posterize: modalEffect({
+    label: 'Posterize',
+    family: 'tone',
+    modeLabel: 'Style',
+    params: {
+      ...kernelParamsInMode('posterize', 'levels'),
+      ...kernelParamsInMode('dither', 'dither'),
+      ...kernelParamsInMode('linocut', 'linocut'),
+      ...kernelParamsInMode('threshold', 'threshold'),
+      ...kernelParamsInMode('indexedPalette', 'palette'),
+    },
+    modes: [
+      { value: 'levels', label: 'Levels', kernel: 'posterize', preset: 'posterize' },
+      { value: 'dither', label: 'Dither', kernel: 'dither', preset: 'dither' },
+      { value: 'linocut', label: 'Linocut', kernel: 'linocut', preset: 'linocut' },
+      { value: 'threshold', label: 'Threshold', kernel: 'threshold', preset: 'threshold' },
+      { value: 'palette', label: 'Palette', kernel: 'indexedPalette', preset: 'indexedPalette' },
+    ],
+  }),
+  pixelate: modalEffect({
+    label: 'Pixelate',
+    family: 'tone',
+    modeLabel: 'Style',
+    params: { ...kernelParamsInMode('pixelate', 'blocks'), ...kernelParamsInMode('retroResolution', 'retro') },
+    modes: [
+      { value: 'blocks', label: 'Blocks', kernel: 'pixelate', preset: 'pixelate' },
+      { value: 'retro', label: 'Retro resolution', kernel: 'retroResolution', preset: 'retroResolution' },
+    ],
+  }),
+  vignette: kernelEffect('vignette', 'Vignette'),
+  glow: modalEffect({
+    label: 'Glow',
+    family: 'light',
+    modeLabel: 'Style',
+    params: {
+      amount: numParam('Amount', 0, 0, 100, { format: 'percent' }),
+      color: colorParam('Glow color', '#ff00ff', inModes('neon')),
+    },
+    modes: [
+      amountMode('bloom', 'Bloom', 'bloom', 'bloom'),
+      {
+        ...amountMode('neon', 'Neon', 'neonGlow', 'neonGlow'),
+        toKernel: (params) => ({ neonGlow: numberOf(params.amount), neonColor: String(params.color) }),
+        fromKernel: (values) => ({ amount: values.neonGlow, color: values.neonColor }),
+      },
+    ],
+  }),
+  rays: modalEffect({
+    label: 'Rays',
+    family: 'light',
+    modeLabel: 'Style',
+    params: { ...kernelParamsInMode('rays', 'beams'), ...kernelParamsInMode('speedLines', 'lines') },
+    modes: [
+      { value: 'beams', label: 'Beams', kernel: 'rays', preset: 'rays' },
+      { value: 'lines', label: 'Speed lines', kernel: 'speedLines', preset: 'speedLines' },
+    ],
+  }),
+  filmBurn: kernelEffect('filmBurn', 'Film Burn'),
+  grain: modalEffect({
+    label: 'Grain',
+    family: 'texture',
+    modeLabel: 'Size',
+    params: { amount: numParam('Amount', 0, 0, 100, { format: 'percent' }) },
+    modes: [amountMode('fine', 'Fine', 'grain', 'grain'), amountMode('coarse', 'Coarse', 'matte', 'matte')],
+  }),
+  halftone: modalEffect({
+    label: 'Halftone',
+    family: 'print',
+    modeLabel: 'Screen',
+    params: {
+      ...kernelParamsInMode('halftone', 'dots'),
+      ...kernelParamsInMode('hatching', 'lines'),
+      ...kernelParamsInMode('dotGrain', 'stochastic'),
+    },
+    modes: [
+      { value: 'dots', label: 'Dots', kernel: 'halftone', preset: 'halftone' },
+      { value: 'lines', label: 'Lines', kernel: 'hatching', preset: 'hatching' },
+      { value: 'stochastic', label: 'Stipple', kernel: 'dotGrain', preset: 'dotGrain' },
+    ],
+  }),
+  scanlines: kernelEffect('scanlines', 'Scanlines'),
+  edges: modalEffect({
+    label: 'Edges',
+    family: 'texture',
+    modeLabel: 'Style',
+    params: { amount: numParam('Amount', 0, 0, 100, { format: 'percent' }) },
+    modes: [
+      amountMode('emboss', 'Emboss', 'emboss', 'emboss'),
+      amountMode('outline', 'Outline', 'edgeDetect', 'edgeDetect'),
     ],
   }),
   risoShift: kernelEffect('risoShift', 'Misregister'),
   overprint: kernelEffect('overprint', 'Overprint'),
+  channelSplit: modalEffect({
+    label: 'Channel Split',
+    family: 'signal',
+    modeLabel: 'Direction',
+    params: { amount: numParam('Distance', 0, 0, 40, { format: 'px' }) },
+    modes: [amountMode('linear', 'Diagonal', 'rgbSplit', 'rgbSplit'), amountMode('radial', 'Radial', 'ca', 'ca')],
+  }),
+  lineGlitch: modalEffect({
+    label: 'Line Glitch',
+    family: 'signal',
+    modeLabel: 'Style',
+    params: {
+      ...kernelParamsInMode('glitch', 'streaks'),
+      ...kernelParamsInMode('tear', 'tear'),
+      ...kernelParamsInMode('interlace', 'interlace'),
+      ...kernelParamsInMode('vhsTracking', 'tracking'),
+    },
+    modes: [
+      { value: 'streaks', label: 'Streaks', kernel: 'glitch', preset: 'glitch' },
+      { value: 'tear', label: 'Tear', kernel: 'tear', preset: 'tear' },
+      { value: 'interlace', label: 'Interlace', kernel: 'interlace', preset: 'interlace' },
+      { value: 'tracking', label: 'VHS tracking', kernel: 'vhsTracking', preset: 'vhsTracking' },
+    ],
+  }),
+  compression: modalEffect({
+    label: 'Compression',
+    family: 'signal',
+    modeLabel: 'Style',
+    params: { ...kernelParamsInMode('badStream', 'codec'), ...kernelParamsInMode('dataMosh', 'blocks') },
+    modes: [
+      { value: 'codec', label: 'Bad stream', kernel: 'badStream', preset: 'badStream' },
+      { value: 'blocks', label: 'Data mosh', kernel: 'dataMosh', preset: 'dataMosh' },
+    ],
+  }),
+  displace: modalEffect({
+    label: 'Displace',
+    family: 'warp',
+    modeLabel: 'Field',
+    params: {
+      ...kernelParamsInMode('noiseWarp', 'noise'),
+      ...kernelParamsInMode('morph', 'liquid'),
+      ...kernelParamsInMode('wave', 'wave'),
+      ...kernelParamsInMode('ripple', 'ripple'),
+      ...kernelParamsInMode('patternRefraction', 'pattern'),
+    },
+    modes: [
+      { value: 'noise', label: 'Noise', kernel: 'noiseWarp', preset: 'noiseWarp' },
+      { value: 'liquid', label: 'Liquid', kernel: 'morph', preset: 'morph' },
+      { value: 'wave', label: 'Wave', kernel: 'wave', preset: 'wave' },
+      { value: 'ripple', label: 'Ripple', kernel: 'ripple', preset: 'ripple' },
+      { value: 'pattern', label: 'Pattern refraction', kernel: 'patternRefraction', preset: 'patternRefraction' },
+    ],
+  }),
+  lens: modalEffect({
+    label: 'Lens',
+    family: 'warp',
+    modeLabel: 'Shape',
+    params: {
+      ...kernelParamsInMode('barrel', 'barrel'),
+      ...kernelParamsInMode('vortex', 'swirl'),
+      ...kernelParamsInMode('squeeze', 'squeeze'),
+    },
+    modes: [
+      { value: 'barrel', label: 'Barrel', kernel: 'barrel', preset: 'barrel' },
+      { value: 'swirl', label: 'Swirl', kernel: 'vortex', preset: 'vortex' },
+      { value: 'squeeze', label: 'Squeeze', kernel: 'squeeze', preset: 'squeeze' },
+    ],
+  }),
+  symmetry: modalEffect({
+    label: 'Symmetry',
+    family: 'warp',
+    modeLabel: 'Fold',
+    params: { ...kernelParamsInMode('mirror', 'mirror'), ...kernelParamsInMode('kaleidoscope', 'kaleidoscope') },
+    modes: [
+      { value: 'mirror', label: 'Mirror', kernel: 'mirror', preset: 'mirror' },
+      { value: 'kaleidoscope', label: 'Kaleidoscope', kernel: 'kaleidoscope', preset: 'kaleidoscope' },
+    ],
+  }),
+  blur: modalEffect({
+    label: 'Blur',
+    family: 'print',
+    modeLabel: 'Type',
+    params: {
+      ...kernelParamsInMode('blur', 'gaussian'),
+      ...kernelParamsInMode('bokehBlur', 'lens'),
+      ...kernelParamsInMode('zoomBlur', 'zoom'),
+      ...kernelParamsInMode('pixelStretch', 'motion'),
+    },
+    modes: [
+      { value: 'gaussian', label: 'Soft', kernel: 'blur', preset: 'blur' },
+      { value: 'lens', label: 'Lens', kernel: 'bokehBlur', preset: 'bokehBlur' },
+      { value: 'zoom', label: 'Zoom', kernel: 'zoomBlur', preset: 'zoomBlur' },
+      { value: 'motion', label: 'Motion', kernel: 'pixelStretch', preset: 'pixelStretch' },
+    ],
+  }),
+  sharpen: kernelEffect('sharpen', 'Sharpen'),
+  alphaCrush: modalEffect({
+    label: 'Alpha Crush',
+    family: 'print',
+    modeLabel: 'Edge',
+    params: { amount: numParam('Amount', 0, 0, 100, { format: 'percent' }) },
+    modes: [
+      amountMode('harden', 'Harden', 'edgeCrush', 'edgeCrush'),
+      amountMode('chip', 'Chip', 'silhouetteCrush', 'silhouetteCrush'),
+    ],
+  }),
   gooeyMerge: kernelEffect('gooeyMerge', 'Gooey Merge'),
 } satisfies Record<string, EffectSpec>;
 

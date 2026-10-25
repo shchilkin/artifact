@@ -64,6 +64,33 @@ describe('effect catalog', () => {
     }
   });
 
+  it('stores only parameters that change a kernel call, and absorbs into those parameters', () => {
+    for (const effect of EFFECT_IDS) {
+      const spec = effectSpec(effect);
+      const mode = spec.params.mode;
+      const modes = mode?.type === 'choice' ? mode.options.map((option) => option.value) : [undefined];
+      for (const [key, param] of Object.entries(spec.params)) {
+        const changed =
+          param.type === 'number'
+            ? param.default + 1
+            : param.type === 'color'
+              ? '#123456'
+              : param.options.at(-1)?.value;
+        const used = modes.some((value) => {
+          const base = { ...effectDefaults(effect), ...(value ? { mode: value } : {}) };
+          const variant = { ...base, [key]: key === 'mode' ? (modes[0] === value ? modes.at(-1) : modes[0]) : changed };
+          return JSON.stringify(spec.kernels(base)) !== JSON.stringify(spec.kernels(variant ?? base));
+        });
+        expect(used, `${effect}.${key}`).toBe(true);
+      }
+      for (const [kernel, absorb] of Object.entries(spec.absorbs)) {
+        for (const key of Object.keys(absorb?.({ ...KERNEL_PARAM_DEFAULTS }) ?? {})) {
+          expect(Object.keys(spec.params), `${effect} absorbing ${kernel}`).toContain(key);
+        }
+      }
+    }
+  });
+
   it('keeps parameter specs consistent', () => {
     for (const effect of EFFECT_IDS) {
       const spec = effectSpec(effect);

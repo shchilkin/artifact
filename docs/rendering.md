@@ -293,8 +293,9 @@ Layer rendering happens through `applyLayerToCanvas` in
 | `effect` | Canvas effects plus PixiJS GPU filters |
 
 An effect layer renders its stack top to bottom (`utils/effectStack.ts`).
-Enabled, active entries are cut into runs: consecutive entries of one pass
-(Canvas 2D / worker, or GPU) whose effects follow `EFFECT_PASS_ORDER`. A Canvas
+Each enabled entry becomes the kernel calls its effect makes
+(`types/effectSchema.ts`). Active calls are cut into runs: consecutive calls of
+one pass (Canvas 2D / worker, or GPU) whose kernels follow `KERNEL_PASS_ORDER`. A Canvas
 2D run is one `applyCanvas2DEffects` call and all Canvas 2D runs of a layer
 share one seeded random stream; consecutive GPU runs share one GPU pass. A stack
 listed in pass order therefore renders exactly as the schema-6 parameter bag
