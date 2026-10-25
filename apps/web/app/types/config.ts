@@ -106,6 +106,19 @@ export interface TextLayer extends BaseLayer {
   align: 'left' | 'center' | 'right';
   scaleX: number;
   scaleY: number;
+  /** Extra space between letters, in px at the 540px reference size. */
+  tracking: number;
+  /** Line height as a percentage of the font size. */
+  leading: number;
+  /** Outline thickness outside the letters, in px at the reference size; 0 is off. */
+  outlineWidth: number;
+  outlineColor: string;
+  /** Drop shadow strength, 0-100; 0 is off. */
+  shadowOpacity: number;
+  shadowColor: string;
+  shadowX: number;
+  shadowY: number;
+  shadowBlur: number;
 }
 
 export interface ImageAiGenerationMetadata {
@@ -164,9 +177,16 @@ export interface EmojiLayer extends BaseLayer {
   blendMode: string;
 }
 
+export type FillMode = 'solid' | 'linear' | 'radial';
+
 export interface FillLayer extends BaseLayer {
   kind: 'fill';
+  /** Solid uses `color`; gradients run from `color` to `colorB`. */
+  fillMode: FillMode;
   color: string;
+  colorB: string;
+  /** Linear gradient direction in degrees: 0 runs left to right, 90 top to bottom. */
+  angle: number;
   opacity: number;
   blendMode: string;
 }
@@ -420,9 +440,23 @@ export function makeTextLayer(partial: Partial<TextLayer> = {}): TextLayer {
     align: 'center',
     scaleX: 1,
     scaleY: 1,
+    ...TEXT_TYPOGRAPHY_DEFAULTS,
     ...partial,
   };
 }
+
+/** Typography fields at the values that draw text as it was drawn before they existed. */
+export const TEXT_TYPOGRAPHY_DEFAULTS = {
+  tracking: 0,
+  leading: 125,
+  outlineWidth: 0,
+  outlineColor: '#000000',
+  shadowOpacity: 0,
+  shadowColor: '#000000',
+  shadowX: 4,
+  shadowY: 6,
+  shadowBlur: 8,
+} as const satisfies Partial<TextLayer>;
 
 export function makeImageLayer(src: string, partial: Partial<ImageLayer> = {}): ImageLayer {
   return {
@@ -470,7 +504,10 @@ export function makeFillLayer(partial: Partial<FillLayer> = {}): FillLayer {
     visible: true,
     locked: false,
     kind: 'fill',
+    fillMode: 'solid',
     color: '#120020',
+    colorB: '#ff6ec7',
+    angle: 90,
     opacity: 100,
     blendMode: 'normal',
     ...partial,

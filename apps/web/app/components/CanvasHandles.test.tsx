@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import type { TextLayer } from '../types/config';
+import { TEXT_TYPOGRAPHY_DEFAULTS, type TextLayer } from '../types/config';
 import { CanvasHandles } from './CanvasHandles';
 import { nextKeyboardLayer } from './canvasHandleTransforms';
 
@@ -22,6 +22,7 @@ const textLayer: TextLayer = {
   align: 'center',
   scaleX: 1,
   scaleY: 1,
+  ...TEXT_TYPOGRAPHY_DEFAULTS,
 };
 
 describe('CanvasHandles chrome', () => {

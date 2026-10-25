@@ -32,6 +32,15 @@ export function layerRenderSig(layer: Layer): string {
         align,
         scaleX,
         scaleY,
+        layer.tracking,
+        layer.leading,
+        layer.outlineWidth,
+        layer.outlineColor,
+        layer.shadowOpacity,
+        layer.shadowColor,
+        layer.shadowX,
+        layer.shadowY,
+        layer.shadowBlur,
       ]);
     }
     case 'image': {
@@ -43,8 +52,8 @@ export function layerRenderSig(layer: Layer): string {
       return JSON.stringify([layer.kind, visible, emojis, density, minSz, maxSz, blur, seedOffset, opacity, blendMode]);
     }
     case 'fill': {
-      const { visible, color, opacity, blendMode } = layer;
-      return JSON.stringify([layer.kind, visible, color, opacity, blendMode]);
+      const { visible, fillMode, color, colorB, angle, opacity, blendMode } = layer;
+      return JSON.stringify([layer.kind, visible, fillMode, color, colorB, angle, opacity, blendMode]);
     }
     case 'effect': {
       // All effect fields are render-relevant. Exclude only id, name, locked.

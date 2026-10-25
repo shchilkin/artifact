@@ -107,7 +107,7 @@ const MATERIAL_PERCENT_FIELDS = [
   ['materialGrain', 'Grain', 'materialGrain'],
 ] as const;
 
-type LayerControlSection = 'content' | 'placement' | 'style' | 'structure';
+type LayerControlSection = 'content' | 'type' | 'placement' | 'style' | 'structure';
 type SetOpenSection = Dispatch<SetStateAction<LayerControlSection>>;
 type SetScaleLocked = Dispatch<SetStateAction<boolean>>;
 type BasicLayerKind = 'text' | 'image' | 'fill' | 'emoji';
@@ -447,6 +447,12 @@ function TextLayerControls({
           onChange={(v) => onChange({ align: v as TextLayer['align'] } as Partial<TextLayer>)}
         />
       </InspectorSection>
+      <TextTypeSection
+        layer={layer}
+        open={openSection === 'type'}
+        onToggle={() => toggleOpenSection(setOpenSection, 'type', 'placement')}
+        onChange={(patch) => onChange(patch as Partial<Layer>)}
+      />
       <LayerPlacementControls
         layer={layer}
         open={openSection === 'placement'}
@@ -469,6 +475,102 @@ function TextLayerControls({
         />
       </LayerStyleForLayer>
     </div>
+  );
+}
+
+function textTypeSummary(layer: TextLayer) {
+  const parts = [`${layer.leading}% leading`];
+  if (layer.outlineWidth > 0) parts.push('outline');
+  if (layer.shadowOpacity > 0) parts.push('shadow');
+  return parts.join(' · ');
+}
+
+function TextTypeSection({
+  layer,
+  open,
+  onToggle,
+  onChange,
+}: {
+  layer: TextLayer;
+  open: boolean;
+  onToggle: () => void;
+  onChange: (patch: Partial<TextLayer>) => void;
+}) {
+  return (
+    <InspectorSection title="Type" summary={textTypeSummary(layer)} open={open} onToggle={onToggle}>
+      <InspectorSlider
+        label="Tracking"
+        value={layer.tracking}
+        min={-20}
+        max={60}
+        unit="px"
+        onChange={(v) => onChange({ tracking: v })}
+      />
+      <InspectorSlider
+        label="Leading"
+        value={layer.leading}
+        min={60}
+        max={240}
+        unit="%"
+        onChange={(v) => onChange({ leading: v })}
+      />
+      <InspectorSlider
+        label="Outline"
+        value={layer.outlineWidth}
+        min={0}
+        max={20}
+        unit="px"
+        onChange={(v) => onChange({ outlineWidth: v })}
+      />
+      {layer.outlineWidth > 0 && (
+        <InspectorColorInput
+          label="Outline color"
+          value={layer.outlineColor}
+          onChange={(v) => onChange({ outlineColor: v })}
+        />
+      )}
+      <InspectorSlider
+        label="Shadow"
+        value={layer.shadowOpacity}
+        min={0}
+        max={100}
+        unit="%"
+        onChange={(v) => onChange({ shadowOpacity: v })}
+      />
+      {layer.shadowOpacity > 0 && (
+        <>
+          <InspectorColorInput
+            label="Shadow color"
+            value={layer.shadowColor}
+            onChange={(v) => onChange({ shadowColor: v })}
+          />
+          <InspectorSlider
+            label="Shadow X"
+            value={layer.shadowX}
+            min={-40}
+            max={40}
+            unit="px"
+            onChange={(v) => onChange({ shadowX: v })}
+          />
+          <InspectorSlider
+            label="Shadow Y"
+            value={layer.shadowY}
+            min={-40}
+            max={40}
+            unit="px"
+            onChange={(v) => onChange({ shadowY: v })}
+          />
+          <InspectorSlider
+            label="Shadow blur"
+            value={layer.shadowBlur}
+            min={0}
+            max={40}
+            unit="px"
+            onChange={(v) => onChange({ shadowBlur: v })}
+          />
+        </>
+      )}
+    </InspectorSection>
   );
 }
 
@@ -527,6 +629,17 @@ function ImageLayerControls({
   );
 }
 
+const FILL_MODE_LABELS: Record<FillLayer['fillMode'], string> = {
+  solid: 'Solid fill',
+  linear: 'Linear gradient',
+  radial: 'Radial gradient',
+};
+
+const FILL_MODE_OPTIONS = (Object.keys(FILL_MODE_LABELS) as FillLayer['fillMode'][]).map((value) => ({
+  value,
+  label: FILL_MODE_LABELS[value].replace(' fill', ''),
+}));
+
 function FillLayerControls({
   layer,
   sectionClassName,
@@ -543,16 +656,39 @@ function FillLayerControls({
   return (
     <div className={sectionClassName}>
       <LayerContentSection
-        summary="Solid fill"
+        summary={FILL_MODE_LABELS[layer.fillMode] ?? FILL_MODE_LABELS.solid}
         open={openSection === 'content'}
         onToggle={() => toggleOpenSection(setOpenSection, 'content', 'style')}
       >
         <LayerNameInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+        <InspectorSelect
+          label="Style"
+          value={layer.fillMode}
+          options={FILL_MODE_OPTIONS}
+          onChange={(v) => onChange({ fillMode: v } as Partial<FillLayer>)}
+        />
         <InspectorColorInput
-          label="Color"
+          label={layer.fillMode === 'solid' ? 'Color' : 'Start color'}
           value={layer.color}
           onChange={(v) => onChange({ color: v } as Partial<FillLayer>)}
         />
+        {layer.fillMode !== 'solid' && (
+          <InspectorColorInput
+            label="End color"
+            value={layer.colorB}
+            onChange={(v) => onChange({ colorB: v } as Partial<FillLayer>)}
+          />
+        )}
+        {layer.fillMode === 'linear' && (
+          <InspectorSlider
+            label="Direction"
+            value={Math.round(layer.angle)}
+            min={0}
+            max={360}
+            unit="°"
+            onChange={(v) => onChange({ angle: v } as Partial<FillLayer>)}
+          />
+        )}
       </LayerContentSection>
       <LayerStyleForLayer layer={layer} openSection={openSection} setOpenSection={setOpenSection} onChange={onChange} />
     </div>

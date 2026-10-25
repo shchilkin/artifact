@@ -13,6 +13,7 @@ import {
   type Layer,
   makeDocument,
   makeEmojiLayer,
+  makeFillLayer,
   makeSourceLayer,
   type PortableEnvironmentAsset,
   type PortableFontAsset,
@@ -20,6 +21,7 @@ import {
   type PrimitiveLayer,
   SOURCE_TYPES,
   type SourceType,
+  TEXT_TYPOGRAPHY_DEFAULTS,
 } from '../types/config';
 import { type EffectParamSpec, effectSpec, isEffectId } from '../types/effectSchema';
 import { serializeDocumentForLink } from './documentLink';
@@ -257,14 +259,25 @@ function normalizeEffectLayer(layer: Record<string, unknown>): Record<string, un
   return { ...DEFAULT_EFFECT_LAYER_PROPS, ...layer, effects, mix };
 }
 
+/** Fields added to a kind since documents were first saved, with the value that keeps their old look. */
+const LAYER_FIELD_DEFAULTS: Partial<Record<Layer['kind'], () => Partial<Layer>>> = {
+  emoji: () => makeEmojiLayer(),
+  text: () => ({ ...TEXT_TYPOGRAPHY_DEFAULTS }),
+  fill: () => {
+    const { fillMode, colorB, angle } = makeFillLayer();
+    return { fillMode, colorB, angle };
+  },
+};
+
 function normalizeLayer(layer: Record<string, unknown>): Layer {
+  const kindDefaults = LAYER_FIELD_DEFAULTS[layer.kind as Layer['kind']];
   const withDefaults =
     layer.kind === 'effect'
       ? normalizeEffectLayer(layer)
       : SOURCE_TYPES.includes(layer.kind as SourceType)
         ? { ...makeSourceLayer(layer.kind as SourceType), ...layer }
-        : layer.kind === 'emoji'
-          ? { ...makeEmojiLayer(), ...layer }
+        : kindDefaults
+          ? { ...kindDefaults(), ...layer }
           : layer;
   return (
     withDefaults.kind === 'primitive' ? clampMaterialFractions(withDefaults as Partial<PrimitiveLayer>) : withDefaults
