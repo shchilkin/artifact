@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { makeEffectEntry, makeEffectLayer } from '../types/effectPresets';
 import {
-  activeEffectEntries,
   addEffectEntry,
   effectRuns,
+  isEffectEntryActive,
   moveEffectEntry,
   removeEffectEntry,
   updateEffectEntry,
@@ -35,7 +35,11 @@ describe('effectRuns', () => {
   it('skips disabled and inactive entries', () => {
     const off = { ...grain, enabled: false };
     const zero = makeEffectEntry('scanlines', { scanlines: 0 }, 'zero');
-    expect(activeEffectEntries(stack(off, zero, vignette)).map((entry) => entry.id)).toEqual(['vignette']);
+    expect(
+      stack(off, zero, vignette)
+        .effects.filter(isEffectEntryActive)
+        .map((entry) => entry.id),
+    ).toEqual(['vignette']);
     expect(effectRuns(stack(off, zero))).toEqual([]);
   });
 });

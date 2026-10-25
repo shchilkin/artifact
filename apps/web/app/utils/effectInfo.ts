@@ -1,14 +1,14 @@
 import type { CanvasDocument, EffectPreset } from '../types/config';
 import { DEFAULT_EXPORT, makeDocument, makeEmojiLayer } from '../types/config';
 import {
-  EFFECT_PARAMS,
   type EffectFamilyId,
-  type EffectParamKey,
-  type EffectParamValues,
-  effectDefinition,
-  effectParam,
-  isEffectId,
-} from '../types/effectSchema';
+  isKernelId,
+  KERNEL_PARAMS,
+  type KernelParamKey,
+  type KernelParamValues,
+  kernelDefinition,
+  kernelParam,
+} from '../types/effectKernels';
 import { splitEffectPatchIntoPresetLayers } from './effectPresetPatch';
 import { renderDocument } from './renderer';
 
@@ -16,7 +16,7 @@ export interface EffectMeta {
   title: string;
   description: string;
   valueLabel: string;
-  cfgOverride: Partial<EffectParamValues>;
+  cfgOverride: Partial<KernelParamValues>;
   family?: EffectFamilyId;
   goodFor?: string;
 }
@@ -32,7 +32,7 @@ const BASE_EMOJI_LAYER = makeEmojiLayer({
   blur: 40,
 });
 
-const BASE_EFFECT: Partial<EffectParamValues> = {
+const BASE_EFFECT: Partial<KernelParamValues> = {
   rayInt: 50,
   rays: 10,
   tintOp: 20,
@@ -49,8 +49,8 @@ const EFFECT_FAMILY_META: Record<EffectFamilyId, { label: string; goodFor: strin
 
 /** The family of a help key: an effect id, or a parameter key whose effect has a family. */
 function effectFamilyOf(key: string): EffectFamilyId | undefined {
-  if (isEffectId(key)) return effectDefinition(key).family;
-  if (key in EFFECT_PARAMS) return effectDefinition(effectParam(key as EffectParamKey).effect).family;
+  if (isKernelId(key)) return kernelDefinition(key).family;
+  if (key in KERNEL_PARAMS) return kernelDefinition(kernelParam(key as KernelParamKey).kernel).family;
   return undefined;
 }
 

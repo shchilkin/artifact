@@ -1,4 +1,4 @@
-import { EFFECT_PARAM_DEFAULTS, type EffectParamValues } from '../../../types/effectSchema';
+import { KERNEL_PARAM_DEFAULTS, type KernelParamValues } from '../../../types/effectKernels';
 import { lcg } from '../../lcg';
 import { createCanvas, REF } from '../canvas';
 import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
@@ -36,14 +36,14 @@ function applyRayEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   rng: () => number,
 ) {
   if (params.rayInt <= 0 || params.rays <= 0) return;
   const cx = W / 2;
   const cy = H / 2;
   const diagonal = Math.sqrt(W * W + H * H);
-  const [r, g, b] = parseHexRgb(params.rayColor, EFFECT_PARAM_DEFAULTS.rayColor);
+  const [r, g, b] = parseHexRgb(params.rayColor, KERNEL_PARAM_DEFAULTS.rayColor);
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
   for (let i = 0; i < params.rays; i++) {
@@ -78,7 +78,7 @@ function applyGlitchEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   scale: number,
   rng: () => number,
 ) {
@@ -97,7 +97,7 @@ function applyGlitchEffect(
   ctx.restore();
 }
 
-function applyTintEffect(ctx: CanvasRenderingContext2D, W: number, H: number, params: EffectParamValues) {
+function applyTintEffect(ctx: CanvasRenderingContext2D, W: number, H: number, params: KernelParamValues) {
   if (params.tintOp <= 0) return;
   ctx.save();
   ctx.globalCompositeOperation = 'multiply';
@@ -111,7 +111,7 @@ async function applyColorPassEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   scale: number,
 ) {
   const needsPixelPass = params.sepia > 0 || params.infrared > 0 || params.ca > 0 || params.dither > 0;
@@ -127,7 +127,7 @@ async function applyColorPassEffect(
   ]);
 }
 
-function indexedPaletteColors(params: EffectParamValues): string[] {
+function indexedPaletteColors(params: KernelParamValues): string[] {
   const count = Math.min(6, Math.max(2, Math.round(params.indexedPaletteCount ?? 6)));
   return [
     params.indexedColorA,
@@ -150,7 +150,7 @@ async function applySingleImageDataTransform(
   await applyImageDataTransforms(ctx, W, H, [operation]);
 }
 
-function applyZoomBlurEffect(ctx: CanvasRenderingContext2D, W: number, H: number, params: EffectParamValues) {
+function applyZoomBlurEffect(ctx: CanvasRenderingContext2D, W: number, H: number, params: KernelParamValues) {
   if (params.zoomBlur <= 0) return;
   const snapshot = createCanvas(W, H);
   const sctx = snapshot.getContext('2d')!;
@@ -168,7 +168,7 @@ function applyZoomBlurEffect(ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.restore();
 }
 
-function applyRetroResolutionEffect(ctx: CanvasRenderingContext2D, W: number, H: number, params: EffectParamValues) {
+function applyRetroResolutionEffect(ctx: CanvasRenderingContext2D, W: number, H: number, params: KernelParamValues) {
   if (params.retroResolution <= 0) return;
   const outputLongestEdge = Math.max(W, H);
   const longestEdge = Math.max(8, Math.round(params.retroResolution * (outputLongestEdge / REF)));
@@ -191,11 +191,11 @@ function applyNeonGlowEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   scale: number,
 ) {
   if (params.neonGlow <= 0) return;
-  const [r6, g6, b6] = parseHexRgb(params.neonColor, EFFECT_PARAM_DEFAULTS.neonColor);
+  const [r6, g6, b6] = parseHexRgb(params.neonColor, KERNEL_PARAM_DEFAULTS.neonColor);
   const srcData = ctx.getImageData(0, 0, W, H);
   const sd = srcData.data;
   const bright = createCanvas(W, H);
@@ -256,7 +256,7 @@ function applyOverprintEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   scale: number,
 ) {
   if (params.overprint <= 0) return;
@@ -279,7 +279,7 @@ function applySpeedLinesEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   seed: number,
   scale: number,
 ) {
@@ -309,7 +309,7 @@ export async function applyCanvas2DEffects(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   seed: number,
   scale: number,
   rng: () => number,

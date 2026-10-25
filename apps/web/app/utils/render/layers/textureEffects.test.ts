@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { EFFECT_PARAM_DEFAULTS } from '../../../types/effectSchema';
+import { KERNEL_PARAM_DEFAULTS } from '../../../types/effectKernels';
 import { applyGrain, resetGrainTextureCache } from './textureEffects';
 
 function grainPixels(grain: number, seed: number) {
@@ -9,7 +9,7 @@ function grainPixels(grain: number, seed: number) {
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#5a3c8c';
   ctx.fillRect(0, 0, 24, 16);
-  applyGrain(ctx, 24, 16, { ...EFFECT_PARAM_DEFAULTS, grain }, seed);
+  applyGrain(ctx, 24, 16, { ...KERNEL_PARAM_DEFAULTS, grain }, seed);
   return Array.from(ctx.getImageData(0, 0, 24, 16).data);
 }
 

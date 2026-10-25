@@ -1,4 +1,4 @@
-import type { EffectParamValues } from '../../../types/effectSchema';
+import type { KernelParamValues } from '../../../types/effectKernels';
 import { lcg } from '../../lcg';
 import { cloneCanvas } from '../canvas';
 
@@ -95,7 +95,7 @@ interface BlockRect {
   h: number;
 }
 
-function resolveBadStreamConfig(params: EffectParamValues, scale: number): BadStreamConfig | null {
+function resolveBadStreamConfig(params: KernelParamValues, scale: number): BadStreamConfig | null {
   const amount = clamp(params.badStream, 0, 100) / 100;
   if (amount <= 0) return null;
 
@@ -308,7 +308,7 @@ export function applyBadStreamEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   seed: number,
   scale: number,
 ) {

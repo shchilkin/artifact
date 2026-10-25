@@ -1,6 +1,6 @@
 import type { GraphNode } from '../utils/nodeKinds';
 import { type EffectPreset, makeEffectPresetLayer } from './effectPresets';
-import type { EffectId, EffectParamValues } from './effectSchema';
+import type { EffectId, EffectParams } from './effectSchema';
 import { genId } from './layerIds';
 import { inferLinearGraph } from './linearGraph';
 import { DEFAULT_MATERIAL_CONFIG, type MaterialConfig, type MaterialTextureInputPort } from './materials';
@@ -241,12 +241,12 @@ export interface ModelLayer extends ProceduralLayerBase {
 
 export type SourceLayer = PrimitiveLayer | NoiseLayer | ArrayLayer | LineFieldLayer | ModelLayer;
 
-/** One effect in an effect layer's stack. `params` holds exactly the parameters its effect owns (`EFFECT_PARAMS`). */
+/** One effect in an effect layer's stack. `params` holds exactly the parameters its effect owns (`EFFECTS`). */
 export interface EffectEntry {
   id: string;
   effect: EffectId;
   enabled: boolean;
-  params: Partial<EffectParamValues>;
+  params: EffectParams;
 }
 
 /** An effect layer: an ordered stack of effects applied to its input, top to bottom. */

@@ -1,16 +1,16 @@
 /** Focused effect presets: the layer defaults, preset metadata, menu order, and preset layer factories. */
 import type { EffectEntry, EffectLayer } from './config';
 import {
-  EFFECT_PARAMS,
-  EFFECT_PASS_ORDER,
-  type EffectId,
-  type EffectParamKey,
-  type EffectParamValues,
-  effectOfPreset,
-  effectParamDefaults,
-  effectParamKeys,
-  isEffectActive,
-} from './effectSchema';
+  isKernelActive,
+  KERNEL_PARAM_DEFAULTS,
+  KERNEL_PARAMS,
+  KERNEL_PASS_ORDER,
+  type KernelId,
+  type KernelParamKey,
+  type KernelParamValues,
+  kernelOfPreset,
+} from './effectKernels';
+import { type EffectId, type EffectParams, effectDefaults, effectFromKernel, effectSpec } from './effectSchema';
 import { genId } from './layerIds';
 
 export type EffectPreset =
@@ -89,49 +89,47 @@ export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visi
   seedOffset: 0,
 };
 
-/** Layer fields plus flat parameter values of any effects, for code that describes a look as one set of values. */
-export type EffectLayerInit = Partial<EffectLayer> & Partial<EffectParamValues>;
+/** Layer fields plus flat kernel parameter values, for code that describes a look as one set of values. */
+export type EffectLayerInit = Partial<EffectLayer> & Partial<KernelParamValues>;
 
 function splitEffectLayerInit(init: EffectLayerInit): {
   fields: Partial<EffectLayer>;
-  params: Partial<EffectParamValues>;
+  params: Partial<KernelParamValues>;
 } {
   const fields: Record<string, unknown> = {};
   const params: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(init)) {
     if (value === undefined) continue;
-    if (key in EFFECT_PARAMS) params[key] = value;
+    if (key in KERNEL_PARAMS) params[key] = value;
     else fields[key] = value;
   }
   return { fields, params };
 }
 
 /** A stack entry for one effect: its own parameters from `params`, defaults for the rest. */
-export function makeEffectEntry(
-  effect: EffectId,
-  params: Partial<EffectParamValues> = {},
-  id: string = genId(),
-): EffectEntry {
+export function makeEffectEntry(effect: EffectId, params: EffectParams = {}, id: string = genId()): EffectEntry {
   const own = Object.fromEntries(
-    effectParamKeys(effect)
+    Object.keys(effectSpec(effect).params)
       .filter((key) => params[key] !== undefined)
       .map((key) => [key, params[key]]),
   );
-  return { id, effect, enabled: true, params: { ...effectParamDefaults(effect), ...own } };
+  return { id, effect, enabled: true, params: { ...effectDefaults(effect), ...own } };
 }
 
 /**
- * The active effects in flat parameter values, in pass order; `include` is listed even when inactive. Entry ids are
- * `<layerId>-<effect>`, as the schema-7 migration names them.
+ * Stack entries for flat kernel values: one per active kernel in pass order (`include` is listed even when
+ * inactive), each as the effect that absorbs the kernel. Entry ids are `<layerId>-<kernel>`.
  */
 export function effectEntriesFromParams(
   layerId: string,
-  values: Partial<EffectParamValues>,
-  include?: EffectId,
+  values: Partial<KernelParamValues>,
+  include?: KernelId,
 ): EffectEntry[] {
-  return EFFECT_PASS_ORDER.filter((effect) => effect === include || isEffectActive(values, effect)).map((effect) =>
-    makeEffectEntry(effect, values, `${layerId}-${effect}`),
-  );
+  const full = { ...KERNEL_PARAM_DEFAULTS, ...values };
+  return KERNEL_PASS_ORDER.filter((kernel) => kernel === include || isKernelActive(full, kernel)).map((kernel) => {
+    const { effect, params } = effectFromKernel(kernel, full);
+    return { id: `${layerId}-${kernel}`, effect, enabled: true, params };
+  });
 }
 
 /** A new effect layer. Flat parameter values in `init` become stack entries unless `init.effects` is given. */
@@ -153,8 +151,8 @@ export interface EffectPresetMeta {
   name: string;
   icon: string;
   /** Parameter values of the preset's effect. */
-  partial: Partial<EffectParamValues>;
-  primary: EffectParamKey | null;
+  partial: Partial<KernelParamValues>;
+  primary: KernelParamKey | null;
 }
 
 export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
@@ -701,7 +699,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
 ];
 
 export type EffectPresetOverrides = Partial<Omit<EffectLayer, 'kind' | 'preset'>> &
-  Partial<EffectParamValues> & { value?: number };
+  Partial<KernelParamValues> & { value?: number };
 
 export function makeEffectPresetLayer(preset: EffectPreset, overrides: EffectPresetOverrides = {}): EffectLayer {
   const { name, partial, primary } = EFFECT_PRESETS[preset];
@@ -714,10 +712,17 @@ export function makeEffectPresetLayer(preset: EffectPreset, overrides: EffectPre
     visible: true,
     locked: false,
     ...DEFAULT_EFFECT_LAYER_PROPS,
-    effects: effectEntriesFromParams(id, { ...partial, ...valuePatch, ...params }, effectOfPreset(preset)),
+    effects: effectEntriesFromParams(id, { ...partial, ...valuePatch, ...params }, kernelOfPreset(preset)),
     ...fields,
     id,
     kind: 'effect',
     preset,
   };
+}
+
+/** The parameters "Add effect" starts an effect from: its starter preset's look. */
+export function effectStarterParams(effect: EffectId): EffectParams {
+  const preset = effectSpec(effect).starter;
+  const kernel = kernelOfPreset(preset);
+  return effectFromKernel(kernel, { ...KERNEL_PARAM_DEFAULTS, ...EFFECT_PRESETS[preset].partial }).params;
 }

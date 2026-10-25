@@ -21,7 +21,7 @@ import {
   SOURCE_TYPES,
   type SourceType,
 } from '../types/config';
-import { type EffectParamKey, effectParam, effectParamKeys, isEffectId } from '../types/effectSchema';
+import { type EffectParamSpec, effectSpec, isEffectId } from '../types/effectSchema';
 import { serializeDocumentForLink } from './documentLink';
 import { migrateDocument } from './migrations';
 import { hasGraphNodes } from './nodeGraph';
@@ -222,8 +222,7 @@ function fontAssetEmbeddingPolicyField(
     : {};
 }
 
-function normalizeEffectParam(key: EffectParamKey, value: unknown): number | string {
-  const param = effectParam(key);
+function normalizeEffectParam(param: EffectParamSpec, value: unknown): number | string {
   if (param.type === 'number') return typeof value === 'number' && Number.isFinite(value) ? value : param.default;
   if (param.type === 'choice') {
     return param.options.some((option) => option.value === value) ? (value as string) : param.default;
@@ -241,7 +240,10 @@ function normalizeEffectEntry(stored: unknown, layerId: string, index: number): 
     effect,
     enabled: stored.enabled !== false,
     params: Object.fromEntries(
-      effectParamKeys(effect).map((key) => [key, normalizeEffectParam(key, storedParams[key])]),
+      Object.entries(effectSpec(effect).params).map(([key, param]) => [
+        key,
+        normalizeEffectParam(param, storedParams[key]),
+      ]),
     ),
   };
 }

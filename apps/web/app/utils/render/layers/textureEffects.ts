@@ -1,4 +1,4 @@
-import type { EffectParamValues } from '../../../types/effectSchema';
+import type { KernelParamValues } from '../../../types/effectKernels';
 import { lcg } from '../../lcg';
 import { createCanvas } from '../canvas';
 
@@ -6,7 +6,7 @@ export function applyScanlines(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   scale: number,
 ) {
   if (params.scanlines <= 0) return;
@@ -67,7 +67,7 @@ export function applyGrain(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   seed: number,
 ) {
   if (params.grain <= 0) return;
@@ -84,7 +84,7 @@ export function applyDotGrain(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   seed: number,
   scale: number,
 ) {
@@ -134,7 +134,7 @@ export function applyMatte(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  params: EffectParamValues,
+  params: KernelParamValues,
   seed: number,
 ) {
   if (params.matte <= 0) return;
@@ -160,7 +160,7 @@ export function applyMatte(
   ctx.restore();
 }
 
-export function applyEmboss(ctx: CanvasRenderingContext2D, W: number, H: number, params: EffectParamValues) {
+export function applyEmboss(ctx: CanvasRenderingContext2D, W: number, H: number, params: KernelParamValues) {
   if (params.emboss <= 0) return;
 
   const srcData = ctx.getImageData(0, 0, W, H);
@@ -187,7 +187,7 @@ export function applyEmboss(ctx: CanvasRenderingContext2D, W: number, H: number,
   ctx.restore();
 }
 
-export function applyLinocut(ctx: CanvasRenderingContext2D, W: number, H: number, params: EffectParamValues) {
+export function applyLinocut(ctx: CanvasRenderingContext2D, W: number, H: number, params: KernelParamValues) {
   if (params.linocut <= 0) return;
 
   const t = params.linocut / 100;

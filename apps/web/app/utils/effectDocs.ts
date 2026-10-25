@@ -1,5 +1,10 @@
 import type { EffectPreset } from '../types/config';
-import { type EffectParamKey, type EffectSliderValueFormat, effectParam, presetParamKeys } from '../types/effectSchema';
+import {
+  type EffectSliderValueFormat,
+  type KernelParamKey,
+  kernelParam,
+  presetParamKeys,
+} from '../types/effectKernels';
 
 export interface EffectParamDoc {
   key: string;
@@ -37,7 +42,7 @@ export const EFFECT_FAMILY_GUIDE = [
 interface EffectDocCopy {
   description: string;
   /** What a parameter does, shown after its range. */
-  notes?: Partial<Record<EffectParamKey, string>>;
+  notes?: Partial<Record<KernelParamKey, string>>;
 }
 
 const EFFECT_DOC_COPY: Record<EffectPreset, EffectDocCopy> = {
@@ -236,8 +241,8 @@ const EFFECT_DOC_COPY: Record<EffectPreset, EffectDocCopy> = {
 const RANGE_UNITS: Partial<Record<EffectSliderValueFormat, string>> = { px: 'px', deg: '°' };
 
 /** A parameter's documented range, from its inspector control. */
-function effectParamRange(key: EffectParamKey, note: string | undefined): string {
-  const param = effectParam(key);
+function effectParamRange(key: KernelParamKey, note: string | undefined): string {
+  const param = kernelParam(key);
   let range = 'hex';
   if (param.type === 'number') {
     const unit = (param.format && RANGE_UNITS[param.format]) ?? '';

@@ -1,12 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import type { EffectEntry } from '../../../types/config';
-import {
-  type EffectParamKey,
-  type EffectParamValues,
-  type EffectSliderValueFormat,
-  effectParam,
-  effectParamKeys,
-} from '../../../types/effectSchema';
+import type { EffectSliderValueFormat } from '../../../types/effectKernels';
+import { type EffectParamSpec, type EffectParams, effectSpec, isEffectParamShown } from '../../../types/effectSchema';
 import { hasEffectInfo } from '../../../utils/effectInfo';
 import { EffectInfoContent } from '../../EffectInfoContent';
 import { NoPan } from '../nodes/NoPan';
@@ -14,7 +9,7 @@ import { InspectorColorInput, InspectorSelect, InspectorSlider } from './fields'
 
 export type { EffectSliderValueFormat };
 
-type EffectParamsPatch = Partial<EffectParamValues>;
+type EffectParamsPatch = EffectParams;
 
 export function formatEffectSliderValue(value: number, format: EffectSliderValueFormat = 'number'): string {
   const rounded = Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '');
@@ -56,7 +51,7 @@ const INDEXED_COLOR_FIELDS = [
   'indexedColorD',
   'indexedColorE',
   'indexedColorF',
-] as const satisfies readonly EffectParamKey[];
+] as const;
 
 type IndexedPalettePreset = {
   name: string;
@@ -74,8 +69,8 @@ const INDEXED_PALETTE_PRESETS: readonly IndexedPalettePreset[] = [
   { name: 'PS fire', colors: ['#12002b', '#3b1590', '#d400b8', '#ff1d1d', '#f6c400', '#fff1df'] },
 ];
 
-export function activeIndexedPaletteCount(params: Pick<EffectParamsPatch, 'indexedPaletteCount'>): number {
-  return Math.min(6, Math.max(2, Math.round(params.indexedPaletteCount ?? 6)));
+export function activeIndexedPaletteCount(params: EffectParams): number {
+  return Math.min(6, Math.max(2, Math.round(Number(params.indexedPaletteCount ?? 6))));
 }
 
 function indexedPalettePresetPatch(preset: IndexedPalettePreset): EffectParamsPatch {
@@ -93,8 +88,12 @@ interface EntryControlProps {
   onChange: (patch: EffectParamsPatch) => void;
 }
 
-function EffectParamControl({ field, entry, onChange }: EntryControlProps & { field: EffectParamKey }) {
-  const param = effectParam(field);
+function EffectParamControl({
+  field,
+  param,
+  entry,
+  onChange,
+}: EntryControlProps & { field: string; param: EffectParamSpec }) {
   const value = entry.params[field] ?? param.default;
   if (param.type === 'color') {
     return (
@@ -181,7 +180,8 @@ function IndexedPalettePanel({ entry, onChange }: EntryControlProps) {
         </div>
       </div>
       {INDEXED_COLOR_FIELDS.map((field, index) => {
-        const param = effectParam(field);
+        const param = effectSpec(entry.effect).params[field];
+        if (!param) return null;
         return (
           <InspectorColorInput
             key={field}
@@ -197,26 +197,21 @@ function IndexedPalettePanel({ entry, onChange }: EntryControlProps) {
 }
 
 /** The controls of one stack entry: every parameter its effect owns, in schema order. */
+/** The controls of one stack entry: every parameter its effect shows for the current values, in spec order. */
 export function EffectEntryControls({ entry, onChange }: EntryControlProps) {
-  const fields = effectParamKeys(entry.effect);
-  if (entry.effect === 'indexedPalette') {
-    const isColor = (field: EffectParamKey) => (INDEXED_COLOR_FIELDS as readonly string[]).includes(field);
-    return (
-      <>
-        {fields
-          .filter((field) => !isColor(field))
-          .map((field) => (
-            <EffectParamControl key={field} field={field} entry={entry} onChange={onChange} />
-          ))}
-        <IndexedPalettePanel entry={entry} onChange={onChange} />
-      </>
-    );
-  }
+  const fields = Object.entries(effectSpec(entry.effect).params).filter(([, param]) =>
+    isEffectParamShown(param, entry.params),
+  );
+  const isPaletteColor = (field: string) => (INDEXED_COLOR_FIELDS as readonly string[]).includes(field);
+  const hasPalette = fields.some(([field]) => isPaletteColor(field));
   return (
     <>
-      {fields.map((field) => (
-        <EffectParamControl key={field} field={field} entry={entry} onChange={onChange} />
-      ))}
+      {fields
+        .filter(([field]) => !isPaletteColor(field))
+        .map(([field, param]) => (
+          <EffectParamControl key={field} field={field} param={param} entry={entry} onChange={onChange} />
+        ))}
+      {hasPalette && <IndexedPalettePanel entry={entry} onChange={onChange} />}
     </>
   );
 }

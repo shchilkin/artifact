@@ -1,5 +1,5 @@
 import { EFFECT_PRESETS, type EffectPreset } from '../../types/config';
-import { EFFECT_PARAM_DEFAULTS } from '../../types/effectSchema';
+import { KERNEL_PARAM_DEFAULTS } from '../../types/effectKernels';
 import {
   activeEffectPatchPresets,
   type StoredEffectLayer,
@@ -22,7 +22,7 @@ export function migrateV3ToV4(raw: StoredDocument): StoredDocument {
         if (!isRecord(layer)) return [layer];
         const migrated = migrateLayer(layer);
         if (migrated.kind !== 'effect') return [migrated];
-        const effect: StoredEffectLayer = { maskAlpha: false, seedOffset: 0, ...EFFECT_PARAM_DEFAULTS, ...migrated };
+        const effect: StoredEffectLayer = { maskAlpha: false, seedOffset: 0, ...KERNEL_PARAM_DEFAULTS, ...migrated };
         if (!shouldSplitEffectLayer(effect)) return [migrated];
         const sourceId = String(migrated.id ?? 'effect');
         const parts = splitEffectPatchIntoPresetLayers(effect, { idPrefix: sourceId });

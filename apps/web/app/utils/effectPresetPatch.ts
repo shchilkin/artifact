@@ -5,24 +5,24 @@
  */
 import { type EffectLayer, type EffectLayerInit, makeEffectPresetLayer } from '../types/config';
 import {
-  EFFECT_IDS,
-  type EffectId,
-  type EffectParamKey,
-  effectDefinition,
-  effectParamKeys,
-} from '../types/effectSchema';
+  KERNEL_IDS,
+  type KernelId,
+  type KernelParamKey,
+  kernelDefinition,
+  kernelParamKeys,
+} from '../types/effectKernels';
 
 function numericValue(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
-function hasActiveValue(patch: EffectLayerInit, effect: EffectId): boolean {
-  return effectDefinition(effect).amounts.some((key) => numericValue(patch[key as EffectParamKey]) !== 0);
+function hasActiveValue(patch: EffectLayerInit, effect: KernelId): boolean {
+  return kernelDefinition(effect).amounts.some((key) => numericValue(patch[key as KernelParamKey]) !== 0);
 }
 
-function copyEffectFields(source: EffectLayerInit, effect: EffectId): EffectLayerInit {
+function copyEffectFields(source: EffectLayerInit, effect: KernelId): EffectLayerInit {
   const patch: Record<string, unknown> = {};
-  for (const key of effectParamKeys(effect)) {
+  for (const key of kernelParamKeys(effect)) {
     if (source[key] !== undefined) patch[key] = source[key];
   }
   if (source.maskAlpha !== undefined) patch.maskAlpha = source.maskAlpha;
@@ -30,8 +30,8 @@ function copyEffectFields(source: EffectLayerInit, effect: EffectId): EffectLaye
   return patch;
 }
 
-function activeEffects(patch: EffectLayerInit): EffectId[] {
-  return EFFECT_IDS.filter((effect) => hasActiveValue(patch, effect));
+function activeEffects(patch: EffectLayerInit): KernelId[] {
+  return KERNEL_IDS.filter((effect) => hasActiveValue(patch, effect));
 }
 
 export function splitEffectPatchIntoPresetLayers(

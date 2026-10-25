@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import type { EffectEntry, EffectLayer, EffectPreset } from '../../../types/config';
-import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS } from '../../../types/config';
-import {
-  type EffectId,
-  type EffectParamKey,
-  effectDefinition,
-  effectParam,
-  isEffectActive,
-  isEffectId,
-} from '../../../types/effectSchema';
+import { EFFECT_PRESETS, effectStarterParams } from '../../../types/config';
+import { EFFECT_IDS, type EffectId, effectSpec, isEffectId } from '../../../types/effectSchema';
 import { EFFECT_META } from '../../../utils/effectInfo';
-import { addEffectEntry, moveEffectEntry, removeEffectEntry, updateEffectEntry } from '../../../utils/effectStack';
+import {
+  addEffectEntry,
+  isEffectEntryActive,
+  moveEffectEntry,
+  removeEffectEntry,
+  updateEffectEntry,
+} from '../../../utils/effectStack';
 import { FIELD_RANGES } from '../../layer-controls/fieldDefs';
 import { BLEND_OPTIONS } from '../constants';
 import { NoPan } from '../nodes/NoPan';
@@ -25,11 +24,6 @@ import {
 } from './fields';
 
 const NODE_SECTION = 'node';
-
-/** Effects the "Add effect" picker offers, in library order. */
-const ADDABLE_EFFECTS = EFFECT_PRESET_MENU_ORDER.filter((preset): preset is EffectPreset & EffectId =>
-  isEffectId(preset),
-);
 
 export function EffectInspector({
   layer,
@@ -63,7 +57,7 @@ export function EffectInspector({
       ))}
       <AddEffectControl
         onAdd={(effect) => {
-          const effects = addEffectEntry(layer.effects, effect, EFFECT_PRESETS[effect].partial);
+          const effects = addEffectEntry(layer.effects, effect, effectStarterParams(effect));
           setEffects(effects);
           setOpenSection(effects.at(-1)?.id ?? null);
         }}
@@ -83,17 +77,17 @@ function effectInspectorClassName(detached: boolean) {
 }
 
 function effectName(effect: EffectId) {
-  return EFFECT_PRESETS[effect].name;
+  return effectSpec(effect).label;
 }
 
 /** The section summary: the effect's first amount, or "off". */
 function effectEntrySummary(entry: EffectEntry) {
   if (!entry.enabled) return 'off';
-  if (!isEffectActive(entry.params, entry.effect)) return 'no effect';
-  const amountKey = effectDefinition(entry.effect).amounts[0] as EffectParamKey;
-  const param = effectParam(amountKey);
-  const amount = entry.params[amountKey];
-  if (param.type !== 'number' || typeof amount !== 'number') return '';
+  if (!isEffectEntryActive(entry)) return 'no effect';
+  const spec = effectSpec(entry.effect);
+  const param = spec.params[spec.amount];
+  const amount = entry.params[spec.amount];
+  if (param?.type !== 'number' || typeof amount !== 'number') return '';
   return `${formatEffectSliderValue(amount, param.format)} ${param.label.toLowerCase()}`;
 }
 
@@ -167,7 +161,7 @@ function AddEffectControl({ onAdd }: { onAdd: (effect: EffectId) => void }) {
       value={ADD_EFFECT_PLACEHOLDER}
       options={[
         { value: ADD_EFFECT_PLACEHOLDER, label: 'Choose…' },
-        ...ADDABLE_EFFECTS.map((effect) => ({ value: effect, label: effectName(effect) })),
+        ...EFFECT_IDS.map((effect) => ({ value: effect, label: effectName(effect) })),
       ]}
       onChange={(value) => {
         if (isEffectId(value)) onAdd(value);

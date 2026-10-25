@@ -1,5 +1,5 @@
 import { BlurFilter, Filter } from 'pixi.js';
-import type { EffectParamValues } from '../types/effectSchema';
+import type { KernelParamValues } from '../types/effectKernels';
 
 const NORM_UV = `
   vec2 extent = inputClamp.zw - inputClamp.xy;
@@ -357,7 +357,7 @@ function f(frag: string, uniforms: Record<string, unknown>): Filter {
   return filter;
 }
 
-type FilterConfig = EffectParamValues;
+type FilterConfig = KernelParamValues;
 
 function addFilter(filters: Filter[], amount: number, create: () => Filter) {
   if (amount <= 0) return;
