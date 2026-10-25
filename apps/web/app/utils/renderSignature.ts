@@ -14,6 +14,11 @@ import { type GraphNode, modelOfNode } from './nodeKinds';
 
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {
+  const sig = layerKindRenderSig(layer);
+  return layer.kind !== 'effect' && layer.clipToBelow ? `clip:${sig}` : sig;
+}
+
+function layerKindRenderSig(layer: Layer): string {
   switch (layer.kind) {
     case 'text': {
       const { visible, content, font, size, color, opacity, blendMode, x, y, rotation, align, scaleX, scaleY } = layer;

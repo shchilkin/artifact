@@ -210,6 +210,11 @@ function LayerNameEditor({
           onStartEditing(layer.id);
         }}
       >
+        {layer.kind !== 'effect' && layer.clipToBelow && (
+          <span className="layer-row-clip" aria-label="Clipped to the layer below" title="Clipped to the layer below">
+            ↳{' '}
+          </span>
+        )}
         {layer.name}
       </button>
     );
@@ -476,6 +481,7 @@ export const LayerRow = memo(function LayerRow({
       data-layer-id={layer.id}
       data-layer-visible={layer.visible ? 'true' : 'false'}
       data-layer-locked={layer.locked ? 'true' : 'false'}
+      data-layer-clipped={layer.kind !== 'effect' && layer.clipToBelow ? 'true' : undefined}
       data-layer-output={reachesOutput ? 'reached' : 'unreached'}
       onClick={(event) => onSelect(layer.id, event)}
       onContextMenu={(event) => onOpenContextMenu(layer.id, event)}

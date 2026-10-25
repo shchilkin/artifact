@@ -1,7 +1,7 @@
 import type { CanvasDocument, CanvasGraph, EffectLayer, Layer } from '../../types/config';
 import { EXPORT_NODE_ID, findGraphNode, findGraphNodeOfKind } from '../nodeGraph';
 import type { GraphNodeKind, GraphNodeOfKind } from '../nodeKinds';
-import { createCanvas, drawBackground, isDrawableCanvas } from './canvas';
+import { cloneCanvas, createCanvas, drawBackground, isDrawableCanvas } from './canvas';
 import { findIncomingSource, graphLayerInputPort, graphNodePrimaryPort } from './graphInputs';
 import { applyGpuOnlyEffectLayerChain, applyLayerToCanvas, isGpuOnlyEffectLayer, type RenderOptions } from './layers';
 import {
@@ -131,7 +131,61 @@ async function renderLayerGraphNode(nodeId: string, context: GraphNodeRenderCont
   const sourceId = findIncomingSource(graph, nodeId, graphLayerInputPort(layer));
   const base = sourceId ? await renderDependency(sourceId) : createCanvas(W, H);
   throwIfRenderAborted(options);
-  return applyLayerToCanvas(base, layer, doc, W, H, imageCache, await primitiveLayerRenderOptions(layer, context));
+  const applied = await applyLayerToCanvas(
+    base,
+    layer,
+    doc,
+    W,
+    H,
+    imageCache,
+    await primitiveLayerRenderOptions(layer, context),
+  );
+  if (!isClippedLayer(layer) || applied === base) return applied;
+  const clip = await renderClipBase(sourceId, context);
+  return clip ? blendInsideClip(base, applied, clip, W, H) : applied;
+}
+
+function isClippedLayer(layer: Layer) {
+  return layer.kind !== 'effect' && layer.clipToBelow === true && layer.visible;
+}
+
+/**
+ * The content a clipped layer draws inside: the nearest layer upstream that is neither an effect nor clipped itself,
+ * rendered alone. Without one (a graph-only node, or nothing upstream), the clip is the whole input.
+ */
+async function renderClipBase(sourceId: string | null, context: GraphNodeRenderContext) {
+  const { doc, graph, W, H, imageCache, renderDependency } = context;
+  let id = sourceId;
+  for (let layer = id ? findLayer(doc, id) : undefined; layer; layer = id ? findLayer(doc, id) : undefined) {
+    if (layer.kind !== 'effect' && !layer.clipToBelow) {
+      const options = await primitiveLayerRenderOptions(layer, context);
+      return applyLayerToCanvas(createCanvas(W, H), layer, doc, W, H, imageCache, options);
+    }
+    id = findIncomingSource(graph, layer.id, graphLayerInputPort(layer));
+  }
+  return sourceId ? renderDependency(sourceId) : null;
+}
+
+/** The input outside the clip and the layer's result inside it, weighted by the clip's alpha. */
+function blendInsideClip(
+  base: HTMLCanvasElement,
+  applied: HTMLCanvasElement,
+  clip: HTMLCanvasElement,
+  W: number,
+  H: number,
+) {
+  const inside = cloneCanvas(applied, W, H);
+  const insideCtx = inside.getContext('2d')!;
+  insideCtx.globalCompositeOperation = 'destination-in';
+  insideCtx.drawImage(clip, 0, 0, W, H);
+  const result = cloneCanvas(base, W, H);
+  const ctx = result.getContext('2d')!;
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.drawImage(clip, 0, 0, W, H);
+  // The two parts cover complementary alpha, so adding them composes the weighted mix.
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.drawImage(inside, 0, 0, W, H);
+  return result;
 }
 
 async function renderGraphNodeUncached(nodeId: string, context: GraphNodeRenderContext) {

@@ -90,6 +90,11 @@ interface BaseLayer {
   name: string;
   visible: boolean;
   locked: boolean;
+  /**
+   * Draw only inside the content of the layer below (the nearest one that is not itself clipped or an effect),
+   * like a clipping group. Effect layers ignore it.
+   */
+  clipToBelow?: boolean;
 }
 
 export interface TextLayer extends BaseLayer {

@@ -3,6 +3,7 @@ import {
   type CanvasDocument,
   type Layer,
   makeDocument,
+  makeEffectPresetLayer,
   makeFillLayer,
   makeTextLayer,
   TEXT_TYPOGRAPHY_DEFAULTS,
@@ -109,5 +110,34 @@ describe('text typography', () => {
     const plain = await rowCoverage(textDoc({ content: 'I', size: 160, color: '#000000' }), 270, 540);
     expect(plain).toBe(0);
     expect(await rowCoverage(shadowed, 270, 540)).toBeGreaterThan(5);
+  });
+});
+
+describe('clip to layer below', () => {
+  const ground = makeFillLayer({ id: 'ground', color: '#000000' });
+  const shape = makeTextLayer({ id: 'shape', content: 'I', size: 300, color: '#ffffff' });
+  const paint = makeFillLayer({ id: 'paint', color: '#ff0000', clipToBelow: true });
+
+  it('draws a clipped layer only inside the layer below it', async () => {
+    const clipped = doc([ground, shape, paint]);
+    const inside = await pixel(clipped, 270, 270, 540);
+    const outside = await pixel(clipped, 20, 20, 540);
+    expect(inside).toEqual([255, 0, 0, 255]);
+    expect(outside).toEqual([0, 0, 0, 255]);
+  });
+
+  it('clips through effect layers and stacked clipped layers to the group base', async () => {
+    const tint = makeFillLayer({ id: 'tint', color: '#0000ff', opacity: 50, clipToBelow: true });
+    const grain = makeEffectPresetLayer('vignette', { id: 'vig', vignette: 0 });
+    const clipped = doc([ground, shape, paint, grain, tint]);
+    expect((await pixel(clipped, 20, 20, 540)).slice(0, 3)).toEqual([0, 0, 0]);
+    const inside = await pixel(clipped, 270, 270, 540);
+    expect(inside[2]).toBeGreaterThan(100);
+    expect(inside[0]).toBeGreaterThan(100);
+  });
+
+  it('draws normally when clipping is off', async () => {
+    const unclipped = doc([ground, shape, { ...paint, clipToBelow: false }]);
+    expect(await pixel(unclipped, 20, 20, 540)).toEqual([255, 0, 0, 255]);
   });
 });
