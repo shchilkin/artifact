@@ -95,6 +95,11 @@ Rules:
   Pixelate, Alpha Crush, Adjust). Each step rewrites only the stack entries of
   the effects it merges, through `migrateEffectEntries` and its own frozen
   table.
+- Schema 18 turns Grime Shadow graph nodes into effect layers running the
+  Shadow effect, with the node's id, settings and connections.
+- Optional fields filled on load with the values that keep older documents'
+  look: fill `fillMode`/`colorB`/`angle`; text tracking, leading, outline and
+  shadow; effect layer `appliesTo`; any content layer's `clipToBelow`.
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.

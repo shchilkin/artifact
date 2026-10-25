@@ -79,7 +79,6 @@ Current React Flow node types:
 | `repeatNode` | Repeats any upstream source branch over an optional backdrop. |
 | `maskNode` | Cuts one source branch with a matte source. |
 | `transformNode` | Moves, scales, rotates, or fades an upstream branch. |
-| `grimeShadowNode` | Builds a layered dirty shadow from upstream alpha. |
 | `materialNode` | Defines a reusable 3D material and texture-map inputs. |
 | `shaderNode` | Generates one procedural raster shader source or processes a connected backdrop (`Shader Fill` / `Shader Effect` / `AI Shader Effect` in the UI). |
 | `environmentNode` | Provides an environment map source for 3D scene lighting. |
@@ -100,7 +99,7 @@ Use these boundaries:
 - **Source nodes** create pixels or assets: image, fill, noise, array, line
   field, primitive/model source, shader fill, environment map.
 - **Process nodes** transform one upstream branch: effect, color, transform,
-  mask, grime shadow.
+  mask.
 - **Combine nodes** join multiple branches: merge and repeat-over-backdrop.
 - **Resource nodes** describe reusable non-image data for another node:
   material and environment.
@@ -218,10 +217,10 @@ The Add Node library should keep this taxonomy visible:
 - **Output** for the fixed graph terminal/export target. It is not currently an
   add-library item because each graph owns one canonical output node.
 
-The `Shader Material` Add Node recipe is the canonical starter for the material
-bridge: it surfaces Shader Fill, Material, Primitive, and input-dependent shader
-effect nodes together while keeping the actual connections explicit in the
-graph.
+Recipes (Add Node, Recipes view; `utils/recipes.ts`) insert a starter graph's
+layers, graph nodes, connections, and layout into the current graph under new
+ids, grouped in an area named after the recipe, at the drop position. The
+recipe's last node feeds Output only when nothing feeds it yet.
 
 The v0.13 `AI Image` add-menu entry is intentionally layer-backed: it creates a
 normal image layer node named `AI Image`, then the image-node properties panel

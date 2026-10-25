@@ -55,7 +55,7 @@ Output is at the top of its stack.
 | --- | --- |
 | Layer with a `bg` input | Stack row; its `bg` source continues the same stack below it. |
 | Layer without a `bg` input | Bottom row of its stack, composited over transparency. |
-| Effect, color, transform, grime-shadow (`in`) | Adjustment-style row that continues the stack through `in`. |
+| Effect, color, transform (`in`) | Adjustment-style row that continues the stack through `in`. |
 | Mask (`in` + `mask`) | Row that continues through `in`; the `mask` source is a nested clip-style child stack. |
 | Merge (`a`, `b`) | **Decided:** a group folder showing blend and opacity. Its children are the `b` stack; `a` continues the parent stack below the folder, like an isolated Photoshop group. |
 | Repeat (`in` item, `bg` backdrop) | **Decided:** row that continues through `bg`; the `in` item is nested as a "Pattern source" child. This is the one node where `in` is not the primary port. |

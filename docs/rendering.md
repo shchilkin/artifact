@@ -131,7 +131,7 @@ A custom graph is any other graph. Nodes can be:
 - merge nodes
 - color nodes
 - repeat nodes
-- mask, transform, and grime-shadow nodes
+- mask and transform nodes
 - material nodes
 - shader nodes
 - environment-map nodes
@@ -284,9 +284,9 @@ Layer rendering happens through `applyLayerToCanvas` in
 | Layer kind | Renderer |
 | --- | --- |
 | `emoji` | Canvas 2D seeded scatter |
-| `text` | Canvas 2D text with transform, opacity, blend |
+| `text` | Canvas 2D text with transform, opacity, blend, tracking, leading, outline, and shadow |
 | `image` | Canvas 2D image fit/transform |
-| `fill` | Canvas 2D fill |
+| `fill` | Canvas 2D solid, linear, or radial gradient fill |
 | `primitive` | Three.js offscreen render, then Canvas 2D composite |
 | `noise` | Canvas procedural source |
 | `array` | Canvas procedural source |
@@ -301,6 +301,19 @@ share one seeded random stream; consecutive GPU runs share one GPU pass. A stack
 listed in pass order therefore renders exactly as the schema-6 parameter bag
 did, which keeps the golden fixtures unchanged across the schema 6 -> 7
 migration.
+
+An effect layer with `appliesTo: 'layerBelow'` runs its stack on the layer
+below alone (rendered over transparency) and draws the result over that layer's
+own input with that layer's blend mode. When the layer below is an effect, a
+clipped layer, a graph-only node, or missing, the stack runs on everything below
+as usual.
+
+A content layer with `clipToBelow` draws only inside the alpha of its clip base:
+the nearest upstream layer that is neither an effect nor clipped, rendered
+alone. The output is the input outside the clip plus the layer's normal result
+inside it, weighted by the clip alpha (`destination-out`, `destination-in`,
+then `lighter`), so blend modes and opacity behave as without the clip. Without
+a clip base the clip is the whole input.
 
 Effect layers accept an optional `blendMode` and a `mix` (0-100, default 100).
 With `normal` and full mix the effect result replaces the input, as before.

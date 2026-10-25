@@ -145,5 +145,8 @@ effect (searching "Sepia" adds Color Filter in sepia mode).
    graph-node migration. Add Library browses 48 items in Layers (from 88) and
    65 in Nodes (from 105); the rest of the Nodes target needs the source and
    3D work of step 5.
-4. Layers capabilities.
+4. Layers capabilities. Done: Shadow effect (schema 18 migrates Grime Shadow
+   nodes, pixel-identical), effect layers that apply to the layer below,
+   gradient fills, text tracking/leading/outline/shadow, clip to layer below,
+   and recipes that insert their wired graph.
 5. Sources and 3D, after a prototype.
