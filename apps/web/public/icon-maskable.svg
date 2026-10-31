@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="artifact">
+  <rect width="32" height="32" fill="#070302"/>
+  <path
+    d="M1 16a15 15 0 1 0 30 0a15 15 0 1 0-30 0ZM14.5 6h3L25 25h-5l-4-10.1L12 25H7ZM17.6 21.4a1.6 1.6 0 1 0-3.2 0a1.6 1.6 0 1 0 3.2 0Z"
+    fill="#e36558"
+    fill-rule="evenodd"
+    transform="translate(4.8 4.8) scale(.7)"
+  />
+</svg>

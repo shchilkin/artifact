@@ -19,6 +19,13 @@ export function getAppBuildInfo() {
   };
 }
 
+// Catalogue number derived from the release, e.g. v0.50.1 -> ART-0501.
+export function catalogueNumber(version = __ARTIFACT_APP_VERSION__) {
+  const match = /(\d+)\.(\d+)\.(\d+)/.exec(version);
+  const digits = match ? `${match[1]}${match[2].padStart(2, '0')}${match[3]}` : '';
+  return `ART-${digits.padStart(4, '0')}`;
+}
+
 export function logAppBuildInfo() {
   if (logged || typeof window === 'undefined') return;
   logged = true;

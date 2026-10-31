@@ -1,14 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-label="artifact">
-  <rect width="72" height="72" fill="#070302"/>
-  <path d="M18 15h36v42H18z" fill="none" stroke="#f2e2cf" stroke-width="4"/>
-  <path d="M15 36h42" fill="none" stroke="#ff6a5f" stroke-width="5" stroke-linecap="square"/>
-  <path d="M36 18v36" fill="none" stroke="#ff6a5f" stroke-width="4" stroke-linecap="square" opacity=".48"/>
-  <circle cx="36" cy="36" r="10" fill="#070302" stroke="#68e2ad" stroke-width="5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="artifact">
   <path
-    d="M10 10h14M10 10v14M62 10H48M62 10v14M10 62h14M10 62V48M62 62H48M62 62V48"
-    fill="none"
-    stroke="#ff6a5f"
-    stroke-width="3"
-    stroke-linecap="square"
+    d="M1 16a15 15 0 1 0 30 0a15 15 0 1 0-30 0ZM14.5 6h3L25 25h-5l-4-10.1L12 25H7Z"
+    fill="#e36558"
+    fill-rule="evenodd"
   />
 </svg>

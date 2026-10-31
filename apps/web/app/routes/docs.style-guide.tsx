@@ -31,7 +31,7 @@ import { EditorOverlayFrame } from '../components/editor-workflow/EditorOverlayF
 import { EditorRowFrame } from '../components/editor-workflow/EditorRowFrame';
 import { EditorWorkflowNotice } from '../components/editor-workflow/EditorWorkflowNotice';
 import { InspectorPatternSpecimens } from '../components/inspector-system';
-import { LogoGlyph } from '../components/LogoGlyph';
+import { CatalogueTag, LogoGlyph } from '../components/LogoGlyph';
 import { LayerAreaFolder } from '../components/layers-panel/LayerAreaFolder';
 import { LayerRow } from '../components/layers-panel/LayerRow';
 import {
@@ -392,9 +392,16 @@ export default function DocsStyleGuide() {
         >
           <div className="style-guide-token-grid" aria-label="Design token specimens">
             <div className="style-guide-brand-marks" aria-label="Artifact brand mark specimens">
-              <BrandMarkSpec variant="frame" name="editor frame" value="crop / signal / node" />
-              <BrandMarkSpec variant="path" name="node path" value="flow / branch / merge" />
-              <BrandMarkSpec variant="stack" name="layer stack" value="source / stack / output" />
+              <BrandMarkSpec size={56} name="record mark" value="app icon / hero" />
+              <BrandMarkSpec size={32} name="nav mark" value="site nav / footer" />
+              <BrandMarkSpec size={16} name="favicon" value="no spindle hole" />
+              <div className="style-guide-brand-mark">
+                <CatalogueTag />
+                <div>
+                  <span className="style-guide-token-name">catalogue number</span>
+                  <span className="style-guide-token-value">release version</span>
+                </div>
+              </div>
             </div>
             <TokenSpec name="surface panel" value="--surface-panel" color="var(--surface-panel)" />
             <TokenSpec name="surface input" value="--surface-control" color="var(--surface-control)" />
@@ -1128,10 +1135,10 @@ function EditorOverlayContractState({ state }: { state: (typeof OVERLAY_PATTERN_
   );
 }
 
-function BrandMarkSpec({ name, value, variant }: { name: string; value: string; variant: 'frame' | 'path' | 'stack' }) {
+function BrandMarkSpec({ name, value, size }: { name: string; value: string; size: number }) {
   return (
     <div className="style-guide-brand-mark">
-      <LogoGlyph size={56} variant={variant} />
+      <LogoGlyph size={size} />
       <div>
         <span className="style-guide-token-name">{name}</span>
         <span className="style-guide-token-value">{value}</span>
