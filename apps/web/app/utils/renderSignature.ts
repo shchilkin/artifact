@@ -14,6 +14,11 @@ import { type GraphNode, modelOfNode } from './nodeKinds';
 
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {
+  const sig = layerKindRenderSig(layer);
+  return layer.kind !== 'effect' && layer.clipToBelow ? `clip:${sig}` : sig;
+}
+
+function layerKindRenderSig(layer: Layer): string {
   switch (layer.kind) {
     case 'text': {
       const { visible, content, font, size, color, opacity, blendMode, x, y, rotation, align, scaleX, scaleY } = layer;
@@ -32,6 +37,15 @@ export function layerRenderSig(layer: Layer): string {
         align,
         scaleX,
         scaleY,
+        layer.tracking,
+        layer.leading,
+        layer.outlineWidth,
+        layer.outlineColor,
+        layer.shadowOpacity,
+        layer.shadowColor,
+        layer.shadowX,
+        layer.shadowY,
+        layer.shadowBlur,
       ]);
     }
     case 'image': {
@@ -43,8 +57,8 @@ export function layerRenderSig(layer: Layer): string {
       return JSON.stringify([layer.kind, visible, emojis, density, minSz, maxSz, blur, seedOffset, opacity, blendMode]);
     }
     case 'fill': {
-      const { visible, color, opacity, blendMode } = layer;
-      return JSON.stringify([layer.kind, visible, color, opacity, blendMode]);
+      const { visible, fillMode, color, colorB, angle, opacity, blendMode } = layer;
+      return JSON.stringify([layer.kind, visible, fillMode, color, colorB, angle, opacity, blendMode]);
     }
     case 'effect': {
       // All effect fields are render-relevant. Exclude only id, name, locked.
@@ -93,6 +107,7 @@ export function layerRenderSig(layer: Layer): string {
         layer.tiltY,
         layer.tiltZ,
         layer.modelSrc,
+        layer.scene ?? null,
       ]);
     }
   }
@@ -103,14 +118,15 @@ export function edgeRenderSig(edge: GraphEdge): string {
   return JSON.stringify([edge.fromId, edge.fromPort, edge.toId, edge.toPort]);
 }
 
-/** Camera signature for a primitive, model, or 3D scene node; `default` when no view state is set. */
+/** Camera signature for a 3D Object layer; `default` when no view state is set. */
 export function viewStateRenderSig(view: PrimitiveViewportStateConfig | undefined): string {
   return view ? `${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}` : 'default';
 }
 
 /** Render-relevant fields for a graph-only node, from its kind's model. */
 export function graphNodeRenderSig(node: GraphNode): string {
-  return modelOfNode(node).renderSignature(node);
+  const sig = modelOfNode(node).renderSignature(node);
+  return node.hidden ? `hidden:${sig}` : sig;
 }
 
 /** Render signatures of every graph-only node. Layers and edges have their own signatures. */

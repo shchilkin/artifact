@@ -1,4 +1,12 @@
-import type { AspectRatio, CanvasDocument, EffectLayer, EffectPreset, NoiseType, TextLayer } from '../types/config';
+import type {
+  AspectRatio,
+  CanvasDocument,
+  EffectLayer,
+  EffectLayerInit,
+  EffectPreset,
+  NoiseType,
+  TextLayer,
+} from '../types/config';
 import {
   DEFAULT_EXPORT,
   DOCUMENT_SCHEMA_VERSION,
@@ -206,12 +214,8 @@ const SUBTITLE_LINES = [
 
 const LABEL_LINES = ['V0.29', 'CAT-420', 'FRIDAY 23:00', 'NO. 014', 'ARTIFACT PRESS', 'LOCAL FIRST'] as const;
 
-function formulaFx(preset: EffectPreset, name: string, value: number, partial: Partial<EffectLayer> = {}): EffectLayer {
-  return {
-    ...makeEffectPresetLayer(preset, { value }),
-    name,
-    ...partial,
-  };
+function formulaFx(preset: EffectPreset, name: string, value: number, partial: EffectLayerInit = {}): EffectLayer {
+  return makeEffectPresetLayer(preset, { value, name, ...partial });
 }
 
 function formulaText(rng: Rng, baseHue: number, role: TextRandomRole, partial: Partial<TextLayer> = {}): TextLayer {

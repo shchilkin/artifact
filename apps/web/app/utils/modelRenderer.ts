@@ -2,7 +2,7 @@ import { hashStringToUint32 } from '@artifact/shared/hash';
 import * as THREE from 'three';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
 import { DEFAULT_MATERIAL_CONFIG, type MaterialConfig, type ModelLayer, type PrimitiveLayer } from '../types/config';
-import type { GraphScene3DNode } from '../utils/nodeKinds';
+import type { Scene3DSettings } from '../types/scene3d';
 import { resolveImageSource } from './assetStore';
 import {
   canvasHasVisibleContent as canvasHasModelContent,
@@ -346,7 +346,7 @@ export async function applySceneMaterialConfig(
 export function applySceneMaterialMode(
   root: THREE.Object3D,
   layer: Scene3DSourceLayer,
-  sceneNode?: GraphScene3DNode,
+  sceneNode?: Scene3DSettings,
 ): void {
   const mode = sceneNode?.materialMode ?? 'original';
   if (mode === 'original') return;
@@ -368,7 +368,7 @@ function createPrimitiveSceneObject(layer: PrimitiveLayer): THREE.Object3D {
 
 export async function loadScene3DSourceObject(
   layer: Scene3DSourceLayer,
-  sceneNode?: GraphScene3DNode,
+  sceneNode?: Scene3DSettings,
   materialConfig?: MaterialConfig,
   materialTextures?: SceneMaterialTextureCanvases | null,
 ): Promise<THREE.Object3D> {
@@ -407,7 +407,7 @@ function materialBaseEnvironmentIntensity(material: EnvironmentMappedMaterial) {
 
 export function applySceneEnvironmentIntensity(
   root: THREE.Object3D,
-  sceneNode?: GraphScene3DNode,
+  sceneNode?: Scene3DSettings,
   useSceneEnvironment = false,
 ): void {
   const intensity = Math.max(0, (sceneNode?.environmentStrength ?? 0) / 100);
@@ -427,7 +427,7 @@ export function applySceneEnvironmentIntensity(
   });
 }
 
-export function applySceneEnvironmentRotation(scene: THREE.Scene, sceneNode?: GraphScene3DNode): void {
+export function applySceneEnvironmentRotation(scene: THREE.Scene, sceneNode?: Scene3DSettings): void {
   const yaw = degToRad(sceneNode?.environmentRotation ?? 0);
   scene.environmentRotation.set(0, yaw, 0);
   scene.backgroundRotation.set(0, yaw, 0);
@@ -529,7 +529,7 @@ function averageEnvironmentLightColor(source: SceneEnvironmentLightSource): THRE
 export function addModelSceneLights(
   scene: THREE.Object3D,
   layer: Scene3DSourceLayer,
-  sceneNode?: GraphScene3DNode,
+  sceneNode?: Scene3DSettings,
   environmentSource?: SceneEnvironmentLightSource,
 ): void {
   const accent = new THREE.Color(layer.accentColor);
@@ -575,7 +575,7 @@ function drawSceneBackdrop(target: HTMLCanvasElement, backdropCanvas: HTMLCanvas
 function drawRenderedScene(
   target: HTMLCanvasElement,
   renderCanvas: HTMLCanvasElement,
-  sceneNode: GraphScene3DNode | undefined,
+  sceneNode: Scene3DSettings | undefined,
   options: ModelSceneRenderOptions,
 ): void {
   const outCtx = target.getContext('2d');
@@ -613,7 +613,7 @@ export async function renderModelToCanvas(
 
 export async function renderModelSceneToCanvas(
   layer: Scene3DSourceLayer,
-  sceneNode: GraphScene3DNode | undefined,
+  sceneNode: Scene3DSettings | undefined,
   size: number | { width: number; height: number },
   viewState?: PrimitiveViewportState,
   options: ModelSceneRenderOptions = {},

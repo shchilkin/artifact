@@ -17,7 +17,6 @@ export function LayerAddMenu({
   onAddTextPreset,
   onAddNoisePreset,
   onAddArrayPreset,
-  onAddScene3D,
   onStartAiImage,
 }: {
   onAddLayer: (kind: Exclude<LayerKind, 'effect'>) => void;
@@ -25,7 +24,6 @@ export function LayerAddMenu({
   onAddTextPreset: (preset: TextPresetId) => void;
   onAddNoisePreset: (preset: NoisePresetId) => void;
   onAddArrayPreset: (preset: ArrayPresetId) => void;
-  onAddScene3D: () => void;
   onStartAiImage?: () => void;
 }) {
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
@@ -77,11 +75,6 @@ export function LayerAddMenu({
     closeAddMenu();
   }, [closeAddMenu, onStartAiImage]);
 
-  const handleAddScene3D = useCallback(() => {
-    onAddScene3D();
-    closeAddMenu();
-  }, [closeAddMenu, onAddScene3D]);
-
   const handleAddLibraryAction = useCallback(
     (action: AddLibraryAction) => {
       const handlers: Partial<Record<AddLibraryAction['kind'], LayerAddActionHandler>> = {
@@ -93,7 +86,6 @@ export function LayerAddMenu({
           handleAddArrayPreset((item as Extract<AddLibraryAction, { kind: 'arrayPreset' }>).preset),
         aiImage: () => handleStartAiImage(),
         effect: (item) => handleAddEffectPreset((item as Extract<AddLibraryAction, { kind: 'effect' }>).preset),
-        scene3d: () => handleAddScene3D(),
       };
       handlers[action.kind]?.(action);
     },
@@ -103,7 +95,7 @@ export function LayerAddMenu({
       handleAddLayer,
       handleAddNoisePreset,
       handleAddTextPreset,
-      handleAddScene3D,
+
       handleStartAiImage,
     ],
   );

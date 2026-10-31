@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { ImageLayer } from '../../../types/config';
+import type { ImageLayer, Object3DLayer } from '../../../types/config';
 import {
   getAiGenerationStatusDetail,
   getAiGenerationStatusLabel,
@@ -16,6 +16,7 @@ import { getLiveImageSource, shouldResolveLiveImageSource, shouldUseLiveMediaOve
 import { ModelPreviewSurface } from './ModelPreviewSurface';
 import { NodeThumbnail } from './NodeThumbnail';
 import { PrimitivePreviewSurface } from './PrimitivePreviewSurface';
+import { Scene3DPreviewSurface } from './Scene3DPreviewSurface';
 import { useNativeTransformWheel } from './useNativeTransformWheel';
 
 type LayerPreviewSurfaceProps = Pick<
@@ -413,10 +414,15 @@ function shouldShowLiveTransformOverlay({
 function primitiveLayerPreviewSurface({
   layer,
   selected,
+  previewTargetId,
   primitiveViewState,
   primitiveRenderMode,
-}: Pick<LayerPreviewSurfaceProps, 'layer' | 'selected' | 'primitiveViewState' | 'primitiveRenderMode'>) {
+}: Pick<
+  LayerPreviewSurfaceProps,
+  'layer' | 'selected' | 'previewTargetId' | 'primitiveViewState' | 'primitiveRenderMode'
+>) {
   if (layer.kind !== 'primitive') return null;
+  if (layer.scene) return sceneLayerPreviewSurface({ layer, selected, previewTargetId, primitiveViewState });
   return (
     <PrimitivePreviewSurface
       layer={layer}
@@ -427,9 +433,37 @@ function primitiveLayerPreviewSurface({
   );
 }
 
-function modelLayerPreviewSurface({ layer, selected }: Pick<LayerPreviewSurfaceProps, 'layer' | 'selected'>) {
+function modelLayerPreviewSurface({
+  layer,
+  selected,
+  previewTargetId,
+  primitiveViewState,
+}: Pick<LayerPreviewSurfaceProps, 'layer' | 'selected' | 'previewTargetId' | 'primitiveViewState'>) {
   if (layer.kind !== 'model') return null;
+  if (layer.scene) return sceneLayerPreviewSurface({ layer, selected, previewTargetId, primitiveViewState });
   return <ModelPreviewSurface layer={layer} selected={selected} />;
+}
+
+function sceneLayerPreviewSurface({
+  layer,
+  selected,
+  previewTargetId,
+  primitiveViewState,
+}: {
+  layer: Object3DLayer;
+  selected: boolean;
+  previewTargetId: string;
+  primitiveViewState: LayerPreviewSurfaceProps['primitiveViewState'];
+}) {
+  if (!layer.scene) return null;
+  return (
+    <Scene3DPreviewSurface
+      layer={{ ...layer, scene: layer.scene }}
+      selected={selected}
+      previewTargetId={previewTargetId}
+      sceneViewState={primitiveViewState}
+    />
+  );
 }
 
 function GalleryLayerPreviewSurface({
@@ -538,6 +572,7 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   const primitiveSurface = primitiveLayerPreviewSurface({
     layer,
     selected,
+    previewTargetId,
     primitiveViewState,
     primitiveRenderMode,
   });
@@ -545,6 +580,8 @@ export const LayerPreviewSurface = memo(function LayerPreviewSurface({
   const modelSurface = modelLayerPreviewSurface({
     layer,
     selected,
+    previewTargetId,
+    primitiveViewState,
   });
   if (modelSurface) return modelSurface;
   if (isGalleryEligibleLayer(layer)) {

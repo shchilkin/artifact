@@ -3,6 +3,7 @@ import {
   type CanvasDocument,
   type CanvasGraph,
   DEFAULT_EXPORT,
+  makeDocument,
   makeEffectPresetLayer,
   makeFillLayer,
   makeImageLayer,
@@ -19,12 +20,12 @@ export function recipeDoc(
   layers: CanvasDocument['layers'],
   graph: CanvasGraph,
 ): CanvasDocument {
-  return {
+  return makeDocument({
     global: { bg, seed, aspect: '1:1' },
     export: { ...DEFAULT_EXPORT },
     layers,
     graph,
-  };
+  });
 }
 
 export const PHOTO_TYPE_GRAPH_RECIPE: StarterDocument = {

@@ -1,5 +1,7 @@
 import type { GraphRepeatNode } from '../../../utils/nodeKinds';
+import { REPEAT_PRESETS } from '../../../utils/repeatPresets';
 import { ARRAY_PATTERN_OPTIONS } from '../../layer-controls/fieldDefs';
+import { PresetStartSelect } from '../../layer-controls/PresetStartSelect';
 import { BLEND_OPTIONS } from '../constants';
 import { BlendModeNote, InspectorSelect, InspectorSlider, InspectorTextInput } from './fields';
 
@@ -18,6 +20,7 @@ export function RepeatInspector({
   return (
     <div className={detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached'}>
       <InspectorTextInput label="Name" value={repeatNode.name} onChange={(value) => onChange({ name: value })} />
+      <PresetStartSelect presets={REPEAT_PRESETS} onApply={onChange} />
       <InspectorSelect
         label="Pattern"
         value={repeatNode.pattern}

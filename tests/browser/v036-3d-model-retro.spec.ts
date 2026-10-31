@@ -152,6 +152,20 @@ const v036Retro3DDocument = {
   export: { format: 'png', scale: 1, target: 'cover' },
 };
 
+// The same chain without the scene: the model layer feeds the effects directly.
+const v036PlainModelDocument = {
+  ...v036Retro3DDocument,
+  graph: {
+    ...v036Retro3DDocument.graph,
+    edges: [
+      { id: 'e-v036-model-retro', fromId: 'v036-model', fromPort: 'out', toId: 'v036-retro-resolution', toPort: 'in' },
+      ...v036Retro3DDocument.graph.edges.filter((edge) => !edge.fromId.match(/^v036-(env|model|scene)$/)),
+    ],
+    scene3dNodes: [],
+    environmentNodes: [],
+  },
+};
+
 const v036LayerSceneParityDocument = {
   ...v036Retro3DDocument,
   graph: {
@@ -201,13 +215,16 @@ test('v0.36 3D model scene and retro effect graph renders and exports', async ({
   await gotoDocument(page, v036Retro3DDocument);
   await switchToNodeView(page);
 
-  await expect(page.locator('.react-flow__node[data-id="v036-model"]')).toBeAttached({ timeout: 15_000 });
+  // The legacy 3D Scene and Environment Map nodes open as one lit 3D Object under the scene's id.
   await expect(page.locator('.react-flow__node[data-id="v036-scene"]')).toBeAttached({ timeout: 15_000 });
-  await expect(page.locator('.react-flow__node[data-id="v036-env"]')).toBeAttached({ timeout: 15_000 });
+  await expect(page.locator('.react-flow__node[data-id="v036-model"]')).toHaveCount(0);
+  await expect(page.locator('.react-flow__node[data-id="v036-env"]')).toHaveCount(0);
   await expect(page.locator('.react-flow__node[data-id="v036-dot-grain"]')).toBeAttached({ timeout: 15_000 });
   await expect(page.locator('.react-flow__node[data-id="__export__"]')).toBeAttached({ timeout: 15_000 });
-  await expect(page.locator('.node-shell-kind-scene3d')).toContainText(/3d scene/i);
-  await expect(page.locator('.node-shell-kind-environment')).toContainText(/environment/i);
+  await expect(page.locator('.react-flow__node[data-id="v036-scene"] .node-shell-kind-model')).toContainText(
+    /3d object/i,
+  );
+  await expect(page.locator('.react-flow__node[data-id="v036-scene"]')).toContainText(/environment/i);
 
   const outputCanvas = page.locator('.react-flow__node[data-id="__export__"] canvas.node-thumbnail-canvas');
   await expectCanvasHasVisiblePixels(outputCanvas, 20_000);
@@ -250,7 +267,7 @@ test('missing packaged model can be replaced without changing its graph connecti
   await modelNode.click();
 
   const properties = page.locator('.node-props-panel-open');
-  await properties.getByRole('button', { name: 'Model', exact: true }).click();
+  await properties.getByRole('button', { name: 'Object', exact: true }).click();
   const chooserPromise = page.waitForEvent('filechooser');
   await properties.getByRole('button', { name: 'Replace model' }).click();
   const chooser = await chooserPromise;
@@ -272,7 +289,7 @@ test('missing packaged model can be replaced without changing its graph connecti
           modelRef: model?.modelSrc,
           edgeStillConnected: doc.graph?.edges?.some(
             (edge: { fromId: string; toId: string; toPort: string }) =>
-              edge.fromId === 'v036-model' && edge.toId === 'v036-scene' && edge.toPort === 'model',
+              edge.fromId === 'v036-model' && edge.toId === 'v036-retro-resolution' && edge.toPort === 'in',
           ),
         };
       }),
@@ -300,14 +317,24 @@ test('v0.37 material node feeds a 3D scene material slot', async ({ page }, test
   await expect(sceneNode).toBeVisible({ timeout: 15_000 });
   await expect(sceneNode).toContainText(/material/i);
   await expect(page.locator('.react-flow__node[data-id="v037-chrome"]')).toContainText(/surface/i);
-  await sceneNode.click();
-  await expect(page.locator('.node-props-panel [data-inspector-section="true"]')).not.toHaveCount(0);
-  await expect(page.locator('.node-props-panel [data-inspector-property-row="true"]')).not.toHaveCount(0);
 
   const outputCanvas = page.locator('.react-flow__node[data-id="__export__"] canvas.node-thumbnail-canvas');
   await expectCanvasHasVisiblePixels(outputCanvas, 20_000);
-  const materialScenePixels = await reducedCanvasPixels(sceneNode.locator('canvas.node-thumbnail-canvas'));
-  expect(meanAbsoluteDiff(baseScenePixels, materialScenePixels)).toBeGreaterThan(2);
+  // Read the thumbnail before selecting: a selected 3D Object shows its live viewport instead. Chrome without an
+  // environment renders dark, so compare against the base render rather than checking for bright pixels.
+  const materialSceneCanvas = sceneNode.locator('canvas.node-thumbnail-canvas');
+  await expect(materialSceneCanvas).toBeVisible({ timeout: 20_000 });
+  await expect
+    .poll(async () => meanAbsoluteDiff(baseScenePixels, await reducedCanvasPixels(materialSceneCanvas)), {
+      timeout: 20_000,
+    })
+    .toBeGreaterThan(2);
+  const materialScenePixels = await reducedCanvasPixels(materialSceneCanvas);
+  expect(materialScenePixels.some((value, index) => index % 4 === 3 && value > 8)).toBe(true);
+
+  await sceneNode.click();
+  await expect(page.locator('.node-props-panel [data-inspector-section="true"]')).not.toHaveCount(0);
+  await expect(page.locator('.node-props-panel [data-inspector-property-row="true"]')).not.toHaveCount(0);
 });
 
 test('v0.36 layers preview follows graph 3D scene camera state', async ({ page }, testInfo) => {
@@ -326,34 +353,28 @@ test('v0.36 layers preview follows graph 3D scene camera state', async ({ page }
   expect(meanAbsoluteDiff(layerPixels, outputPixels)).toBeLessThan(24);
 });
 
-test('v0.36 layers treats 3D scene as the layer and model as a scene setting', async ({ page }, testInfo) => {
+test('v0.36 legacy 3D Scene opens as one lit 3D Object layer', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', '3D scene layer semantics runs once in Chromium.');
 
   await gotoDocument(page, v036Retro3DDocument);
 
   const layerRows = page.locator('.sidebar .layer-row');
   await expect(layerRows.filter({ hasText: '3D Scene' })).toHaveCount(1, { timeout: 15_000 });
-  // The model is never a stack layer of its own: the Layers tree lists it only under the scene's Inputs.
-  const modelRows = layerRows.filter({ hasText: 'Tiny GLB' });
-  await expect(modelRows).toHaveCount(1);
-  // Scene → Inputs → Model → model row.
-  const sceneLevel = Number(await sceneTreeLevel(page));
-  await expect(modelRows.first()).toHaveAttribute('aria-level', String(sceneLevel + 3));
+  // The scene's model is the layer itself now, not a separate row.
+  await expect(layerRows.filter({ hasText: 'Tiny GLB' })).toHaveCount(0);
 
   await layerRows.filter({ hasText: '3D Scene' }).first().click();
   const inspector = page.locator('.layer-inspector-drawer');
   await expect(inspector.locator('.editor-target-header').first()).toContainText('3D Scene');
-  await expect(inspector.locator('.editor-target-header').first()).not.toContainText('Layers / 3D Scene');
-  await expect(inspector).toContainText('Scene Inputs');
-  await expect(inspector).toContainText('3D Source');
   await expect(inspector).toContainText('tiny.glb');
-  await expect(inspector).toContainText('Environment Map');
+  await expect(inspector.getByRole('button', { name: 'Lighting', exact: true })).toBeVisible();
+  await expect(inspector.getByRole('button', { name: 'Environment', exact: true })).toBeVisible();
 });
 
 test('v0.36 3D model node always auto-spins without committing view state', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', '3D model preview animation runs once in Chromium.');
 
-  await gotoDocument(page, v036Retro3DDocument);
+  await gotoDocument(page, v036PlainModelDocument);
   await switchToNodeView(page);
 
   const modelNode = page.locator('.react-flow__node[data-id="v036-model"]').first();
@@ -478,6 +499,7 @@ async function makePortable3DSourceDocument() {
   const sourceDocument = structuredClone(v036Retro3DDocument);
   const modelDataUrl = makeTinyGlbModelDataUrl();
   const environmentDataUrl = await makeTinyExrEnvironmentDataUrl();
+  // The scene node's model and environment move onto the 3D Object layer when the document opens.
   const modelLayer = sourceDocument.layers.find((layer) => layer.id === 'v036-model');
   if (!modelLayer || modelLayer.kind !== 'model') throw new Error('3D model fixture is unavailable');
   modelLayer.modelSrc = modelDataUrl;
@@ -499,20 +521,13 @@ async function makePortable3DSourceDocument() {
 }
 
 function makeLegacyMissingModelPackage() {
-  const legacyDocument = structuredClone(v036Retro3DDocument);
+  const legacyDocument = structuredClone(v036PlainModelDocument);
   const modelLayer = legacyDocument.layers.find((layer) => layer.id === 'v036-model');
   if (!modelLayer || modelLayer.kind !== 'model') throw new Error('3D model fixture is unavailable');
   modelLayer.modelSrc = 'artifact-model://legacy-missing-model';
   modelLayer.modelName = 'legacy-skull.glb';
   modelLayer.modelMime = 'model/gltf-binary';
   modelLayer.modelBytes = 2_008_530;
-
-  const environmentNode = legacyDocument.graph.environmentNodes[0];
-  if (environmentNode) {
-    environmentNode.environmentSrc = '';
-    environmentNode.environmentName = 'No environment';
-    environmentNode.environmentBytes = 0;
-  }
 
   return JSON.stringify({
     artifactPackage: 'project',
@@ -604,7 +619,7 @@ function expectRestored3DAssets(restored: Stored3DAssets, sourceRefs: Stored3DRe
     environmentStrength: 85,
     hasModelPayloadField: false,
     hasEnvironmentPayloadField: false,
-    edgeIds: expect.arrayContaining(['e-v036-env-scene', 'e-v036-model-scene', 'e-v036-edge-export']),
+    edgeIds: expect.arrayContaining(['e-v036-scene-retro', 'e-v036-edge-export']),
   });
 }
 
@@ -761,12 +776,8 @@ async function waitForStored3DRefs(page: Page) {
       () =>
         page.evaluate(() => {
           const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-          return {
-            modelRef: doc.layers?.find((layer: { id: string }) => layer.id === 'v036-model')?.modelSrc ?? '',
-            environmentRef:
-              Object.values(doc.graph?.nodes ?? {}).find((node: { kind?: string }) => node.kind === 'environment')
-                ?.environmentSrc ?? '',
-          };
+          const object = doc.layers?.find((layer: { id: string }) => layer.id === 'v036-scene');
+          return { modelRef: object?.modelSrc ?? '', environmentRef: object?.scene?.environmentSrc ?? '' };
         }),
       { timeout: 15_000 },
     )
@@ -776,11 +787,8 @@ async function waitForStored3DRefs(page: Page) {
     });
   return page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-    return {
-      modelRef: doc.layers.find((layer: { id: string }) => layer.id === 'v036-model').modelSrc as string,
-      environmentRef: Object.values(doc.graph.nodes).find((node: { kind?: string }) => node.kind === 'environment')
-        .environmentSrc as string,
-    };
+    const object = doc.layers.find((layer: { id: string }) => layer.id === 'v036-scene');
+    return { modelRef: object.modelSrc as string, environmentRef: object.scene.environmentSrc as string };
   });
 }
 
@@ -818,13 +826,9 @@ async function waitForStored3DAssets(page: Page, refs: { modelRef: string; envir
           };
         });
       const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
-      const modelRef = doc.layers?.find((layer: { id: string }) => layer.id === 'v036-model')?.modelSrc ?? '';
-      const graphNodes = Object.values(doc.graph?.nodes ?? {}) as {
-        kind?: string;
-        environmentSrc?: string;
-        environmentStrength?: number;
-      }[];
-      const environmentRef = graphNodes.find((node) => node.kind === 'environment')?.environmentSrc ?? '';
+      const object = doc.layers?.find((layer: { id: string }) => layer.id === 'v036-scene');
+      const modelRef = object?.modelSrc ?? '';
+      const environmentRef = object?.scene?.environmentSrc ?? '';
       return {
         model: await readAsset(
           'artifact-local-model-assets',
@@ -839,7 +843,7 @@ async function waitForStored3DAssets(page: Page, refs: { modelRef: string; envir
         document: {
           modelRef,
           environmentRef,
-          environmentStrength: graphNodes.find((node) => node.kind === 'scene3d')?.environmentStrength,
+          environmentStrength: object?.scene?.environmentStrength,
           edgeIds: doc.graph?.edges?.map((edge: { id: string }) => edge.id) ?? [],
           hasModelPayloadField: Object.hasOwn(doc, 'modelAssets'),
           hasEnvironmentPayloadField: Object.hasOwn(doc, 'envAssets'),
@@ -907,8 +911,4 @@ async function storedModelRotationY(page: Page) {
     const doc = JSON.parse(localStorage.getItem('doc') ?? '{}');
     return doc.graph?.primitiveViewStates?.['v036-model']?.rotationY ?? null;
   });
-}
-
-async function sceneTreeLevel(page: Page) {
-  return page.locator('.sidebar [role="treeitem"][data-tree-node-kind="scene3d"]').getAttribute('aria-level');
 }

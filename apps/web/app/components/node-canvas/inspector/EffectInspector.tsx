@@ -1,12 +1,20 @@
 import { useState } from 'react';
-import type { EffectLayer, EffectPreset } from '../../../types/config';
-import { EFFECT_PRESETS } from '../../../types/config';
+import type { EffectEntry, EffectLayer, EffectPreset } from '../../../types/config';
+import { EFFECT_PRESETS, effectStarterParams } from '../../../types/config';
+import { EFFECT_IDS, type EffectId, effectSpec, isEffectId, isEffectParamShown } from '../../../types/effectSchema';
 import { EFFECT_META } from '../../../utils/effectInfo';
+import {
+  addEffectEntry,
+  effectParamsPatch,
+  isEffectEntryActive,
+  moveEffectEntry,
+  removeEffectEntry,
+  updateEffectEntry,
+} from '../../../utils/effectStack';
 import { FIELD_RANGES } from '../../layer-controls/fieldDefs';
 import { BLEND_OPTIONS } from '../constants';
-import type { EffectSectionId } from '../types';
-import { EffectControlSections } from './EffectControlSections';
-import { EFFECT_CONTROL_PRESETS, effectSectionSummary, initialEffectSection } from './effectSectionModel';
+import { NoPan } from '../nodes/NoPan';
+import { EffectEntryControls, formatEffectSliderValue } from './EffectControlSections';
 import {
   BlendModeNote,
   InspectorSection,
@@ -15,6 +23,8 @@ import {
   InspectorTextInput,
   InspectorToggle,
 } from './fields';
+
+const NODE_SECTION = 'node';
 
 export function EffectInspector({
   layer,
@@ -25,28 +35,40 @@ export function EffectInspector({
   onChange: (patch: Partial<EffectLayer>) => void;
   detached?: boolean;
 }) {
-  const [openSection, setOpenSection] = useState<EffectSectionId | null>(() => initialEffectSection(layer));
-  const showSection = (presets: readonly EffectPreset[]) => effectSectionVisible(layer.preset, presets);
+  const [openSection, setOpenSection] = useState<string | null>(() => layer.effects[0]?.id ?? NODE_SECTION);
+  const toggleSection = (id: string) => setOpenSection((current) => (current === id ? null : id));
+  const setEffects = (effects: EffectEntry[]) => onChange({ effects });
 
   return (
     <div className={effectInspectorClassName(detached)}>
       <EffectDescription preset={layer.preset} />
-      <RetroRecipeNote preset={layer.preset} />
-      <EffectPresetControlNote preset={layer.preset} />
-
-      <EffectControlSections
-        layer={layer}
-        openSection={openSection}
-        setOpenSection={setOpenSection}
-        showSection={showSection}
-        showControl={showSection}
-        onChange={onChange}
+      {layer.effects.map((entry, index) => (
+        <EffectEntrySection
+          key={entry.id}
+          entry={entry}
+          index={index}
+          count={layer.effects.length}
+          open={openSection === entry.id}
+          onToggle={() => toggleSection(entry.id)}
+          onParamsChange={(params) =>
+            setEffects(updateEffectEntry(layer.effects, entry.id, { params: effectParamsPatch(entry, params) }))
+          }
+          onEnabledChange={(enabled) => setEffects(updateEffectEntry(layer.effects, entry.id, { enabled }))}
+          onMove={(delta) => setEffects(moveEffectEntry(layer.effects, entry.id, delta))}
+          onRemove={() => setEffects(removeEffectEntry(layer.effects, entry.id))}
+        />
+      ))}
+      <AddEffectControl
+        onAdd={(effect) => {
+          const effects = addEffectEntry(layer.effects, effect, effectStarterParams(effect));
+          setEffects(effects);
+          setOpenSection(effects.at(-1)?.id ?? null);
+        }}
       />
-
       <EffectNodeSection
         layer={layer}
-        open={openSection === 'node'}
-        onOpenChange={setOpenSection}
+        open={openSection === NODE_SECTION}
+        onToggle={() => toggleSection(NODE_SECTION)}
         onChange={onChange}
       />
     </div>
@@ -57,29 +79,146 @@ function effectInspectorClassName(detached: boolean) {
   return detached ? 'artifact-inspector-stack' : 'artifact-inspector-stack artifact-inspector-detached';
 }
 
-function effectSectionVisible(preset: EffectPreset | undefined, presets: readonly EffectPreset[]) {
-  return preset ? presets.includes(preset) : true;
+function effectName(effect: EffectId) {
+  return effectSpec(effect).label;
+}
+
+/** The section summary: the mode and the first shown amount, "no effect", or "off". */
+function effectEntrySummary(entry: EffectEntry) {
+  if (!entry.enabled) return 'off';
+  if (!isEffectEntryActive(entry)) return 'no effect';
+  const shown = Object.entries(effectSpec(entry.effect).params).filter(([, param]) =>
+    isEffectParamShown(param, entry.params),
+  );
+  const parts: string[] = [];
+  for (const [key, param] of shown) {
+    const value = entry.params[key];
+    if (param.type === 'choice' && key === 'mode') {
+      parts.push(param.options.find((option) => option.value === value)?.label ?? String(value));
+    } else if (param.type === 'number' && typeof value === 'number') {
+      parts.push(`${formatEffectSliderValue(value, param.format)} ${param.label.toLowerCase()}`);
+      break;
+    }
+  }
+  return parts.join(' · ');
+}
+
+function EffectEntrySection({
+  entry,
+  index,
+  count,
+  open,
+  onToggle,
+  onParamsChange,
+  onEnabledChange,
+  onMove,
+  onRemove,
+}: {
+  entry: EffectEntry;
+  index: number;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+  onParamsChange: (params: EffectEntry['params']) => void;
+  onEnabledChange: (enabled: boolean) => void;
+  onMove: (delta: -1 | 1) => void;
+  onRemove: () => void;
+}) {
+  const name = effectName(entry.effect);
+  return (
+    <InspectorSection title={name} summary={effectEntrySummary(entry)} open={open} onToggle={onToggle}>
+      <EffectEntryControls entry={entry} onChange={onParamsChange} />
+      <InspectorToggle label="On" ariaLabel={`${name} on`} checked={entry.enabled} onChange={onEnabledChange} />
+      <div className="artifact-inspector-effect-actions">
+        <NoPan
+          as="button"
+          type="button"
+          className="artifact-inspector-action"
+          aria-label={`Move ${name} up`}
+          disabled={index === 0}
+          onClick={() => onMove(-1)}
+        >
+          Up
+        </NoPan>
+        <NoPan
+          as="button"
+          type="button"
+          className="artifact-inspector-action"
+          aria-label={`Move ${name} down`}
+          disabled={index === count - 1}
+          onClick={() => onMove(1)}
+        >
+          Down
+        </NoPan>
+        <NoPan
+          as="button"
+          type="button"
+          className="artifact-inspector-action"
+          aria-label={`Remove ${name}`}
+          onClick={onRemove}
+        >
+          Remove
+        </NoPan>
+      </div>
+    </InspectorSection>
+  );
+}
+
+const ADD_EFFECT_PLACEHOLDER = '';
+
+function AddEffectControl({ onAdd }: { onAdd: (effect: EffectId) => void }) {
+  return (
+    <InspectorSelect
+      label="Add effect"
+      value={ADD_EFFECT_PLACEHOLDER}
+      options={[
+        { value: ADD_EFFECT_PLACEHOLDER, label: 'Choose…' },
+        ...EFFECT_IDS.map((effect) => ({ value: effect, label: effectName(effect) })),
+      ]}
+      onChange={(value) => {
+        if (isEffectId(value)) onAdd(value);
+      }}
+    />
+  );
 }
 
 function EffectNodeSection({
   layer,
   open,
-  onOpenChange,
+  onToggle,
   onChange,
 }: {
   layer: EffectLayer;
   open: boolean;
-  onOpenChange: (section: EffectSectionId | null) => void;
+  onToggle: () => void;
   onChange: (patch: Partial<EffectLayer>) => void;
 }) {
   return (
     <InspectorSection
-      title="Node"
-      summary={effectSectionSummary(layer, 'node')}
+      title="Blend"
+      summary={`${Math.round(layer.mix)}% mix${layer.appliesTo === 'layerBelow' ? ' · layer below' : ''}`}
       open={open}
-      onToggle={() => onOpenChange(open ? null : 'node')}
+      onToggle={onToggle}
     >
       <InspectorTextInput label="Name" value={layer.name} onChange={(value) => onChange({ name: value })} />
+      <InspectorSelect
+        label="Applies to"
+        value={layer.appliesTo}
+        options={[
+          { value: 'all', label: 'Everything below' },
+          { value: 'layerBelow', label: 'Layer below' },
+        ]}
+        onChange={(value) => onChange({ appliesTo: value === 'layerBelow' ? 'layerBelow' : 'all' })}
+      />
+      <InspectorSlider
+        label="Mix"
+        value={Math.round(layer.mix)}
+        min={0}
+        max={100}
+        formatValue={(value) => formatEffectSliderValue(value, 'percent')}
+        unit="%"
+        onChange={(value) => onChange({ mix: value })}
+      />
       <InspectorSlider
         label="Seed"
         value={Math.round(layer.seedOffset ?? 0)}
@@ -103,97 +242,7 @@ function EffectNodeSection({
 }
 
 function EffectDescription({ preset }: { preset: EffectPreset | undefined }) {
-  const description = effectPresetDescription(preset);
+  const primary = preset ? EFFECT_PRESETS[preset]?.primary : null;
+  const description = primary ? EFFECT_META[primary]?.description : null;
   return description ? <p className="artifact-inspector-effect-description">{description}</p> : null;
-}
-
-const RETRO_RECIPE_STEPS: Partial<
-  Record<
-    EffectPreset,
-    {
-      step: string;
-      title: string;
-      detail: string;
-    }
-  >
-> = {
-  retroResolution: {
-    step: '1 / 4',
-    title: 'Sample down',
-    detail: 'Start the PS-era finish by lowering the source resolution before color mapping.',
-  },
-  indexedPalette: {
-    step: '2 / 4',
-    title: 'Map colors',
-    detail: 'Choose the limited swatches that the next texture nodes will bite into.',
-  },
-  dotGrain: {
-    step: '3 / 4',
-    title: 'Round grain',
-    detail: 'Add stochastic dot texture after palette mapping for the old-render surface.',
-  },
-  edgeCrush: {
-    step: '4 / 4',
-    title: 'Harden alpha',
-    detail: 'Remove soft transparent antialiasing before a harsher silhouette pass.',
-  },
-  silhouetteCrush: {
-    step: '4 / 4',
-    title: 'Chip silhouette',
-    detail: 'Finish by breaking alpha and high-contrast silhouette borders into chipped sprite pixels.',
-  },
-  dither: {
-    step: 'ALT',
-    title: 'Pattern texture',
-    detail: 'Use as a stricter grid alternative to round grain inside the same retro chain.',
-  },
-  halftone: {
-    step: 'ALT',
-    title: 'Print screen',
-    detail: 'Use as a print-dot alternative when the finish should feel offset instead of sampled.',
-  },
-};
-
-function RetroRecipeNote({ preset }: { preset: EffectPreset | undefined }) {
-  if (!preset) return null;
-  const step = RETRO_RECIPE_STEPS[preset];
-  if (!step) return null;
-  return (
-    <div className="retro-recipe-card" aria-label="Retro finish recipe">
-      <span className="retro-recipe-kicker">Retro finish</span>
-      <div className="retro-recipe-main">
-        <strong>{step.title}</strong>
-        <span>{step.step}</span>
-      </div>
-      <p>{step.detail}</p>
-    </div>
-  );
-}
-
-function effectPresetDescription(preset: EffectPreset | undefined) {
-  return effectDescription(primaryEffectKeyForPreset(preset));
-}
-
-function primaryEffectKeyForPreset(preset: EffectPreset | undefined) {
-  if (!preset) return null;
-  return EFFECT_PRESETS[preset]?.primary ?? null;
-}
-
-function effectDescription(effectKey: keyof typeof EFFECT_META | null) {
-  if (!effectKey) return null;
-  return EFFECT_META[effectKey]?.description ?? null;
-}
-
-function EffectPresetControlNote({ preset }: { preset: EffectPreset | undefined }) {
-  if (effectPresetHasControls(preset)) return null;
-  return (
-    <div className="artifact-inspector-note">
-      This effect uses fixed defaults in the node inspector for now. You can still rename it, change blend/mask
-      behavior, or add another focused effect node after it.
-    </div>
-  );
-}
-
-function effectPresetHasControls(preset: EffectPreset | undefined) {
-  return !preset || EFFECT_CONTROL_PRESETS.includes(preset);
 }

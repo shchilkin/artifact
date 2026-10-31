@@ -10,7 +10,6 @@ import type {
   PrimitiveLayer,
   TextLayer,
 } from '../../types/config';
-import type { EffectControlSectionId } from '../../types/effectSchema';
 import type { AddAction } from '../../utils/addActions';
 import type { GraphEditKind } from '../../utils/documentDispatch';
 import type { DocumentUpdateMode } from '../../utils/documentHistory';
@@ -63,7 +62,8 @@ export interface NodeCanvasProps {
   onFilesDrop?: (files: File[], position: { x: number; y: number }) => void;
   onFileDragPreviewChange?: (dataTransfer: DataTransfer | null) => void;
   onReplaceModelLayerFile?: (id: string, file: File) => void;
-  onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
+  onLoadSceneEnvironmentFile?: (id: string, file: File) => void;
+  onUseShapeSource?: (id: string) => void;
   onDeleteNodes: (ids: string[]) => void;
   onDuplicateLayer: (id: string) => void;
 }
@@ -163,7 +163,7 @@ export type ContextMenuState =
       flowPos: { x: number; y: number };
       insertion: InsertConnectionConfig;
     }
-  | { type: 'node'; x: number; y: number; nodeId: string; isMerge: boolean; isExport: boolean }
+  | { type: 'node'; x: number; y: number; nodeId: string; isExport: boolean }
   | null;
 
 export interface NodeCanvasUiState {
@@ -197,8 +197,6 @@ export interface PortRowProps {
   connected: ConnectedNodePorts;
 }
 
-export type EffectSectionId = 'node' | EffectControlSectionId;
-
 export interface PaneMenuProps {
   x: number;
   y: number;
@@ -212,7 +210,6 @@ export interface PaneMenuProps {
 export interface NodeMenuProps {
   x: number;
   y: number;
-  isMerge: boolean;
   isExport: boolean;
   muted?: boolean;
   removeFromArea?: { areaId: string; nodeId: string; areaName?: string };

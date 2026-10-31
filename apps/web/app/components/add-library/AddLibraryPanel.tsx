@@ -187,6 +187,8 @@ function addLibraryColorKind(item: AddLibraryItem) {
       return 'array';
     case 'effect':
       return 'effect';
+    case 'recipe':
+      return 'merge';
     default:
       return GRAPH_NODE_MODELS[item.action.kind].library.colorKind;
   }
@@ -208,6 +210,8 @@ function addLibraryResultLabel(item: AddLibraryItem) {
       return 'Adds effect';
     case 'repeatPreset':
       return 'Adds repeat node';
+    case 'recipe':
+      return 'Inserts wired nodes';
     default:
       return GRAPH_NODE_MODELS[item.action.kind].library.resultLabel;
   }
@@ -217,13 +221,15 @@ function canAddActiveLibraryItem(key: string, item: AddLibraryItem | null): item
   return key === 'Enter' && item !== null;
 }
 
-function recipeSections(recipes: readonly AddLibraryRecipe[], itemById: Map<string, AddLibraryItem>) {
-  return recipes.map((recipe) => ({
-    id: `recipe-${recipe.id}`,
-    label: recipe.label,
-    hint: recipe.hint,
-    items: itemsForIds(recipe.itemIds, itemById),
-  }));
+function recipeSections(recipes: readonly AddLibraryRecipe[]) {
+  return [
+    {
+      id: 'recipes',
+      label: 'Recipes',
+      hint: 'Insert a wired group of nodes',
+      items: recipes.map((recipe) => recipe.item),
+    },
+  ];
 }
 
 function resolveAddLibrarySections({
@@ -250,7 +256,7 @@ function resolveAddLibrarySections({
   searchResults: AddLibraryItem[];
 }): AddLibrarySection[] {
   if (isSearching) return searchSection(activeIntent, searchResults);
-  if (view === 'recipes') return recipeSections(recipes, itemById);
+  if (view === 'recipes') return recipeSections(recipes);
   if (activeIntent) return singleSection(activeIntent.id, activeIntent.label, activeIntent.hint, browsableScopedItems);
   return buildDefaultSections({ browsableItems, favoriteIds, itemById, recentIds });
 }

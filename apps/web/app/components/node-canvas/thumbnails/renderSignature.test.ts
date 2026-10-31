@@ -5,6 +5,7 @@ import {
   makeEmojiLayer,
   makeFillLayer,
   makeImageLayer,
+  makeScene3DSettings,
   makeSourceLayer,
   makeTextLayer,
 } from '../../../types/config';
@@ -122,6 +123,12 @@ describe('graph node render signatures', () => {
     const edited = { ...base, opacity: 50 };
 
     expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
+  });
+
+  it('changes when a graph node is hidden', () => {
+    const base = { kind: 'merge' as const, id: 'merge-1', name: 'Merge', blendMode: 'source-over', opacity: 100 };
+
+    expect(graphNodeRenderSig({ ...base, hidden: true })).not.toBe(graphNodeRenderSig(base));
   });
 
   it('ignores color node identity and name', () => {
@@ -295,45 +302,16 @@ describe('graph node render signatures', () => {
     expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
   });
 
-  it('ignores grime shadow node identity and changes for render fields', () => {
-    const base = {
-      kind: 'grimeShadow' as const,
-      id: 'shadow-1',
-      name: 'Grime Shadow',
-      x: 8,
-      y: 10,
-      layers: 5,
-      blur: 10,
-      spread: 14,
-      grime: 45,
-      jitter: 10,
-      opacity: 58,
-      color: '#090606',
-      seedOffset: 0,
-      shadowOnly: false,
-    };
-    const renamed = { ...base, id: 'shadow-2', name: 'Renamed shadow' };
-    const edited = { ...base, grime: 80, shadowOnly: true };
+  it('changes 3D Object signatures with their scene lighting and environment map', () => {
+    const plain = makeSourceLayer('model', { id: 'model-1', modelSrc: 'artifact-model://model-a' });
+    const lit = { ...plain, scene: makeScene3DSettings() };
+    const withMap = { ...lit, scene: { ...lit.scene, environmentSrc: 'artifact-env://env-a' } };
+    const brighter = { ...lit, scene: { ...lit.scene, keyIntensity: 200 } };
 
-    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
-    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
-  });
-
-  it('ignores environment node identity and changes for render fields', () => {
-    const base = {
-      kind: 'environment' as const,
-      id: 'env-1',
-      name: 'Environment Map',
-      environmentSrc: 'artifact-env://env-a',
-      environmentName: 'studio.exr',
-      environmentMime: 'image/x-exr',
-      environmentBytes: 1024,
-    };
-    const renamed = { ...base, id: 'env-2', name: 'Renamed environment' };
-    const edited = { ...base, environmentSrc: 'artifact-env://env-b', environmentBytes: 2048 };
-
-    expect(graphNodeRenderSig(renamed)).toBe(graphNodeRenderSig(base));
-    expect(graphNodeRenderSig(edited)).not.toBe(graphNodeRenderSig(base));
+    expect(layerRenderSig(lit)).not.toBe(layerRenderSig(plain));
+    expect(layerRenderSig(withMap)).not.toBe(layerRenderSig(lit));
+    expect(layerRenderSig(brighter)).not.toBe(layerRenderSig(lit));
+    expect(layerRenderSig({ ...withMap, name: 'Renamed' })).toBe(layerRenderSig(withMap));
   });
 
   it('changes material node signatures when PBR texture sources change', () => {

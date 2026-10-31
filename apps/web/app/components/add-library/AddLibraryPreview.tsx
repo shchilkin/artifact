@@ -15,6 +15,7 @@ import {
 import { makeArrayPresetLayer } from '../../utils/arrayPresets';
 import { renderEffectThumb } from '../../utils/effectInfo';
 import { makeNoisePresetLayer } from '../../utils/noisePresets';
+import { findRecipe } from '../../utils/recipes';
 import { renderDocument } from '../../utils/renderer';
 import { makeTextPresetLayer } from '../../utils/textPresets';
 import { PreviewFrame } from '../ui/PreviewFrame';
@@ -70,6 +71,7 @@ const PREVIEW_DOCUMENT_BUILDERS: Record<string, PreviewDocumentBuilder> = {
   material: makeMaterialPreviewDocument,
   merge: makeUtilityPreviewDocument,
   color: makeUtilityPreviewDocument,
+  recipe: makeRecipePreviewDocument,
 };
 
 export function AddLibraryPreview({
@@ -200,6 +202,18 @@ async function makeLayerPreviewDocument(
   const layerKind = (item.action as LayerAction).layerKind;
   if (layerKind === 'image') imageCache.set(SAMPLE_IMAGE_SRC, await loadPreviewImage(SAMPLE_IMAGE_SRC));
   return previewResult(makeLayerPreviewLayers(layerKind), imageCache);
+}
+
+/** A recipe previews as its own starter document. */
+async function makeRecipePreviewDocument(
+  item: AddLibraryItem,
+  imageCache: Map<string, HTMLImageElement>,
+): Promise<PreviewDocumentResult> {
+  const { recipe } = item.action as Extract<AddLibraryItem['action'], { kind: 'recipe' }>;
+  const { doc } = findRecipe(recipe).starter;
+  const imageSources = doc.layers.flatMap((layer) => (layer.kind === 'image' && layer.src ? [layer.src] : []));
+  for (const src of new Set(imageSources)) imageCache.set(src, await loadPreviewImage(src));
+  return { doc, imageCache };
 }
 
 async function makeTextPresetPreviewDocument(

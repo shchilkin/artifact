@@ -2,34 +2,16 @@ import { Button } from '@artifact/ui';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useStableCallback } from '../../hooks/useStableCallback';
-import type {
-  AspectRatio,
-  CanvasDocument,
-  EffectPreset,
-  GraphArea,
-  Layer,
-  LayerKind,
-  ModelLayer,
-  PrimitiveLayer,
-} from '../../types/config';
+import type { AspectRatio, CanvasDocument, EffectPreset, GraphArea, Layer, LayerKind } from '../../types/config';
 import type { ArrayPresetId } from '../../utils/arrayPresets';
 import { isLayerStackGraph } from '../../utils/documentCommands';
 import { buildGraphLayerTree, type GraphLayerTree } from '../../utils/graphLayerTree';
 import type { LayerAddPlacement, TreeEditResult } from '../../utils/graphTreeEdits';
 import { getLayerAreaMap } from '../../utils/layerAreas';
-import { graphNodesOfKind } from '../../utils/nodeGraph';
-import type { GraphScene3DNode } from '../../utils/nodeKinds';
 import type { NoisePresetId } from '../../utils/noisePresets';
 import { collectDocumentOutputNodeIds } from '../../utils/renderer';
-import { getSceneEnvironmentNode, getSceneModelLayer, isSceneModelInputLayer } from '../../utils/scene3DInputs';
 import type { TextPresetId } from '../../utils/textPresets';
 import { EditorCommandGroup } from '../editor-workflow/EditorCommandGroup';
-import {
-  EditorRowFrame,
-  EditorRowLeading,
-  EditorRowMetadata,
-  EditorRowPrimary,
-} from '../editor-workflow/EditorRowFrame';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { GraphLayerTreeView } from './GraphLayerTreeView';
 import { GraphLayerTreeEditingContext } from './graphLayerTreeEditing';
@@ -38,7 +20,7 @@ import { LayerAddMenu } from './LayerAddMenu';
 import { LayerAreaFolder } from './LayerAreaFolder';
 import { LayerContextMenu, type LayerContextMenuState } from './LayerContextMenu';
 import { type LayerPanelView, LayerPanelViewSwitch } from './LayerPanelViewSwitch';
-import { LayerRow, type LayerRowProps, LayerSelectionControl } from './LayerRow';
+import { LayerRow, type LayerRowProps } from './LayerRow';
 import { LayerTreeEditStatus } from './LayerTreeEditStatus';
 import { buildLayerDisplayItems, type LayerDisplayItem } from './layerDisplayItems';
 import { useLayerDragReorder } from './useLayerDragReorder';
@@ -55,7 +37,6 @@ export interface LayerPanelProps {
   onAddTextPreset: (preset: TextPresetId, placement?: LayerAddPlacement) => void;
   onAddNoisePreset: (preset: NoisePresetId, placement?: LayerAddPlacement) => void;
   onAddArrayPreset: (preset: ArrayPresetId, placement?: LayerAddPlacement) => void;
-  onAddScene3D: (placement?: LayerAddPlacement) => void;
   onStartAiImage?: () => void;
   onRemoveLayer: (id: string) => void;
   /** Applies one Layers tree edit as one undo step. Without it the tree is read-only. */
@@ -114,7 +95,6 @@ export function LayerPanel({
   onAddTextPreset,
   onAddNoisePreset,
   onAddArrayPreset,
-  onAddScene3D,
   onStartAiImage,
   onRemoveLayer,
   onApplyTreeEdit,
@@ -142,10 +122,7 @@ export function LayerPanel({
   const reorderDisabled = !isLayerStackGraph(doc);
   const showGraphTree = reorderDisabled && panelView === 'structure';
   const graphTree = useMemo(() => (showGraphTree ? buildGraphLayerTree(doc) : null), [doc, showGraphTree]);
-  const displayLayers = useMemo(
-    () => [...doc.layers].reverse().filter((layer) => !isSceneModelInputLayer(layer, doc.graph)),
-    [doc.layers, doc.graph],
-  );
+  const displayLayers = useMemo(() => [...doc.layers].reverse(), [doc.layers]);
   const areasByLayerId = useMemo(() => getLayerAreaMap(doc.layers, doc.graph.areas), [doc.layers, doc.graph.areas]);
   const displayItems = useMemo(
     () => buildLayerDisplayItems(displayLayers, areasByLayerId, doc.graph),
@@ -299,7 +276,6 @@ export function LayerPanel({
         onAddTextPreset={(preset) => onAddTextPreset(preset, addPlacement)}
         onAddNoisePreset={(preset) => onAddNoisePreset(preset, addPlacement)}
         onAddArrayPreset={(preset) => onAddArrayPreset(preset, addPlacement)}
-        onAddScene3D={() => onAddScene3D(addPlacement)}
         onStartAiImage={onStartAiImage}
       />
       {reorderDisabled ? <LayerPanelViewSwitch value={panelView} onChange={setPanelView} /> : null}
@@ -342,9 +318,7 @@ export function LayerPanel({
               onRemoveLayer={onRemoveLayer}
             />
           </GraphLayerTreeEditingContext.Provider>
-        ) : (
-          <Scene3DLayerRows doc={doc} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
-        )}
+        ) : null}
         {graphTree
           ? null
           : displayItems.map((item) => (
@@ -445,7 +419,6 @@ function LayerPanelHeader({
   onAddTextPreset,
   onAddNoisePreset,
   onAddArrayPreset,
-  onAddScene3D,
   onStartAiImage,
 }: {
   aspect: AspectRatio;
@@ -456,7 +429,6 @@ function LayerPanelHeader({
   onAddTextPreset: (preset: TextPresetId) => void;
   onAddNoisePreset: (preset: NoisePresetId) => void;
   onAddArrayPreset: (preset: ArrayPresetId) => void;
-  onAddScene3D: () => void;
   onStartAiImage?: () => void;
 }) {
   return (
@@ -470,7 +442,6 @@ function LayerPanelHeader({
           onAddTextPreset={onAddTextPreset}
           onAddNoisePreset={onAddNoisePreset}
           onAddArrayPreset={onAddArrayPreset}
-          onAddScene3D={onAddScene3D}
           onStartAiImage={onStartAiImage}
         />
       </div>
@@ -638,103 +609,5 @@ function LayerDisplayEntry({
       onDuplicateLayer={onDuplicateLayer}
       onRemoveLayer={onRemoveLayer}
     />
-  );
-}
-
-function Scene3DLayerRows({
-  doc,
-  selectedLayerId,
-  onSelectLayer,
-}: {
-  doc: CanvasDocument;
-  selectedLayerId: string | null;
-  onSelectLayer: (id: string | null) => void;
-}) {
-  const scenes = graphNodesOfKind(doc.graph, 'scene3d');
-  if (scenes.length === 0) return null;
-  return (
-    <>
-      {scenes.map((scene) => (
-        <Scene3DLayerRow
-          key={scene.id}
-          scene={scene}
-          doc={doc}
-          selected={selectedLayerId === scene.id}
-          onSelectLayer={onSelectLayer}
-        />
-      ))}
-    </>
-  );
-}
-
-function sceneModelLabel(model: ModelLayer | PrimitiveLayer) {
-  return model.kind === 'model' ? model.modelName : model.name;
-}
-
-function Scene3DLayerRow({
-  scene,
-  doc,
-  selected,
-  onSelectLayer,
-}: {
-  scene: GraphScene3DNode;
-  doc: CanvasDocument;
-  selected: boolean;
-  onSelectLayer: (id: string | null) => void;
-}) {
-  const model = getSceneModelLayer(doc.graph, doc.layers, scene.id);
-  const environment = getSceneEnvironmentNode(doc.graph, scene.id);
-  return (
-    <EditorRowFrame
-      role="listitem"
-      selected={selected}
-      data-layer-id={scene.id}
-      className={`layer-row layer-row-kind-primitive flex items-center gap-2 px-3 min-h-[48px] cursor-pointer border-b border-border select-none transition-colors ${
-        selected ? 'bg-accent-dim layer-row-selected' : 'hover:bg-accent-dim/50'
-      }`}
-      onClick={() => onSelectLayer(scene.id)}
-    >
-      <EditorRowLeading>
-        <LayerSelectionControl
-          label={`Select ${scene.name} scene layer`}
-          selected={selected}
-          onSelect={() => onSelectLayer(scene.id)}
-        />
-        <span className="layer-row-drag-handle text-dim text-[10px] flex-shrink-0" aria-hidden="true">
-          ·
-        </span>
-        <span className="font-mono text-[10px] flex-shrink-0 w-5 text-center text-accent" style={{ fontWeight: 700 }}>
-          ◌
-        </span>
-      </EditorRowLeading>
-      <EditorRowPrimary>
-        <span className={`font-mono text-[10px] flex-1 truncate min-w-0 ${selected ? 'text-text' : 'text-dim'}`}>
-          {scene.name}
-        </span>
-      </EditorRowPrimary>
-      <EditorRowMetadata>
-        <span className="layer-meta-badge" title="3D model and environment are edited from this scene layer">
-          3D Scene
-        </span>
-        {model && (
-          <span
-            className="layer-area-chip"
-            title={sceneModelLabel(model)}
-            aria-label={`Model: ${sceneModelLabel(model)}`}
-          >
-            model
-          </span>
-        )}
-        {(environment || scene.environmentName) && (
-          <span
-            className="layer-area-chip"
-            title={environment?.environmentName || scene.environmentName}
-            aria-label={`Environment: ${environment?.environmentName || scene.environmentName}`}
-          >
-            env
-          </span>
-        )}
-      </EditorRowMetadata>
-    </EditorRowFrame>
   );
 }

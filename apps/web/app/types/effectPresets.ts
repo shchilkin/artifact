@@ -1,9 +1,23 @@
 /** Focused effect presets: the layer defaults, preset metadata, menu order, and preset layer factories. */
-import type { EffectLayer } from './config';
-import { EFFECT_PARAM_DEFAULTS } from './effectSchema';
+import type { EffectEntry, EffectLayer } from './config';
+import {
+  isKernelActive,
+  KERNEL_PARAM_DEFAULTS,
+  KERNEL_PARAMS,
+  KERNEL_PASS_ORDER,
+  type KernelId,
+  type KernelParamKey,
+  type KernelParamValues,
+  kernelOfPreset,
+} from './effectKernels';
+import { type EffectId, type EffectParams, effectDefaults, effectFromKernel, effectSpec } from './effectSchema';
 import { genId } from './layerIds';
 
 export type EffectPreset =
+  | 'shadow'
+  | 'grimeShadow'
+  | 'adjust'
+  | 'sharpen'
   | 'rays'
   | 'bloom'
   | 'filmBurn'
@@ -73,42 +87,77 @@ export type EffectPreset =
 
 export const DEFAULT_EFFECT_LAYER_PROPS: Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked'> = {
   kind: 'effect',
+  effects: [],
+  mix: 100,
+  appliesTo: 'all',
   maskAlpha: false,
-  ...EFFECT_PARAM_DEFAULTS,
   seedOffset: 0,
 };
 
-export function makeEffectLayer(partial: Partial<EffectLayer> = {}): EffectLayer {
+/** Layer fields plus flat kernel parameter values, for code that describes a look as one set of values. */
+export type EffectLayerInit = Partial<EffectLayer> & Partial<KernelParamValues>;
+
+function splitEffectLayerInit(init: EffectLayerInit): {
+  fields: Partial<EffectLayer>;
+  params: Partial<KernelParamValues>;
+} {
+  const fields: Record<string, unknown> = {};
+  const params: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(init)) {
+    if (value === undefined) continue;
+    if (key in KERNEL_PARAMS) params[key] = value;
+    else fields[key] = value;
+  }
+  return { fields, params };
+}
+
+/** A stack entry for one effect: its own parameters from `params`, defaults for the rest. */
+export function makeEffectEntry(effect: EffectId, params: EffectParams = {}, id: string = genId()): EffectEntry {
+  const own = Object.fromEntries(
+    Object.keys(effectSpec(effect).params)
+      .filter((key) => params[key] !== undefined)
+      .map((key) => [key, params[key]]),
+  );
+  return { id, effect, enabled: true, params: { ...effectDefaults(effect), ...own } };
+}
+
+/**
+ * Stack entries for flat kernel values: one per active kernel in pass order (`include` is listed even when
+ * inactive), each as the effect that absorbs the kernel. Entry ids are `<layerId>-<kernel>`.
+ */
+export function effectEntriesFromParams(
+  layerId: string,
+  values: Partial<KernelParamValues>,
+  include?: KernelId,
+): EffectEntry[] {
+  const full = { ...KERNEL_PARAM_DEFAULTS, ...values };
+  return KERNEL_PASS_ORDER.filter((kernel) => kernel === include || isKernelActive(full, kernel)).map((kernel) => {
+    const { effect, params } = effectFromKernel(kernel, full);
+    return { id: `${layerId}-${kernel}`, effect, enabled: true, params };
+  });
+}
+
+/** A new effect layer. Flat parameter values in `init` become stack entries unless `init.effects` is given. */
+export function makeEffectLayer(init: EffectLayerInit = {}): EffectLayer {
+  const { fields, params } = splitEffectLayerInit(init);
+  const id = fields.id ?? genId();
   return {
-    id: genId(),
     name: 'Effect',
     visible: true,
     locked: false,
     ...DEFAULT_EFFECT_LAYER_PROPS,
-    ...partial,
+    effects: effectEntriesFromParams(id, params),
+    ...fields,
+    id,
   };
 }
-
-function omitEffectKind(
-  props: typeof DEFAULT_EFFECT_LAYER_PROPS,
-): Omit<EffectLayer, 'id' | 'name' | 'visible' | 'locked' | 'kind'> {
-  const { kind, ...rest } = props;
-  void kind;
-  return rest;
-}
-
-// All-zero base for focused single-effect layers
-export const ZERO_EFFECT = omitEffectKind(DEFAULT_EFFECT_LAYER_PROPS);
-
-export type EffectNumericField = {
-  [K in keyof EffectLayer]-?: EffectLayer[K] extends number ? K : never;
-}[keyof EffectLayer];
 
 export interface EffectPresetMeta {
   name: string;
   icon: string;
-  partial: Partial<EffectLayer>;
-  primary: EffectNumericField | null;
+  /** Parameter values of the preset's effect. */
+  partial: Partial<KernelParamValues>;
+  primary: KernelParamKey | null;
 }
 
 export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
@@ -116,44 +165,43 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     name: 'Rays',
     icon: '✶',
     primary: 'rays',
-    partial: { ...ZERO_EFFECT, rays: 16, rayInt: 65, rayColor: '#bb00ff' },
+    partial: { rays: 16, rayInt: 65, rayColor: '#bb00ff' },
   },
   bloom: {
     name: 'Bloom',
     icon: '✹',
     primary: 'bloom',
-    partial: { ...ZERO_EFFECT, bloom: 30 },
+    partial: { bloom: 30 },
   },
   filmBurn: {
     name: 'Film Burn',
     icon: '☼',
     primary: 'filmBurn',
-    partial: { ...ZERO_EFFECT, filmBurn: 35 },
+    partial: { filmBurn: 35 },
   },
   glitch: {
     name: 'Glitch',
     icon: '▒',
     primary: 'glitch',
-    partial: { ...ZERO_EFFECT, glitch: 14 },
+    partial: { glitch: 14 },
   },
   interlace: {
     name: 'Interlace',
     icon: '≋',
     primary: 'interlace',
-    partial: { ...ZERO_EFFECT, interlace: 40 },
+    partial: { interlace: 40 },
   },
   dataMosh: {
     name: 'Data Mosh',
     icon: '▥',
     primary: 'dataMosh',
-    partial: { ...ZERO_EFFECT, dataMosh: 30 },
+    partial: { dataMosh: 30 },
   },
   badStream: {
     name: 'Bad Stream',
     icon: '▧',
     primary: 'badStream',
     partial: {
-      ...ZERO_EFFECT,
       badStream: 72,
       badStreamBlockSize: 54,
       badStreamDetail: 48,
@@ -167,7 +215,7 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '▦',
     primary: 'badStream',
     partial: {
-      ...ZERO_EFFECT,
+      badStreamStages: 'macroblocks',
       badStream: 72,
       badStreamBlockSize: 64,
       badStreamDetail: 0,
@@ -181,7 +229,7 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '▥',
     primary: 'badStreamDetail',
     partial: {
-      ...ZERO_EFFECT,
+      badStreamStages: 'detailBlocks',
       badStream: 82,
       badStreamBlockSize: 54,
       badStreamDetail: 86,
@@ -195,7 +243,7 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '▰',
     primary: 'badStreamSmear',
     partial: {
-      ...ZERO_EFFECT,
+      badStreamStages: 'blockSmear',
       badStream: 76,
       badStreamBlockSize: 52,
       badStreamDetail: 0,
@@ -209,7 +257,7 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '◫',
     primary: 'badStreamChroma',
     partial: {
-      ...ZERO_EFFECT,
+      badStreamStages: 'chromaBlocks',
       badStream: 70,
       badStreamBlockSize: 46,
       badStreamDetail: 36,
@@ -223,7 +271,7 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '▨',
     primary: 'badStreamDarkness',
     partial: {
-      ...ZERO_EFFECT,
+      badStreamStages: 'blockDropout',
       badStream: 78,
       badStreamBlockSize: 58,
       badStreamDetail: 0,
@@ -236,110 +284,144 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     name: 'Pixel Stretch',
     icon: '▥',
     primary: 'pixelStretch',
-    partial: { ...ZERO_EFFECT, pixelStretch: 70, pixelStretchLength: 34, pixelStretchAngle: 0 },
+    partial: { pixelStretch: 70, pixelStretchLength: 34, pixelStretchAngle: 0 },
   },
   grain: {
     name: 'Grain',
     icon: '⣿',
     primary: 'grain',
-    partial: { ...ZERO_EFFECT, grain: 26 },
+    partial: { grain: 26 },
   },
   dotGrain: {
     name: 'Dot Grain',
     icon: '◌',
     primary: 'dotGrain',
-    partial: { ...ZERO_EFFECT, dotGrain: 68, dotGrainSize: 4, dotGrainDensity: 66, dotGrainJitter: 42 },
+    partial: { dotGrain: 68, dotGrainSize: 4, dotGrainDensity: 66, dotGrainJitter: 42 },
   },
   scanlines: {
     name: 'Scanlines',
     icon: '☰',
     primary: 'scanlines',
-    partial: { ...ZERO_EFFECT, scanlines: 18, scanlineWidth: 1 },
+    partial: { scanlines: 18, scanlineWidth: 1 },
   },
   tint: {
     name: 'Tint',
     icon: '◈',
     primary: 'tintOp',
-    partial: { ...ZERO_EFFECT, tint: '#350055', tintOp: 45 },
+    partial: { tint: '#350055', tintOp: 45 },
   },
   noiseWarp: {
     name: 'Noise Warp',
     icon: '◌',
     primary: 'noiseWarp',
-    partial: { ...ZERO_EFFECT, noiseWarp: 40 },
+    partial: { noiseWarp: 40 },
   },
   morph: {
     name: 'Morph',
     icon: '∿',
     primary: null,
-    partial: { ...ZERO_EFFECT, morphAmt: 30, morphFreq: 5 },
+    partial: { morphAmt: 30, morphFreq: 5 },
   },
   vortex: {
     name: 'Vortex',
     icon: '◍',
     primary: 'vortex',
-    partial: { ...ZERO_EFFECT, vortex: 20 },
+    partial: { vortex: 20 },
   },
   barrel: {
     name: 'Barrel',
     icon: '◔',
     primary: 'barrel',
-    partial: { ...ZERO_EFFECT, barrel: 25 },
+    partial: { barrel: 25 },
   },
   tear: {
     name: 'Tear',
     icon: '╱',
     primary: 'tearAmt',
-    partial: { ...ZERO_EFFECT, tearAmt: 8, tearSize: 3 },
+    partial: { tearAmt: 8, tearSize: 3 },
   },
   mirror: {
     name: 'Mirror',
     icon: '║',
     primary: null,
-    partial: { ...ZERO_EFFECT, mirror: 1 },
+    partial: { mirror: 1 },
+  },
+  shadow: {
+    name: 'Shadow',
+    icon: '◖',
+    primary: 'shadowOpacity',
+    partial: {
+      shadowOpacity: 60,
+      shadowColor: '#000000',
+      shadowX: 6,
+      shadowY: 8,
+      shadowBlur: 8,
+      shadowSpread: 0,
+      shadowLayers: 1,
+      shadowGrime: 0,
+      shadowJitter: 0,
+      shadowFalloff: 'flat',
+    },
+  },
+  grimeShadow: {
+    name: 'Grime Shadow',
+    icon: '◖',
+    primary: 'shadowOpacity',
+    partial: { shadowOpacity: 58 },
+  },
+  adjust: {
+    name: 'Adjust',
+    icon: '◑',
+    primary: 'adjustContrast',
+    partial: { adjustContrast: 20, adjustSaturation: 15 },
+  },
+  sharpen: {
+    name: 'Sharpen',
+    icon: '◇',
+    primary: 'sharpen',
+    partial: { sharpen: 40 },
   },
   hueShift: {
     name: 'Hue Shift',
     icon: '◐',
     primary: 'hueShift',
-    partial: { ...ZERO_EFFECT, hueShift: 60 },
+    partial: { hueShift: 60 },
   },
   rgbSplit: {
     name: 'RGB Split',
     icon: '◭',
     primary: 'rgbSplit',
-    partial: { ...ZERO_EFFECT, rgbSplit: 8 },
+    partial: { rgbSplit: 8 },
   },
   vignette: {
     name: 'Vignette',
     icon: '◜',
     primary: 'vignette',
-    partial: { ...ZERO_EFFECT, vignette: 40 },
+    partial: { vignette: 40 },
   },
   retroResolution: {
     name: 'Retro Resolution',
     icon: '▣',
     primary: 'retroResolution',
-    partial: { ...ZERO_EFFECT, retroResolution: 320 },
+    partial: { retroResolution: 320 },
   },
   pixelate: {
     name: 'Pixelate',
     icon: '▦',
     primary: 'pixelate',
-    partial: { ...ZERO_EFFECT, pixelate: 6 },
+    partial: { pixelate: 6 },
   },
   posterize: {
     name: 'Posterize',
     icon: '◨',
     primary: 'posterize',
-    partial: { ...ZERO_EFFECT, posterize: 6 },
+    partial: { posterize: 6 },
   },
   indexedPalette: {
     name: 'Indexed Palette',
     icon: '▥',
     primary: 'indexedPalette',
     partial: {
-      ...ZERO_EFFECT,
       indexedPalette: 100,
       indexedPaletteCount: 6,
       indexedColorA: '#12002b',
@@ -355,7 +437,6 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '◫',
     primary: 'gradientMap',
     partial: {
-      ...ZERO_EFFECT,
       gradientMap: 80,
       gradientMapShadow: '#0d0033',
       gradientMapMid: '#865812',
@@ -367,7 +448,6 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     icon: '◭',
     primary: 'channelMixer',
     partial: {
-      ...ZERO_EFFECT,
       channelMixer: 70,
       channelRedMix: 55,
       channelGreenMix: 35,
@@ -378,74 +458,73 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     name: 'Duotone',
     icon: '◎',
     primary: 'duotone',
-    partial: { ...ZERO_EFFECT, duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' },
+    partial: { duotone: 60, duoA: '#0a0020', duoB: '#ff6ec7' },
   },
   halftone: {
     name: 'Halftone',
     icon: '◩',
     primary: 'halftone',
-    partial: { ...ZERO_EFFECT, halftone: 12 },
+    partial: { halftone: 12 },
   },
   risoShift: {
     name: 'Misregister',
     icon: '⟲',
     primary: 'risoShift',
-    partial: { ...ZERO_EFFECT, risoShift: 14, risoAngle: 15 },
+    partial: { risoShift: 14, risoAngle: 15 },
   },
   blur: {
     name: 'Blur',
     icon: '◯',
     primary: 'blurAmt',
-    partial: { ...ZERO_EFFECT, blurAmt: 30 },
+    partial: { blurAmt: 30 },
   },
   threshold: {
     name: 'Threshold',
     icon: '◐',
     primary: 'threshold',
-    partial: { ...ZERO_EFFECT, threshold: 50 },
+    partial: { threshold: 50 },
   },
   edgeCrush: {
     name: 'Alpha Crush',
     icon: '◈',
     primary: 'edgeCrush',
-    partial: { ...ZERO_EFFECT, edgeCrush: 55 },
+    partial: { edgeCrush: 55 },
   },
   silhouetteCrush: {
     name: 'Silhouette Crush',
     icon: '◆',
     primary: 'silhouetteCrush',
-    partial: { ...ZERO_EFFECT, silhouetteCrush: 55 },
+    partial: { silhouetteCrush: 55 },
   },
   edgeDetect: {
     name: 'Edge Detect',
     icon: '◇',
     primary: 'edgeDetect',
-    partial: { ...ZERO_EFFECT, edgeDetect: 60 },
+    partial: { edgeDetect: 60 },
   },
   bokehBlur: {
     name: 'Bokeh Blur',
     icon: '◎',
     primary: 'bokehBlur',
-    partial: { ...ZERO_EFFECT, bokehBlur: 12, bokehThreshold: 68 },
+    partial: { bokehBlur: 12, bokehThreshold: 68 },
   },
   hatching: {
     name: 'Hatching',
     icon: '≋',
     primary: 'hatching',
-    partial: { ...ZERO_EFFECT, hatching: 65, hatchScale: 9, hatchAngle: 35 },
+    partial: { hatching: 65, hatchScale: 9, hatchAngle: 35 },
   },
   gooeyMerge: {
     name: 'Gooey Merge',
     icon: '●',
     primary: 'gooeyMerge',
-    partial: { ...ZERO_EFFECT, gooeyMerge: 72, gooeyRadius: 10, gooeyThreshold: 42 },
+    partial: { gooeyMerge: 72, gooeyRadius: 10, gooeyThreshold: 42 },
   },
   gradientOverlay: {
     name: 'Gradient',
     icon: '▤',
     primary: 'gradMix',
     partial: {
-      ...ZERO_EFFECT,
       gradMix: 50,
       gradA: '#0a0020',
       gradB: '#ff6ec7',
@@ -456,86 +535,85 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     name: 'Sepia',
     icon: '◬',
     primary: 'sepia',
-    partial: { ...ZERO_EFFECT, sepia: 65 },
+    partial: { sepia: 65 },
   },
   neonGlow: {
     name: 'Neon Glow',
     icon: '✦',
     primary: 'neonGlow',
-    partial: { ...ZERO_EFFECT, neonGlow: 50, neonColor: '#ff00ff' },
+    partial: { neonGlow: 50, neonColor: '#ff00ff' },
   },
   zoomBlur: {
     name: 'Zoom Blur',
     icon: '◉',
     primary: 'zoomBlur',
-    partial: { ...ZERO_EFFECT, zoomBlur: 40 },
+    partial: { zoomBlur: 40 },
   },
   vhsTracking: {
     name: 'VHS Track',
     icon: '⊟',
     primary: 'vhsTracking',
-    partial: { ...ZERO_EFFECT, vhsTracking: 30 },
+    partial: { vhsTracking: 30 },
   },
   dither: {
     name: 'Dither',
     icon: '⠦',
     primary: 'dither',
-    partial: { ...ZERO_EFFECT, dither: 36 },
+    partial: { dither: 36 },
   },
   infrared: {
     name: 'Infrared',
     icon: '⊗',
     primary: 'infrared',
-    partial: { ...ZERO_EFFECT, infrared: 60 },
+    partial: { infrared: 60 },
   },
   ca: {
     name: 'Chrom. Ab.',
     icon: '◫',
     primary: 'ca',
-    partial: { ...ZERO_EFFECT, ca: 15 },
+    partial: { ca: 15 },
   },
   wave: {
     name: 'Wave',
     icon: '〜',
     primary: 'waveAmt',
-    partial: { ...ZERO_EFFECT, waveAmt: 20, waveFreq: 3 },
+    partial: { waveAmt: 20, waveFreq: 3 },
   },
   matte: {
     name: 'Matte',
     icon: '▩',
     primary: 'matte',
-    partial: { ...ZERO_EFFECT, matte: 40 },
+    partial: { matte: 40 },
   },
   overprint: {
     name: 'Overprint',
     icon: '⊕',
     primary: 'overprint',
-    partial: { ...ZERO_EFFECT, overprint: 20 },
+    partial: { overprint: 20 },
   },
   solarize: {
     name: 'Solarize',
     icon: '☯',
     primary: 'solarize',
-    partial: { ...ZERO_EFFECT, solarize: 55 },
+    partial: { solarize: 55 },
   },
   bleachBypass: {
     name: 'Bleach Bypass',
     icon: '⊙',
     primary: 'bleachBypass',
-    partial: { ...ZERO_EFFECT, bleachBypass: 65 },
+    partial: { bleachBypass: 65 },
   },
   cyanotype: {
     name: 'Cyanotype',
     icon: '⊆',
     primary: 'cyanotype',
-    partial: { ...ZERO_EFFECT, cyanotype: 75 },
+    partial: { cyanotype: 75 },
   },
   splitTone: {
     name: 'Split Tone',
     icon: '◑',
     primary: 'splitToneAmt',
     partial: {
-      ...ZERO_EFFECT,
       splitToneAmt: 50,
       splitShadow: '#001a4f',
       splitHighlight: '#ff8040',
@@ -545,49 +623,49 @@ export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
     name: 'Ripple',
     icon: '≈',
     primary: 'rippleAmt',
-    partial: { ...ZERO_EFFECT, rippleAmt: 20, rippleFreq: 3 },
+    partial: { rippleAmt: 20, rippleFreq: 3 },
   },
   patternRefraction: {
     name: 'Pattern Refraction',
     icon: '∿',
     primary: 'patternRefraction',
-    partial: { ...ZERO_EFFECT, patternRefraction: 58, patternRefractionScale: 18, patternRefractionAngle: 35 },
+    partial: { patternRefraction: 58, patternRefractionScale: 18, patternRefractionAngle: 35 },
   },
   kaleidoscope: {
     name: 'Kaleidoscope',
     icon: '❋',
     primary: 'kaleidoscope',
-    partial: { ...ZERO_EFFECT, kaleidoscope: 40 },
+    partial: { kaleidoscope: 40 },
   },
   squeeze: {
     name: 'Squeeze',
     icon: '⊡',
     primary: null,
-    partial: { ...ZERO_EFFECT, squeezeX: 30, squeezeY: 0 },
+    partial: { squeezeX: 30, squeezeY: 0 },
   },
   emboss: {
     name: 'Emboss',
     icon: '▲',
     primary: 'emboss',
-    partial: { ...ZERO_EFFECT, emboss: 60 },
+    partial: { emboss: 60 },
   },
   linocut: {
     name: 'Linocut',
     icon: '◰',
     primary: 'linocut',
-    partial: { ...ZERO_EFFECT, linocut: 55 },
+    partial: { linocut: 55 },
   },
   fog: {
     name: 'Fog',
     icon: '≀',
     primary: 'fog',
-    partial: { ...ZERO_EFFECT, fog: 45, fogColor: '#c8d8e8' },
+    partial: { fog: 45, fogColor: '#c8d8e8' },
   },
   speedLines: {
     name: 'Speed Lines',
     icon: '≫',
     primary: 'speedLines',
-    partial: { ...ZERO_EFFECT, speedLines: 50 },
+    partial: { speedLines: 50 },
   },
 };
 
@@ -598,6 +676,8 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'neonGlow',
   'fog',
   'speedLines',
+  'shadow',
+  'grimeShadow',
   'glitch',
   'rgbSplit',
   'ca',
@@ -631,6 +711,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'patternRefraction',
   'kaleidoscope',
   'squeeze',
+  'adjust',
   'hueShift',
   'vignette',
   'retroResolution',
@@ -650,6 +731,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'risoShift',
   'overprint',
   'blur',
+  'sharpen',
   'threshold',
   'edgeCrush',
   'silhouetteCrush',
@@ -660,22 +742,31 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'gradientOverlay',
 ];
 
-export type EffectPresetOverrides = Partial<Omit<EffectLayer, 'kind' | 'preset'>> & { value?: number };
+export type EffectPresetOverrides = Partial<Omit<EffectLayer, 'kind' | 'preset'>> &
+  Partial<KernelParamValues> & { value?: number };
 
 export function makeEffectPresetLayer(preset: EffectPreset, overrides: EffectPresetOverrides = {}): EffectLayer {
   const { name, partial, primary } = EFFECT_PRESETS[preset];
   const { value, ...rest } = overrides;
+  const { fields, params } = splitEffectLayerInit(rest);
   const valuePatch = value !== undefined && primary ? { [primary]: Math.max(0, Math.min(100, value)) } : {};
+  const id = fields.id ?? genId();
   return {
-    id: genId(),
     name,
     visible: true,
     locked: false,
-    ...ZERO_EFFECT,
-    ...partial,
-    ...valuePatch,
-    ...rest,
+    ...DEFAULT_EFFECT_LAYER_PROPS,
+    effects: effectEntriesFromParams(id, { ...partial, ...valuePatch, ...params }, kernelOfPreset(preset)),
+    ...fields,
+    id,
     kind: 'effect',
     preset,
   };
+}
+
+/** The parameters "Add effect" starts an effect from: its starter preset's look. */
+export function effectStarterParams(effect: EffectId): EffectParams {
+  const preset = effectSpec(effect).starter;
+  const kernel = kernelOfPreset(preset);
+  return effectFromKernel(kernel, { ...KERNEL_PARAM_DEFAULTS, ...EFFECT_PRESETS[preset].partial }).params;
 }

@@ -1,21 +1,14 @@
 import { colorNodeModel, type GraphColorNode } from './color';
-import { environmentNodeModel, type GraphEnvironmentNode } from './environment';
-import { type GraphGrimeShadowNode, grimeShadowNodeModel } from './grimeShadow';
 import { type GraphMaskNode, maskNodeModel } from './mask';
 import { type GraphMaterialNode, materialNodeModel } from './material';
 import { type GraphMergeNode, mergeNodeModel } from './merge';
 import { type GraphRepeatNode, repeatNodeModel } from './repeat';
-import { type GraphScene3DNode, scene3dNodeModel } from './scene3d';
 import { type GraphShaderNode, shaderNodeModel } from './shader';
 import { type GraphTransformNode, transformNodeModel } from './transform';
 import type { GraphNodeKindModel } from './types';
 
 export type { GraphColorNode } from './color';
 export { makeGraphColorNode } from './color';
-export type { GraphEnvironmentNode } from './environment';
-export { makeGraphEnvironmentNode } from './environment';
-export type { GraphGrimeShadowNode } from './grimeShadow';
-export { makeGraphGrimeShadowNode } from './grimeShadow';
 export type { GraphMaskNode } from './mask';
 export { makeGraphMaskNode } from './mask';
 export type { GraphMaterialNode } from './material';
@@ -24,8 +17,6 @@ export type { GraphMergeNode } from './merge';
 export { makeGraphMergeNode } from './merge';
 export type { GraphRepeatNode } from './repeat';
 export { makeGraphRepeatNode } from './repeat';
-export type { GraphScene3DNode } from './scene3d';
-export { makeGraphScene3DNode } from './scene3d';
 export type { GraphShaderNode } from './shader';
 export { makeGraphShaderNode } from './shader';
 export type { GraphTransformNode } from './transform';
@@ -40,10 +31,7 @@ export type GraphNode =
   | GraphMaterialNode
   | GraphMaskNode
   | GraphTransformNode
-  | GraphGrimeShadowNode
-  | GraphShaderNode
-  | GraphEnvironmentNode
-  | GraphScene3DNode;
+  | GraphShaderNode;
 
 export type GraphNodeKind = GraphNode['kind'];
 
@@ -55,9 +43,6 @@ export const GRAPH_NODE_MODELS: { [K in GraphNodeKind]: GraphNodeKindModel<Graph
   color: colorNodeModel,
   mask: maskNodeModel,
   transform: transformNodeModel,
-  grimeShadow: grimeShadowNodeModel,
-  scene3d: scene3dNodeModel,
-  environment: environmentNodeModel,
   repeat: repeatNodeModel,
   material: materialNodeModel,
   shader: shaderNodeModel,
@@ -75,6 +60,11 @@ export function isGraphNodeKind(value: unknown): value is GraphNodeKind {
 /** The model for a node kind, typed for that kind. */
 export function graphNodeModel<K extends GraphNodeKind>(kind: K): GraphNodeKindModel<GraphNodeOfKind<K>> {
   return GRAPH_NODE_MODELS[kind];
+}
+
+/** Whether Hide applies to the node: false for kinds whose consumers read settings instead of rendering them. */
+export function canHideGraphNode(node: GraphNode): boolean {
+  return modelOfNode(node).hideable !== false;
 }
 
 /** The model for a node, typed loosely; use for generic code that only passes the node back to its own model. */

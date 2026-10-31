@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { GraphTransformNode } from '../../../utils/nodeKinds';
-import { useNodeCanvasActions } from '../context';
+import { useGraphNodeHide, useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { NodeFrame } from '../nodes/NodeFrame';
 import { useTransformNodeDraft } from '../nodes/useTransformNodeDraft';
@@ -22,6 +22,7 @@ const TransformNodeComponent = memo(function TransformNodeComponent({
   } = data;
   const transform = useTransformNodeDraft(transformNode, updateGraphNode);
 
+  const hideProps = useGraphNodeHide(transformNode);
   return (
     <NodeFrame
       id={transformNode.id}
@@ -34,6 +35,7 @@ const TransformNodeComponent = memo(function TransformNodeComponent({
       connected={connected}
       targetHandles={[{ id: 'in' }]}
       onSelect={(event) => selectNode(transformNode.id, event)}
+      {...hideProps}
       onDelete={() => deleteNode(transformNode.id)}
     >
       <TransformPreviewSurface

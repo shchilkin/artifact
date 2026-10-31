@@ -103,20 +103,32 @@ on its own, so other states keep failing until their own cause is fixed.
 
 Sizes are gzip KiB of JavaScript. "Before render" is `initial` minus
 `afterRender`. "Current" is the `npm run loading:gate` measurement from the
-last reviewed contract change (#446); the gate reports live numbers on every
-run.
+last reviewed contract change (v0.52.0 release prep); the gate reports live
+numbers on every run.
 
 | State | URL | Owning shell | Delivery | v0.48.1 | Current | Budget |
 | --- | --- | --- | --- | --- | --- | --- |
-| Home, before render | `/` | public | prerender | 423.6 | 131.1 | 170 |
-| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +187.1 | +188 |
-| Docs | `/docs` | public | prerender | 240.4 | 119.2 | 170 |
-| Account recovery | `/reset-password` | public | SPA fallback | 239.6 | 119.6 | 170 |
-| Projects | `/projects` | account | SPA fallback | 312.8 | 221.0 | 230 |
-| Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 | 336.0 | 370 |
-| Nodes activation | Nodes tab | NodeCanvas | — | +65.4 | +119.9 | +135 |
-| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 368.3 | 370 |
-| First 3D activation | add Primitive | primitive scene renderer | — | +206.7 | +182.5 | +215 |
+| Home, before render | `/` | public | prerender | 423.6 | 135.4 | 170 |
+| Home, after render (hero) | `/` | home route | — | (in v0.48.1 initial) | +188.2 | +190 |
+| Docs | `/docs` | public | prerender | 240.4 | 119.5 | 170 |
+| Account recovery | `/reset-password` | public | SPA fallback | 239.6 | 119.9 | 170 |
+| Projects | `/projects` | account | SPA fallback | 312.8 | 234.9 | 240 |
+| Editor, blank Layers | `/app` | editor | SPA fallback | 414.4 | 348.1 | 370 |
+| Nodes activation | Nodes tab | NodeCanvas | — | +65.4 | +118.3 | +135 |
+| Style guide | `/docs/style-guide` | public | SPA fallback | 402.4 | 377.6 | 380 |
+| First 3D activation | add 3D Object | primitive scene renderer | — | +206.7 | +138.2 | +215 |
+
+v0.52.0 (Toolset Consolidation) moved three budgets. Loading a stored
+document runs the one-shot schema migrations, and this release adds thirteen
+frozen steps (schemas 7-19: the effect stack, the effect catalog merges, the
+Shadow effect, and the 3D Object), each with its own frozen table, plus the
+27-effect catalog over its render kernels. Projects normalizes every stored
+project for its thumbnails, so it went from 226.3 to 234.9 KiB before render
+(budget 230 to 240); the style guide's live specimens load the same code, from
+367.0 to 377.6 KiB (370 to 380); and the home hero's renderer grew by 0.2 KiB
+over its budget (+188 to +190). Loading the migration chain only for documents
+older than the current schema would win most of this back; it is a follow-up,
+not part of this release.
 
 The editor stopped loading `motion` in #446: its only use was an unused
 `AnimatePresence` wrapper around the Projects sheet. The editor route went from

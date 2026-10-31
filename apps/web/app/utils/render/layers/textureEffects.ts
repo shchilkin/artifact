@@ -1,14 +1,20 @@
-import type { EffectLayer } from '../../../types/config';
+import type { KernelParamValues } from '../../../types/effectKernels';
 import { lcg } from '../../lcg';
 import { createCanvas } from '../canvas';
 
-export function applyScanlines(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, scale: number) {
-  if (layer.scanlines <= 0) return;
+export function applyScanlines(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  params: KernelParamValues,
+  scale: number,
+) {
+  if (params.scanlines <= 0) return;
 
-  const lineH = Math.max(1, Math.round((layer.scanlineWidth ?? 1) * scale));
+  const lineH = Math.max(1, Math.round((params.scanlineWidth ?? 1) * scale));
   const gap = Math.max(1, Math.round(scale));
   const step = lineH + gap;
-  ctx.fillStyle = `rgba(0,0,0,${layer.scanlines / 100})`;
+  ctx.fillStyle = `rgba(0,0,0,${params.scanlines / 100})`;
   for (let y = 0; y < H; y += step) ctx.fillRect(0, y, W, lineH);
 }
 
@@ -57,10 +63,16 @@ function grainTexture(W: number, H: number, grain: number, seed: number): HTMLCa
   return offscreen;
 }
 
-export function applyGrain(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, seed: number) {
-  if (layer.grain <= 0) return;
+export function applyGrain(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  params: KernelParamValues,
+  seed: number,
+) {
+  if (params.grain <= 0) return;
 
-  const offscreen = grainTexture(W, H, layer.grain, seed);
+  const offscreen = grainTexture(W, H, params.grain, seed);
   ctx.save();
   ctx.globalCompositeOperation = 'overlay';
   ctx.globalAlpha = 0.45;
@@ -72,16 +84,16 @@ export function applyDotGrain(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  layer: EffectLayer,
+  params: KernelParamValues,
   seed: number,
   scale: number,
 ) {
-  if (layer.dotGrain <= 0 || W <= 0 || H <= 0) return;
+  if (params.dotGrain <= 0 || W <= 0 || H <= 0) return;
 
-  const amount = Math.min(1, Math.max(0, layer.dotGrain / 100));
-  const density = Math.min(1, Math.max(0.02, (layer.dotGrainDensity ?? 62) / 100));
-  const jitter = Math.min(1, Math.max(0, (layer.dotGrainJitter ?? 35) / 100));
-  const dotSize = Math.max(1, (layer.dotGrainSize ?? 4) * scale);
+  const amount = Math.min(1, Math.max(0, params.dotGrain / 100));
+  const density = Math.min(1, Math.max(0.02, (params.dotGrainDensity ?? 62) / 100));
+  const jitter = Math.min(1, Math.max(0, (params.dotGrainJitter ?? 35) / 100));
+  const dotSize = Math.max(1, (params.dotGrainSize ?? 4) * scale);
   const step = Math.max(2, dotSize * (1.35 + (1 - density) * 2.4));
   const maxRadius = Math.max(0.75, dotSize * 0.74);
   const source = ctx.getImageData(0, 0, W, H);
@@ -118,8 +130,14 @@ export function applyDotGrain(
   ctx.restore();
 }
 
-export function applyMatte(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, seed: number) {
-  if (layer.matte <= 0) return;
+export function applyMatte(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  params: KernelParamValues,
+  seed: number,
+) {
+  if (params.matte <= 0) return;
 
   const matteRng = lcg(seed * 7177);
   const res = 48;
@@ -135,15 +153,15 @@ export function applyMatte(ctx: CanvasRenderingContext2D, W: number, H: number, 
   octx.putImageData(id, 0, 0);
   ctx.save();
   ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = (layer.matte / 100) * 0.35;
+  ctx.globalAlpha = (params.matte / 100) * 0.35;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'low';
   ctx.drawImage(offscreen, 0, 0, W, H);
   ctx.restore();
 }
 
-export function applyEmboss(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer) {
-  if (layer.emboss <= 0) return;
+export function applyEmboss(ctx: CanvasRenderingContext2D, W: number, H: number, params: KernelParamValues) {
+  if (params.emboss <= 0) return;
 
   const srcData = ctx.getImageData(0, 0, W, H);
   const sd = srcData.data;
@@ -164,15 +182,15 @@ export function applyEmboss(ctx: CanvasRenderingContext2D, W: number, H: number,
   embossCanvas.getContext('2d')!.putImageData(embossed, 0, 0);
   ctx.save();
   ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = layer.emboss / 100;
+  ctx.globalAlpha = params.emboss / 100;
   ctx.drawImage(embossCanvas, 0, 0);
   ctx.restore();
 }
 
-export function applyLinocut(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer) {
-  if (layer.linocut <= 0) return;
+export function applyLinocut(ctx: CanvasRenderingContext2D, W: number, H: number, params: KernelParamValues) {
+  if (params.linocut <= 0) return;
 
-  const t = layer.linocut / 100;
+  const t = params.linocut / 100;
   const BAYER = [
     [0, 8, 2, 10],
     [12, 4, 14, 6],

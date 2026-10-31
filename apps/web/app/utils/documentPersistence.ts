@@ -9,17 +9,23 @@ import {
   DEFAULT_EXPORT,
   DEFAULT_GLOBAL,
   DOCUMENT_SCHEMA_VERSION,
+  type EffectEntry,
   type Layer,
   makeDocument,
   makeEmojiLayer,
+  makeFillLayer,
   makeSourceLayer,
   type PortableEnvironmentAsset,
   type PortableFontAsset,
   type PortableModelAsset,
   type PrimitiveLayer,
+  SCENE3D_DEFAULTS,
+  type Scene3DSettings,
   SOURCE_TYPES,
   type SourceType,
+  TEXT_TYPOGRAPHY_DEFAULTS,
 } from '../types/config';
+import { type EffectParamSpec, effectSpec, isEffectId } from '../types/effectSchema';
 import { serializeDocumentForLink } from './documentLink';
 import { migrateDocument } from './migrations';
 import { hasGraphNodes } from './nodeGraph';
@@ -90,7 +96,9 @@ function normalizeGraphNodes(value: unknown): CanvasGraph['nodes'] {
   const nodes: CanvasGraph['nodes'] = {};
   for (const [id, stored] of Object.entries(value)) {
     if (!isRecord(stored) || !isGraphNodeKind(stored.kind)) continue;
-    nodes[id] = graphNodeModel(stored.kind).normalize({ ...stored, id });
+    const { hidden, ...fields } = stored;
+    const node = graphNodeModel(stored.kind).normalize({ ...fields, id });
+    nodes[id] = hidden === true ? { ...node, hidden: true } : node;
   }
   return nodes;
 }
@@ -218,14 +226,66 @@ function fontAssetEmbeddingPolicyField(
     : {};
 }
 
+function normalizeEffectParam(param: EffectParamSpec, value: unknown): number | string {
+  if (param.type === 'number') return typeof value === 'number' && Number.isFinite(value) ? value : param.default;
+  if (param.type === 'choice') {
+    return param.options.some((option) => option.value === value) ? (value as string) : param.default;
+  }
+  return typeof value === 'string' ? value : param.default;
+}
+
+/** A stored stack entry with exactly its effect's parameters, or null when its effect is unknown. */
+function normalizeEffectEntry(stored: unknown, layerId: string, index: number): EffectEntry | null {
+  if (!isRecord(stored) || typeof stored.effect !== 'string' || !isEffectId(stored.effect)) return null;
+  const { effect } = stored;
+  const storedParams = isRecord(stored.params) ? stored.params : {};
+  return {
+    id: typeof stored.id === 'string' && stored.id ? stored.id : `${layerId}-${effect}-${index}`,
+    effect,
+    enabled: stored.enabled !== false,
+    params: Object.fromEntries(
+      Object.entries(effectSpec(effect).params).map(([key, param]) => [
+        key,
+        normalizeEffectParam(param, storedParams[key]),
+      ]),
+    ),
+  };
+}
+
+function normalizeEffectLayer(layer: Record<string, unknown>): Record<string, unknown> {
+  const layerId = typeof layer.id === 'string' ? layer.id : 'effect';
+  const effects = Array.isArray(layer.effects)
+    ? layer.effects.flatMap((entry, index) => normalizeEffectEntry(entry, layerId, index) ?? [])
+    : [];
+  const mix = typeof layer.mix === 'number' && Number.isFinite(layer.mix) ? Math.min(100, Math.max(0, layer.mix)) : 100;
+  const appliesTo = layer.appliesTo === 'layerBelow' ? 'layerBelow' : 'all';
+  return { ...DEFAULT_EFFECT_LAYER_PROPS, ...layer, effects, mix, appliesTo };
+}
+
+/** Fields added to a kind since documents were first saved, with the value that keeps their old look. */
+const LAYER_FIELD_DEFAULTS: Partial<Record<Layer['kind'], () => Partial<Layer>>> = {
+  emoji: () => makeEmojiLayer(),
+  text: () => ({ ...TEXT_TYPOGRAPHY_DEFAULTS }),
+  fill: () => {
+    const { fillMode, colorB, angle } = makeFillLayer();
+    return { fillMode, colorB, angle };
+  },
+};
+
+/** A 3D layer's scene lighting with defaults for missing settings, or nothing when the layer has none. */
+function normalizeSceneField(scene: unknown): { scene?: Scene3DSettings } {
+  return isRecord(scene) ? { scene: { ...SCENE3D_DEFAULTS, ...scene } as Scene3DSettings } : {};
+}
+
 function normalizeLayer(layer: Record<string, unknown>): Layer {
+  const kindDefaults = LAYER_FIELD_DEFAULTS[layer.kind as Layer['kind']];
   const withDefaults =
     layer.kind === 'effect'
-      ? { ...DEFAULT_EFFECT_LAYER_PROPS, ...layer }
+      ? normalizeEffectLayer(layer)
       : SOURCE_TYPES.includes(layer.kind as SourceType)
-        ? { ...makeSourceLayer(layer.kind as SourceType), ...layer }
-        : layer.kind === 'emoji'
-          ? { ...makeEmojiLayer(), ...layer }
+        ? { ...makeSourceLayer(layer.kind as SourceType), ...layer, ...normalizeSceneField(layer.scene) }
+        : kindDefaults
+          ? { ...kindDefaults(), ...layer }
           : layer;
   return (
     withDefaults.kind === 'primitive' ? clampMaterialFractions(withDefaults as Partial<PrimitiveLayer>) : withDefaults

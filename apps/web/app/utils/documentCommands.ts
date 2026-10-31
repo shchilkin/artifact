@@ -2,8 +2,10 @@ import {
   type AspectRatio,
   type CanvasDocument,
   type CanvasGraph,
+  DEFAULT_MATERIAL_CONFIG,
   type EffectPreset,
   type GraphEdge,
+  isObject3DLayer,
   type Layer,
   type LayerKind,
   MATERIAL_TEXTURE_INPUT_PORTS,
@@ -12,10 +14,11 @@ import {
   makeEmojiLayer,
   makeFillLayer,
   makeImageLayer,
+  makeScene3DSettings,
   makeSourceLayer,
   makeTextLayer,
+  type Scene3DSettings,
 } from '../types/config';
-import type { GraphEnvironmentNode } from '../utils/nodeKinds';
 import type { AddAction } from './addActions';
 import { makeArrayPresetLayer } from './arrayPresets';
 import { canDeleteLayer, canDeleteNodeFromDocument, canReorderDocumentLayers } from './editorGuardrails';
@@ -47,13 +50,14 @@ import {
   graphNodeModel,
   isGraphNodeKind,
   modelOfNode,
+  newGraphNodeId,
 } from './nodeKinds';
 
 export { isLayerStackGraph } from './nodeGraph';
 
-import { makeGraphEnvironmentNode } from './nodeKinds/environment';
 import { makeGraphShaderNode } from './nodeKinds/shader';
 import { makeNoisePresetLayer } from './noisePresets';
+import { insertRecipeInDocument } from './recipes';
 import { makeRepeatPresetNode } from './repeatPresets';
 import { makeTextPresetLayer, type TextPresetId } from './textPresets';
 
@@ -118,26 +122,55 @@ export function createModelLayerFromAsset({
   }) as ModelLayer;
 }
 
-export function addEnvironmentMapToDocument(
+export type SceneEnvironmentAsset = Pick<
+  Scene3DSettings,
+  'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'
+>;
+
+/** Gives a 3D Object layer an uploaded environment, turning its scene lighting on when it was off. */
+export function setSceneEnvironmentInDocument(
   doc: CanvasDocument,
-  asset: Pick<GraphEnvironmentNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,
-  position?: { x: number; y: number },
-): { doc: CanvasDocument; nodeId: string } {
-  const node = makeGraphEnvironmentNode({
-    name: asset.environmentName ? `Environment · ${asset.environmentName}` : 'Environment Map',
-    environmentSrc: asset.environmentSrc,
-    environmentName: asset.environmentName,
-    environmentMime: asset.environmentMime,
-    environmentBytes: asset.environmentBytes,
-  });
-  const graph = doc.graph;
-  return {
-    doc: {
-      ...doc,
-      graph: addGraphNode(graph, node, position ?? nextDropPosition(graph)),
-    },
-    nodeId: node.id,
-  };
+  id: string,
+  asset: SceneEnvironmentAsset,
+): CanvasDocument {
+  const layer = doc.layers.find((item) => item.id === id);
+  if (!isObject3DLayer(layer)) return doc;
+  const scene: Scene3DSettings = { ...(layer.scene ?? makeScene3DSettings()), ...asset };
+  return { ...doc, layers: doc.layers.map((item) => (item.id === id ? { ...layer, scene } : item)) };
+}
+
+export type Object3DSource =
+  | { kind: 'primitive' }
+  | { kind: 'model'; asset: Pick<ModelLayer, 'modelSrc' | 'modelName' | 'modelMime' | 'modelBytes'> };
+
+/**
+ * Switches a 3D Object layer between a built-in shape and an imported model, keeping its placement, scene, and
+ * connections. A model without scene lighting has no material port, so a material connection is dropped then.
+ */
+export function setObject3DSourceInDocument(doc: CanvasDocument, id: string, source: Object3DSource): CanvasDocument {
+  const layer = doc.layers.find((item) => item.id === id);
+  if (!isObject3DLayer(layer)) return doc;
+  const next: Layer =
+    source.kind === 'primitive'
+      ? { ...DEFAULT_MATERIAL_CONFIG, ...layer, kind: 'primitive' }
+      : { ...layer, ...source.asset, kind: 'model' };
+  return pruneObject3DPorts({ ...doc, layers: doc.layers.map((item) => (item.id === id ? next : item)) }, next);
+}
+
+/** The side ports a 3D Object layer has: a material (a model only with scene lighting) and, with it, an environment. */
+function object3DSidePorts(layer: Layer): Set<string> {
+  if (!isObject3DLayer(layer)) return new Set();
+  if (layer.scene) return new Set(['material', 'env']);
+  return new Set(layer.kind === 'primitive' ? ['material'] : []);
+}
+
+/** Drops connections into side ports a 3D Object layer no longer has. */
+function pruneObject3DPorts(doc: CanvasDocument, layer: Layer): CanvasDocument {
+  const ports = object3DSidePorts(layer);
+  const stale = (edge: GraphEdge) =>
+    edge.toId === layer.id && (edge.toPort === 'material' || edge.toPort === 'env') && !ports.has(edge.toPort);
+  if (!doc.graph.edges.some(stale)) return doc;
+  return { ...doc, graph: { ...doc.graph, edges: doc.graph.edges.filter((edge) => !stale(edge)) } };
 }
 
 export function createAiImageLayer(): Layer {
@@ -477,7 +510,7 @@ function isGraphOnlyAddAction(action: DocumentAddAction): action is GraphNodeAdd
   return action.kind === 'repeatPreset' || isGraphNodeKind(action.kind);
 }
 
-function layerForAddAction(action: Exclude<DocumentAddAction, GraphNodeAddAction>) {
+function layerForAddAction(action: Exclude<DocumentAddAction, GraphNodeAddAction | { kind: 'recipe' }>) {
   if (action.kind === 'effect') return createEffectPresetLayer(action.preset);
   if (action.kind === 'noisePreset') return withGeneratedNodeSeed(makeNoisePresetLayer(action.preset));
   if (action.kind === 'arrayPreset') return makeArrayPresetLayer(action.preset);
@@ -497,6 +530,13 @@ export function addNodeAtDocument(
   insertion?: DocumentInsertConnectionConfig,
   createEdgeId?: CreateGraphEdgeId,
 ): AddNodeAtDocumentResult {
+  if (action.kind === 'recipe') {
+    const { doc: next, outputId } = insertRecipeInDocument(doc, action.recipe, position);
+    return {
+      doc: next,
+      selectedLayerId: outputId && next.layers.some((layer) => layer.id === outputId) ? outputId : null,
+    };
+  }
   if (isGraphOnlyAddAction(action)) return addGraphOnlyNodeAtDocument(doc, action, position, insertion, createEdgeId);
 
   const layer = layerForAddAction(action);
@@ -555,10 +595,12 @@ export function deleteNodesFromDocument(doc: CanvasDocument, ids: string[]): Can
 }
 
 export function updateLayerInDocument(doc: CanvasDocument, id: string, patch: Partial<Layer>): CanvasDocument {
-  return {
+  const next = {
     ...doc,
     layers: doc.layers.map((layer) => (layer.id === id ? applyLayerPatch(layer, patch) : layer)),
   };
+  const updated = next.layers.find((layer) => layer.id === id);
+  return updated && 'scene' in patch ? pruneObject3DPorts(next, updated) : next;
 }
 
 /** Callers pass patches built for the target layer's kind, so the merge keeps that kind's shape. */
@@ -655,6 +697,25 @@ export function duplicateLayerInDocument(
     }),
     layer: duplicate,
   };
+}
+
+const DUPLICATE_NODE_OFFSET = 40;
+
+/** Duplicates a layer or graph-only node. A graph-only copy sits next to the original, unconnected. */
+export function duplicateNodeInDocument(
+  doc: CanvasDocument,
+  id: string,
+  createId?: () => string,
+): { doc: CanvasDocument; id: string | null } {
+  const node = findGraphNode(doc.graph, id);
+  if (!node) {
+    const result = duplicateLayerInDocument(doc, id, createId);
+    return { doc: result.doc, id: result.layer?.id ?? null };
+  }
+  const copy: GraphNode = { ...node, id: createId?.() ?? newGraphNodeId(node.kind), name: `${node.name} copy` };
+  const origin = doc.graph.positions[id] ?? nextDropPosition(doc.graph);
+  const position = { x: origin.x + DUPLICATE_NODE_OFFSET, y: origin.y + DUPLICATE_NODE_OFFSET };
+  return { doc: { ...doc, graph: addGraphNode(doc.graph, copy, position) }, id: copy.id };
 }
 
 export function setDocumentSeed(doc: CanvasDocument, seed: number): CanvasDocument {

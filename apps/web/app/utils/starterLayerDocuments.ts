@@ -56,23 +56,23 @@ export const TEXTURE_TYPE_STACK_STARTER: StarterDocument = {
         scaleX: 1.1,
         scaleY: 0.95,
       }),
-      {
-        ...makeEffectPresetLayer('risoShift', { value: 14 }),
+      makeEffectPresetLayer('risoShift', {
+        value: 14,
         id: 'starter-registration',
         name: 'loose registration',
         risoAngle: 18,
-      },
-      {
-        ...makeEffectPresetLayer('scanlines', { value: 12 }),
+      }),
+      makeEffectPresetLayer('scanlines', {
+        value: 12,
         id: 'starter-scanlines',
         name: 'print lines',
         scanlineWidth: 2,
-      },
-      {
-        ...makeEffectPresetLayer('grain', { value: 18 }),
+      }),
+      makeEffectPresetLayer('grain', {
+        value: 18,
         id: 'starter-grain',
         name: 'paper tooth',
-      },
+      }),
     ],
   }),
 };
@@ -176,17 +176,17 @@ export const MULTI_FONT_TYPE_STACK_STARTER: StarterDocument = {
         scaleX: 1,
         scaleY: 1,
       }),
-      {
-        ...makeEffectPresetLayer('risoShift', { value: 8 }),
+      makeEffectPresetLayer('risoShift', {
+        value: 8,
         id: 'multi-font-registration',
         name: 'registration slip',
         risoAngle: 22,
-      },
-      {
-        ...makeEffectPresetLayer('grain', { value: 14 }),
+      }),
+      makeEffectPresetLayer('grain', {
+        value: 14,
         id: 'multi-font-grain',
         name: 'print grain',
-      },
+      }),
     ],
   }),
 };
@@ -228,17 +228,17 @@ export const PHOTO_TYPE_STACK_STARTER: StarterDocument = {
         rotation: -4,
         scaleX: 1.05,
       }),
-      {
-        ...makeEffectPresetLayer('risoShift', { value: 10 }),
+      makeEffectPresetLayer('risoShift', {
+        value: 10,
         id: 'photo-stack-registration',
         name: 'type drift',
         risoAngle: 12,
-      },
-      {
-        ...makeEffectPresetLayer('grain', { value: 18 }),
+      }),
+      makeEffectPresetLayer('grain', {
+        value: 18,
         id: 'photo-stack-grain',
         name: 'print grain',
-      },
+      }),
     ],
   }),
 };
@@ -286,17 +286,17 @@ export const NOISE_POSTER_STACK_STARTER: StarterDocument = {
         name: 'screen dots',
         value: 12,
       }),
-      {
-        ...makeEffectPresetLayer('scanlines', { value: 10 }),
+      makeEffectPresetLayer('scanlines', {
+        value: 10,
         id: 'noise-poster-scanlines',
         name: 'print bands',
         scanlineWidth: 2,
-      },
-      {
-        ...makeEffectPresetLayer('grain', { value: 24 }),
+      }),
+      makeEffectPresetLayer('grain', {
+        value: 24,
         id: 'noise-poster-grain',
         name: 'dust pass',
-      },
+      }),
     ],
   }),
 };

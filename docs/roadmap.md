@@ -19,8 +19,12 @@ next release takes the next number (see
 | Order | Plan | Thesis | Status |
 | --- | --- | --- | --- |
 | v0.51.0 | [Core Reset](./version-plans/v0.51.md) + Editor Polish Patch ([v0.50](./version-plans/v0.50.md), [#448](https://github.com/shchilkin/artifact/issues/448)) | One topology source, node and effect registries; the v0.50 editor keeps its promises | released 2026-10-24 |
+| v0.52.0 | [Toolset Consolidation](./version-plans/v0.52.md) | Fewer, deeper tools: 62 effects become 27 with modes, every cover basic reachable from Layers | release prep ([notes](./releases/v0.52.0.md)) |
 | next | [Editor Polish](./version-plans/editor-polish.md) | One control grammar across editor surfaces | planned |
 | after | [AI-Assisted Creation](./version-plans/ai-assisted-creation.md) | Chat and context assistant on the converged editor | planned |
+
+Decision (2026-10-24): Toolset Consolidation goes before Editor Polish, so
+the chrome is converged on the smaller tool set.
 
 Decision (2026-10-24): the owner chose to release `development` as it is. The
 Core Reset (planned as v0.53) and the Editor Polish Patch (planned as v0.50.1)

@@ -3,13 +3,10 @@ import type { CanvasGraph, MaterialTextureInputPort } from '../../../types/confi
 import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
 import type { GraphNodeKind, GraphNodeOfKind } from '../../../utils/nodeKinds';
 import { ColorInspector } from '../inspector/ColorInspector';
-import { EnvironmentInspector } from '../inspector/EnvironmentInspector';
-import { GrimeShadowInspector } from '../inspector/GrimeShadowInspector';
 import { MaskInspector } from '../inspector/MaskInspector';
 import { MaterialInspector } from '../inspector/MaterialInspector';
 import { MergeInspector } from '../inspector/MergeInspector';
 import { RepeatInspector } from '../inspector/RepeatInspector';
-import { SceneTargetInspector } from '../inspector/SceneTargetInspector';
 import { ShaderInspector } from '../inspector/ShaderInspector';
 import { TransformInspector } from '../inspector/TransformInspector';
 import type { GraphNodeInspectorProps } from './types';
@@ -47,27 +44,7 @@ export const GRAPH_NODE_INSPECTORS: { [K in GraphNodeKind]: GraphNodeInspectorUi
   transform: ({ node, onChange }) => (
     <TransformInspector key={node.id} transformNode={node} onChange={onChange} detached />
   ),
-  grimeShadow: ({ node, onChange }) => (
-    <GrimeShadowInspector key={node.id} grimeShadowNode={node} onChange={onChange} detached />
-  ),
-  scene3d: ({ node, doc, onChange, onUpdateGraphNode, onReplaceEnvironmentNodeFile }) => (
-    <SceneTargetInspector
-      doc={doc}
-      scene={node}
-      onUpdateScene={onChange}
-      onUpdateEnvironment={onUpdateGraphNode}
-      onLoadEnvironmentFile={onReplaceEnvironmentNodeFile}
-    />
-  ),
-  environment: ({ node, onChange, onReplaceEnvironmentNodeFile }) => (
-    <EnvironmentInspector
-      key={node.id}
-      environmentNode={node}
-      onChange={onChange}
-      onLoadFile={onReplaceEnvironmentNodeFile ? (file) => onReplaceEnvironmentNodeFile(node.id, file) : undefined}
-      detached
-    />
-  ),
+
   shader: ({ node, graph, onChange }) => (
     <ShaderInspector
       key={node.id}

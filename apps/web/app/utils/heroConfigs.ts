@@ -1,4 +1,4 @@
-import type { CanvasDocument, EffectLayer } from '../types/config';
+import type { CanvasDocument, EffectLayerInit } from '../types/config';
 import { DEFAULT_EXPORT, makeDocument, makeEmojiLayer } from '../types/config';
 import { splitEffectPatchIntoPresetLayers } from './effectPresetPatch';
 
@@ -11,7 +11,7 @@ function mkDoc(
   bg: string,
   emojis: string[],
   emojiOpts: { density: number; minSz: number; maxSz: number; blur: number },
-  fx: Partial<EffectLayer>,
+  fx: EffectLayerInit,
 ): CanvasDocument {
   return makeDocument({
     global: { bg, seed, aspect: '1:1' },

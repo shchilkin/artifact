@@ -1,10 +1,10 @@
-import type { EffectLayer } from '../../../types/config';
-import { DEFAULT_EFFECT_LAYER_PROPS } from '../../../types/config';
+import { KERNEL_PARAM_DEFAULTS, type KernelParamValues } from '../../../types/effectKernels';
 import { lcg } from '../../lcg';
 import { createCanvas, REF } from '../canvas';
 import type { EffectPixelTransformOp } from '../workers/effectPixelTransform';
 import { renderEffectPixelTransforms } from '../workers/effectPixelTransformClient';
 import { applyBadStreamEffect } from './badStream';
+import { applyShadowEffect } from './shadowEffect';
 import { applyDotGrain, applyEmboss, applyGrain, applyLinocut, applyMatte, applyScanlines } from './textureEffects';
 
 const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
@@ -33,20 +33,26 @@ async function applyImageDataTransforms(
   ctx.putImageData(output, 0, 0);
 }
 
-function applyRayEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, rng: () => number) {
-  if (layer.rayInt <= 0 || layer.rays <= 0) return;
+function applyRayEffect(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  params: KernelParamValues,
+  rng: () => number,
+) {
+  if (params.rayInt <= 0 || params.rays <= 0) return;
   const cx = W / 2;
   const cy = H / 2;
   const diagonal = Math.sqrt(W * W + H * H);
-  const [r, g, b] = parseHexRgb(layer.rayColor, DEFAULT_EFFECT_LAYER_PROPS.rayColor);
+  const [r, g, b] = parseHexRgb(params.rayColor, KERNEL_PARAM_DEFAULTS.rayColor);
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-  for (let i = 0; i < layer.rays; i++) {
-    const baseAngle = (i / layer.rays) * Math.PI * 2;
+  for (let i = 0; i < params.rays; i++) {
+    const baseAngle = (i / params.rays) * Math.PI * 2;
     const spread = (rng() - 0.5) * 0.6;
     const angle = baseAngle + spread;
     const width = (0.01 + rng() * 0.08) * diagonal;
-    const alpha = (layer.rayInt / 100) * (0.2 + rng() * 0.55);
+    const alpha = (params.rayInt / 100) * (0.2 + rng() * 0.55);
     const ex = cx + Math.cos(angle) * diagonal;
     const ey = cy + Math.sin(angle) * diagonal;
     const grad = ctx.createLinearGradient(cx, cy, ex, ey);
@@ -73,14 +79,14 @@ function applyGlitchEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  layer: EffectLayer,
+  params: KernelParamValues,
   scale: number,
   rng: () => number,
 ) {
-  if (layer.glitch <= 0) return;
+  if (params.glitch <= 0) return;
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-  for (let i = 0; i < layer.glitch; i++) {
+  for (let i = 0; i < params.glitch; i++) {
     const y = rng() * H;
     const h = (1 + rng() * 3) * scale;
     const x = rng() * W * 0.3;
@@ -92,12 +98,12 @@ function applyGlitchEffect(
   ctx.restore();
 }
 
-function applyTintEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer) {
-  if (layer.tintOp <= 0) return;
+function applyTintEffect(ctx: CanvasRenderingContext2D, W: number, H: number, params: KernelParamValues) {
+  if (params.tintOp <= 0) return;
   ctx.save();
   ctx.globalCompositeOperation = 'multiply';
-  ctx.globalAlpha = layer.tintOp / 100;
-  ctx.fillStyle = layer.tint;
+  ctx.globalAlpha = params.tintOp / 100;
+  ctx.fillStyle = params.tint;
   ctx.fillRect(0, 0, W, H);
   ctx.restore();
 }
@@ -106,31 +112,31 @@ async function applyColorPassEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  layer: EffectLayer,
+  params: KernelParamValues,
   scale: number,
 ) {
-  const needsPixelPass = layer.sepia > 0 || layer.infrared > 0 || layer.ca > 0 || layer.dither > 0;
+  const needsPixelPass = params.sepia > 0 || params.infrared > 0 || params.ca > 0 || params.dither > 0;
   if (!needsPixelPass) return;
   await applyImageDataTransforms(ctx, W, H, [
     {
       type: 'colorPass',
-      sepia: layer.sepia,
-      infrared: layer.infrared,
-      ca: Math.round(layer.ca * scale),
-      dither: layer.dither,
+      sepia: params.sepia,
+      infrared: params.infrared,
+      ca: Math.round(params.ca * scale),
+      dither: params.dither,
     },
   ]);
 }
 
-function indexedPaletteColors(layer: EffectLayer): string[] {
-  const count = Math.min(6, Math.max(2, Math.round(layer.indexedPaletteCount ?? 6)));
+function indexedPaletteColors(params: KernelParamValues): string[] {
+  const count = Math.min(6, Math.max(2, Math.round(params.indexedPaletteCount ?? 6)));
   return [
-    layer.indexedColorA,
-    layer.indexedColorB,
-    layer.indexedColorC,
-    layer.indexedColorD,
-    layer.indexedColorE,
-    layer.indexedColorF,
+    params.indexedColorA,
+    params.indexedColorB,
+    params.indexedColorC,
+    params.indexedColorD,
+    params.indexedColorE,
+    params.indexedColorF,
   ].slice(0, count);
 }
 
@@ -145,13 +151,13 @@ async function applySingleImageDataTransform(
   await applyImageDataTransforms(ctx, W, H, [operation]);
 }
 
-function applyZoomBlurEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer) {
-  if (layer.zoomBlur <= 0) return;
+function applyZoomBlurEffect(ctx: CanvasRenderingContext2D, W: number, H: number, params: KernelParamValues) {
+  if (params.zoomBlur <= 0) return;
   const snapshot = createCanvas(W, H);
   const sctx = snapshot.getContext('2d')!;
   sctx.drawImage(ctx.canvas, 0, 0);
   const steps = 8;
-  const maxScale = 1 + (layer.zoomBlur / 100) * 0.18;
+  const maxScale = 1 + (params.zoomBlur / 100) * 0.18;
   ctx.save();
   ctx.clearRect(0, 0, W, H);
   for (let i = 0; i < steps; i++) {
@@ -163,10 +169,10 @@ function applyZoomBlurEffect(ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.restore();
 }
 
-function applyRetroResolutionEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer) {
-  if (layer.retroResolution <= 0) return;
+function applyRetroResolutionEffect(ctx: CanvasRenderingContext2D, W: number, H: number, params: KernelParamValues) {
+  if (params.retroResolution <= 0) return;
   const outputLongestEdge = Math.max(W, H);
-  const longestEdge = Math.max(8, Math.round(layer.retroResolution * (outputLongestEdge / REF)));
+  const longestEdge = Math.max(8, Math.round(params.retroResolution * (outputLongestEdge / REF)));
   const downscale = longestEdge / outputLongestEdge;
   if (downscale >= 1) return;
   const lowW = Math.max(1, Math.round(W * downscale));
@@ -182,9 +188,15 @@ function applyRetroResolutionEffect(ctx: CanvasRenderingContext2D, W: number, H:
   ctx.restore();
 }
 
-function applyNeonGlowEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, scale: number) {
-  if (layer.neonGlow <= 0) return;
-  const [r6, g6, b6] = parseHexRgb(layer.neonColor, DEFAULT_EFFECT_LAYER_PROPS.neonColor);
+function applyNeonGlowEffect(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  params: KernelParamValues,
+  scale: number,
+) {
+  if (params.neonGlow <= 0) return;
+  const [r6, g6, b6] = parseHexRgb(params.neonColor, KERNEL_PARAM_DEFAULTS.neonColor);
   const srcData = ctx.getImageData(0, 0, W, H);
   const sd = srcData.data;
   const bright = createCanvas(W, H);
@@ -202,12 +214,12 @@ function applyNeonGlowEffect(ctx: CanvasRenderingContext2D, W: number, H: number
   bctx.putImageData(bid, 0, 0);
   const glow = createCanvas(W, H);
   const gctx = glow.getContext('2d')!;
-  const blurPx = Math.round((layer.neonGlow / 100) * 18 * scale);
+  const blurPx = Math.round((params.neonGlow / 100) * 18 * scale);
   gctx.filter = `blur(${blurPx}px)`;
   gctx.drawImage(bright, 0, 0);
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-  ctx.globalAlpha = Math.min(1, (layer.neonGlow / 100) * 1.4);
+  ctx.globalAlpha = Math.min(1, (params.neonGlow / 100) * 1.4);
   ctx.drawImage(glow, 0, 0);
   ctx.restore();
 }
@@ -241,9 +253,15 @@ function createOverprintPlate(
   return c;
 }
 
-function applyOverprintEffect(ctx: CanvasRenderingContext2D, W: number, H: number, layer: EffectLayer, scale: number) {
-  if (layer.overprint <= 0) return;
-  const shift = Math.round(layer.overprint * scale * 0.12);
+function applyOverprintEffect(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  params: KernelParamValues,
+  scale: number,
+) {
+  if (params.overprint <= 0) return;
+  const shift = Math.round(params.overprint * scale * 0.12);
   const sourceData = ctx.getImageData(0, 0, W, H).data;
   const cyan = createOverprintPlate(W, H, sourceData, shift, 0, [0, 255, 255]);
   const magenta = createOverprintPlate(W, H, sourceData, -shift, shift, [255, 0, 255]);
@@ -251,7 +269,7 @@ function applyOverprintEffect(ctx: CanvasRenderingContext2D, W: number, H: numbe
 
   ctx.save();
   ctx.globalCompositeOperation = 'multiply';
-  ctx.globalAlpha = (layer.overprint / 100) * 0.7;
+  ctx.globalAlpha = (params.overprint / 100) * 0.7;
   ctx.drawImage(cyan, 0, 0);
   ctx.drawImage(magenta, 0, 0);
   ctx.drawImage(yellow, 0, 0);
@@ -262,22 +280,22 @@ function applySpeedLinesEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  layer: EffectLayer,
+  params: KernelParamValues,
   seed: number,
   scale: number,
 ) {
-  if (layer.speedLines <= 0) return;
+  if (params.speedLines <= 0) return;
   const cx = W / 2;
   const cy = H / 2;
   const diagonal = Math.sqrt(W * W + H * H);
-  const count = Math.round(layer.speedLines * 0.8 + 20);
+  const count = Math.round(params.speedLines * 0.8 + 20);
   const slRng = lcg(seed * 5523);
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
   for (let i = 0; i < count; i++) {
     const angle = slRng() * Math.PI * 2;
     const length = diagonal * (0.4 + slRng() * 0.6);
-    const alpha = (layer.speedLines / 100) * (0.05 + slRng() * 0.2);
+    const alpha = (params.speedLines / 100) * (0.05 + slRng() * 0.2);
     ctx.lineWidth = (0.5 + slRng() * 1.5) * scale;
     ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
     ctx.beginPath();
@@ -292,132 +310,133 @@ export async function applyCanvas2DEffects(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  layer: EffectLayer,
+  params: KernelParamValues,
   seed: number,
   scale: number,
   rng: () => number,
 ) {
-  applyRetroResolutionEffect(ctx, W, H, layer);
-  applyRayEffect(ctx, W, H, layer, rng);
-  applyGlitchEffect(ctx, W, H, layer, scale, rng);
-  applyBadStreamEffect(ctx, W, H, layer, seed, scale);
-  await applySingleImageDataTransform(ctx, W, H, layer.rgbSplit > 0, {
+  applyRetroResolutionEffect(ctx, W, H, params);
+  applyRayEffect(ctx, W, H, params, rng);
+  applyGlitchEffect(ctx, W, H, params, scale, rng);
+  applyBadStreamEffect(ctx, W, H, params, seed, scale);
+  await applySingleImageDataTransform(ctx, W, H, params.rgbSplit > 0, {
     type: 'rgbSplit',
-    amount: Math.round(layer.rgbSplit * scale),
+    amount: Math.round(params.rgbSplit * scale),
   });
 
-  applyScanlines(ctx, W, H, layer, scale);
-  applyGrain(ctx, W, H, layer, seed);
-  applyDotGrain(ctx, W, H, layer, seed, scale);
-  applyTintEffect(ctx, W, H, layer);
-  await applyColorPassEffect(ctx, W, H, layer, scale);
-  await applySingleImageDataTransform(ctx, W, H, layer.indexedPalette > 0, {
+  applyScanlines(ctx, W, H, params, scale);
+  applyGrain(ctx, W, H, params, seed);
+  applyDotGrain(ctx, W, H, params, seed, scale);
+  applyTintEffect(ctx, W, H, params);
+  await applyColorPassEffect(ctx, W, H, params, scale);
+  await applySingleImageDataTransform(ctx, W, H, params.indexedPalette > 0, {
     type: 'indexedPalette',
-    amount: layer.indexedPalette,
-    colors: indexedPaletteColors(layer),
+    amount: params.indexedPalette,
+    colors: indexedPaletteColors(params),
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.gradientMap > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.gradientMap > 0, {
     type: 'gradientMap',
-    amount: layer.gradientMap,
-    shadow: layer.gradientMapShadow,
-    mid: layer.gradientMapMid,
-    highlight: layer.gradientMapHighlight,
+    amount: params.gradientMap,
+    shadow: params.gradientMapShadow,
+    mid: params.gradientMapMid,
+    highlight: params.gradientMapHighlight,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.channelMixer > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.channelMixer > 0, {
     type: 'channelMixer',
-    amount: layer.channelMixer,
-    redMix: layer.channelRedMix,
-    greenMix: layer.channelGreenMix,
-    blueMix: layer.channelBlueMix,
+    amount: params.channelMixer,
+    redMix: params.channelRedMix,
+    greenMix: params.channelGreenMix,
+    blueMix: params.channelBlueMix,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.edgeCrush > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.edgeCrush > 0, {
     type: 'edgeCrush',
-    amount: layer.edgeCrush,
+    amount: params.edgeCrush,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.silhouetteCrush > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.silhouetteCrush > 0, {
     type: 'silhouetteCrush',
-    amount: layer.silhouetteCrush,
+    amount: params.silhouetteCrush,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.pixelStretch > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.pixelStretch > 0, {
     type: 'pixelStretch',
-    amount: layer.pixelStretch,
-    length: Math.max(1, layer.pixelStretchLength * scale),
-    angle: layer.pixelStretchAngle,
+    amount: params.pixelStretch,
+    length: Math.max(1, params.pixelStretchLength * scale),
+    angle: params.pixelStretchAngle,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.bokehBlur > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.bokehBlur > 0, {
     type: 'bokehBlur',
-    amount: Math.max(1, layer.bokehBlur * scale),
-    threshold: layer.bokehThreshold,
+    amount: Math.max(1, params.bokehBlur * scale),
+    threshold: params.bokehThreshold,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.hatching > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.hatching > 0, {
     type: 'hatching',
-    amount: layer.hatching,
-    scale: Math.max(3, layer.hatchScale * scale),
-    angle: layer.hatchAngle,
+    amount: params.hatching,
+    scale: Math.max(3, params.hatchScale * scale),
+    angle: params.hatchAngle,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.vhsTracking > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.vhsTracking > 0, {
     type: 'vhsTracking',
-    amount: layer.vhsTracking,
+    amount: params.vhsTracking,
     seed: seed ^ 0x1a2b3c,
   });
 
-  applyMatte(ctx, W, H, layer, seed);
-  await applySingleImageDataTransform(ctx, W, H, layer.waveAmt > 0, {
+  applyMatte(ctx, W, H, params, seed);
+  await applySingleImageDataTransform(ctx, W, H, params.waveAmt > 0, {
     type: 'wave',
-    amount: layer.waveAmt,
-    frequency: layer.waveFreq,
+    amount: params.waveAmt,
+    frequency: params.waveFreq,
     scale,
   });
-  applyZoomBlurEffect(ctx, W, H, layer);
-  applyNeonGlowEffect(ctx, W, H, layer, scale);
-  applyOverprintEffect(ctx, W, H, layer, scale);
+  applyZoomBlurEffect(ctx, W, H, params);
+  applyNeonGlowEffect(ctx, W, H, params, scale);
+  applyOverprintEffect(ctx, W, H, params, scale);
 
-  await applySingleImageDataTransform(ctx, W, H, layer.solarize > 0, { type: 'solarize', amount: layer.solarize });
-  await applySingleImageDataTransform(ctx, W, H, layer.bleachBypass > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.solarize > 0, { type: 'solarize', amount: params.solarize });
+  await applySingleImageDataTransform(ctx, W, H, params.bleachBypass > 0, {
     type: 'bleachBypass',
-    amount: layer.bleachBypass,
+    amount: params.bleachBypass,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.cyanotype > 0, { type: 'cyanotype', amount: layer.cyanotype });
-  await applySingleImageDataTransform(ctx, W, H, layer.splitToneAmt > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.cyanotype > 0, { type: 'cyanotype', amount: params.cyanotype });
+  await applySingleImageDataTransform(ctx, W, H, params.splitToneAmt > 0, {
     type: 'splitTone',
-    amount: layer.splitToneAmt,
-    shadow: layer.splitShadow,
-    highlight: layer.splitHighlight,
+    amount: params.splitToneAmt,
+    shadow: params.splitShadow,
+    highlight: params.splitHighlight,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.rippleAmt > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.rippleAmt > 0, {
     type: 'ripple',
-    amount: layer.rippleAmt,
-    frequency: layer.rippleFreq,
+    amount: params.rippleAmt,
+    frequency: params.rippleFreq,
     scale,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.patternRefraction > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.patternRefraction > 0, {
     type: 'patternRefraction',
-    amount: layer.patternRefraction,
-    scale: Math.max(3, layer.patternRefractionScale * scale),
-    angle: layer.patternRefractionAngle,
+    amount: params.patternRefraction,
+    scale: Math.max(3, params.patternRefractionScale * scale),
+    angle: params.patternRefractionAngle,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.kaleidoscope > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.kaleidoscope > 0, {
     type: 'kaleidoscope',
-    amount: layer.kaleidoscope,
+    amount: params.kaleidoscope,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.squeezeX !== 0 || layer.squeezeY !== 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.squeezeX !== 0 || params.squeezeY !== 0, {
     type: 'squeeze',
-    x: layer.squeezeX,
-    y: layer.squeezeY,
+    x: params.squeezeX,
+    y: params.squeezeY,
   });
 
-  applyEmboss(ctx, W, H, layer);
-  applyLinocut(ctx, W, H, layer);
-  await applySingleImageDataTransform(ctx, W, H, layer.fog > 0, {
+  applyEmboss(ctx, W, H, params);
+  applyLinocut(ctx, W, H, params);
+  await applySingleImageDataTransform(ctx, W, H, params.fog > 0, {
     type: 'fog',
-    amount: layer.fog,
-    color: layer.fogColor,
+    amount: params.fog,
+    color: params.fogColor,
   });
-  await applySingleImageDataTransform(ctx, W, H, layer.gooeyMerge > 0, {
+  await applySingleImageDataTransform(ctx, W, H, params.gooeyMerge > 0, {
     type: 'gooeyMerge',
-    amount: layer.gooeyMerge,
-    radius: Math.max(1, layer.gooeyRadius * scale),
-    threshold: layer.gooeyThreshold,
+    amount: params.gooeyMerge,
+    radius: Math.max(1, params.gooeyRadius * scale),
+    threshold: params.gooeyThreshold,
   });
-  applySpeedLinesEffect(ctx, W, H, layer, seed, scale);
+  applySpeedLinesEffect(ctx, W, H, params, seed, scale);
+  applyShadowEffect(ctx, W, H, params, seed);
 }

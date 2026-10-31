@@ -53,7 +53,7 @@ export interface GraphTreeRow {
   consumer: GraphTreeConsumer | null;
   /**
    * The port the stack continues through below this row, or null when the row ends its stack (a fill
-   * shader, or a node the renderer only reads, such as a Scene 3D model). Full entries only.
+   * shader, or a material node read through a material port). Full entries only.
    */
   stackPort: GraphInputPort | null;
   groups: GraphTreeGroup[];
@@ -92,7 +92,7 @@ const GROUP_FOR_ROLE: Record<NestedInput['role'], { kind: GraphTreeGroupKind; la
   side: { kind: 'input', label: 'Input' },
 };
 
-const MODE_ORDER: GraphReachMode[] = ['render', 'material', 'read'];
+const MODE_ORDER: GraphReachMode[] = ['render', 'material'];
 
 /** Nodes outside Output are shown as if rendered; a material also shows its texture maps. */
 function unreachedModes(context: TreeContext, nodeId: string): GraphReachMode[] {

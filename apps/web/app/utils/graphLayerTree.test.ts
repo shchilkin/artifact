@@ -1,18 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { GRAPH_REACH_FIXTURES } from '../test-fixtures/render/graphReachFixtures';
+import { GRAPH_REACH_FIXTURES, litObject } from '../test-fixtures/render/graphReachFixtures';
 import { allNodeIds, expectTreeMatchesRenderer, rendererReach } from '../test-fixtures/render/graphTreeOracle';
 import type { CanvasDocument, CanvasGraph, GraphEdge, Layer } from '../types/config';
-import { makeFillLayer, makeSourceLayer, makeTextLayer } from '../types/config';
+import { makeFillLayer, makeScene3DSettings, makeSourceLayer, makeTextLayer } from '../types/config';
 import { buildGraphLayerTree, flattenGraphLayerTree, type GraphTreeRow } from './graphLayerTree';
 import { EXPORT_NODE_ID, graphNodesById, inferLinearGraph } from './nodeGraph';
 import {
   makeGraphColorNode,
-  makeGraphEnvironmentNode,
   makeGraphMaskNode,
   makeGraphMaterialNode,
   makeGraphMergeNode,
   makeGraphRepeatNode,
-  makeGraphScene3DNode,
   makeGraphShaderNode,
   makeGraphTransformNode,
 } from './nodeKinds';
@@ -132,23 +130,22 @@ describe('buildGraphLayerTree', () => {
     expectTreeMatchesRenderer(doc, tree, await rendererReach(doc));
   });
 
-  it('nests Scene 3D model, material, and environment stacks as inputs', async () => {
-    const primitive = makeSourceLayer('primitive', { id: 'sphere', name: 'sphere', primitiveShape: 'sphere' });
-    const layers = [fill('backdrop'), fill('sky', '#88aaff'), fill('rough', '#777777'), primitive];
+  it('nests a 3D Object material and environment stacks as inputs', async () => {
+    const sphere = makeSourceLayer('primitive', {
+      id: 'sphere',
+      name: 'sphere',
+      primitiveShape: 'sphere',
+      scene: makeScene3DSettings(),
+    });
+    const layers = [fill('backdrop'), fill('sky', '#88aaff'), fill('rough', '#777777'), sphere];
     const graph = graphOf({
-      nodes: graphNodesById(
-        makeGraphScene3DNode({ id: 'scene', transparent: true }),
-        makeGraphMaterialNode({ id: 'chrome' }),
-        makeGraphEnvironmentNode({ id: 'env' }),
-      ),
+      nodes: graphNodesById(makeGraphMaterialNode({ id: 'chrome' })),
       edges: [
-        edge('backdrop', 'scene', 'bg'),
-        edge('sphere', 'scene', 'model'),
-        edge('chrome', 'scene', 'material'),
+        edge('backdrop', 'sphere', 'bg'),
+        edge('chrome', 'sphere', 'material'),
         edge('rough', 'chrome', 'roughness'),
-        edge('sky', 'env', 'in'),
-        edge('env', 'scene', 'env'),
-        edge('scene', EXPORT_NODE_ID, 'in'),
+        edge('sky', 'sphere', 'env'),
+        edge('sphere', EXPORT_NODE_ID, 'in'),
       ],
     });
     const doc = documentOf(layers, graph);
@@ -156,16 +153,15 @@ describe('buildGraphLayerTree', () => {
 
     expect(summarize(tree.output)).toEqual([
       {
-        scene: {
-          Model: ['sphere'],
+        sphere: {
           Material: [{ chrome: { Roughness: ['rough'] } }],
-          Environment: ['env', 'sky'],
+          Environment: ['sky'],
         },
       },
       'backdrop',
     ]);
-    expect(tree.output[0].groups.map((group) => group.kind)).toEqual(['input', 'input', 'input']);
-    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc, ['sphere', 'chrome']));
+    expect(tree.output[0].groups.map((group) => group.kind)).toEqual(['input', 'input']);
+    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc, ['chrome']));
   });
 
   it('places a shared node once at its first depth-first reach and references it elsewhere', async () => {
@@ -282,29 +278,10 @@ describe('buildGraphLayerTree', () => {
     expectTreeMatchesRenderer(doc, tree, await rendererReach(doc));
   });
 
-  it('reads an environment node without a source but does not render it', async () => {
-    const layers = [fill('backdrop')];
-    const graph = graphOf({
-      nodes: graphNodesById(
-        makeGraphScene3DNode({ id: 'scene', transparent: true }),
-        makeGraphEnvironmentNode({ id: 'env' }),
-      ),
-      edges: [edge('backdrop', 'scene', 'bg'), edge('env', 'scene', 'env'), edge('scene', EXPORT_NODE_ID, 'in')],
-    });
-    const doc = documentOf(layers, graph);
-    const tree = buildGraphLayerTree(doc);
-
-    expect(summarize(tree.output)).toEqual([{ scene: { Environment: ['env'] } }, 'backdrop']);
-    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc, ['env']));
-  });
-
   it('renders a shader on a material port as the material', async () => {
-    const layers = [fill('backdrop'), fill('ignored-backdrop', '#00ff00')];
+    const layers = [fill('backdrop'), fill('ignored-backdrop', '#00ff00'), litObject('scene')];
     const graph = graphOf({
-      nodes: graphNodesById(
-        makeGraphScene3DNode({ id: 'scene', transparent: true }),
-        makeGraphShaderNode({ id: 'gradient', role: 'fill' }),
-      ),
+      nodes: graphNodesById(makeGraphShaderNode({ id: 'gradient', role: 'fill' })),
       edges: [
         edge('backdrop', 'scene', 'bg'),
         edge('gradient', 'scene', 'material'),
@@ -320,31 +297,10 @@ describe('buildGraphLayerTree', () => {
     expectTreeMatchesRenderer(doc, tree, await rendererReach(doc));
   });
 
-  it('leaves a node that is not a 3D source on a model port out of the output', async () => {
-    const layers = [fill('backdrop'), fill('not-a-model', '#ff0000')];
-    const graph = graphOf({
-      nodes: graphNodesById(makeGraphScene3DNode({ id: 'scene', transparent: true })),
-      edges: [
-        edge('backdrop', 'scene', 'bg'),
-        edge('not-a-model', 'scene', 'model'),
-        edge('scene', EXPORT_NODE_ID, 'in'),
-      ],
-    });
-    const doc = documentOf(layers, graph);
-    const tree = buildGraphLayerTree(doc);
-
-    expect(summarize(tree.output)).toEqual(['scene', 'backdrop']);
-    expect(tree.notInOutput.map(summarize)).toEqual([['not-a-model']]);
-    expectTreeMatchesRenderer(doc, tree, await rendererReach(doc));
-  });
-
   it('leaves a node that is not a material on a material port out, but keeps the texture maps it carries', async () => {
-    const layers = [fill('backdrop'), fill('graded', '#ff0000'), fill('rough', '#777777')];
+    const layers = [fill('backdrop'), fill('graded', '#ff0000'), fill('rough', '#777777'), litObject('scene')];
     const graph = graphOf({
-      nodes: graphNodesById(
-        makeGraphScene3DNode({ id: 'scene', transparent: true }),
-        makeGraphColorNode({ id: 'grade' }),
-      ),
+      nodes: graphNodesById(makeGraphColorNode({ id: 'grade' })),
       edges: [
         edge('backdrop', 'scene', 'bg'),
         edge('grade', 'scene', 'material'),

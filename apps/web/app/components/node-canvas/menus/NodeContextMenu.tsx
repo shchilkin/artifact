@@ -16,7 +16,6 @@ interface NodeMenuItemModel {
 export function NodeContextMenu({
   x,
   y,
-  isMerge,
   isExport,
   muted,
   removeFromArea,
@@ -29,7 +28,6 @@ export function NodeContextMenu({
   menuRef,
 }: NodeMenuProps) {
   const items = buildNodeMenuItems({
-    isMerge,
     isExport,
     muted,
     removeFromArea,
@@ -66,7 +64,6 @@ export function NodeContextMenu({
 }
 
 function buildNodeMenuItems({
-  isMerge,
   isExport,
   muted,
   removeFromArea,
@@ -77,7 +74,6 @@ function buildNodeMenuItems({
   deleteDisabled,
 }: Pick<
   NodeMenuProps,
-  | 'isMerge'
   | 'isExport'
   | 'muted'
   | 'removeFromArea'
@@ -89,15 +85,15 @@ function buildNodeMenuItems({
 >) {
   if (isExport) return [];
   return [
-    duplicateMenuItem(isMerge, onDuplicate),
+    duplicateMenuItem(onDuplicate),
     muteMenuItem(muted, onToggleMuted),
     removeFromAreaMenuItem(removeFromArea, onRemoveFromArea),
-    deleteMenuItem(isMerge, onDelete, deleteDisabled),
+    deleteMenuItem(onDelete, deleteDisabled),
   ].filter(Boolean) as NodeMenuItemModel[];
 }
 
-function duplicateMenuItem(isMerge: boolean, onDuplicate: () => void): NodeMenuItemModel | null {
-  return isMerge ? null : { label: 'Duplicate', hint: '⌘D', action: onDuplicate };
+function duplicateMenuItem(onDuplicate: () => void): NodeMenuItemModel {
+  return { label: 'Duplicate', hint: '⌘D', action: onDuplicate };
 }
 
 function muteMenuItem(muted: boolean | undefined, onToggleMuted?: () => void): NodeMenuItemModel | null {
@@ -116,18 +112,14 @@ function removeFromAreaMenuItem(
   };
 }
 
-function deleteMenuItem(
-  isMerge: boolean,
-  onDelete: () => void,
-  deleteDisabled: boolean | undefined,
-): NodeMenuItemModel {
+function deleteMenuItem(onDelete: () => void, deleteDisabled: boolean | undefined): NodeMenuItemModel {
   return {
     label: 'Delete',
     hint: deleteDisabled ? 'locked' : '⌫',
     action: onDelete,
     danger: true,
     disabled: deleteDisabled,
-    dividerBefore: !isMerge,
+    dividerBefore: true,
   };
 }
 

@@ -19,7 +19,7 @@ export function allNodeIds(doc: CanvasDocument): Set<string> {
 
 /**
  * The nodes the real renderer touches when it renders Output. `readOnly` lists nodes the renderer reads
- * without rendering (Scene 3D models, material settings), which each fixture states by hand so the
+ * without rendering (material settings), which each fixture states by hand so the
  * oracle stays independent of the tree.
  */
 export async function rendererReach(doc: CanvasDocument, readOnly: string[] = []): Promise<Set<string>> {

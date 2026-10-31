@@ -5,11 +5,9 @@ export type GraphInputPort = GraphEdge['toPort'];
 /**
  * How the renderer uses a node:
  * - `render`: the node's pixels are rendered, so its own render inputs are followed;
- * - `material`: a material node on a `material` port: its settings are read and its texture ports rendered;
- * - `read`: the renderer reads the node's settings without rendering it (a Scene 3D model, or an
- *   environment node without a source), so none of its inputs are followed.
+ * - `material`: a material node on a `material` port: its settings are read and its texture ports rendered.
  */
-export type GraphReachMode = 'render' | 'material' | 'read';
+export type GraphReachMode = 'render' | 'material';
 
 /**
  * What an input means to its consumer:
@@ -17,7 +15,7 @@ export type GraphReachMode = 'render' | 'material' | 'read';
  * - `overlay`: the merge `b` stack;
  * - `mask`: the mask node's `mask` source;
  * - `pattern`: the repeat item on `in`;
- * - `side`: Scene 3D model/material/environment, primitive material, material texture maps.
+ * - `side`: a 3D Object's material and environment, material texture maps.
  */
 export type GraphInputRole = 'primary' | 'overlay' | 'mask' | 'pattern' | 'side';
 
@@ -33,6 +31,8 @@ export interface GraphNodeBase<K extends string> {
   kind: K;
   id: string;
   name: string;
+  /** Hidden nodes render as their primary input (or transparent without one), like a hidden layer. */
+  hidden?: boolean;
 }
 
 /**
@@ -57,6 +57,8 @@ export interface GraphNodeKindModel<N extends GraphNodeBase<string>> {
   insertion(node: N): GraphNodeInsertion;
   /** Graph changes that must follow a patch to this node, if any. */
   afterUpdate?(graph: CanvasGraph, node: N, patch: Partial<N>): CanvasGraph;
+  /** False when hiding the node means nothing: its consumers read its settings instead of rendering it. */
+  hideable?: false;
   /** How the editor shows the kind. Plain data, so it is safe on any route. */
   look: GraphNodeLook;
   /** How Add Library offers and describes the kind. */

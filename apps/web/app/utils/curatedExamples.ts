@@ -4,6 +4,7 @@ import {
   type CanvasGraph,
   DEFAULT_EXPORT,
   type EffectLayer,
+  type EffectLayerInit,
   type EffectPreset,
   makeDocument,
   makeEffectPresetLayer,
@@ -44,8 +45,8 @@ export interface CuratedExample {
   doc: CanvasDocument;
 }
 
-function fx(preset: EffectPreset, name: string, partial: Partial<EffectLayer> = {}): EffectLayer {
-  return { ...makeEffectPresetLayer(preset), name, ...partial };
+function fx(preset: EffectPreset, name: string, partial: EffectLayerInit = {}): EffectLayer {
+  return makeEffectPresetLayer(preset, { name, ...partial });
 }
 
 function noise(
@@ -127,7 +128,7 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   starterExample(STICKER_GRID_GRAPH_RECIPE, {
     category: 'Graph recipe',
     summary: 'A motif-grid workflow with paper texture, array shapes, registration drift, and label type.',
-    usedNodes: ['Fill', 'Noise', 'Array', 'Riso Shift', 'Text', 'Overprint'],
+    usedNodes: ['Fill', 'Noise', 'Shape Pattern', 'Riso Shift', 'Text', 'Overprint'],
     startCopy: 'Use this for sticker sheets, repeated marks, and grid-based cover systems.',
   }),
   starterExample(PRIMITIVE_IMAGE_GRAPH_RECIPE, {
@@ -151,7 +152,7 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
   starterExample(ROTATED_CIRCLE_TOKENS_GRAPH_RECIPE, {
     category: 'Graph recipe',
     summary: 'A circular mask creates a token, then Repeat rotates each copy into a radial mark system.',
-    usedNodes: ['Fill', 'Line Field', 'Array', 'Mask', 'Repeat', 'Text'],
+    usedNodes: ['Fill', 'Line Field', 'Shape Pattern', 'Mask', 'Repeat', 'Text'],
     startCopy: 'Use this when each repeated copy should keep the same shape but get its own internal angle.',
   }),
   starterExample(WARPED_LINE_POSTER_GRAPH_RECIPE, {
@@ -171,7 +172,7 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
     name: 'Static Orbit',
     category: 'Texture study',
     summary: 'Signal snow and orbit rings stay on separate branches before a screen merge and final grit.',
-    usedNodes: ['Fill', 'Noise', 'Array', 'Scanlines', 'Neon Glow', 'Merge'],
+    usedNodes: ['Fill', 'Noise', 'Shape Pattern', 'Scanlines', 'Neon Glow', 'Merge'],
     startCopy: 'Remix this to learn graph branches, screen blends, and procedural source variation.',
     doc: mkDoc(
       24001,
@@ -243,7 +244,7 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
     name: 'Paper Shards',
     category: 'Texture study',
     summary: 'Paper fiber, cyanotype color, shard arrays, and type show how source nodes become a print system.',
-    usedNodes: ['Fill', 'Noise', 'Array', 'Cyanotype', 'Riso Shift', 'Overprint'],
+    usedNodes: ['Fill', 'Noise', 'Shape Pattern', 'Cyanotype', 'Riso Shift', 'Overprint'],
     startCopy: 'Start here when you want a procedural paper-and-shape composition.',
     doc: mkDoc(
       24002,

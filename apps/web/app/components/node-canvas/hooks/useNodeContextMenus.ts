@@ -10,7 +10,7 @@ import type { CanvasGraph, GraphEdge } from '../../../types/config';
 import type { AddAction } from '../../../utils/addActions';
 import type { GraphEditKind } from '../../../utils/documentDispatch';
 import { isEditableKeyTarget } from '../../../utils/editableKeyTarget';
-import { EXPORT_NODE_ID, graphUtilityNodeKind, removeGraphEdge } from '../../../utils/nodeGraph';
+import { EXPORT_NODE_ID, removeGraphEdge } from '../../../utils/nodeGraph';
 import type { NodeCanvasMachineEvent } from '../machine';
 import type { ContextMenuState, InsertConnectionConfig } from '../types';
 
@@ -64,10 +64,6 @@ function addNodeMenuScreenPoint(buttonRect: DOMRect | undefined, surfaceRect: DO
     };
   if (surfaceRect) return { x: surfaceRect.left + 96, y: surfaceRect.top + 96 };
   return { x: 0, y: 0 };
-}
-
-function isGraphUtilityNode(graph: CanvasGraph, id: string) {
-  return graphUtilityNodeKind(graph, id) !== null;
 }
 
 function connectEndPointer(event: MouseEvent | TouchEvent) {
@@ -368,7 +364,6 @@ export function useNodeContextMenus({
       e.stopPropagation();
       cancelDeferredConnectAddMenu(deferredConnectMenuFrameRef);
       contextMenuReturnFocusRef.current = canvasSurfaceRef.current;
-      const isMerge = isGraphUtilityNode(graphRef.current, node.id);
       const isExport = node.id === EXPORT_NODE_ID;
       send({
         type: 'CONTEXT_MENU_OPENED',
@@ -377,12 +372,11 @@ export function useNodeContextMenus({
           x: e.clientX,
           y: e.clientY,
           nodeId: node.id,
-          isMerge,
           isExport,
         },
       });
     },
-    [canvasSurfaceRef, graphRef, send],
+    [canvasSurfaceRef, send],
   );
 
   const onEdgeContextMenu = useCallback(

@@ -47,7 +47,7 @@ const REFERENCE_DROP_REASON = 'Rows can’t be dropped onto a shared use. Drop n
 
 interface TreeStack {
   rows: GraphTreeRow[];
-  /** The stack feeds a Scene 3D, primitive, or material input. Its top row is wired in Nodes. */
+  /** The stack feeds a 3D Object side input (material, environment) or a material texture. Its top row is wired in Nodes. */
   side: boolean;
 }
 
@@ -200,7 +200,7 @@ function hasSideInputs(row: GraphTreeRow) {
 /**
  * Whether `nodeId` can move to the gap above or below `targetId`. Within its run any movable row can
  * move. Across runs (another stack, or past a shared node) a row moves together with its group, mask,
- * or pattern source, but not with Scene 3D, primitive, or material inputs, and never into its own inputs.
+ * or pattern source, but not with 3D Object or material inputs, and never into its own inputs.
  */
 export function checkTreeMove(
   index: GraphTreeEditIndex,
@@ -469,7 +469,7 @@ const TEXTURE_PORTS = new Set<GraphInputPort>(MATERIAL_TEXTURE_INPUT_PORTS);
 
 /**
  * Whether an edge feeds an image input of its consumer (a primary, merge `b`, mask, or pattern port, or
- * Output) in every way the renderer uses that consumer. A material read through a Scene 3D or primitive
+ * Output) in every way the renderer uses that consumer. A material read through a 3D Object's
  * `material` port treats `albedo` and the other texture ports as side inputs.
  */
 function feedsImageInput(
@@ -487,7 +487,7 @@ function feedsImageInput(
 
 /**
  * Deletes a node from the tree: every image input it fed now reads the node's primary source on the
- * same port, in the removed edge's place. Side inputs it fed (Scene 3D, material, texture ports) and
+ * same port, in the removed edge's place. Side inputs it fed (3D Object material and environment, texture ports) and
  * edges from its own non-primary sources are dropped. A shared node's source then feeds each of the
  * node's consumers, so it becomes shared itself; that is why deleting a shared node asks first.
  */

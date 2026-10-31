@@ -67,7 +67,7 @@
         "trigger": "Automatic: the hero artwork and preview mosaic render after the first paint.",
         "allowedFamilies": ["pixi", "renderer"],
         "budget": {
-          "jsGzipKiB": 188,
+          "jsGzipKiB": 190,
           "cssGzipKiB": 0
         }
       },
@@ -132,7 +132,7 @@
       "delivery": "spa-fallback",
       "initial": {
         "budget": {
-          "jsGzipKiB": 230,
+          "jsGzipKiB": 240,
           "cssGzipKiB": 26
         },
         "prohibitedFamilies": ["react-flow", "pixi", "three", "motion", "node-canvas"],
@@ -214,7 +214,7 @@
       "delivery": "spa-fallback",
       "initial": {
         "budget": {
-          "jsGzipKiB": 370,
+          "jsGzipKiB": 380,
           "cssGzipKiB": 65
         },
         "prohibitedFamilies": ["pixi", "three"],

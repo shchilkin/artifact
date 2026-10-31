@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { GraphColorNode } from '../../../utils/nodeKinds';
-import { useNodeCanvasActions } from '../context';
+import { useGraphNodeHide, useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { NodeFrame } from '../nodes/NodeFrame';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
@@ -10,6 +10,7 @@ const ColorNodeComponent = memo(function ColorNodeComponent({ data }: GraphNodeC
   const { selectNode } = useNodeCanvasActions();
   const { node: colorNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
+  const hideProps = useGraphNodeHide(colorNode);
   return (
     <NodeFrame
       id={colorNode.id}
@@ -22,6 +23,7 @@ const ColorNodeComponent = memo(function ColorNodeComponent({ data }: GraphNodeC
       connected={connected}
       targetHandles={[{ id: 'in' }]}
       onSelect={(event) => selectNode(colorNode.id, event)}
+      {...hideProps}
     >
       <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
       <PortRow

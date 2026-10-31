@@ -1,13 +1,14 @@
-import type { CanvasDocument, EffectLayer, EffectPreset } from '../types/config';
-import { DEFAULT_EXPORT, makeDocument, makeEmojiLayer, ZERO_EFFECT } from '../types/config';
+import type { CanvasDocument, EffectPreset } from '../types/config';
+import { DEFAULT_EXPORT, makeDocument, makeEmojiLayer } from '../types/config';
 import {
-  EFFECT_PARAMS,
   type EffectFamilyId,
-  type EffectParamKey,
-  effectDefinition,
-  effectParam,
-  isEffectId,
-} from '../types/effectSchema';
+  isKernelId,
+  KERNEL_PARAMS,
+  type KernelParamKey,
+  type KernelParamValues,
+  kernelDefinition,
+  kernelParam,
+} from '../types/effectKernels';
 import { splitEffectPatchIntoPresetLayers } from './effectPresetPatch';
 import { renderDocument } from './renderer';
 
@@ -15,7 +16,7 @@ export interface EffectMeta {
   title: string;
   description: string;
   valueLabel: string;
-  cfgOverride: Partial<EffectLayer>;
+  cfgOverride: Partial<KernelParamValues>;
   family?: EffectFamilyId;
   goodFor?: string;
 }
@@ -31,8 +32,7 @@ const BASE_EMOJI_LAYER = makeEmojiLayer({
   blur: 40,
 });
 
-const BASE_EFFECT: Partial<EffectLayer> = {
-  ...ZERO_EFFECT,
+const BASE_EFFECT: Partial<KernelParamValues> = {
   rayInt: 50,
   rays: 10,
   tintOp: 20,
@@ -49,8 +49,8 @@ const EFFECT_FAMILY_META: Record<EffectFamilyId, { label: string; goodFor: strin
 
 /** The family of a help key: an effect id, or a parameter key whose effect has a family. */
 function effectFamilyOf(key: string): EffectFamilyId | undefined {
-  if (isEffectId(key)) return effectDefinition(key).family;
-  if (key in EFFECT_PARAMS) return effectDefinition(effectParam(key as EffectParamKey).effect).family;
+  if (isKernelId(key)) return kernelDefinition(key).family;
+  if (key in KERNEL_PARAMS) return kernelDefinition(kernelParam(key as KernelParamKey).kernel).family;
   return undefined;
 }
 
@@ -312,6 +312,27 @@ export const EFFECT_META: Record<string, EffectMeta> = {
     description: 'Anamorphic vertical stretch or compression around center.',
     valueLabel: 'y -35',
     cfgOverride: { squeezeY: -35 },
+  },
+  shadowOpacity: {
+    title: 'Shadow',
+    description: 'Casts a shadow from the visible shapes of the input.',
+    valueLabel: 'opacity 60',
+    family: 'light',
+    cfgOverride: { shadowOpacity: 60, shadowLayers: 1, shadowGrime: 0, shadowJitter: 0, shadowSpread: 0 },
+  },
+  adjust: {
+    title: 'Adjust',
+    description: 'Grades brightness, contrast, saturation, temperature, and invert in one pass.',
+    valueLabel: 'contrast 30',
+    family: 'tone',
+    cfgOverride: { adjustContrast: 30, adjustSaturation: 25 },
+  },
+  sharpen: {
+    title: 'Sharpen',
+    description: 'Crisps edges by pushing each pixel away from its neighbours.',
+    valueLabel: 'sharpen 60',
+    family: 'print',
+    cfgOverride: { sharpen: 60 },
   },
   hueShift: {
     title: 'Hue Shift',
@@ -590,6 +611,8 @@ const EFFECT_THUMB_KEY_ALIASES: Partial<Record<EffectPreset, string>> = {
   ripple: 'rippleAmt',
   squeeze: 'squeezeX',
   splitTone: 'splitToneAmt',
+  shadow: 'shadowOpacity',
+  grimeShadow: 'shadowOpacity',
 };
 
 export function resolveEffectThumbKey(key: string) {

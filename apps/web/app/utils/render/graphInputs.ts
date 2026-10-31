@@ -45,16 +45,6 @@ export interface GraphRenderInput {
 
 type InputCandidate = GraphNodeInput;
 
-function environmentPortMode(doc: GraphDocument, graph: CanvasGraph, sourceId: string): GraphReachMode {
-  if (graphRenderNodeKind(doc, graph, sourceId) !== 'environment') return 'render';
-  return findIncomingSource(graph, sourceId, 'in') ? 'render' : 'read';
-}
-
-function modelPortMode(doc: GraphDocument, sourceId: string): GraphReachMode | null {
-  const layer = doc.layers.find((item) => item.id === sourceId);
-  return layer?.kind === 'model' || layer?.kind === 'primitive' ? 'read' : null;
-}
-
 const TEXTURE_CANDIDATES: InputCandidate[] = MATERIAL_TEXTURE_INPUT_PORTS.map((port) => ({
   port,
   role: 'side',
@@ -64,11 +54,19 @@ const TEXTURE_CANDIDATES: InputCandidate[] = MATERIAL_TEXTURE_INPUT_PORTS.map((p
 function renderModeCandidates(doc: GraphDocument, graph: CanvasGraph, nodeId: string): readonly InputCandidate[] {
   if (nodeId === EXPORT_NODE_ID) return SINGLE_INPUT;
   const node = findGraphNode(graph, nodeId);
+  if (node?.hidden)
+    return modelOfNode(node)
+      .inputs(node)
+      .filter((input) => input.role === 'primary');
   if (node) return modelOfNode(node).inputs(node);
   const layer = doc.layers.find((item) => item.id === nodeId);
   if (!layer) return [];
   const primary: InputCandidate = { port: graphLayerInputPort(layer), role: 'primary', mode: 'render' };
-  return layer.kind === 'primitive' ? [primary, { port: 'material', role: 'side', mode: 'material' }] : [primary];
+  const material: InputCandidate = { port: 'material', role: 'side', mode: 'material' };
+  if ((layer.kind === 'primitive' || layer.kind === 'model') && layer.scene) {
+    return [primary, material, { port: 'env', role: 'side', mode: 'render' }];
+  }
+  return layer.kind === 'primitive' ? [primary, material] : [primary];
 }
 
 /**
@@ -91,7 +89,6 @@ export function graphNodeInputRole(
 }
 
 function modeCandidates(doc: GraphDocument, graph: CanvasGraph, nodeId: string, mode: GraphReachMode) {
-  if (mode === 'read') return [];
   if (mode === 'material') return TEXTURE_CANDIDATES;
   return renderModeCandidates(doc, graph, nodeId);
 }
@@ -123,13 +120,7 @@ function candidateInputs(
   sourceId: string,
 ): GraphRenderInput[] {
   if (candidate.port === 'material') return materialPortInputs(doc, graph, sourceId);
-  const mode =
-    candidate.port === 'env'
-      ? environmentPortMode(doc, graph, sourceId)
-      : candidate.port === 'model'
-        ? modelPortMode(doc, sourceId)
-        : candidate.mode;
-  return mode ? [{ port: candidate.port, sourceId, role: candidate.role, mode }] : [];
+  return [{ port: candidate.port, sourceId, role: candidate.role, mode: candidate.mode }];
 }
 
 /**

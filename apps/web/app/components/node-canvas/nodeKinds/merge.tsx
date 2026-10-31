@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { GraphMergeNode } from '../../../utils/nodeKinds';
-import { useNodeCanvasActions } from '../context';
+import { useGraphNodeHide, useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { NodeFrame } from '../nodes/NodeFrame';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
@@ -10,6 +10,7 @@ const MergeNodeComponent = memo(function MergeNodeComponent({ data }: GraphNodeC
   const { selectNode } = useNodeCanvasActions();
   const { node: mergeNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
+  const hideProps = useGraphNodeHide(mergeNode);
   return (
     <NodeFrame
       id={mergeNode.id}
@@ -25,6 +26,7 @@ const MergeNodeComponent = memo(function MergeNodeComponent({ data }: GraphNodeC
         { id: 'b', top: '64%' },
       ]}
       onSelect={(event) => selectNode(mergeNode.id, event)}
+      {...hideProps}
     >
       <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
       <PortRow
