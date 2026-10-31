@@ -5,12 +5,12 @@ import {
   type MouseEvent as ReactMouseEvent,
   useCallback,
   useContext,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { CanvasDocument, GraphArea, Layer } from '../../types/config';
 import { isEditableKeyTarget } from '../../utils/editableKeyTarget';
 import {
@@ -87,19 +87,6 @@ function sameDragState(a: TreeDragState | null, b: TreeDragState) {
     a.target?.position === b.target?.position &&
     a.blockedReason === b.blockedReason
   );
-}
-
-function useNarrowLayout() {
-  const [narrow, setNarrow] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia?.(NARROW_QUERY);
-    if (!query) return;
-    const update = () => setNarrow(query.matches);
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-  return narrow;
 }
 
 function nodeAreaMap(areas: GraphArea[] | undefined) {
@@ -336,7 +323,7 @@ export function GraphLayerTreeView({
   onRemoveLayer,
 }: GraphLayerTreeViewProps) {
   const editing = useContext(GraphLayerTreeEditingContext);
-  const narrow = useNarrowLayout();
+  const narrow = useMediaQuery(NARROW_QUERY);
   const [collapse, setCollapse] = useState<GraphTreeCollapseState>(() => new Map());
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [drag, setDrag] = useState<TreeDragState | null>(null);
