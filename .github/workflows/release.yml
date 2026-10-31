@@ -39,7 +39,7 @@ concurrency:
 jobs:
   gate:
     name: Release gate
-    # Pinned: Playwright cannot install browsers on ubuntu-26.04, which ubuntu-latest now resolves to.
+    # Pinned: ubuntu-latest can resolve to ubuntu-26.04, where Playwright cannot install browsers.
     runs-on: ubuntu-24.04
 
     steps:
@@ -104,7 +104,7 @@ jobs:
     name: Production release action
     needs: gate
     if: inputs.action == 'tag-and-create-draft' || inputs.action == 'create-draft' || inputs.action == 'publish-draft'
-    # Pinned: Playwright cannot install browsers on ubuntu-26.04, which ubuntu-latest now resolves to.
+    # Pinned: ubuntu-latest can resolve to ubuntu-26.04, where Playwright cannot install browsers.
     runs-on: ubuntu-24.04
     environment: production-release
 
@@ -169,7 +169,7 @@ jobs:
     name: Deploy production from verified commit
     needs: gate
     if: inputs.action == 'deploy-production'
-    # Pinned: Playwright cannot install browsers on ubuntu-26.04, which ubuntu-latest now resolves to.
+    # Pinned: ubuntu-latest can resolve to ubuntu-26.04, where Playwright cannot install browsers.
     runs-on: ubuntu-24.04
     environment: production-release
     permissions:
