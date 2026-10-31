@@ -1,24 +1,24 @@
+/**
+ * The shadow kernel: a stacked, optionally dirty shadow cast by the visible alpha of its input. It started as the
+ * Grime Shadow graph node; its pixels are unchanged (the node's seed salt is the `shadowVariation` parameter).
+ */
+import type { KernelParamValues } from '../../../types/effectKernels';
 import { lcg } from '../../lcg';
-import type { GraphGrimeShadowNode } from '../../nodeKinds';
 import { visibleAlphaThreshold } from '../alphaBounds';
-import { createCanvas } from '../canvas';
-import { type GraphNodeRenderContext, hashString, renderSingleInputSource } from './context';
+import { cloneCanvas, createCanvas } from '../canvas';
 
-function applyGrimeShadowNode(
-  source: HTMLCanvasElement,
-  node: GraphGrimeShadowNode,
-  seed: number,
-  W: number,
-  H: number,
-) {
-  const canvas = createCanvas(W, H);
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return canvas;
-  const silhouette = sourceAlphaSilhouette(source, node.color, W, H);
-  const shadow = renderGrimeShadow(silhouette, node, seed, W, H);
-  ctx.drawImage(shadow, 0, 0);
-  if (!node.shadowOnly) ctx.drawImage(source, 0, 0);
-  return canvas;
+interface ShadowSettings {
+  x: number;
+  y: number;
+  layers: number;
+  blur: number;
+  spread: number;
+  grime: number;
+  jitter: number;
+  opacity: number;
+  /** Every layer at full opacity, instead of fading the outer layers. */
+  flat: boolean;
+  variation: number;
 }
 
 function sourceAlphaSilhouette(source: HTMLCanvasElement, color: string, W: number, H: number) {
@@ -40,36 +40,30 @@ function sourceAlphaSilhouette(source: HTMLCanvasElement, color: string, W: numb
   return canvas;
 }
 
-function renderGrimeShadow(
-  silhouette: HTMLCanvasElement,
-  node: GraphGrimeShadowNode,
-  seed: number,
-  W: number,
-  H: number,
-) {
-  const shadow = createCanvas(W, H);
-  const ctx = shadow.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return shadow;
+function renderShadow(silhouette: HTMLCanvasElement, shadow: ShadowSettings, seed: number, W: number, H: number) {
+  const shadowCanvas = createCanvas(W, H);
+  const ctx = shadowCanvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return shadowCanvas;
   const unit = W / 540;
-  const layers = Math.max(1, Math.round(node.layers));
-  const spread = Math.max(0, node.spread * unit);
-  const jitter = Math.max(0, node.jitter * unit);
-  const rng = lcg((seed + (node.seedOffset ?? 0)) ^ hashString(node.id));
+  const layers = Math.max(1, Math.round(shadow.layers));
+  const spread = Math.max(0, shadow.spread * unit);
+  const jitter = Math.max(0, shadow.jitter * unit);
+  const rng = lcg(seed ^ shadow.variation);
 
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
   for (let i = 0; i < layers; i += 1) {
     const t = (i + 1) / layers;
-    const x = node.x * unit * t + (jitter > 0 ? (rng() - 0.5) * jitter : 0);
-    const y = node.y * unit * t + (jitter > 0 ? (rng() - 0.5) * jitter : 0);
-    ctx.globalAlpha = (node.opacity / 100) * (1.15 - t * 0.55);
-    ctx.filter = node.blur > 0 ? `blur(${node.blur * unit * t}px)` : 'none';
+    const x = shadow.x * unit * t + (jitter > 0 ? (rng() - 0.5) * jitter : 0);
+    const y = shadow.y * unit * t + (jitter > 0 ? (rng() - 0.5) * jitter : 0);
+    ctx.globalAlpha = (shadow.opacity / 100) * (shadow.flat ? 1 : 1.15 - t * 0.55);
+    ctx.filter = shadow.blur > 0 ? `blur(${shadow.blur * unit * t}px)` : 'none';
     drawSpreadSilhouette(ctx, silhouette, x, y, spread * t);
   }
   ctx.restore();
 
-  if (node.grime > 0) applyShadowGrime(shadow, node, seed, W, H);
-  return shadow;
+  if (shadow.grime > 0) applyShadowGrime(shadowCanvas, shadow, seed, W, H);
+  return shadowCanvas;
 }
 
 function drawSpreadSilhouette(
@@ -91,12 +85,12 @@ function drawSpreadSilhouette(
   ctx.drawImage(silhouette, x, y);
 }
 
-function applyShadowGrime(canvas: HTMLCanvasElement, node: GraphGrimeShadowNode, seed: number, W: number, H: number) {
+function applyShadowGrime(canvas: HTMLCanvasElement, shadow: ShadowSettings, seed: number, W: number, H: number) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return;
   const image = ctx.getImageData(0, 0, W, H);
-  const amount = Math.max(0, Math.min(1, node.grime / 100));
-  const baseSeed = (seed + (node.seedOffset ?? 0)) ^ hashString(node.id);
+  const amount = Math.max(0, Math.min(1, shadow.grime / 100));
+  const baseSeed = seed ^ shadow.variation;
   for (let y = 0; y < H; y += 1) {
     for (let x = 0; x < W; x += 1) {
       const i = (y * W + x) * 4 + 3;
@@ -136,9 +130,36 @@ function parseCanvasColor(color: string) {
   return { r: 9, g: 6, b: 6 };
 }
 
-export async function renderGrimeShadowGraphNode(node: GraphGrimeShadowNode, context: GraphNodeRenderContext) {
-  const nodeId = node.id;
-  const grimeShadowNode = node;
-  const source = await renderSingleInputSource(nodeId, context);
-  return applyGrimeShadowNode(source, grimeShadowNode, context.doc.global.seed, context.W, context.H);
+/** Replaces the canvas with the shadow of its content, under the content unless the source is hidden. */
+export function applyShadowEffect(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  params: KernelParamValues,
+  seed: number,
+) {
+  if (params.shadowOpacity <= 0) return;
+  const shadow: ShadowSettings = {
+    x: params.shadowX,
+    y: params.shadowY,
+    layers: params.shadowLayers,
+    blur: params.shadowBlur,
+    spread: params.shadowSpread,
+    grime: params.shadowGrime,
+    jitter: params.shadowJitter,
+    opacity: params.shadowOpacity,
+    flat: params.shadowFalloff === 'flat',
+    variation: params.shadowVariation >>> 0,
+  };
+  const source = cloneCanvas(ctx.canvas as HTMLCanvasElement, W, H);
+  const silhouette = sourceAlphaSilhouette(source, params.shadowColor, W, H);
+  const cast = renderShadow(silhouette, shadow, seed, W, H);
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.filter = 'none';
+  ctx.clearRect(0, 0, W, H);
+  ctx.drawImage(cast, 0, 0);
+  if (params.shadowSource !== 'hide') ctx.drawImage(source, 0, 0);
+  ctx.restore();
 }

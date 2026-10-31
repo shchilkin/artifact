@@ -1,7 +1,9 @@
 import type { Node, NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 
+import { isObject3DLayer } from '../../../types/config';
 import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
+import { KIND_LABEL } from '../constants';
 import { useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { LayerPreviewSurface } from '../thumbnails/LayerPreviewSurface';
@@ -16,20 +18,19 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
     data;
   const isEffect = layer.kind === 'effect';
   const inputPort = isEffect ? 'in' : 'bg';
-  const targetHandles =
-    layer.kind === 'primitive'
-      ? [
-          { id: inputPort, top: '38%' },
-          { id: 'material', top: '66%' },
-        ]
-      : [{ id: inputPort }];
+  const sidePorts = layerSidePorts(layer);
+  const handleTops = HANDLE_TOPS[sidePorts.length] ?? [];
+  const targetHandles = [inputPort, ...sidePorts].map((id, index) => ({
+    id,
+    ...(handleTops[index] ? { top: handleTops[index] } : {}),
+  }));
   const transform = useLayerTransformDraft(layer, updateLayer);
 
   return (
     <NodeFrame
       id={layer.id}
       kind={layer.kind}
-      label={layer.kind}
+      label={KIND_LABEL[layer.kind] ?? layer.kind}
       name={layer.name}
       selected={selected}
       outputPath={outputPath}
@@ -61,7 +62,7 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
       <PortRow
         inputs={[
           { label: isEffect ? 'source' : 'backdrop', portId: inputPort, nodeId: layer.id },
-          ...(layer.kind === 'primitive' ? [{ label: 'material', portId: 'material', nodeId: layer.id }] : []),
+          ...sidePorts.map((portId) => ({ label: SIDE_PORT_LABEL[portId], portId, nodeId: layer.id })),
         ]}
         outputs={[{ label: 'result', portId: 'out', nodeId: layer.id }]}
         connected={connected}
@@ -69,6 +70,18 @@ export const LayerNodeComponent = memo(function LayerNodeComponent({ data }: Nod
     </NodeFrame>
   );
 });
+
+/** Handle positions on a layer card by side port count; one port sits in the middle. */
+const HANDLE_TOPS: Record<number, string[]> = { 1: ['38%', '66%'], 2: ['30%', '52%', '74%'] };
+
+const SIDE_PORT_LABEL = { material: 'material', env: 'environment' } as const;
+
+/** A 3D Object takes a material (a model only with scene lighting) and, with scene lighting, an environment. */
+function layerSidePorts(layer: LayerNodeData['layer']): Array<keyof typeof SIDE_PORT_LABEL> {
+  if (!isObject3DLayer(layer)) return [];
+  if (layer.scene) return ['material', 'env'];
+  return layer.kind === 'primitive' ? ['material'] : [];
+}
 
 export const FallbackNodeComponent = memo(function FallbackNodeComponent({ data }: NodeProps<Node<FallbackNodeData>>) {
   const { selectNode } = useNodeCanvasActions();

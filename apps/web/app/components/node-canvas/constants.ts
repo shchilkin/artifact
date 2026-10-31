@@ -56,3 +56,11 @@ export const NODE_CANVAS_COLORS = {
 
 // Re-exported from canonical source — do not redefine here.
 export { BLEND_OPTIONS } from '../../components/layer-controls/fieldDefs';
+
+/** Node card label of a layer kind, where the kind id is not a readable word. */
+export const KIND_LABEL: Record<string, string> = {
+  array: 'pattern',
+  primitive: '3d object',
+  model: '3d object',
+  lineField: 'line field',
+};

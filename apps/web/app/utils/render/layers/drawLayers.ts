@@ -19,11 +19,37 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines.length > 0 ? lines : [''];
 }
 
+function fillStyle(ctx: CanvasRenderingContext2D, W: number, H: number, layer: FillLayer): string | CanvasGradient {
+  if (layer.fillMode === 'linear') {
+    const radians = (layer.angle * Math.PI) / 180;
+    const dx = Math.cos(radians);
+    const dy = Math.sin(radians);
+    // Half the canvas extent along the gradient direction, so both ends touch the frame.
+    const half = Math.abs(dx) * (W / 2) + Math.abs(dy) * (H / 2);
+    const gradient = ctx.createLinearGradient(
+      W / 2 - dx * half,
+      H / 2 - dy * half,
+      W / 2 + dx * half,
+      H / 2 + dy * half,
+    );
+    gradient.addColorStop(0, layer.color);
+    gradient.addColorStop(1, layer.colorB);
+    return gradient;
+  }
+  if (layer.fillMode === 'radial') {
+    const gradient = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.hypot(W, H) / 2);
+    gradient.addColorStop(0, layer.color);
+    gradient.addColorStop(1, layer.colorB);
+    return gradient;
+  }
+  return layer.color;
+}
+
 export function drawFillLayer(ctx: CanvasRenderingContext2D, W: number, H: number, layer: FillLayer) {
   ctx.save();
   ctx.globalAlpha = layer.opacity / 100;
   ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode);
-  ctx.fillStyle = layer.color;
+  ctx.fillStyle = fillStyle(ctx, W, H, layer);
   ctx.fillRect(0, 0, W, H);
   ctx.restore();
 }
@@ -87,13 +113,30 @@ export function drawEmojiLayer(
   ctx.restore();
 }
 
+function hexWithAlpha(color: string, alpha: number): string {
+  const hex = /^#[0-9a-f]{6}$/i.test(color) ? color : '#000000';
+  const [r, g, b] = [1, 3, 5].map((index) => Number.parseInt(hex.slice(index, index + 2), 16));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Canvas letter spacing adds space after the last letter too; this shifts the line back to its alignment. */
+function trackingOffset(align: TextLayer['align'], tracking: number): number {
+  if (align === 'center') return tracking / 2;
+  if (align === 'right') return tracking;
+  return 0;
+}
+
 export function drawTextLayer(ctx: CanvasRenderingContext2D, W: number, H: number, layer: TextLayer, scale: number) {
   if (!layer.content.trim()) return;
   const fontSize = layer.size * scale;
   const fontStack = getCanvasFontStack(layer.font);
+  const tracking = (layer.tracking ?? 0) * scale;
+  const outline = Math.max(0, (layer.outlineWidth ?? 0) * scale);
+  const shadowAlpha = Math.max(0, Math.min(1, (layer.shadowOpacity ?? 0) / 100));
 
   ctx.save();
   ctx.font = `${fontSize}px ${fontStack}`; // must be set before wrapText uses measureText
+  if (tracking !== 0) ctx.letterSpacing = `${tracking}px`;
   const lines = layer.content.split('\n').flatMap((part) => wrapText(ctx, part.trim() || ' ', W * 0.92));
 
   ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode);
@@ -106,9 +149,27 @@ export function drawTextLayer(ctx: CanvasRenderingContext2D, W: number, H: numbe
   ctx.scale(layer.scaleX, layer.scaleY);
 
   const maxWidth = W * 0.92;
-  const lineH = fontSize * 1.25;
+  const lineH = fontSize * ((layer.leading ?? 125) / 100);
+  const x = trackingOffset(layer.align, tracking);
+  if (shadowAlpha > 0) {
+    // Canvas shadows are offset in screen space, so they fall the same way at any rotation, like a light source.
+    ctx.shadowColor = hexWithAlpha(layer.shadowColor, shadowAlpha);
+    ctx.shadowBlur = Math.max(0, layer.shadowBlur) * scale;
+    ctx.shadowOffsetX = layer.shadowX * scale;
+    ctx.shadowOffsetY = layer.shadowY * scale;
+  }
   lines.forEach((line, i) => {
-    ctx.fillText(line, 0, (i - (lines.length - 1) / 2) * lineH, maxWidth);
+    const y = (i - (lines.length - 1) / 2) * lineH;
+    if (outline > 0) {
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = outline * 2;
+      ctx.strokeStyle = layer.outlineColor;
+      ctx.strokeText(line, x, y, maxWidth);
+      // The shadow is cast once, by the outline.
+      ctx.shadowColor = 'transparent';
+    }
+    ctx.fillText(line, x, y, maxWidth);
+    if (outline > 0 && shadowAlpha > 0) ctx.shadowColor = hexWithAlpha(layer.shadowColor, shadowAlpha);
   });
   ctx.restore();
 }

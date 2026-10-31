@@ -10,7 +10,7 @@ import type {
 import { logThumbnailInvalidation } from '../../../utils/devLogging';
 import { createGraphNodeRenderCache, GRAPH_NODE_RENDER_CACHE_LIMIT } from '../../../utils/graphNodeRenderCache';
 import { imageCacheSignature } from '../../../utils/imageCacheSignature';
-import { collectUpstreamNodeIds, EXPORT_NODE_ID, graphNodesOfKind } from '../../../utils/nodeGraph';
+import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph';
 import { measurePerformancePhase, measurePerformancePhaseSync } from '../../../utils/performanceMeasure';
 import { preloadImageSources } from '../../../utils/preloadImageSources';
 import { renderGraphTarget } from '../../../utils/renderer';
@@ -66,15 +66,8 @@ function signatureList(items: Array<{ id: string; sig: string }>) {
   return items.map(({ id, sig }) => `${id}:${sig}`).join(',');
 }
 
-function primitiveViewSignature(
-  layers: Layer[],
-  graph: CanvasGraph,
-  primitiveViewStates: Record<string, PrimitiveViewportStateConfig>,
-) {
-  const ids = [
-    ...layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id),
-    ...graphNodesOfKind(graph, 'scene3d').map((node) => node.id),
-  ];
+function primitiveViewSignature(layers: Layer[], primitiveViewStates: Record<string, PrimitiveViewportStateConfig>) {
+  const ids = layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id);
   return ids.map((id) => `${id}:${viewStateRenderSig(primitiveViewStates[id])}`).join('|');
 }
 
@@ -465,7 +458,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       signatureList(layerSignatures),
       signatureList(nodeSignatures),
       signatureList(edgeSignatures),
-      primitiveViewSignature(layers, renderGraph, renderPrimitiveViewStates),
+      primitiveViewSignature(layers, renderPrimitiveViewStates),
       imageCacheSignature(upstreamImageLayers, imageCache),
     ];
     const contentKey = contentKeyParts.join('::');

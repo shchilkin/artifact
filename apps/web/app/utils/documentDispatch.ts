@@ -8,7 +8,6 @@
 import type { AspectRatio, CanvasDocument, CanvasGraph, ImageLayer, Layer } from '../types/config';
 import type { AddAction } from './addActions';
 import {
-  addEnvironmentMapToDocument,
   addLayersToGraphAreaInDocument,
   addLayerToDocument,
   addLooseLayerNodeToDocument,
@@ -16,7 +15,8 @@ import {
   createGraphAreaInDocument,
   type DocumentInsertConnectionConfig,
   deleteNodesFromDocument,
-  duplicateLayerInDocument,
+  duplicateNodeInDocument,
+  type Object3DSource,
   removeGraphAreaInDocument,
   removeLayerFromDocument,
   removeNodesFromAllGraphAreasInDocument,
@@ -26,10 +26,13 @@ import {
   reorderDocumentLayers,
   reorderDocumentLayersAndRemoveFromGraphArea,
   replaceSelectedImageSourceInDocument,
+  type SceneEnvironmentAsset,
   setDocumentAspect,
   setDocumentGraph,
   setDocumentSeed,
   setLayersVisibilityInDocument,
+  setObject3DSourceInDocument,
+  setSceneEnvironmentInDocument,
   toggleLayerVisibilityInDocument,
   updateDocumentExportConfig,
   updateGraphNodeInDocument,
@@ -42,7 +45,7 @@ import {
   type LayerAddPlacement,
   type TreeEditResult,
 } from './graphTreeEdits';
-import type { GraphEnvironmentNode, GraphNodePatch } from './nodeKinds';
+import type { GraphNodePatch } from './nodeKinds';
 
 type Position = { x: number; y: number };
 
@@ -78,11 +81,8 @@ export type DocumentCommand =
   | { type: 'updateExportConfig'; patch: Partial<CanvasDocument['export']> }
   | { type: 'addLayer'; layer: Layer; placement?: LayerAddPlacement }
   | { type: 'addImportedLayer'; layer: Layer; asNode: boolean; position?: Position }
-  | {
-      type: 'addEnvironmentMap';
-      asset: Pick<GraphEnvironmentNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>;
-      position?: Position;
-    }
+  | { type: 'setSceneEnvironment'; id: string; asset: SceneEnvironmentAsset }
+  | { type: 'setObject3DSource'; id: string; source: Object3DSource }
   | { type: 'addNodeAt'; action: AddAction; position: Position; insertion?: DocumentInsertConnectionConfig }
   | { type: 'addNodeAboveRow'; action: AddAction; anchorId: string; position: Position }
   | { type: 'removeLayer'; id: string }
@@ -176,9 +176,13 @@ const DOCUMENT_COMMANDS: { [T in DocumentCommandType]: CommandSpec<CommandOf<T>>
       select: layer.id,
     }),
   },
-  addEnvironmentMap: {
+  setSceneEnvironment: {
     history: 'snapshot',
-    run: (doc, { asset, position }) => addEnvironmentMapToDocument(doc, asset, position).doc,
+    run: (doc, { id, asset }) => setSceneEnvironmentInDocument(doc, id, asset),
+  },
+  setObject3DSource: {
+    history: 'snapshot',
+    run: (doc, { id, source }) => setObject3DSourceInDocument(doc, id, source),
   },
   addNodeAt: {
     history: 'snapshot',
@@ -205,8 +209,8 @@ const DOCUMENT_COMMANDS: { [T in DocumentCommandType]: CommandSpec<CommandOf<T>>
   duplicateLayer: {
     history: 'snapshot',
     run: (doc, { id }) => {
-      const result = duplicateLayerInDocument(doc, id);
-      return result.layer ? { doc: result.doc, select: result.layer.id } : doc;
+      const result = duplicateNodeInDocument(doc, id);
+      return result.id ? { doc: result.doc, select: result.id } : doc;
     },
   },
   reorderLayers: { history: 'snapshot', run: (doc, { layers }) => reorderDocumentLayers(doc, layers) },

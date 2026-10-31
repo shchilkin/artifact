@@ -83,6 +83,31 @@ Rules:
   the 3 -> 4 step: `kind: 'source'` aliases, 0-100 material percentages,
   removed shader kinds, and splitting combined effect layers (with graph
   rewiring). Builds before v0.51 cannot open schema 4 documents.
+- Schema 7 stores an effect layer as an ordered stack (`effects`, each entry
+  owning only its effect's parameters) plus `mix`, instead of every parameter of
+  every effect. The 6 -> 7 step lists the active effects in schema-6 pass order,
+  always keeps the layer's preset effect, and turns Bad Stream sub-presets into
+  its `badStreamStages` parameter. `makeDocument` stamps the current schema
+  version, so documents built in code skip migrations.
+- Schemas 8-17 merge effects into fewer effects with a `mode` (Color Filter,
+  Gradient Map, Color Overlay, Posterize, Glow, Rays, Grain, Halftone, Edges,
+  Channel Split, Line Glitch, Compression, Displace, Lens, Symmetry, Blur,
+  Pixelate, Alpha Crush, Adjust). Each step rewrites only the stack entries of
+  the effects it merges, through `migrateEffectEntries` and its own frozen
+  table.
+- Schema 18 turns Grime Shadow graph nodes into effect layers running the
+  Shadow effect, with the node's id, settings and connections.
+- Schema 19 folds 3D Scene and Environment Map nodes into 3D Object layers.
+  Each scene becomes a copy of the primitive or model layer on its `model` port,
+  under the scene's id, with the scene's settings as the layer's `scene`
+  (`types/scene3d.ts`), so its backdrop, material, outputs, and camera carry
+  over. A connected environment node's upload moves into `scene`, and the branch
+  on its input connects to the layer's `env` port. The source layer is removed
+  when nothing else used it; a scene without a model passes its backdrop
+  through, and a leftover environment node passes its input through.
+- Optional fields filled on load with the values that keep older documents'
+  look: fill `fillMode`/`colorB`/`angle`; text tracking, leading, outline and
+  shadow; effect layer `appliesTo`; any content layer's `clipToBelow`.
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.
@@ -415,7 +440,9 @@ Rules:
 
 - Model payloads, MIME type, file label, byte count, and created timestamp live
   in `modelAssetStore`; environment payloads and the same metadata live in
-  `envAssetStore`.
+  `envAssetStore`. A model ref lives on a `model` layer; an environment ref
+  lives in a 3D Object layer's `scene.environmentSrc` and is set with the
+  `setSceneEnvironment` command.
 - `.artifact.json` and editable `.artifact` project-package export must hydrate
   model and environment refs through `preparePortableDocument`, alongside image
   and font assets. Package export must not maintain a narrower asset list.

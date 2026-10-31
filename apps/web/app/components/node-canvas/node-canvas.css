@@ -1147,51 +1147,6 @@
   clip-path: inset(50%);
 }
 
-.retro-recipe-card {
-  display: grid;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--line-default);
-  border-radius: var(--control-radius);
-  background: color-mix(in oklch, var(--surface-control) 72%, transparent);
-  color: var(--node-text-dim);
-  font-family: var(--body);
-}
-
-.retro-recipe-kicker {
-  color: var(--accent-primary);
-  font-size: var(--type-editor-meta);
-  letter-spacing: 0.1em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.retro-recipe-main {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.retro-recipe-main strong {
-  color: var(--node-text);
-  font-size: 12px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.retro-recipe-main span {
-  color: var(--node-text-dim);
-  font-size: var(--type-editor-meta);
-}
-
-.retro-recipe-card p {
-  margin: 0;
-  font-size: 11px;
-  letter-spacing: 0.01em;
-  line-height: 1.45;
-}
-
 .indexed-palette-panel {
   display: grid;
   gap: 10px;

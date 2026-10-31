@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { validateCustomShaderCode } from '../../../utils/customShaderCode';
 import type { GraphShaderNode } from '../../../utils/nodeKinds';
-import { useNodeCanvasActions } from '../context';
+import { useGraphNodeHide, useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { NodeFrame } from '../nodes/NodeFrame';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
@@ -42,6 +42,7 @@ const ShaderNodeComponent = memo(function ShaderNodeComponent({
       : null;
   const codeOverlay = codeIssue ? <ShaderNodeCodeOverlay empty={code.trim().length === 0} /> : null;
 
+  const hideProps = useGraphNodeHide(shaderNode);
   return (
     <NodeFrame
       id={shaderNode.id}
@@ -54,6 +55,7 @@ const ShaderNodeComponent = memo(function ShaderNodeComponent({
       connected={connected}
       targetHandles={effectRole ? [{ id: 'bg' }] : []}
       onSelect={(event) => selectNode(shaderNode.id, event)}
+      {...hideProps}
       onDelete={() => deleteNode(shaderNode.id)}
     >
       <NodeThumbnail

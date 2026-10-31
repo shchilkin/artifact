@@ -174,8 +174,8 @@ const SOURCE_NODES: NodeDef[] = [
   {
     id: 'primitive',
     symbol: '◍',
-    name: 'Primitive',
-    desc: 'A lightweight faux-3D form, rendered directly into the canvas. Material color and light color are durable; camera rotate/pan/zoom is controlled inside the node preview.',
+    name: '3D Object',
+    desc: 'A built-in 3D shape or an imported GLB model. Rotate, pan, and zoom the camera inside the node preview. Turn on scene lighting to light it with a key, fill, and rim rig, load an EXR or HDR environment map, and connect a material or environment branch.',
     params: [
       { key: 'primitiveDepth', range: '10–100' },
       { key: 'tiltX', range: '0–90' },
@@ -233,7 +233,7 @@ const SOURCE_NODES: NodeDef[] = [
   {
     id: 'array',
     symbol: '▦',
-    name: 'Array',
+    name: 'Shape Pattern',
     desc: 'A motif repeater for lines, grids, and radial bursts. Start from sticker grid, radial burst, barcode line, orbit rings, or shard field presets, then tune the same array fields.',
     params: [
       { key: 'arrayCount', range: '2–18' },
@@ -330,10 +330,6 @@ export const GRAPH_UTILITY_GUIDE = [
   {
     name: 'Transform',
     desc: 'Moves, scales, rotates, and fades a completed upstream branch after masks, effects, and other graph utilities. Pivot can use the canvas center or the visible alpha center for masked objects.',
-  },
-  {
-    name: 'Grime Shadow',
-    desc: 'Builds a layered dirty shadow from the visible alpha of an upstream branch. Use Shadow only when the shadow should be merged separately.',
   },
 ];
 

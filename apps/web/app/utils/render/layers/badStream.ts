@@ -1,4 +1,4 @@
-import type { EffectLayer } from '../../../types/config';
+import type { KernelParamValues } from '../../../types/effectKernels';
 import { lcg } from '../../lcg';
 import { cloneCanvas } from '../canvas';
 
@@ -95,25 +95,25 @@ interface BlockRect {
   h: number;
 }
 
-function resolveBadStreamConfig(layer: EffectLayer, scale: number): BadStreamConfig | null {
-  const amount = clamp(layer.badStream, 0, 100) / 100;
+function resolveBadStreamConfig(params: KernelParamValues, scale: number): BadStreamConfig | null {
+  const amount = clamp(params.badStream, 0, 100) / 100;
   if (amount <= 0) return null;
 
-  const macroSize = Math.max(4, Math.round(clamp(layer.badStreamBlockSize, 4, 240) * scale));
+  const macroSize = Math.max(4, Math.round(clamp(params.badStreamBlockSize, 4, 240) * scale));
   const detailSize = Math.max(3, Math.round(macroSize * 0.22));
-  const detail = clamp(layer.badStreamDetail, 0, 100) / 100;
-  const smear = clamp(layer.badStreamSmear, 0, 100) / 100;
-  const chroma = clamp(layer.badStreamChroma, 0, 100) / 100;
-  const darkness = clamp(layer.badStreamDarkness, 0, 100) / 100;
+  const detail = clamp(params.badStreamDetail, 0, 100) / 100;
+  const smear = clamp(params.badStreamSmear, 0, 100) / 100;
+  const chroma = clamp(params.badStreamChroma, 0, 100) / 100;
+  const darkness = clamp(params.badStreamDarkness, 0, 100) / 100;
   const macroStride = Math.max(1, Math.floor(macroSize / 8));
   const detailStride = Math.max(1, Math.floor(detailSize / 3));
-  const preset = layer.preset;
-  const isAllInOne = preset === 'badStream' || preset === undefined;
-  const drawMacroFill = isAllInOne || preset === 'macroblocks';
-  const drawDetailBlocks = isAllInOne || preset === 'detailBlocks' || preset === 'chromaBlocks';
-  const drawBlockSmear = isAllInOne || preset === 'blockSmear';
-  const drawChromaBlocks = isAllInOne || preset === 'chromaBlocks';
-  const drawBlockDropout = isAllInOne || preset === 'blockDropout';
+  const stages = params.badStreamStages;
+  const isAllInOne = stages === 'all';
+  const drawMacroFill = isAllInOne || stages === 'macroblocks';
+  const drawDetailBlocks = isAllInOne || stages === 'detailBlocks' || stages === 'chromaBlocks';
+  const drawBlockSmear = isAllInOne || stages === 'blockSmear';
+  const drawChromaBlocks = isAllInOne || stages === 'chromaBlocks';
+  const drawBlockDropout = isAllInOne || stages === 'blockDropout';
 
   return {
     amount,
@@ -308,11 +308,11 @@ export function applyBadStreamEffect(
   ctx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  layer: EffectLayer,
+  params: KernelParamValues,
   seed: number,
   scale: number,
 ) {
-  const cfg = resolveBadStreamConfig(layer, scale);
+  const cfg = resolveBadStreamConfig(params, scale);
   if (!cfg) return;
 
   const state: BadStreamState = {

@@ -131,11 +131,9 @@ A custom graph is any other graph. Nodes can be:
 - merge nodes
 - color nodes
 - repeat nodes
-- mask, transform, and grime-shadow nodes
+- mask and transform nodes
 - material nodes
 - shader nodes
-- environment-map nodes
-- 3D scene nodes
 - export node
 
 `renderGraphTarget` recursively renders upstream dependencies and composes the result.
@@ -284,19 +282,44 @@ Layer rendering happens through `applyLayerToCanvas` in
 | Layer kind | Renderer |
 | --- | --- |
 | `emoji` | Canvas 2D seeded scatter |
-| `text` | Canvas 2D text with transform, opacity, blend |
+| `text` | Canvas 2D text with transform, opacity, blend, tracking, leading, outline, and shadow |
 | `image` | Canvas 2D image fit/transform |
-| `fill` | Canvas 2D fill |
+| `fill` | Canvas 2D solid, linear, or radial gradient fill |
 | `primitive` | Three.js offscreen render, then Canvas 2D composite |
+| `model` | Three.js offscreen GLB render, then Canvas 2D composite |
 | `noise` | Canvas procedural source |
 | `array` | Canvas procedural source |
 | `effect` | Canvas effects plus PixiJS GPU filters |
 
-Effect layers accept an optional `blendMode`. Unset or `normal` replaces the
-input with the effect result, as before. Any other mode composites the effect
-result over the untouched input with that Canvas 2D composite operation, after
-`maskAlpha`. Effect layers with a non-normal blend mode are excluded from the
-fused GPU-only effect chain in graph mode so stack and graph output match.
+An effect layer renders its stack top to bottom (`utils/effectStack.ts`).
+Each enabled entry becomes the kernel calls its effect makes
+(`types/effectSchema.ts`). Active calls are cut into runs: consecutive calls of
+one pass (Canvas 2D / worker, or GPU) whose kernels follow `KERNEL_PASS_ORDER`. A Canvas
+2D run is one `applyCanvas2DEffects` call and all Canvas 2D runs of a layer
+share one seeded random stream; consecutive GPU runs share one GPU pass. A stack
+listed in pass order therefore renders exactly as the schema-6 parameter bag
+did, which keeps the golden fixtures unchanged across the schema 6 -> 7
+migration.
+
+An effect layer with `appliesTo: 'layerBelow'` runs its stack on the layer
+below alone (rendered over transparency) and draws the result over that layer's
+own input with that layer's blend mode. When the layer below is an effect, a
+clipped layer, a graph-only node, or missing, the stack runs on everything below
+as usual.
+
+A content layer with `clipToBelow` draws only inside the alpha of its clip base:
+the nearest upstream layer that is neither an effect nor clipped, rendered
+alone. The output is the input outside the clip plus the layer's normal result
+inside it, weighted by the clip alpha (`destination-out`, `destination-in`,
+then `lighter`), so blend modes and opacity behave as without the clip. Without
+a clip base the clip is the whole input.
+
+Effect layers accept an optional `blendMode` and a `mix` (0-100, default 100).
+With `normal` and full mix the effect result replaces the input, as before.
+Otherwise the result is composited over the untouched input with that Canvas 2D
+composite operation at `mix` opacity, after `maskAlpha`. Such layers are
+excluded from the fused GPU-only effect chain in graph mode so stack and graph
+output match.
 
 Primitive layers are rendered as frame-fitted sources in both stack and graph paths. Their old document placement fields may still exist for compatibility, but the UI no longer exposes primitive placement controls; camera and framing are handled by the primitive viewport state instead.
 
@@ -374,6 +397,22 @@ If no override exists, the fallback comes from layer defaults:
 Important rule:
 
 > Interactive primitive camera rotation should not write back into `tiltX/tiltY`. Those fields are durable defaults, not the live camera.
+
+### Scene lighting
+
+A 3D Object layer (`primitive` or `model`) with `scene` settings renders through
+`renderScene3DLayer` (`apps/web/app/utils/render/scene3dLayer.ts`) instead of the
+plain source path: one full-frame `renderModelSceneToCanvas` call over the
+layer's `bg` input as backdrop, lit by the scene's rig and exposure, with the
+material from its `material` port and an environment from the scene's map file
+or, when none is loaded, the branch on its `env` port (rendered at
+`environmentRenderSize`, 2:1). The layer's opacity and blend do not apply on
+this path, as with the former 3D Scene node, so the inspector hides its Style
+section while scene lighting is on. Draft renders and contexts without
+WebGL use the Canvas 2D fallback shape. The live node preview
+(`Scene3DPreviewSurface`) uses the same settings, material, and environment
+inputs through `ModelViewport3D`. Camera state comes from
+`primitiveViewStates[layer.id]`.
 
 ## Node thumbnails
 

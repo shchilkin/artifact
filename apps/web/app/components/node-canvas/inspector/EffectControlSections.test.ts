@@ -1,20 +1,36 @@
 import { describe, expect, it } from 'vitest';
 
-import { EFFECT_PRESET_MENU_ORDER } from '../../../types/config';
+import {
+  KERNEL_PARAM_KEYS,
+  type KernelId,
+  type KernelParamKey,
+  kernelParam,
+  type NumberParamSpec,
+} from '../../../types/effectKernels';
+import { EFFECT_IDS, effectSpec } from '../../../types/effectSchema';
 import { EFFECT_META } from '../../../utils/effectInfo';
 import {
   activeIndexedPaletteCount,
-  EFFECT_SECTION_DEFINITIONS,
-  type EffectSliderControl,
   effectSliderUnit,
   formatEffectSliderValue,
   randomIndexedPalettePatch,
 } from './EffectControlSections';
 
-function findSlider(field: EffectSliderControl['field']): EffectSliderControl {
-  const control = EFFECT_SECTION_DEFINITIONS.flatMap((section) => section.controls).find(
-    (item): item is EffectSliderControl => item.type === 'slider' && item.field === field,
-  );
+type SliderMetadata = Omit<NumberParamSpec, 'format'> & {
+  field: KernelParamKey;
+  kernel: KernelId;
+  valueFormat?: NumberParamSpec['format'];
+};
+
+function sliderOf(field: KernelParamKey): SliderMetadata | null {
+  const param = kernelParam(field);
+  if (param.type !== 'number') return null;
+  const { format, ...rest } = param;
+  return { ...rest, field, valueFormat: format };
+}
+
+function findSlider(field: KernelParamKey): SliderMetadata {
+  const control = sliderOf(field);
   if (!control) throw new Error(`Missing slider metadata for ${field}`);
   return control;
 }
@@ -38,14 +54,8 @@ describe('EffectControlSections metadata', () => {
     expect(effectSliderUnit()).toBeUndefined();
   });
 
-  it('keeps every effect preset represented by the shared inspector metadata', () => {
-    const represented = new Set(
-      EFFECT_SECTION_DEFINITIONS.flatMap((section) => section.controls.flatMap((control) => control.presets)),
-    );
-
-    for (const preset of EFFECT_PRESET_MENU_ORDER) {
-      expect(represented.has(preset)).toBe(true);
-    }
+  it('gives every effect at least one control', () => {
+    for (const effect of EFFECT_IDS) expect(Object.keys(effectSpec(effect).params).length, effect).toBeGreaterThan(0);
   });
 
   it('uses focused creative ranges for texture, pixel, and print controls', () => {
@@ -97,12 +107,10 @@ describe('EffectControlSections metadata', () => {
       overrideMax: 180,
       valueFormat: 'px',
     });
-    expect(findSlider('badStreamDetail').presets).toEqual(
-      expect.arrayContaining(['badStream', 'detailBlocks', 'chromaBlocks']),
-    );
-    expect(findSlider('badStreamSmear').presets).toEqual(expect.arrayContaining(['badStream', 'blockSmear']));
-    expect(findSlider('badStreamChroma').presets).toEqual(expect.arrayContaining(['badStream', 'chromaBlocks']));
-    expect(findSlider('badStreamDarkness').presets).toEqual(expect.arrayContaining(['badStream', 'blockDropout']));
+    expect(findSlider('badStreamDetail').kernel).toBe('badStream');
+    expect(findSlider('badStreamSmear').kernel).toBe('badStream');
+    expect(findSlider('badStreamChroma').kernel).toBe('badStream');
+    expect(findSlider('badStreamDarkness').kernel).toBe('badStream');
     expect(findSlider('pixelStretch')).toMatchObject({
       label: 'Stretch',
       max: 100,
@@ -200,10 +208,8 @@ describe('EffectControlSections metadata', () => {
 });
 
 describe('effect help limits', () => {
-  const sliders = EFFECT_SECTION_DEFINITIONS.flatMap((section) => section.controls).filter(
-    (control): control is EffectSliderControl => control.type === 'slider',
-  );
-  const helpFor = (control: EffectSliderControl) => EFFECT_META[control.effectKey ?? control.field]?.description ?? '';
+  const sliders = KERNEL_PARAM_KEYS.flatMap((field) => sliderOf(field) ?? []);
+  const helpFor = (control: SliderMetadata) => EFFECT_META[control.help ?? control.field]?.description ?? '';
 
   it('promises typing past the slider only for controls whose entry accepts it, naming the control and its limits', () => {
     for (const control of sliders) {

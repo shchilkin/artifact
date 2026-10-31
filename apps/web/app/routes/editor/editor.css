@@ -387,6 +387,19 @@
   width: 100%;
 }
 
+.node-mode-loading {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-app);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .project-workspace-button {
   position: relative;
   gap: 6px;

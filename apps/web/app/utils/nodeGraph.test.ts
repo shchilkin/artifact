@@ -302,7 +302,7 @@ describe('graph mutations', () => {
     expect(removed.areas?.[0]?.nodeIds).toEqual([]);
   });
 
-  it('adds, updates, and removes grime shadow nodes with positions and connected edges', () => {
+  it('adds, updates, and removes transform nodes with positions and connected edges', () => {
     const graph = emptyGraph({
       edges: [
         { id: 'e-source-shadow', fromId: 'source-a', fromPort: 'out', toId: 'shadow-1', toPort: 'in' },
@@ -310,31 +310,16 @@ describe('graph mutations', () => {
       ],
       areas: [{ id: 'area-main', name: 'Main', color: '#ff6b5a', nodeIds: ['shadow-1'] }],
     });
-    const grimeShadowNode = {
-      kind: 'grimeShadow' as const,
-      id: 'shadow-1',
-      name: 'Grime Shadow',
-      x: 8,
-      y: 10,
-      layers: 5,
-      blur: 10,
-      spread: 14,
-      grime: 45,
-      jitter: 10,
-      opacity: 58,
-      color: '#090606',
-      seedOffset: 0,
-      shadowOnly: false,
-    };
+    const transformNode = makeGraphTransformNode({ id: 'shadow-1' });
 
-    const withNode = addGraphNode(graph, grimeShadowNode, { x: 220, y: 160 });
-    const updated = updateGraphNode(withNode, 'shadow-1', { grime: 80, shadowOnly: true });
+    const withNode = addGraphNode(graph, transformNode, { x: 220, y: 160 });
+    const updated = updateGraphNode(withNode, 'shadow-1', { rotation: 80, opacity: 40 });
     const removed = removeGraphNode(updated, 'shadow-1');
 
-    expect(graphNodesOfKind(withNode, 'grimeShadow')).toEqual([grimeShadowNode]);
+    expect(graphNodesOfKind(withNode, 'transform')).toEqual([transformNode]);
     expect(withNode.positions['shadow-1']).toEqual({ x: 220, y: 160 });
-    expect(graphNodesOfKind(updated, 'grimeShadow')?.[0]).toEqual({ ...grimeShadowNode, grime: 80, shadowOnly: true });
-    expect(graphNodesOfKind(removed, 'grimeShadow')).toEqual([]);
+    expect(graphNodesOfKind(updated, 'transform')?.[0]).toEqual({ ...transformNode, rotation: 80, opacity: 40 });
+    expect(graphNodesOfKind(removed, 'transform')).toEqual([]);
     expect(removed.positions['shadow-1']).toBeUndefined();
     expect(removed.edges).toEqual([]);
     expect(removed.areas?.[0]?.nodeIds).toEqual([]);

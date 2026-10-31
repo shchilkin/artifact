@@ -1,5 +1,10 @@
-import { DEFAULT_EFFECT_LAYER_PROPS, EFFECT_PRESETS, type EffectLayer, type EffectPreset } from '../../types/config';
-import { activeEffectPatchPresets, splitEffectPatchIntoPresetLayers } from './legacyEffectSplit';
+import { EFFECT_PRESETS, type EffectPreset } from '../../types/config';
+import { KERNEL_PARAM_DEFAULTS } from '../../types/effectKernels';
+import {
+  activeEffectPatchPresets,
+  type StoredEffectLayer,
+  splitEffectPatchIntoPresetLayers,
+} from './legacyEffectSplit';
 import { isRecord, replacementShaderKind, type StoredDocument } from './shared';
 
 /**
@@ -17,13 +22,13 @@ export function migrateV3ToV4(raw: StoredDocument): StoredDocument {
         if (!isRecord(layer)) return [layer];
         const migrated = migrateLayer(layer);
         if (migrated.kind !== 'effect') return [migrated];
-        const effect = { ...DEFAULT_EFFECT_LAYER_PROPS, ...migrated } as Partial<EffectLayer>;
+        const effect: StoredEffectLayer = { maskAlpha: false, seedOffset: 0, ...KERNEL_PARAM_DEFAULTS, ...migrated };
         if (!shouldSplitEffectLayer(effect)) return [migrated];
         const sourceId = String(migrated.id ?? 'effect');
         const parts = splitEffectPatchIntoPresetLayers(effect, { idPrefix: sourceId });
         splitLayerIds.set(
           sourceId,
-          parts.map((part) => part.id),
+          parts.map((part) => String(part.id)),
         );
         return parts;
       })
@@ -96,7 +101,7 @@ function isFocusedPreset(value: unknown): value is EffectPreset {
 }
 
 /** A layer splits when it uses a removed combined preset or carries fields that belong to another preset. */
-export function shouldSplitEffectLayer(layer: Partial<EffectLayer>): boolean {
+export function shouldSplitEffectLayer(layer: StoredEffectLayer): boolean {
   if (LEGACY_COMBINED_PRESETS.has(String(layer.preset))) return true;
   const activePresets = activeEffectPatchPresets(layer);
   const preset = layer.preset;

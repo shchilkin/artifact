@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CanvasGraph } from '../../types/config';
-import { graphNodesById } from '../../utils/nodeGraph';
-import { makeGraphScene3DNode } from '../../utils/nodeKinds';
 import { prunePrimitiveViewStates } from './useEditorPrimitiveExportState';
 
 const viewState = {
@@ -13,21 +10,8 @@ const viewState = {
   panY: -0.2,
 };
 
-function emptyGraph(partial: Partial<CanvasGraph> = {}): CanvasGraph {
-  return {
-    edges: [],
-    positions: {},
-    nodes: graphNodesById(),
-    ...partial,
-  };
-}
-
 describe('useEditorPrimitiveExportState', () => {
-  it('persists camera state for primitive, model, and 3D scene viewport ids', () => {
-    const graph = emptyGraph({
-      nodes: graphNodesById(makeGraphScene3DNode({ id: 'scene-a' })),
-    });
-
+  it('persists camera state for 3D Object viewport ids only', () => {
     expect(
       prunePrimitiveViewStates(
         {
@@ -41,12 +25,10 @@ describe('useEditorPrimitiveExportState', () => {
           { id: 'model-a', kind: 'model' },
           { id: 'fill-a', kind: 'fill' },
         ],
-        graph,
       ),
     ).toEqual({
       'primitive-a': { ...viewState, rotationX: 10 },
       'model-a': { ...viewState, rotationX: 20 },
-      'scene-a': { ...viewState, rotationX: 30 },
     });
   });
 });

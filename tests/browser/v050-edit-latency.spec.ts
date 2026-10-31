@@ -116,7 +116,9 @@ test('a slider value still waiting when the selection changes goes to the layer 
 
   await expect(slider).toHaveValue('24');
   await expect
-    .poll(async () => JSON.parse(await storedLayer(page, 'v050-lines-a')).scanlines, { timeout: 15_000 })
+    .poll(async () => JSON.parse(await storedLayer(page, 'v050-lines-a')).effects[0].params.scanlines, {
+      timeout: 15_000,
+    })
     .toBe(31);
   await page.waitForTimeout(300);
   expect(await storedLayer(page, 'v050-lines-b')).toBe(layerB);

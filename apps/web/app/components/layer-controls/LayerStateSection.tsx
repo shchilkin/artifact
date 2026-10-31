@@ -28,11 +28,21 @@ export function LayerStateSection({ layer, onChange }: { layer: Layer; onChange:
         locked={layer.locked}
         onChange={(locked) => onChange({ locked })}
       />
+      {layer.kind !== 'effect' && (
+        <InspectorToggle
+          checked={layer.clipToBelow === true}
+          label="Clip to layer below"
+          locked={layer.locked}
+          onChange={(clipToBelow) => onChange({ clipToBelow })}
+        />
+      )}
     </InspectorSection>
   );
 }
 
 function layerStateSummary(layer: Layer) {
-  const visibility = layer.visible ? 'Visible' : 'Hidden';
-  return layer.locked ? `${visibility} / locked` : visibility;
+  const parts = [layer.visible ? 'Visible' : 'Hidden'];
+  if (layer.locked) parts.push('locked');
+  if (layer.kind !== 'effect' && layer.clipToBelow) parts.push('clipped');
+  return parts.join(' / ');
 }

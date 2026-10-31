@@ -253,7 +253,12 @@ export async function readStoredLayerField(
       const layer = doc.layers?.find(
         (candidate: Record<string, unknown>) => candidate[layerSelector.key] === layerSelector.value,
       );
-      return layer?.[layerField] ?? null;
+      if (layer && layerField in layer) return layer[layerField];
+      // Effect parameters live on the layer's stack entries.
+      const entry = (layer?.effects as Array<{ params: Record<string, unknown> }> | undefined)?.find(
+        (candidate) => layerField in candidate.params,
+      );
+      return entry?.params[layerField] ?? null;
     },
     { selector, field },
   );

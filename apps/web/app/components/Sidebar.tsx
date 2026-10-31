@@ -2,17 +2,14 @@ import { Button } from '@artifact/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { type AspectRatio, type CanvasDocument, type ImageLayer, type Layer } from '../types/config';
 import type { DocumentCommand } from '../utils/documentDispatch';
-import { buildGraphTargetSummary, buildLayerTargetSummary } from '../utils/editorTargetSummary';
+import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
 import { findGraphUtilityNode } from '../utils/nodeGraph';
-import type { GraphScene3DNode } from '../utils/nodeKinds';
-import { getScene3DTarget } from '../utils/scene3DInputs';
 import { AiGenerationPanel } from './AiGenerationPanel';
 import { EditorTargetOverview } from './editor-target/EditorTargetHeader';
 import { InspectorSection as ArtifactInspectorSection } from './inspector-system';
 import { LayerTargetInspector } from './layer-controls/LayerTargetInspector';
 import type { LayerPanelProps } from './layers-panel/LayerPanel';
 import { LayerPanel } from './layers-panel/LayerPanel';
-import { SceneTargetInspector } from './node-canvas/inspector/SceneTargetInspector';
 import { EmptyState } from './ui/EmptyState';
 
 type SidebarLayerPanelProps = Pick<
@@ -24,7 +21,6 @@ type SidebarLayerPanelProps = Pick<
   | 'onAddTextPreset'
   | 'onAddNoisePreset'
   | 'onAddArrayPreset'
-  | 'onAddScene3D'
   | 'onStartAiImage'
   | 'onRemoveLayer'
   | 'onDuplicateLayer'
@@ -41,7 +37,8 @@ interface Props extends SidebarLayerPanelProps {
   onGeneratedImageSource?: (src: string, generation: NonNullable<ImageLayer['aiGeneration']>) => void;
   mobileActionBar?: React.ReactNode;
   onReplaceModelLayerFile?: (id: string, file: File) => void;
-  onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
+  onLoadSceneEnvironmentFile?: (id: string, file: File) => void;
+  onUseShapeSource?: (id: string) => void;
 }
 
 interface SectionProps {
@@ -79,14 +76,6 @@ function selectedLayerTargetSummary(doc: CanvasDocument, selectedLayer: Layer | 
     graph: doc.graph,
     layers: doc.layers,
   });
-}
-
-function selectedSceneTargetSummary(doc: CanvasDocument, scene: GraphScene3DNode | null) {
-  if (!scene) return null;
-  return buildGraphTargetSummary(
-    { kind: 'graphNode', node: scene },
-    { graph: doc.graph, layers: doc.layers, surface: 'layers' },
-  );
 }
 
 function useLayerPanelHandlers({
@@ -159,12 +148,16 @@ function SelectedLayerSections({
   selectedTargetSummary,
   onDocCommand,
   onReplaceModelLayerFile,
+  onLoadSceneEnvironmentFile,
+  onUseShapeSource,
 }: {
   doc: CanvasDocument;
   selectedLayer: Layer | null;
   selectedTargetSummary: ReturnType<typeof buildLayerTargetSummary> | null;
   onDocCommand: (command: DocumentCommand) => void;
   onReplaceModelLayerFile?: (id: string, file: File) => void;
+  onLoadSceneEnvironmentFile?: (id: string, file: File) => void;
+  onUseShapeSource?: (id: string) => void;
 }) {
   if (!selectedLayer) return null;
   const layerId = selectedLayer.id;
@@ -180,34 +173,10 @@ function SelectedLayerSections({
         onChange={applyPatch}
         onImageSource={(src) => onDocCommand({ type: 'replaceImageSource', id: layerId, src })}
         onLoadModelFile={onReplaceModelLayerFile ? (file) => onReplaceModelLayerFile(layerId, file) : undefined}
-      />
-    </div>
-  );
-}
-
-function SelectedScene3DSections({
-  doc,
-  scene,
-  selectedTargetSummary,
-  onDocCommand,
-  onReplaceEnvironmentNodeFile,
-}: {
-  doc: CanvasDocument;
-  scene: GraphScene3DNode | null;
-  selectedTargetSummary: ReturnType<typeof selectedSceneTargetSummary>;
-  onDocCommand: (command: DocumentCommand) => void;
-  onReplaceEnvironmentNodeFile?: (id: string, file: File) => void;
-}) {
-  if (!scene) return null;
-  return (
-    <div className="layer-inspector-sections artifact-inspector-sidebar artifact-inspector-scroll">
-      {selectedTargetSummary && <EditorTargetOverview summary={selectedTargetSummary} />}
-      <SceneTargetInspector
-        doc={doc}
-        scene={scene}
-        onUpdateScene={(patch) => onDocCommand({ type: 'updateGraphNode', id: scene.id, patch })}
-        onUpdateEnvironment={(id, patch) => onDocCommand({ type: 'updateGraphNode', id, patch })}
-        onLoadEnvironmentFile={onReplaceEnvironmentNodeFile}
+        onLoadEnvironmentFile={
+          onLoadSceneEnvironmentFile ? (file) => onLoadSceneEnvironmentFile(layerId, file) : undefined
+        }
+        onUseShapeSource={onUseShapeSource ? () => onUseShapeSource(layerId) : undefined}
       />
     </div>
   );
@@ -233,7 +202,7 @@ function InspectorEmptyState({ hasLayers }: { hasLayers: boolean }) {
 function selectedGraphOnlyNode(doc: CanvasDocument, id: string | null) {
   if (!id) return null;
   const found = findGraphUtilityNode(doc.graph, id);
-  return found && found.kind !== 'scene3d' ? found.node : null;
+  return found ? found.node : null;
 }
 
 function GraphNodeInspectorNotice({
@@ -294,7 +263,6 @@ export function Sidebar({
   onAddTextPreset,
   onAddNoisePreset,
   onAddArrayPreset,
-  onAddScene3D,
   onStartAiImage,
   onRemoveLayer,
   onReorderLayers,
@@ -306,13 +274,12 @@ export function Sidebar({
   mobileActionBar,
   modeSwitcher,
   onReplaceModelLayerFile,
-  onReplaceEnvironmentNodeFile,
+  onLoadSceneEnvironmentFile,
+  onUseShapeSource,
 }: Props) {
   const selectedLayer = doc.layers.find((layer) => layer.id === selectedLayerId) ?? null;
-  const selectedScene = getScene3DTarget(doc, selectedLayerId);
   const selectedGraphNode = selectedGraphOnlyNode(doc, selectedLayerId);
   const selectedTargetSummary = useMemo(() => selectedLayerTargetSummary(doc, selectedLayer), [doc, selectedLayer]);
-  const selectedSceneSummary = useMemo(() => selectedSceneTargetSummary(doc, selectedScene), [doc, selectedScene]);
   const layerPanelHandlers = useLayerPanelHandlers({ onDocCommand, onReorderLayers });
 
   const handleAspectChange = useCallback(
@@ -320,7 +287,7 @@ export function Sidebar({
     [onDocCommand],
   );
 
-  const hasInspectorContent = Boolean(showAiGeneration || selectedLayer || selectedScene || selectedGraphNode);
+  const hasInspectorContent = Boolean(showAiGeneration || selectedLayer || selectedGraphNode);
 
   return (
     <>
@@ -337,7 +304,6 @@ export function Sidebar({
             onAddTextPreset={onAddTextPreset}
             onAddNoisePreset={onAddNoisePreset}
             onAddArrayPreset={onAddArrayPreset}
-            onAddScene3D={onAddScene3D}
             onStartAiImage={onStartAiImage}
             onRemoveLayer={onRemoveLayer}
             onReorderLayers={layerPanelHandlers.handleReorderLayers}
@@ -378,13 +344,8 @@ export function Sidebar({
           selectedTargetSummary={selectedTargetSummary}
           onDocCommand={onDocCommand}
           onReplaceModelLayerFile={onReplaceModelLayerFile}
-        />
-        <SelectedScene3DSections
-          doc={doc}
-          scene={selectedScene}
-          selectedTargetSummary={selectedSceneSummary}
-          onDocCommand={onDocCommand}
-          onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
+          onLoadSceneEnvironmentFile={onLoadSceneEnvironmentFile}
+          onUseShapeSource={onUseShapeSource}
         />
       </aside>
     </>

@@ -4,11 +4,12 @@ import {
   makeDocument,
   makeFillLayer,
   makeImageLayer,
+  makeScene3DSettings,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
 import { inspectDocumentDependencies } from './documentAssets';
-import { makePortableAssetLoaders } from './documentAssetTestHelpers';
+import { makePortableAssetLoaders, sceneOf } from './documentAssetTestHelpers';
 import {
   ARTIFACT_PROJECT_PACKAGE_EXTENSION,
   ARTIFACT_PROJECT_PACKAGE_KIND,
@@ -22,8 +23,7 @@ import {
   serializeArtifactProjectPackage,
 } from './documentPackage';
 import { fontUriFromId } from './fontStore';
-import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind } from './nodeGraph';
-import { makeGraphEnvironmentNode } from './nodeKinds';
+import { EXPORT_NODE_ID, graphNodesById } from './nodeGraph';
 
 describe('documentPackage', () => {
   const imageRef = 'artifact-asset://image-a';
@@ -241,18 +241,14 @@ describe('documentPackage', () => {
     });
     const projectPackage = await prepareArtifactProjectPackage(
       doc({
-        layers: [makeSourceLayer('model', { id: 'model-node', modelSrc: modelRef, modelName: 'Untitled.glb' })],
-        graph: {
-          edges: [],
-          positions: {},
-          nodes: graphNodesById(
-            makeGraphEnvironmentNode({
-              id: 'environment-node',
-              environmentSrc: environmentRef,
-              environmentName: 'Qwantani Dusk.exr',
-            }),
-          ),
-        },
+        layers: [
+          makeSourceLayer('model', {
+            id: 'model-node',
+            modelSrc: modelRef,
+            modelName: 'Untitled.glb',
+            scene: makeScene3DSettings({ environmentSrc: environmentRef, environmentName: 'Qwantani Dusk.exr' }),
+          }),
+        ],
       }),
       { loadModelAsset, loadEnvironmentAsset },
     );
@@ -317,7 +313,7 @@ describe('documentPackage', () => {
       modelMime: 'model/gltf-binary',
       modelBytes: 2_008_530,
     });
-    expect(graphNodesOfKind(imported.graph, 'environment')?.[0]).toMatchObject({
+    expect(sceneOf(imported.layers[0])).toMatchObject({
       environmentSrc: environmentRef,
       environmentName: 'Qwantani Dusk.exr',
       environmentMime: 'image/x-exr',
@@ -335,20 +331,14 @@ describe('documentPackage', () => {
           modelName: '',
           modelMime: '',
           modelBytes: 0,
-        }),
-      ],
-      graph: {
-        edges: [],
-        positions: {},
-        nodes: graphNodesById(
-          makeGraphEnvironmentNode({
+          scene: makeScene3DSettings({
             environmentSrc: environmentRef,
             environmentName: '',
             environmentMime: '',
             environmentBytes: 0,
           }),
-        ),
-      },
+        }),
+      ],
     });
 
     const manifest = buildArtifactProjectPackageManifest(sourceDoc, sourceDoc);
@@ -370,15 +360,13 @@ describe('documentPackage', () => {
           fonts: [],
         },
         document: doc({
-          schemaVersion: 3,
-          layers: [makeSourceLayer('model', { modelSrc: modelRef, modelName: 'Untitled.glb' })],
-          graph: {
-            edges: [],
-            positions: {},
-            nodes: graphNodesById(
-              makeGraphEnvironmentNode({ environmentSrc: environmentRef, environmentName: 'Qwantani Dusk.exr' }),
-            ),
-          },
+          layers: [
+            makeSourceLayer('model', {
+              modelSrc: modelRef,
+              modelName: 'Untitled.glb',
+              scene: makeScene3DSettings({ environmentSrc: environmentRef, environmentName: 'Qwantani Dusk.exr' }),
+            }),
+          ],
         }),
       }),
     );
@@ -386,7 +374,7 @@ describe('documentPackage', () => {
     const imported = await importArtifactProjectPackage(legacyPackage!);
 
     expect(imported.layers[0]).toMatchObject({ kind: 'model', modelSrc: modelRef });
-    expect(graphNodesOfKind(imported.graph, 'environment')?.[0]).toMatchObject({ environmentSrc: environmentRef });
+    expect(sceneOf(imported.layers[0])).toMatchObject({ environmentSrc: environmentRef });
     expect(inspectDocumentDependencies(imported)).toMatchObject({
       importedModelRefs: [modelRef],
       importedEnvironmentRefs: [environmentRef],

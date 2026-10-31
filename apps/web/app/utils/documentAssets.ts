@@ -1,5 +1,11 @@
-import { type CanvasDocument, type ImageLayer, MATERIAL_TEXTURE_SOURCE_FIELDS, type ModelLayer } from '../types/config';
-import type { GraphMaterialNode, GraphScene3DNode } from '../utils/nodeKinds';
+import {
+  type CanvasDocument,
+  type ImageLayer,
+  isObject3DLayer,
+  MATERIAL_TEXTURE_SOURCE_FIELDS,
+  type ModelLayer,
+} from '../types/config';
+import type { GraphMaterialNode } from '../utils/nodeKinds';
 import {
   type HydrateDocumentImageAssetOptions,
   hydrateDocumentImageAssets,
@@ -79,10 +85,7 @@ function collectDocumentModelSources(doc: CanvasDocument): string[] {
 }
 
 function collectDocumentEnvironmentSources(doc: CanvasDocument): string[] {
-  return [
-    ...graphNodesOfKind(doc.graph, 'environment').flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
-    ...graphNodesOfKind(doc.graph, 'scene3d').flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
-  ];
+  return [...sceneEnvironmentSources(doc)];
 }
 
 export function inspectDocumentDependencies(doc: CanvasDocument): DocumentDependencyInventory {
@@ -118,12 +121,7 @@ export function hasPortableDocumentPayloads(doc: CanvasDocument) {
     inventory.portableModelAssetIds.length > 0 ||
     inventory.portableEnvironmentAssetIds.length > 0 ||
     doc.layers.some((layer): layer is ModelLayer => layer.kind === 'model' && isModelDataUrl(layer.modelSrc)) ||
-    graphNodesOfKind(doc.graph, 'environment').some((node) =>
-      Boolean(node.environmentSrc && isEnvironmentDataUrl(node.environmentSrc)),
-    ) ||
-    graphNodesOfKind(doc.graph, 'scene3d').some((node): node is GraphScene3DNode =>
-      Boolean(node.environmentSrc && isEnvironmentDataUrl(node.environmentSrc)),
-    )
+    sceneEnvironmentSources(doc).some(isEnvironmentDataUrl)
   );
 }
 
@@ -187,4 +185,11 @@ export async function storePortableDocumentAssets(
 
 export function stripPortableDocumentAssets(doc: CanvasDocument): CanvasDocument {
   return stripDocumentEnvironmentAssets(stripDocumentModelAssets(stripDocumentFontAssets(doc)));
+}
+
+/** Uploaded environments referenced by 3D layers' scene lighting. */
+export function sceneEnvironmentSources(doc: CanvasDocument): string[] {
+  return doc.layers.flatMap((layer) =>
+    isObject3DLayer(layer) && layer.scene?.environmentSrc ? [layer.scene.environmentSrc] : [],
+  );
 }

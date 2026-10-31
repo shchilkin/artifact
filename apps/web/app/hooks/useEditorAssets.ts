@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CanvasDocument, ImageLayer, ModelLayer } from '../types/config';
 import { isAssetUri, isImageDataUrl, resolveImageSource, saveImageAsset } from '../utils/assetStore';
+import type { SceneEnvironmentAsset } from '../utils/documentCommands';
 import { environmentUriFromId, isSupportedEnvironmentFile, saveEnvironmentFileAsset } from '../utils/envAssetStore';
 import { isSupportedModelFile, modelUriFromId, saveModelFileAsset } from '../utils/modelAssetStore';
-import type { GraphEnvironmentNode } from '../utils/nodeKinds';
 
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024; // 25 MB
 const MAX_MODEL_BYTES = 50 * 1024 * 1024; // 50 MB
@@ -70,10 +70,8 @@ export function useEditorAssets(
     asset: Pick<ModelLayer, 'modelSrc' | 'modelName' | 'modelMime' | 'modelBytes'>,
     position?: { x: number; y: number },
   ) => void,
-  onImportEnvironment?: (
-    asset: Pick<GraphEnvironmentNode, 'environmentSrc' | 'environmentName' | 'environmentMime' | 'environmentBytes'>,
-    position?: { x: number; y: number },
-  ) => void,
+  /** Applies a dropped environment map; returns an error message when it cannot be used. */
+  onImportEnvironment?: (asset: SceneEnvironmentAsset) => string | null,
   onStoreImageAsset?: (layerId: string, src: string, previousSrc: string) => void,
 ) {
   const [imageCache, setImageCache] = useState<Map<string, HTMLImageElement>>(new Map());
@@ -178,15 +176,13 @@ export function useEditorAssets(
         }
         try {
           const asset = await saveEnvironmentFileAsset(file);
-          onImportEnvironment(
-            {
-              environmentSrc: environmentUriFromId(asset.id),
-              environmentName: asset.label,
-              environmentMime: asset.mime,
-              environmentBytes: asset.bytes,
-            },
-            position,
-          );
+          const error = onImportEnvironment({
+            environmentSrc: environmentUriFromId(asset.id),
+            environmentName: asset.label,
+            environmentMime: asset.mime,
+            environmentBytes: asset.bytes,
+          });
+          if (error) showDropError(error);
         } catch {
           showDropError('Could not read environment map');
         }

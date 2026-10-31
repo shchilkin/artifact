@@ -4,6 +4,7 @@ import {
   makeDocument,
   makeFillLayer,
   makeImageLayer,
+  makeScene3DSettings,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
@@ -13,10 +14,10 @@ import {
   preparePortableDocument,
   storePortableDocumentAssets,
 } from './documentAssets';
-import { makePortableAssetLoaders } from './documentAssetTestHelpers';
+import { makePortableAssetLoaders, sceneOf } from './documentAssetTestHelpers';
 import { fontUriFromId } from './fontStore';
 import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind } from './nodeGraph';
-import { makeGraphEnvironmentNode, makeGraphMaterialNode } from './nodeKinds';
+import { makeGraphMaterialNode } from './nodeKinds';
 
 describe('documentAssets', () => {
   const imageRef = 'artifact-asset://image-a';
@@ -72,7 +73,11 @@ describe('documentAssets', () => {
             aiGenerationHistory: [{ src: imageDataUrl, aiGeneration: { prompt: 'alt' } }],
           },
           makeTextLayer({ id: 'text-a', font: fontRef }),
-          makeSourceLayer('model', { id: 'model-a', modelSrc: modelRef }),
+          makeSourceLayer('model', {
+            id: 'model-a',
+            modelSrc: modelRef,
+            scene: makeScene3DSettings({ environmentSrc: environmentRef }),
+          }),
           makeFillLayer({ id: 'fill-a' }),
         ],
         fontAssets: [fontAsset],
@@ -86,7 +91,6 @@ describe('documentAssets', () => {
               materialAlbedoSrc: materialImageRef,
               materialRoughnessSrc: materialImageDataUrl,
             }),
-            makeGraphEnvironmentNode({ id: 'env-node-a', environmentSrc: environmentRef }),
           ),
         },
         envAssets: [environmentAsset],
@@ -138,7 +142,10 @@ describe('documentAssets', () => {
         layers: [
           makeImageLayer(imageRef),
           makeTextLayer({ font: fontRef }),
-          makeSourceLayer('model', { modelSrc: modelRef }),
+          makeSourceLayer('model', {
+            modelSrc: modelRef,
+            scene: makeScene3DSettings({ environmentSrc: environmentRef }),
+          }),
         ],
         graph: {
           edges: [],
@@ -148,7 +155,6 @@ describe('documentAssets', () => {
               id: 'material-node-a',
               materialAlbedoSrc: materialImageRef,
             }),
-            makeGraphEnvironmentNode({ id: 'env-node-a', environmentSrc: environmentRef }),
           ),
         },
       }),
@@ -167,7 +173,7 @@ describe('documentAssets', () => {
     expect(portable.fontAssets).toEqual([fontAsset]);
     expect(portable.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelDataUrl, modelName: 'skull.glb' });
     expect(portable.modelAssets).toEqual([modelAsset]);
-    expect(graphNodesOfKind(portable.graph, 'environment')?.[0]).toMatchObject({
+    expect(sceneOf(portable.layers[2])).toMatchObject({
       environmentSrc: environmentDataUrl,
       environmentName: 'studio.exr',
     });
@@ -187,7 +193,10 @@ describe('documentAssets', () => {
         layers: [
           makeImageLayer(imageDataUrl),
           makeTextLayer({ font: fontRef }),
-          makeSourceLayer('model', { modelSrc: modelDataUrl }),
+          makeSourceLayer('model', {
+            modelSrc: modelDataUrl,
+            scene: makeScene3DSettings({ environmentSrc: environmentDataUrl }),
+          }),
         ],
         graph: {
           edges: [],
@@ -196,7 +205,6 @@ describe('documentAssets', () => {
             makeGraphMaterialNode({
               materialAlbedoSrc: materialImageDataUrl,
             }),
-            makeGraphEnvironmentNode({ environmentSrc: environmentDataUrl }),
           ),
         },
         fontAssets: [fontAsset],
@@ -223,7 +231,7 @@ describe('documentAssets', () => {
     expect(stored.layers[0]).toMatchObject({ kind: 'image', src: imageRef });
     expect(graphNodesOfKind(stored.graph, 'material')?.[0]).toMatchObject({ materialAlbedoSrc: imageRef });
     expect(stored.layers[2]).toMatchObject({ kind: 'model', modelSrc: modelRef });
-    expect(graphNodesOfKind(stored.graph, 'environment')?.[0]).toMatchObject({ environmentSrc: environmentRef });
+    expect(sceneOf(stored.layers[2])).toMatchObject({ environmentSrc: environmentRef });
     expect(stored.fontAssets).toBeUndefined();
     expect(stored.modelAssets).toBeUndefined();
     expect(stored.envAssets).toBeUndefined();
@@ -236,7 +244,10 @@ describe('documentAssets', () => {
         layers: [
           makeImageLayer(imageDataUrl),
           makeTextLayer({ font: fontRef }),
-          makeSourceLayer('model', { modelSrc: modelDataUrl }),
+          makeSourceLayer('model', {
+            modelSrc: modelDataUrl,
+            scene: makeScene3DSettings({ environmentSrc: environmentDataUrl }),
+          }),
         ],
         fontAssets: [fontAsset],
         modelAssets: [modelAsset],

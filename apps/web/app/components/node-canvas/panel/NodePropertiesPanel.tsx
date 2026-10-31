@@ -1,4 +1,4 @@
-import type { CanvasGraph, Layer } from '../../../types/config';
+import { type CanvasGraph, isObject3DLayer, type Layer } from '../../../types/config';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../../../utils/editorTargetSummary';
 import { EXPORT_NODE_ID, findGraphNode } from '../../../utils/nodeGraph';
 import type { GraphNode } from '../../../utils/nodeKinds';
@@ -17,7 +17,8 @@ interface NodePropertiesPanelProps
     | 'onUpdateLayer'
     | 'onUpdateGraphNode'
     | 'onReplaceModelLayerFile'
-    | 'onReplaceEnvironmentNodeFile'
+    | 'onLoadSceneEnvironmentFile'
+    | 'onUseShapeSource'
     | 'onUpdateExportConfig'
     | 'onUpdateAspectRatio'
     | 'onExport'
@@ -61,7 +62,7 @@ function modelFileLoader(
   layer: Layer,
   onReplaceModelLayerFile?: (id: string, file: File) => void,
 ): ((file: File) => void) | undefined {
-  if (layer.kind !== 'model' || !onReplaceModelLayerFile) return undefined;
+  if (!isObject3DLayer(layer) || !onReplaceModelLayerFile) return undefined;
   return (file) => onReplaceModelLayerFile(layer.id, file);
 }
 
@@ -72,7 +73,8 @@ function SelectedNodeInspector({
   onUpdateLayer,
   onUpdateGraphNode,
   onReplaceModelLayerFile,
-  onReplaceEnvironmentNodeFile,
+  onLoadSceneEnvironmentFile,
+  onUseShapeSource,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
@@ -87,6 +89,10 @@ function SelectedNodeInspector({
         onChange={(patch) => onUpdateLayer(layer.id, patch)}
         onImageSource={(src) => onUpdateLayer(layer.id, { src })}
         onLoadModelFile={modelFileLoader(layer, onReplaceModelLayerFile)}
+        onLoadEnvironmentFile={
+          onLoadSceneEnvironmentFile ? (file) => onLoadSceneEnvironmentFile(layer.id, file) : undefined
+        }
+        onUseShapeSource={onUseShapeSource ? () => onUseShapeSource(layer.id) : undefined}
       />
     );
   }
@@ -99,7 +105,6 @@ function SelectedNodeInspector({
         graph={doc.graph}
         onChange={(patch) => onUpdateGraphNode(node.id, patch)}
         onUpdateGraphNode={onUpdateGraphNode}
-        onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
       />
     );
   }

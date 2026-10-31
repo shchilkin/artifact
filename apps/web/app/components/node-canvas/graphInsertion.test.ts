@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CanvasGraph } from '../../types/config';
+import { type CanvasGraph, type Layer, makeScene3DSettings, makeSourceLayer } from '../../types/config';
 import { EXPORT_NODE_ID, graphNodesById } from '../../utils/nodeGraph';
-import { makeGraphEnvironmentNode, makeGraphScene3DNode } from '../../utils/nodeKinds';
 import {
   inputPortForAddedAction,
   resolveEdgeInsertion,
@@ -53,81 +52,25 @@ describe('graphInsertion', () => {
     expect(resolveEdgeInsertion({ kind: 'shader', role: 'fill' }, graph.edges[0])).toBeNull();
   });
 
-  it('targets 3D scene material slots when material nodes are dropped on scene nodes', () => {
-    const sceneGraph: CanvasGraph = {
-      ...graph,
-      nodes: graphNodesById(
-        makeGraphScene3DNode({
-          id: 'scene-a',
-          name: 'Scene A',
-          environmentSrc: '',
-          environmentName: '',
-          environmentMime: '',
-          environmentBytes: 0,
-          materialMode: 'original',
-          transparent: true,
-          exposure: 100,
-          environmentStrength: 100,
-          environmentRotation: 0,
-          ambientIntensity: 115,
-          keyAzimuth: 38,
-          keyElevation: 42,
-          keyIntensity: 145,
-          fillIntensity: 65,
-          rimIntensity: 55,
-        }),
-      ),
-      positions: { ...graph.positions, 'scene-a': { x: 240, y: 160 } },
-    };
-
-    expect(
+  it('targets a model material port only once its scene lighting is on', () => {
+    const drop = (layer: Layer) =>
       resolveNodeInsertionTarget({
         action: { kind: 'material', preset: 'chrome' },
-        graph: sceneGraph,
-        layers: [],
-        nodes: [{ id: 'scene-a', position: { x: 240, y: 160 }, measured: { width: 320, height: 360 } }],
-        point: { x: 360, y: 240 },
-      })?.insertion,
-    ).toEqual({ targetId: 'scene-a', targetPort: 'material' });
-  });
-
-  it('targets environment map source inputs when render nodes are dropped on environment nodes', () => {
-    const envGraph: CanvasGraph = {
-      ...graph,
-      nodes: graphNodesById(
-        makeGraphEnvironmentNode({
-          id: 'env-a',
-          name: 'Environment Map',
-          environmentSrc: '',
-          environmentName: '',
-          environmentMime: '',
-          environmentBytes: 0,
-        }),
-      ),
-      positions: { ...graph.positions, 'env-a': { x: 240, y: 160 } },
-    };
-
-    expect(
-      resolveNodeInsertionTarget({
-        action: { kind: 'effect', preset: 'bloom' },
-        graph: envGraph,
-        layers: [],
-        nodes: [{ id: 'env-a', position: { x: 240, y: 160 }, measured: { width: 320, height: 360 } }],
-        point: { x: 360, y: 240 },
-      })?.insertion,
-    ).toEqual({ targetId: 'env-a', targetPort: 'in' });
-  });
-
-  it('targets primitive model inputs when 3D scene nodes are dropped on primitives', () => {
-    expect(
-      resolveNodeInsertionTarget({
-        action: { kind: 'scene3d' },
         graph,
-        layers: [{ id: 'primitive-a', kind: 'primitive' } as never],
-        nodes: [{ id: 'primitive-a', position: { x: 240, y: 160 }, measured: { width: 320, height: 360 } }],
+        layers: [layer],
+        nodes: [{ id: layer.id, position: { x: 240, y: 160 }, measured: { width: 320, height: 360 } }],
         point: { x: 360, y: 240 },
-      })?.insertion,
-    ).toEqual({ targetId: 'primitive-a', targetPort: 'model' });
+      })?.insertion ?? null;
+
+    expect(drop(makeSourceLayer('model', { id: 'model-a' }))).toBeNull();
+    expect(drop(makeSourceLayer('model', { id: 'model-a', scene: makeScene3DSettings() }))).toEqual({
+      targetId: 'model-a',
+      targetPort: 'material',
+    });
+    expect(drop(makeSourceLayer('primitive', { id: 'shape-a' }))).toEqual({
+      targetId: 'shape-a',
+      targetPort: 'material',
+    });
   });
 
   it('resolves the nearest edge to a graph-space drop point', () => {

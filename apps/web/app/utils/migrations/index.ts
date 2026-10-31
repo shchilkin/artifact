@@ -5,6 +5,19 @@ import { migrateV2ToV3 } from './v2ToV3';
 import { migrateV3ToV4 } from './v3ToV4';
 import { migrateV4ToV5 } from './v4ToV5';
 import { migrateV5ToV6 } from './v5ToV6';
+import { migrateV6ToV7 } from './v6ToV7';
+import { migrateV7ToV8 } from './v7ToV8';
+import { migrateV8ToV9 } from './v8ToV9';
+import { migrateV9ToV10 } from './v9ToV10';
+import { migrateV10ToV11 } from './v10ToV11';
+import { migrateV11ToV12 } from './v11ToV12';
+import { migrateV12ToV13 } from './v12ToV13';
+import { migrateV13ToV14 } from './v13ToV14';
+import { migrateV14ToV15 } from './v14ToV15';
+import { migrateV15ToV16 } from './v15ToV16';
+import { migrateV16ToV17 } from './v16ToV17';
+import { migrateV17ToV18 } from './v17ToV18';
+import { migrateV18ToV19 } from './v18ToV19';
 
 export type { StoredDocument } from './shared';
 
@@ -21,6 +34,19 @@ export const MIGRATIONS: Readonly<Record<number, (doc: StoredDocument) => Stored
   3: migrateV3ToV4,
   4: migrateV4ToV5,
   5: migrateV5ToV6,
+  6: migrateV6ToV7,
+  7: migrateV7ToV8,
+  8: migrateV8ToV9,
+  9: migrateV9ToV10,
+  10: migrateV10ToV11,
+  11: migrateV11ToV12,
+  12: migrateV12ToV13,
+  13: migrateV13ToV14,
+  14: migrateV14ToV15,
+  15: migrateV15ToV16,
+  16: migrateV16ToV17,
+  17: migrateV17ToV18,
+  18: migrateV18ToV19,
 };
 
 export function storedSchemaVersion(doc: StoredDocument): number {

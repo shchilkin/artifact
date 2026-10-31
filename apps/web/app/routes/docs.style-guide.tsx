@@ -92,7 +92,9 @@ import {
   type GraphArea,
   type Layer,
   makeEffectPresetLayer,
+  makeFillLayer,
   makeTextLayer,
+  TEXT_TYPOGRAPHY_DEFAULTS,
   type TextFontRef,
 } from '../types/config';
 import { buildLayerTargetSummary } from '../utils/editorTargetSummary';
@@ -141,6 +143,7 @@ const layers: Layer[] = [
     scaleY: 1,
     opacity: 100,
     blendMode: 'normal',
+    ...TEXT_TYPOGRAPHY_DEFAULTS,
   },
   makeEffectPresetLayer('grain', {
     id: 'style-layer-hidden',
@@ -148,26 +151,20 @@ const layers: Layer[] = [
     visible: false,
     value: 55,
   }),
-  {
+  makeFillLayer({
     id: 'style-layer-locked',
     name: 'Locked print wash',
     visible: true,
     locked: true,
-    kind: 'fill',
     color: '#88402f',
-    opacity: 100,
-    blendMode: 'normal',
-  },
-  {
+  }),
+  makeFillLayer({
     id: 'style-layer-long-name',
     name: 'Very long imported source title that must stay readable without widening the editor rail',
     visible: true,
     locked: false,
-    kind: 'fill',
     color: '#2d6e67',
-    opacity: 100,
-    blendMode: 'normal',
-  },
+  }),
 ];
 
 const styleArea: GraphArea = {

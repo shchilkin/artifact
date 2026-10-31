@@ -10,7 +10,7 @@ import type {
   SourceLayer,
   TextLayer,
 } from '../../../types/config';
-import { EFFECT_IDS, effectDefinition, effectsWithBackend, isEffectActive } from '../../../types/effectSchema';
+import { effectRuns, hasEffectPass } from '../../effectStack';
 import { ensureCanvasFontLoaded } from '../../fontLoading';
 import { lcg } from '../../lcg';
 import { measurePerformancePhase } from '../../performanceMeasure';
@@ -23,18 +23,18 @@ import { drawEmojiLayer, drawFillLayer, drawImageLayer, drawTextLayer } from './
 const LAYER_RENDER_MEASURE_PREFIX = 'artifact:layer-render';
 
 type GpuRenderToCanvas = typeof import('../../gpuRender').gpuRenderToCanvas;
-type BuildFiltersFromEffectLayer = typeof import('../../pixiFilters').buildFiltersFromEffectLayer;
+type BuildEffectFilters = typeof import('../../pixiFilters').buildEffectFilters;
 
 let gpuModulesPromise: Promise<{
   gpuRenderToCanvas: GpuRenderToCanvas;
-  buildFiltersFromEffectLayer: BuildFiltersFromEffectLayer;
+  buildEffectFilters: BuildEffectFilters;
 }> | null = null;
 
 function loadGpuModules() {
   gpuModulesPromise ??= Promise.all([import('../../gpuRender'), import('../../pixiFilters')]).then(
     ([gpuRender, pixiFilters]) => ({
       gpuRenderToCanvas: gpuRender.gpuRenderToCanvas,
-      buildFiltersFromEffectLayer: pixiFilters.buildFiltersFromEffectLayer,
+      buildEffectFilters: pixiFilters.buildEffectFilters,
     }),
   );
   return gpuModulesPromise;
@@ -83,21 +83,17 @@ function effectLayerSeed(documentSeed: number, layer: EffectLayer) {
   return documentSeed + (layer.seedOffset ?? 0);
 }
 
-/**
- * An effect layer's Canvas 2D effects, shared by separate and merged GPU passes so both draw the same pixels.
- * Returns the layer's seed for its GPU filters.
- */
-async function applyEffectLayerCanvas2DEffects(
-  ctx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  layer: EffectLayer,
-  documentSeed: number,
-  scale: number,
-) {
-  const effectSeed = effectLayerSeed(documentSeed, layer);
-  await applyCanvas2DEffects(ctx, W, H, layer, effectSeed, scale, lcg(effectSeed ^ 0x1a2b3c));
-  return effectSeed;
+/** The random stream an effect layer's Canvas 2D runs draw from, in stack order. */
+function effectLayerRng(effectSeed: number) {
+  return lcg(effectSeed ^ 0x1a2b3c);
+}
+
+/** GPU filters of an effect layer's GPU runs, in stack order. */
+async function effectLayerGpuFilters(layer: EffectLayer, effectSeed: number, W: number, H: number) {
+  const { buildEffectFilters } = await loadGpuModules();
+  return effectRuns(layer)
+    .filter((run) => run.pass === 'gpu')
+    .flatMap((run) => buildEffectFilters(run.values, effectSeed, W, H) ?? []);
 }
 
 async function runGpuPass(
@@ -111,28 +107,27 @@ async function runGpuPass(
   return gpuRenderToCanvas({ width: W, height: H, source: current, filters, recordCost: options.recordGpuCost });
 }
 
-const CANVAS_PASS_EFFECTS = EFFECT_IDS.filter((effect) => effectDefinition(effect).backend !== 'gpu');
-const GPU_PASS_EFFECTS = effectsWithBackend('gpu');
-
-function hasCanvas2DEffect(layer: EffectLayer): boolean {
-  return CANVAS_PASS_EFFECTS.some((effect) => isEffectActive(layer, effect));
-}
-
-function hasGpuEffect(layer: EffectLayer): boolean {
-  return GPU_PASS_EFFECTS.some((effect) => isEffectActive(layer, effect));
-}
-
 export function isGpuOnlyEffectLayer(layer: EffectLayer): boolean {
   return (
-    layer.visible && !layer.maskAlpha && !hasEffectBlendMode(layer) && hasGpuEffect(layer) && !hasCanvas2DEffect(layer)
+    layer.visible &&
+    layer.appliesTo !== 'layerBelow' &&
+    !layer.maskAlpha &&
+    !compositesOverBase(layer) &&
+    hasEffectPass(layer, 'gpu') &&
+    !hasEffectPass(layer, 'canvas')
   );
 }
 
-function hasEffectBlendMode(layer: EffectLayer): boolean {
-  return (layer.blendMode ?? 'normal') !== 'normal';
+function effectMix(layer: EffectLayer): number {
+  return Math.min(100, Math.max(0, layer.mix ?? 100));
 }
 
-/** Composites the effected result over the untouched input using the layer's blend mode. */
+/** Whether the effected result is composited over the input instead of replacing it. */
+function compositesOverBase(layer: EffectLayer): boolean {
+  return (layer.blendMode ?? 'normal') !== 'normal' || effectMix(layer) < 100;
+}
+
+/** Composites the effected result over the untouched input using the layer's blend mode and mix. */
 function blendEffectOverBase(
   base: HTMLCanvasElement,
   effected: HTMLCanvasElement,
@@ -140,11 +135,13 @@ function blendEffectOverBase(
   W: number,
   H: number,
 ): HTMLCanvasElement {
-  if (!hasEffectBlendMode(layer) || effected === base) return effected;
+  if (!compositesOverBase(layer) || effected === base) return effected;
   const blended = cloneCanvas(base, W, H);
   const ctx = blended.getContext('2d')!;
   ctx.globalCompositeOperation = toCompositeOperation(layer.blendMode ?? 'normal');
+  ctx.globalAlpha = effectMix(layer) / 100;
   ctx.drawImage(effected, 0, 0, W, H);
+  ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
   return blended;
 }
@@ -158,12 +155,10 @@ export async function applyGpuOnlyEffectLayerChain(
   options: RenderOptions,
 ): Promise<HTMLCanvasElement> {
   if (options.skipEffects || layers.length === 0) return base;
-  const { buildFiltersFromEffectLayer } = await loadGpuModules();
   const filters: Filter[] = [];
   for (const layer of layers) {
     throwIfRenderAborted(options);
-    const nextFilters = buildFiltersFromEffectLayer(layer, effectLayerSeed(doc.global.seed, layer), W, H);
-    if (nextFilters?.length) filters.push(...nextFilters);
+    filters.push(...(await effectLayerGpuFilters(layer, effectLayerSeed(doc.global.seed, layer), W, H)));
   }
   if (filters.length === 0) return base;
   return runGpuPass(cloneCanvas(base, W, H), W, H, filters, options);
@@ -182,7 +177,11 @@ export async function applyEffectLayerCanvas2DPass(
   return measureLayerRender(layer, async () => {
     throwIfRenderAborted(options);
     const { ctx, current, seed, scale } = createLayerRenderContext(base, layer, doc, W, H, imageCache, options);
-    await applyEffectLayerCanvas2DEffects(ctx, W, H, layer, seed, scale);
+    const effectSeed = effectLayerSeed(seed, layer);
+    const rng = effectLayerRng(effectSeed);
+    for (const run of effectRuns(layer)) {
+      if (run.pass === 'canvas') await applyCanvas2DEffects(ctx, W, H, run.values, effectSeed, scale, rng);
+    }
     throwIfRenderAborted(options);
     return current;
   });
@@ -336,19 +335,35 @@ async function maybeRenderEffectAtResolution(context: LayerRenderContext<EffectL
   return dimensions ? renderEffectAtResolution(context, dimensions) : null;
 }
 
-async function applyGpuFiltersForEffect(
-  current: HTMLCanvasElement,
-  context: LayerRenderContext<EffectLayer>,
-  effectSeed: number,
-) {
-  const { layer, W, H, options } = context;
-  if (options.skipEffects) return current;
-  const { buildFiltersFromEffectLayer } = await loadGpuModules();
-  const filters = buildFiltersFromEffectLayer(layer, effectSeed, W, H);
-  if (!filters?.length) return current;
-  const next = await runGpuPass(current, W, H, filters, options);
-  throwIfRenderAborted(options);
-  return next;
+/**
+ * Runs the stack top to bottom. Canvas 2D runs draw on the current canvas and share one random stream; consecutive
+ * GPU runs share one GPU pass.
+ */
+async function applyEffectRuns(context: LayerRenderContext<EffectLayer>, effectSeed: number) {
+  const { W, H, layer, scale, options } = context;
+  const rng = effectLayerRng(effectSeed);
+  let current = context.current;
+  let ctx = context.ctx;
+  let gpuFilters: Filter[] = [];
+  const flushGpu = async () => {
+    if (gpuFilters.length === 0) return;
+    current = await runGpuPass(current, W, H, gpuFilters, options);
+    throwIfRenderAborted(options);
+    ctx = current.getContext('2d', { willReadFrequently: true })!;
+    gpuFilters = [];
+  };
+  const { buildEffectFilters } = hasEffectPass(layer, 'gpu') ? await loadGpuModules() : { buildEffectFilters: null };
+  for (const run of effectRuns(layer)) {
+    if (run.pass === 'gpu') {
+      gpuFilters.push(...(buildEffectFilters?.(run.values, effectSeed, W, H) ?? []));
+      continue;
+    }
+    await flushGpu();
+    await applyCanvas2DEffects(ctx, W, H, run.values, effectSeed, scale, rng);
+    throwIfRenderAborted(options);
+  }
+  await flushGpu();
+  return current;
 }
 
 async function renderEffectLayerToCanvas(context: LayerRenderContext<EffectLayer>) {
@@ -358,16 +373,14 @@ async function renderEffectLayerToCanvas(context: LayerRenderContext<EffectLayer
 }
 
 async function renderEffectPass(context: LayerRenderContext<EffectLayer>) {
-  const { base, ctx, W, H, layer, seed, scale, options } = context;
+  const { base, W, H, layer, seed, options } = context;
   throwIfRenderAborted(options);
   if (options.skipEffects) return base;
   const scaledEffect = await maybeRenderEffectAtResolution(context);
   if (scaledEffect) return scaledEffect;
 
   const alphaMask = layer.maskAlpha ? cloneCanvas(base, W, H) : null;
-  const effectSeed = await applyEffectLayerCanvas2DEffects(ctx, W, H, layer, seed, scale);
-  throwIfRenderAborted(options);
-  let current = await applyGpuFiltersForEffect(context.current, context, effectSeed);
+  let current = await applyEffectRuns(context, effectLayerSeed(seed, layer));
   if (alphaMask) current = maskCanvasToAlpha(current, alphaMask, W, H);
   return current;
 }

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { GraphRepeatNode } from '../../../utils/nodeKinds';
-import { useNodeCanvasActions } from '../context';
+import { useGraphNodeHide, useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { NodeFrame } from '../nodes/NodeFrame';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
@@ -10,6 +10,7 @@ const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: GraphNod
   const { selectNode } = useNodeCanvasActions();
   const { node: repeatNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
+  const hideProps = useGraphNodeHide(repeatNode);
   return (
     <NodeFrame
       id={repeatNode.id}
@@ -25,6 +26,7 @@ const RepeatNodeComponent = memo(function RepeatNodeComponent({ data }: GraphNod
         { id: 'bg', top: '64%' },
       ]}
       onSelect={(event) => selectNode(repeatNode.id, event)}
+      {...hideProps}
     >
       <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />
       <PortRow

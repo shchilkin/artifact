@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { GraphMaskNode } from '../../../utils/nodeKinds';
-import { useNodeCanvasActions } from '../context';
+import { useGraphNodeHide, useNodeCanvasActions } from '../context';
 import { PortRow } from '../inspector/PortRow';
 import { NodeFrame } from '../nodes/NodeFrame';
 import { NodeThumbnail } from '../thumbnails/NodeThumbnail';
@@ -10,6 +10,7 @@ const MaskNodeComponent = memo(function MaskNodeComponent({ data }: GraphNodeCom
   const { selectNode, deleteNode } = useNodeCanvasActions();
   const { node: maskNode, previewTargetId, selected, outputPath, editing, connected } = data;
 
+  const hideProps = useGraphNodeHide(maskNode);
   return (
     <NodeFrame
       id={maskNode.id}
@@ -25,6 +26,7 @@ const MaskNodeComponent = memo(function MaskNodeComponent({ data }: GraphNodeCom
         { id: 'mask', top: '64%' },
       ]}
       onSelect={(event) => selectNode(maskNode.id, event)}
+      {...hideProps}
       onDelete={() => deleteNode(maskNode.id)}
     >
       <NodeThumbnail previewTargetId={previewTargetId} priority={selected} />

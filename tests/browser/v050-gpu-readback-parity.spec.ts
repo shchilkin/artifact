@@ -20,7 +20,8 @@ test.afterEach(async ({ page }) => {
 test('every GPU effect preset reads back identical pixels from opaque and translucent sources', async ({ page }) => {
   const results = await page.evaluate(async () => {
     const { gpuRenderToCanvas } = await import('/app/utils/gpuRender.ts');
-    const { buildFiltersFromEffectLayer } = await import('/app/utils/pixiFilters.ts');
+    const { buildEffectFilters } = await import('/app/utils/pixiFilters.ts');
+    const { effectRuns } = await import('/app/utils/effectStack.ts');
     const { EFFECT_PRESETS, makeEffectPresetLayer } = await import('/app/types/config.ts');
     const size = 160;
 
@@ -45,9 +46,13 @@ test('every GPU effect preset reads back identical pixels from opaque and transl
     for (const preset of Object.keys(EFFECT_PRESETS) as Array<keyof typeof EFFECT_PRESETS>) {
       const layer = makeEffectPresetLayer(preset);
       for (const translucent of [false, true]) {
-        const asyncFilters = buildFiltersFromEffectLayer(layer, 7, size, size);
-        const syncFilters = buildFiltersFromEffectLayer(layer, 7, size, size);
-        if (!asyncFilters || !syncFilters) continue;
+        const gpuFilters = () =>
+          effectRuns(layer)
+            .filter((run) => run.pass === 'gpu')
+            .flatMap((run) => buildEffectFilters(run.values, 7, size, size) ?? []);
+        const asyncFilters = gpuFilters();
+        const syncFilters = gpuFilters();
+        if (asyncFilters.length === 0) continue;
         const input = source(translucent);
         const viaAsync = pixels(
           await gpuRenderToCanvas({ width: size, height: size, source: input, filters: asyncFilters }),

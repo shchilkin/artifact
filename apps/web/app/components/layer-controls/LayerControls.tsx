@@ -20,6 +20,7 @@ import {
   type FillLayer,
   getBundledFontRegistryItem,
   type ImageLayer,
+  isObject3DLayer,
   type Layer,
   MATERIAL_PRESETS,
   type MaterialPreset,
@@ -32,7 +33,9 @@ import {
   getAiGenerationStatusLabel,
   getAiGenerationUiState,
 } from '../../utils/aiGenerationStatus';
+import { ARRAY_PRESETS } from '../../utils/arrayPresets';
 import { getCachedImportedFont, isFontUri, normalizeImportedFontLabel } from '../../utils/fontStore';
+import { NOISE_PRESETS } from '../../utils/noisePresets';
 import { EffectInspector } from '../node-canvas/inspector/EffectInspector';
 import {
   BlendModeNote,
@@ -49,6 +52,7 @@ import {
   InspectorToggle,
   ScaleLockRow,
 } from '../node-canvas/inspector/fields';
+import { Scene3DSections } from '../node-canvas/inspector/Scene3DInspector';
 import { layerHasPlacementControls } from './controlModel';
 import {
   ARRAY_PATTERN_OPTIONS,
@@ -65,6 +69,7 @@ import {
   TEXT_ALIGN_OPTIONS,
 } from './fieldDefs';
 import { LayerStateSection } from './LayerStateSection';
+import { PresetStartSelect } from './PresetStartSelect';
 
 const R = FIELD_RANGES;
 const DEFAULT_PLACEMENT = { x: 0.5, y: 0.5, scaleX: 1, scaleY: 1, rotation: 0 };
@@ -107,7 +112,7 @@ const MATERIAL_PERCENT_FIELDS = [
   ['materialGrain', 'Grain', 'materialGrain'],
 ] as const;
 
-type LayerControlSection = 'content' | 'placement' | 'style' | 'structure';
+type LayerControlSection = 'content' | 'type' | 'placement' | 'style' | 'structure';
 type SetOpenSection = Dispatch<SetStateAction<LayerControlSection>>;
 type SetScaleLocked = Dispatch<SetStateAction<boolean>>;
 type BasicLayerKind = 'text' | 'image' | 'fill' | 'emoji';
@@ -447,6 +452,12 @@ function TextLayerControls({
           onChange={(v) => onChange({ align: v as TextLayer['align'] } as Partial<TextLayer>)}
         />
       </InspectorSection>
+      <TextTypeSection
+        layer={layer}
+        open={openSection === 'type'}
+        onToggle={() => toggleOpenSection(setOpenSection, 'type', 'placement')}
+        onChange={(patch) => onChange(patch as Partial<Layer>)}
+      />
       <LayerPlacementControls
         layer={layer}
         open={openSection === 'placement'}
@@ -469,6 +480,102 @@ function TextLayerControls({
         />
       </LayerStyleForLayer>
     </div>
+  );
+}
+
+function textTypeSummary(layer: TextLayer) {
+  const parts = [`${layer.leading}% leading`];
+  if (layer.outlineWidth > 0) parts.push('outline');
+  if (layer.shadowOpacity > 0) parts.push('shadow');
+  return parts.join(' · ');
+}
+
+function TextTypeSection({
+  layer,
+  open,
+  onToggle,
+  onChange,
+}: {
+  layer: TextLayer;
+  open: boolean;
+  onToggle: () => void;
+  onChange: (patch: Partial<TextLayer>) => void;
+}) {
+  return (
+    <InspectorSection title="Type" summary={textTypeSummary(layer)} open={open} onToggle={onToggle}>
+      <InspectorSlider
+        label="Tracking"
+        value={layer.tracking}
+        min={-20}
+        max={60}
+        unit="px"
+        onChange={(v) => onChange({ tracking: v })}
+      />
+      <InspectorSlider
+        label="Leading"
+        value={layer.leading}
+        min={60}
+        max={240}
+        unit="%"
+        onChange={(v) => onChange({ leading: v })}
+      />
+      <InspectorSlider
+        label="Outline"
+        value={layer.outlineWidth}
+        min={0}
+        max={20}
+        unit="px"
+        onChange={(v) => onChange({ outlineWidth: v })}
+      />
+      {layer.outlineWidth > 0 && (
+        <InspectorColorInput
+          label="Outline color"
+          value={layer.outlineColor}
+          onChange={(v) => onChange({ outlineColor: v })}
+        />
+      )}
+      <InspectorSlider
+        label="Shadow"
+        value={layer.shadowOpacity}
+        min={0}
+        max={100}
+        unit="%"
+        onChange={(v) => onChange({ shadowOpacity: v })}
+      />
+      {layer.shadowOpacity > 0 && (
+        <>
+          <InspectorColorInput
+            label="Shadow color"
+            value={layer.shadowColor}
+            onChange={(v) => onChange({ shadowColor: v })}
+          />
+          <InspectorSlider
+            label="Shadow X"
+            value={layer.shadowX}
+            min={-40}
+            max={40}
+            unit="px"
+            onChange={(v) => onChange({ shadowX: v })}
+          />
+          <InspectorSlider
+            label="Shadow Y"
+            value={layer.shadowY}
+            min={-40}
+            max={40}
+            unit="px"
+            onChange={(v) => onChange({ shadowY: v })}
+          />
+          <InspectorSlider
+            label="Shadow blur"
+            value={layer.shadowBlur}
+            min={0}
+            max={40}
+            unit="px"
+            onChange={(v) => onChange({ shadowBlur: v })}
+          />
+        </>
+      )}
+    </InspectorSection>
   );
 }
 
@@ -527,6 +634,17 @@ function ImageLayerControls({
   );
 }
 
+const FILL_MODE_LABELS: Record<FillLayer['fillMode'], string> = {
+  solid: 'Solid fill',
+  linear: 'Linear gradient',
+  radial: 'Radial gradient',
+};
+
+const FILL_MODE_OPTIONS = (Object.keys(FILL_MODE_LABELS) as FillLayer['fillMode'][]).map((value) => ({
+  value,
+  label: FILL_MODE_LABELS[value].replace(' fill', ''),
+}));
+
 function FillLayerControls({
   layer,
   sectionClassName,
@@ -543,16 +661,39 @@ function FillLayerControls({
   return (
     <div className={sectionClassName}>
       <LayerContentSection
-        summary="Solid fill"
+        summary={FILL_MODE_LABELS[layer.fillMode] ?? FILL_MODE_LABELS.solid}
         open={openSection === 'content'}
         onToggle={() => toggleOpenSection(setOpenSection, 'content', 'style')}
       >
         <LayerNameInput value={layer.name} onChange={(v) => onChange({ name: v })} />
+        <InspectorSelect
+          label="Style"
+          value={layer.fillMode}
+          options={FILL_MODE_OPTIONS}
+          onChange={(v) => onChange({ fillMode: v } as Partial<FillLayer>)}
+        />
         <InspectorColorInput
-          label="Color"
+          label={layer.fillMode === 'solid' ? 'Color' : 'Start color'}
           value={layer.color}
           onChange={(v) => onChange({ color: v } as Partial<FillLayer>)}
         />
+        {layer.fillMode !== 'solid' && (
+          <InspectorColorInput
+            label="End color"
+            value={layer.colorB}
+            onChange={(v) => onChange({ colorB: v } as Partial<FillLayer>)}
+          />
+        )}
+        {layer.fillMode === 'linear' && (
+          <InspectorSlider
+            label="Direction"
+            value={Math.round(layer.angle)}
+            min={0}
+            max={360}
+            unit="°"
+            onChange={(v) => onChange({ angle: v } as Partial<FillLayer>)}
+          />
+        )}
       </LayerContentSection>
       <LayerStyleForLayer layer={layer} openSection={openSection} setOpenSection={setOpenSection} onChange={onChange} />
     </div>
@@ -836,6 +977,7 @@ function NoiseStructureControls({
 }) {
   return (
     <>
+      <PresetStartSelect presets={NOISE_PRESETS} onApply={(patch) => onChange(patch as Partial<Layer>)} />
       <InspectorSelect
         label="Noise"
         value={layer.noiseType}
@@ -902,6 +1044,7 @@ function ArrayStructureControls({
   const arrayLabels = getArrayControlLabels(layer);
   return (
     <>
+      <PresetStartSelect presets={ARRAY_PRESETS} onApply={(patch) => onChange(patch as Partial<Layer>)} />
       <InspectorSelect
         label="Pattern"
         value={layer.arrayPattern}
@@ -1055,11 +1198,6 @@ function ModelFileAction({
   onLoadFile?: (file: File) => void;
 }) {
   if (!onLoadFile) return null;
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = '';
-    if (file) onLoadFile(file);
-  };
   return (
     <>
       <button
@@ -1069,14 +1207,65 @@ function ModelFileAction({
       >
         {hasModel ? 'Replace model' : 'Load GLB'}
       </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".glb,model/gltf-binary,application/octet-stream"
-        className="node-hidden-file-input"
-        onChange={handleFileChange}
-        tabIndex={-1}
+      <ModelFileInput inputRef={inputRef} onLoadFile={onLoadFile} />
+    </>
+  );
+}
+
+function ModelFileInput({
+  inputRef,
+  onLoadFile,
+}: {
+  inputRef: RefObject<HTMLInputElement | null>;
+  onLoadFile: (file: File) => void;
+}) {
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (file) onLoadFile(file);
+  };
+  return (
+    <input
+      ref={inputRef}
+      type="file"
+      accept=".glb,model/gltf-binary,application/octet-stream"
+      aria-label="Model file"
+      className="node-hidden-file-input"
+      onChange={handleFileChange}
+      tabIndex={-1}
+    />
+  );
+}
+
+/** A 3D Object's source: a built-in shape, or a GLB file. Choosing Model file opens the file picker. */
+function Object3DSourceSelect({
+  layer,
+  inputRef,
+  onLoadModelFile,
+  onUseShapeSource,
+}: {
+  layer: SourceLayer;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onLoadModelFile?: (file: File) => void;
+  onUseShapeSource?: () => void;
+}) {
+  if (!isObject3DLayer(layer) || !onLoadModelFile || !onUseShapeSource) return null;
+  return (
+    <>
+      <InspectorSelect
+        label="Source"
+        value={layer.kind}
+        options={[
+          { value: 'primitive', label: 'Shape' },
+          { value: 'model', label: 'Model file' },
+        ]}
+        onChange={(value) => {
+          if (value === layer.kind) return;
+          if (value === 'model') inputRef.current?.click();
+          else onUseShapeSource();
+        }}
       />
+      {layer.kind === 'primitive' ? <ModelFileInput inputRef={inputRef} onLoadFile={onLoadModelFile} /> : null}
     </>
   );
 }
@@ -1106,18 +1295,38 @@ function SourceStructureControls({
   onChange,
   modelFileInputRef,
   onLoadModelFile,
+  onUseShapeSource,
 }: {
   layer: SourceLayer;
   onChange: (patch: Partial<Layer>) => void;
   modelFileInputRef: RefObject<HTMLInputElement | null>;
   onLoadModelFile?: (file: File) => void;
+  onUseShapeSource?: () => void;
 }) {
+  const sourceSelect = (
+    <Object3DSourceSelect
+      layer={layer}
+      inputRef={modelFileInputRef}
+      onLoadModelFile={onLoadModelFile}
+      onUseShapeSource={onUseShapeSource}
+    />
+  );
   if (layer.kind === 'primitive')
-    return <PrimitiveStructureControls layer={layer as PrimitiveLayer} onChange={onChange} />;
+    return (
+      <>
+        {sourceSelect}
+        <PrimitiveStructureControls layer={layer as PrimitiveLayer} onChange={onChange} />
+      </>
+    );
   if (layer.kind === 'noise') return <NoiseStructureControls layer={layer} onChange={onChange} />;
   if (layer.kind === 'lineField') return <LineFieldStructureControls layer={layer} onChange={onChange} />;
   if (layer.kind === 'model')
-    return <ModelStructureControls layer={layer} inputRef={modelFileInputRef} onLoadFile={onLoadModelFile} />;
+    return (
+      <>
+        {sourceSelect}
+        <ModelStructureControls layer={layer} inputRef={modelFileInputRef} onLoadFile={onLoadModelFile} />
+      </>
+    );
   return <ArrayStructureControls layer={layer} onChange={onChange} />;
 }
 
@@ -1131,6 +1340,8 @@ function SourceLayerControls({
   onChange,
   modelFileInputRef,
   onLoadModelFile,
+  onLoadEnvironmentFile,
+  onUseShapeSource,
 }: {
   layer: SourceLayer;
   sectionClassName: string;
@@ -1141,6 +1352,8 @@ function SourceLayerControls({
   onChange: (patch: Partial<Layer>) => void;
   modelFileInputRef: RefObject<HTMLInputElement | null>;
   onLoadModelFile?: (file: File) => void;
+  onLoadEnvironmentFile?: (file: File) => void;
+  onUseShapeSource?: () => void;
 }) {
   return (
     <div className={sectionClassName}>
@@ -1159,7 +1372,7 @@ function SourceLayerControls({
         onChange={onChange}
       />
       <InspectorSection
-        title={layer.kind === 'primitive' ? 'Structure' : layer.kind === 'model' ? 'Model' : 'Pattern'}
+        title={isObject3DLayer(layer) ? 'Object' : 'Pattern'}
         summary={structureSummary(layer)}
         open={openSection === 'structure'}
         onToggle={() => toggleOpenSection(setOpenSection, 'structure', 'style')}
@@ -1169,9 +1382,25 @@ function SourceLayerControls({
           onChange={onChange}
           modelFileInputRef={modelFileInputRef}
           onLoadModelFile={onLoadModelFile}
+          onUseShapeSource={onUseShapeSource}
         />
       </InspectorSection>
-      <LayerStyleForLayer layer={layer} openSection={openSection} setOpenSection={setOpenSection} onChange={onChange} />
+      {isObject3DLayer(layer) ? (
+        <Scene3DSections
+          scene={layer.scene}
+          onChange={(scene) => onChange({ scene } as Partial<Layer>)}
+          onLoadEnvironmentFile={onLoadEnvironmentFile}
+        />
+      ) : null}
+      {/* A scene-lit 3D Object renders full frame over its backdrop, so opacity and blend do not apply. */}
+      {isObject3DLayer(layer) && layer.scene ? null : (
+        <LayerStyleForLayer
+          layer={layer}
+          openSection={openSection}
+          setOpenSection={setOpenSection}
+          onChange={onChange}
+        />
+      )}
     </div>
   );
 }
@@ -1205,6 +1434,8 @@ export function LayerControls({
   detached = false,
   showAiGenerationProvenance = true,
   onLoadModelFile,
+  onLoadEnvironmentFile,
+  onUseShapeSource,
 }: {
   layer: Layer;
   onChange: (patch: Partial<Layer>) => void;
@@ -1212,6 +1443,8 @@ export function LayerControls({
   detached?: boolean;
   showAiGenerationProvenance?: boolean;
   onLoadModelFile?: (file: File) => void;
+  onLoadEnvironmentFile?: (file: File) => void;
+  onUseShapeSource?: () => void;
 }) {
   const [scaleLocked, setScaleLocked] = useState(true);
   const [openSection, setOpenSection] = useState<LayerControlSection>('content');
@@ -1238,6 +1471,8 @@ export function LayerControls({
       layer={layer as SourceLayer}
       modelFileInputRef={modelFileInputRef}
       onLoadModelFile={onLoadModelFile}
+      onLoadEnvironmentFile={onLoadEnvironmentFile}
+      onUseShapeSource={onUseShapeSource}
     />
   ) : layer.kind === 'effect' ? (
     <EffectInspector layer={layer} onChange={(patch) => onChange(patch as Partial<Layer>)} detached={detached} />

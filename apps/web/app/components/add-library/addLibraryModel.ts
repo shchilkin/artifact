@@ -1,9 +1,12 @@
 import type { EffectPreset, LayerKind } from '../../types/config';
 import { EFFECT_PRESET_MENU_ORDER, EFFECT_PRESETS, LEGACY_SHADER_KINDS, SHADER_KINDS } from '../../types/config';
+import { kernelOfPreset } from '../../types/effectKernels';
+import { type EffectId, effectOfKernel, effectSpec, isEffectId } from '../../types/effectSchema';
 import type { AddAction } from '../../utils/addActions';
 import { ARRAY_PRESET_IDS, ARRAY_PRESETS } from '../../utils/arrayPresets';
 import { GRAPH_NODE_KINDS, GRAPH_NODE_MODELS } from '../../utils/nodeKinds';
 import { NOISE_PRESET_IDS, NOISE_PRESETS } from '../../utils/noisePresets';
+import { isRecipeId, RECIPES } from '../../utils/recipes';
 import { REPEAT_PRESET_IDS, REPEAT_PRESETS } from '../../utils/repeatPresets';
 import { TEXT_PRESET_IDS, TEXT_PRESETS } from '../../utils/textPresets';
 
@@ -68,11 +71,12 @@ const MATERIAL_PRESET_IDS = [
   'fabric',
 ] as const;
 
+/** A recipe in the Recipes view: one item that inserts a wired group of nodes. */
 export type AddLibraryRecipe = {
   id: string;
   label: string;
   hint: string;
-  itemIds: readonly string[];
+  item: AddLibraryItem;
   surfaces: readonly AddLibrarySurface[];
 };
 
@@ -86,7 +90,7 @@ export const ADD_LIBRARY_GROUPS: Array<{
   { id: 'shaderFill', label: 'Shader Fills', hint: 'Procedural textures' },
   { id: 'shaderEffect', label: 'Shader Effects', hint: 'Input-driven passes' },
   { id: 'material', label: 'Materials', hint: 'PBR surfaces' },
-  { id: 'primitive', label: '3D / Primitive', hint: 'Models, scenes, environment' },
+  { id: 'primitive', label: '3D', hint: 'Objects, materials, lighting' },
   { id: 'texture', label: 'Texture', hint: 'Grain, scan, paper' },
   { id: 'light', label: 'Light', hint: 'Glow, burn, haze' },
   { id: 'signal', label: 'Signal', hint: 'Glitch, split, tracking' },
@@ -95,101 +99,6 @@ export const ADD_LIBRARY_GROUPS: Array<{
   { id: 'print', label: 'Print', hint: 'Ink, dots, registration' },
   { id: 'graphic', label: 'Graphic', hint: 'Cutoff, edges, blur' },
   { id: 'utility', label: 'Utility', hint: 'Graph helpers' },
-];
-
-const EFFECT_FAMILIES: Array<{
-  group: Extract<AddLibraryGroupId, 'light' | 'signal' | 'texture' | 'warp' | 'tone' | 'print' | 'graphic'>;
-  description: string;
-  presets: readonly EffectPreset[];
-}> = [
-  {
-    group: 'light',
-    description: 'Atmosphere, bloom, flare, and energy treatments.',
-    presets: ['rays', 'bloom', 'filmBurn', 'neonGlow', 'fog', 'speedLines'],
-  },
-  {
-    group: 'signal',
-    description: 'Artifacts, channel breaks, and analog interference.',
-    presets: [
-      'glitch',
-      'rgbSplit',
-      'ca',
-      'interlace',
-      'dataMosh',
-      'vhsTracking',
-      'badStream',
-      'macroblocks',
-      'detailBlocks',
-      'blockSmear',
-      'chromaBlocks',
-      'blockDropout',
-      'pixelStretch',
-    ],
-  },
-  {
-    group: 'texture',
-    description: 'Surface noise, print feel, and tactile detail.',
-    presets: ['grain', 'dotGrain', 'scanlines', 'matte', 'dither', 'emboss', 'linocut'],
-  },
-  {
-    group: 'warp',
-    description: 'Motion, lens warps, and spatial distortion.',
-    presets: [
-      'noiseWarp',
-      'morph',
-      'vortex',
-      'barrel',
-      'tear',
-      'mirror',
-      'wave',
-      'zoomBlur',
-      'ripple',
-      'patternRefraction',
-      'kaleidoscope',
-      'squeeze',
-    ],
-  },
-  {
-    group: 'tone',
-    description: 'Color grading, film looks, and low-resolution remapping.',
-    presets: [
-      'tint',
-      'hueShift',
-      'vignette',
-      'retroResolution',
-      'pixelate',
-      'posterize',
-      'indexedPalette',
-      'gradientMap',
-      'channelMixer',
-      'sepia',
-      'infrared',
-      'solarize',
-      'bleachBypass',
-      'cyanotype',
-      'splitTone',
-    ],
-  },
-  {
-    group: 'print',
-    description: 'Ink, halftone dots, overprint, and registration shifts.',
-    presets: ['duotone', 'halftone', 'risoShift', 'overprint'],
-  },
-  {
-    group: 'graphic',
-    description: 'Bold reductions, linework, blur, and gradient finishing.',
-    presets: [
-      'blur',
-      'threshold',
-      'edgeCrush',
-      'silhouetteCrush',
-      'edgeDetect',
-      'bokehBlur',
-      'hatching',
-      'gooeyMerge',
-      'gradientOverlay',
-    ],
-  },
 ];
 
 const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
@@ -227,7 +136,49 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
   dither: 'pixel pattern bayer print texture popular',
 };
 
-const EFFECT_DESCRIPTIONS: Partial<Record<EffectPreset, string>> = {
+const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
+  shadow: 'A soft drop shadow under the visible shapes.',
+  grimeShadow: 'Layered dirty shadow built from the visible alpha.',
+  adjust: 'Brightness, contrast, saturation, temperature, hue, and invert in one grade.',
+  sharpen: 'Crisps edges and fine detail.',
+  rays: 'Colored light beams bursting from the center of the frame.',
+  bloom: 'Soft glow bleeding out of the brightest areas, like overexposed film.',
+  filmBurn: 'Hot orange flare burning in from one corner.',
+  fog: 'Colored haze that fills highlights first, then the shadows.',
+  speedLines: 'Thin white manga motion streaks from the center.',
+  glitch: 'Horizontal cyan and magenta streaks screened over the image.',
+  rgbSplit: 'Offsets the red and blue channels diagonally for a prism fringe.',
+  ca: 'Red and blue fringe that grows toward the edges, like a cheap lens.',
+  interlace: 'Shifts alternating pixel rows sideways, like a dropped CRT signal.',
+  dataMosh: 'Displaces blocks of the frame, like a corrupted video keyframe.',
+  vhsTracking: 'Wobbling horizontal bands with a red offset, like bad VHS tracking.',
+  matte: 'Coarse, soft blotches of noise for a flat printed matte surface.',
+  emboss: 'Raised relief shading that makes edges look pressed into paper.',
+  linocut: 'Grey four-level dithered cut, like a carved lino print.',
+  noiseWarp: 'Organic distortion driven by smooth noise.',
+  morph: 'Liquid sine-wave distortion in both directions.',
+  vortex: 'Swirls the image around its center.',
+  barrel: 'Bulges the image outward, like a fisheye lens.',
+  mirror: 'Folds the image onto itself horizontally, vertically, or both.',
+  wave: 'Bends rows sideways along a sine wave.',
+  zoomBlur: 'Radial motion blur rushing out of the center.',
+  ripple: 'Concentric rings rippling out from the center, like water.',
+  squeeze: 'Stretches or squeezes the image horizontally and vertically.',
+  tint: 'Multiplies one color over the whole image.',
+  hueShift: 'Rotates every hue around the color wheel.',
+  vignette: 'Darkens the corners to pull focus to the center.',
+  posterize: 'Cuts each color channel down to a few flat bands.',
+  sepia: 'Warm brown old-photo color grade.',
+  infrared: 'False-color infrared film look with glowing foliage tones.',
+  solarize: 'Inverts the brightest tones, like a darkroom solarization.',
+  bleachBypass: 'Desaturated, high-contrast silver film look.',
+  cyanotype: 'Prussian-blue blueprint print look.',
+  duotone: 'Maps shadows and lights to two ink colors.',
+  overprint: 'Offset cyan, magenta, and yellow plates multiplied over the image.',
+  blur: 'Smooth Gaussian softening of the whole layer.',
+  threshold: 'Hard black-and-white cutoff by brightness.',
+  edgeDetect: 'Traces edges into bold linework.',
+  gradientOverlay: 'Lays a two-color linear gradient over the image.',
   grain: 'Fine surface noise for paper, dust, and old-photo finish.',
   dotGrain: 'Round tone-aware stipple dots for old-game shadows and chunky surface grain.',
   dither: 'Bayer-style pixel texture for crunchy low-color poster output.',
@@ -414,25 +365,27 @@ const layerItems: AddLibraryItem[] = [
   },
   {
     id: 'layer:primitive',
-    label: 'Primitive',
+    label: '3D Object',
     symbol: KIND_SYMBOL.primitive,
-    description: 'Render a lit 3D form as a source layer.',
+    description: 'A built-in shape or an imported GLB model, with optional scene lighting and an environment map.',
     group: 'primitive',
     action: { kind: 'layer', layerKind: 'primitive' },
     surfaces: ['layers', 'nodes'],
     tags: ['source', '3d'],
-    keywords: '3d object shape cylinder sphere cube image branch',
+    keywords: '3d object primitive shape cylinder sphere cube model glb scene lighting environment hdr',
   },
   {
     id: 'layer:model',
-    label: '3D Model',
+    label: '3D Object · Model file',
     symbol: KIND_SYMBOL.model,
-    description: 'Use an imported GLB model as a source node.',
+    description: 'A 3D Object that shows an imported GLB model.',
     group: 'primitive',
     action: { kind: 'layer', layerKind: 'model' },
     surfaces: ['nodes'],
     tags: ['source', '3d'],
     keywords: '3d model glb object import ps1 game mesh source',
+    // Searchable; browsing shows the one 3D Object item, whose Source switches to a model file.
+    showInBrowse: false,
   },
   {
     id: 'layer:noise',
@@ -447,14 +400,14 @@ const layerItems: AddLibraryItem[] = [
   },
   {
     id: 'layer:array',
-    label: 'Array',
+    label: 'Shape Pattern',
     symbol: KIND_SYMBOL.array,
-    description: 'Repeat a source into a structured pattern.',
+    description: 'Draw discs, bars, or diamonds in a line, grid, or radial pattern.',
     group: 'source',
     action: { kind: 'layer', layerKind: 'array' },
     surfaces: ['layers', 'nodes'],
     tags: ['source', 'pattern'],
-    keywords: 'motif sticker grid pattern repeated marks',
+    keywords: 'array motif sticker grid pattern repeated marks discs bars diamonds',
   },
   {
     id: 'layer:lineField',
@@ -515,6 +468,8 @@ const sourcePresetItems: AddLibraryItem[] = [
     surfaces: ['layers', 'nodes'] as const,
     tags: ['source', 'texture'],
     keywords: 'texture paper grain static source recipe',
+    // Presets stay searchable; browsing shows the source or node they start from.
+    showInBrowse: false,
   })),
   ...ARRAY_PRESET_IDS.map((preset) => ({
     id: `arrayPreset:${preset}`,
@@ -526,25 +481,113 @@ const sourcePresetItems: AddLibraryItem[] = [
     surfaces: ['layers', 'nodes'] as const,
     tags: ['source', 'pattern'],
     keywords: 'motif sticker grid orbit shard pattern recipe',
+    // Presets stay searchable; browsing shows the source or node they start from.
+    showInBrowse: false,
   })),
 ];
 
-const effectItems: AddLibraryItem[] = EFFECT_PRESET_MENU_ORDER.map((preset) => {
-  const family = EFFECT_FAMILIES.find((entry) => entry.presets.includes(preset)) ?? EFFECT_FAMILIES[0];
-  const meta = EFFECT_PRESETS[preset];
+/** Library group and one-line summary of every effect, in browse order. */
+const EFFECT_ITEMS: Record<
+  EffectId,
+  {
+    group: Extract<AddLibraryGroupId, 'light' | 'signal' | 'texture' | 'warp' | 'tone' | 'print' | 'graphic'>;
+    summary: string;
+  }
+> = {
+  adjust: { group: 'tone', summary: 'Brightness, contrast, saturation, temperature, hue, and invert in one grade.' },
+  colorFilter: {
+    group: 'tone',
+    summary: 'Film and darkroom looks: sepia, infrared, bleach bypass, solarize, cyanotype, or a channel mix.',
+  },
+  gradientMap: { group: 'tone', summary: 'Maps brightness to two or three colors, or splits shadows and highlights.' },
+  colorOverlay: {
+    group: 'tone',
+    summary: 'A color tint, a two-color gradient, or a brightness-weighted haze over the image.',
+  },
+  posterize: {
+    group: 'tone',
+    summary: 'Cuts tones to flat bands, dither, linocut, a hard threshold, or a fixed palette.',
+  },
+  pixelate: { group: 'tone', summary: 'Chunky blocks or a fixed low resolution that keeps its pixel grid at export.' },
+  vignette: { group: 'tone', summary: 'Darkens the corners to pull focus to the center.' },
+  glow: { group: 'light', summary: 'Soft bloom or saturated neon around the brightest pixels.' },
+  rays: { group: 'light', summary: 'Colored beams or thin speed lines bursting from the center.' },
+  filmBurn: { group: 'light', summary: 'Hot orange flare burning in from one corner.' },
+  grain: { group: 'texture', summary: 'Fine film noise or coarse matte blotches over the surface.' },
+  halftone: { group: 'texture', summary: 'Print screens of dots, hatch lines, or tone-aware stipple.' },
+  scanlines: { group: 'texture', summary: 'CRT-style horizontal bands for monitor and video texture.' },
+  edges: { group: 'texture', summary: 'Embossed relief or bold traced outlines.' },
+  risoShift: { group: 'print', summary: 'Ink misregistration for risograph-style color drift.' },
+  overprint: { group: 'print', summary: 'Offset cyan, magenta, and yellow plates multiplied over the image.' },
+  channelSplit: { group: 'signal', summary: 'Red and blue channels pulled apart diagonally or toward the edges.' },
+  lineGlitch: { group: 'signal', summary: 'Row damage: screened streaks, torn chunks, interlace, or VHS tracking.' },
+  compression: { group: 'signal', summary: 'Codec failure: macroblocks and smear, or displaced data-mosh blocks.' },
+  displace: { group: 'warp', summary: 'Pushes pixels along noise, liquid, wave, ripple, or pattern fields.' },
+  lens: { group: 'warp', summary: 'Barrel bulge, center swirl, or a horizontal and vertical squeeze.' },
+  symmetry: { group: 'warp', summary: 'Mirrors the image onto itself or folds it into a kaleidoscope.' },
+  blur: { group: 'graphic', summary: 'Soft, lens, zoom, or motion blur.' },
+  sharpen: { group: 'graphic', summary: 'Crisps edges and fine detail.' },
+  alphaCrush: { group: 'graphic', summary: 'Hardens soft alpha edges or chips them into sprite-like silhouettes.' },
+  gooeyMerge: { group: 'graphic', summary: 'Merges nearby shapes into soft liquid blobs.' },
+  shadow: {
+    group: 'light',
+    summary: 'A drop shadow, or a layered dirty shadow, cast by the visible shapes of the input.',
+  },
+};
+
+function effectPresets(effect: EffectId): EffectPreset[] {
+  return EFFECT_PRESET_MENU_ORDER.filter((preset) => effectOfKernel(kernelOfPreset(preset)) === effect);
+}
+
+/** The presets each effect absorbs, as search words for its browse item. */
+function effectVariantKeywords(effect: EffectId): string {
+  return effectPresets(effect)
+    .flatMap((preset) => [EFFECT_PRESETS[preset].name.toLowerCase(), EFFECT_KEYWORDS[preset] ?? ''])
+    .join(' ');
+}
+
+function effectVariantTags(effect: EffectId): string[] {
+  return [...new Set(effectPresets(effect).flatMap((preset) => EFFECT_TAGS[preset] ?? []))];
+}
+
+/** One browse item per effect; it adds the effect's starter preset. */
+const effectItems: AddLibraryItem[] = (Object.keys(EFFECT_ITEMS) as EffectId[]).map((effect) => {
+  const { starter, label } = effectSpec(effect);
   return {
-    id: `effect:${preset}`,
-    label: meta.name,
-    description: EFFECT_DESCRIPTIONS[preset] ?? family.description,
-    symbol: meta.icon,
-    group: family.group,
-    action: { kind: 'effect', preset },
+    id: `effect:${effect}`,
+    label,
+    description: EFFECT_ITEMS[effect].summary,
+    symbol: EFFECT_PRESETS[starter].icon,
+    group: EFFECT_ITEMS[effect].group,
+    action: { kind: 'effect', preset: starter },
     surfaces: ['layers', 'nodes'],
-    tags: EFFECT_TAGS[preset],
-    keywords: EFFECT_KEYWORDS[preset],
-    popular: ['grain', 'pixelate', 'dither', 'risoShift'].includes(preset),
+    tags: effectVariantTags(effect),
+    keywords: effectVariantKeywords(effect),
+    popular: ['grain', 'pixelate', 'posterize', 'risoShift'].includes(effect),
   };
 });
+
+/**
+ * The older focused presets (Sepia, Bloom, Wave, ...) stay findable by search and add their effect in the matching
+ * mode, but do not show while browsing.
+ */
+const effectVariantItems: AddLibraryItem[] = EFFECT_PRESET_MENU_ORDER.filter((preset) => !isEffectId(preset)).map(
+  (preset) => {
+    const effect = effectOfKernel(kernelOfPreset(preset));
+    return {
+      id: `effect:${preset}`,
+      label: EFFECT_PRESETS[preset].name,
+      description: EFFECT_DESCRIPTIONS[preset],
+      symbol: EFFECT_PRESETS[preset].icon,
+      group: EFFECT_ITEMS[effect].group,
+      action: { kind: 'effect', preset },
+      surfaces: ['layers', 'nodes'],
+      tags: EFFECT_TAGS[preset],
+      keywords: `${EFFECT_KEYWORDS[preset] ?? ''} ${effectSpec(effect).label.toLowerCase()}`,
+      showInBrowse: false,
+    };
+  },
+);
 
 // Graph-only node kinds with a single library entry, in model registry order, then the repeat presets.
 const graphNodeItems: AddLibraryItem[] = GRAPH_NODE_KINDS.flatMap((kind) => {
@@ -564,6 +607,8 @@ const utilityItems: AddLibraryItem[] = [
     surfaces: ['nodes'] as const,
     tags: ['utility', 'repeat'],
     keywords: 'motif sticker grid echo orbit repeat recipe',
+    // Presets stay searchable; browsing shows the source or node they start from.
+    showInBrowse: false,
   })),
 ];
 
@@ -583,105 +628,36 @@ const materialItems: AddLibraryItem[] = [
   },
 ];
 
+const recipeItems: AddLibraryItem[] = RECIPES.map((recipe) => ({
+  id: `recipe:${recipe.id}`,
+  label: recipe.label,
+  symbol: '⊕',
+  description: recipe.starter.description,
+  group: 'utility',
+  action: { kind: 'recipe', recipe: recipe.id },
+  surfaces: ['nodes'],
+  tags: ['recipe', 'graph'],
+  keywords: `recipe group template wired ${recipe.hint.replaceAll('/', ' ')}`,
+  showInBrowse: false,
+}));
+
 export const ADD_LIBRARY_ITEMS: AddLibraryItem[] = [
   ...layerItems,
   ...sourcePresetItems,
   ...materialItems,
   ...effectItems,
+  ...effectVariantItems,
   ...utilityItems,
+  ...recipeItems,
 ];
 
-export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = [
-  {
-    id: 'photo-type',
-    label: 'Photo + Type',
-    hint: 'image / duotone / title / grain',
-    surfaces: ['nodes'],
-    itemIds: ['layer:fill', 'layer:image', 'effect:duotone', 'textPreset:title', 'effect:grain'],
-  },
-  {
-    id: 'texture-type',
-    label: 'Texture Type',
-    hint: 'noise / title / print finish',
-    surfaces: ['nodes'],
-    itemIds: [
-      'layer:fill',
-      'layer:noise',
-      'noisePreset:paper',
-      'textPreset:title',
-      'effect:risoShift',
-      'effect:scanlines',
-      'effect:grain',
-    ],
-  },
-  {
-    id: 'sticker-grid',
-    label: 'Sticker Grid',
-    hint: 'paper / array / registration',
-    surfaces: ['nodes'],
-    itemIds: [
-      'noisePreset:paper',
-      'arrayPreset:stickerGrid',
-      'repeatPreset:stickerGrid',
-      'effect:risoShift',
-      'textPreset:label',
-      'effect:overprint',
-    ],
-  },
-  {
-    id: 'primitive-image',
-    label: 'Primitive + Image',
-    hint: 'object branch / image branch / merge',
-    surfaces: ['nodes'],
-    itemIds: [
-      'layer:image',
-      'layer:primitive',
-      'effect:cyanotype',
-      'effect:neonGlow',
-      'merge',
-      'textPreset:title',
-      'effect:vignette',
-    ],
-  },
-  {
-    id: 'shader-material',
-    label: 'Shader Material',
-    hint: 'shader fill / material maps / primitive',
-    surfaces: ['nodes'],
-    itemIds: ['shader:mesh', 'material', 'layer:primitive', 'effect:gradientMap', 'effect:patternRefraction'],
-  },
-  {
-    id: 'print-damage',
-    label: 'Print Damage',
-    hint: 'paper / halftone / tear / dust',
-    surfaces: ['nodes'],
-    itemIds: [
-      'noisePreset:paper',
-      'textPreset:poster',
-      'effect:halftone',
-      'effect:tear',
-      'effect:grain',
-      'effect:threshold',
-    ],
-  },
-  {
-    id: 'retro-3d-cover',
-    label: 'Retro 3D Cover',
-    hint: 'model / scene / palette / dots',
-    surfaces: ['nodes'],
-    itemIds: [
-      'layer:fill',
-      'layer:model',
-      'environment',
-      'scene3d',
-      'effect:retroResolution',
-      'effect:indexedPalette',
-      'effect:dotGrain',
-      'effect:edgeCrush',
-      'effect:silhouetteCrush',
-    ],
-  },
-];
+export const ADD_LIBRARY_RECIPES: AddLibraryRecipe[] = RECIPES.map((recipe, index) => ({
+  id: recipe.id,
+  label: recipe.label,
+  hint: recipe.hint,
+  item: recipeItems[index],
+  surfaces: ['nodes'],
+}));
 
 export function addLibraryItemsForSurface(surface: AddLibrarySurface) {
   return ADD_LIBRARY_ITEMS.filter((item) => item.surfaces.includes(surface));
@@ -754,14 +730,24 @@ function isAddLibraryAction(value: unknown): value is AddLibraryAction {
   return validateAddLibraryActionPayload(value);
 }
 
-function isActionRecord(
-  value: unknown,
-): value is { kind: string; layerKind?: unknown; preset?: unknown; shaderKind?: unknown; role?: unknown } {
+function isActionRecord(value: unknown): value is {
+  kind: string;
+  layerKind?: unknown;
+  preset?: unknown;
+  recipe?: unknown;
+  shaderKind?: unknown;
+  role?: unknown;
+} {
   if (!value || typeof value !== 'object') return false;
   return 'kind' in value && typeof value.kind === 'string';
 }
 
-function validateAddLibraryActionPayload(value: { kind: string; layerKind?: unknown; preset?: unknown }) {
+function validateAddLibraryActionPayload(value: {
+  kind: string;
+  layerKind?: unknown;
+  preset?: unknown;
+  recipe?: unknown;
+}) {
   const validators: Record<string, () => boolean> = {
     layer: () => isLayerAddKind(value.layerKind),
     textPreset: () => isPresetId(value.preset, TEXT_PRESET_IDS),
@@ -769,6 +755,7 @@ function validateAddLibraryActionPayload(value: { kind: string; layerKind?: unkn
     noisePreset: () => isPresetId(value.preset, NOISE_PRESET_IDS),
     arrayPreset: () => isPresetId(value.preset, ARRAY_PRESET_IDS),
     repeatPreset: () => isPresetId(value.preset, REPEAT_PRESET_IDS),
+    recipe: () => isRecipeId(value.recipe),
   };
   return validators[value.kind]?.() ?? false;
 }

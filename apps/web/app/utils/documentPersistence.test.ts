@@ -246,6 +246,24 @@ describe('normalizeDocument', () => {
     });
   });
 
+  it('keeps the hidden flag of every graph node kind and drops non-boolean values', () => {
+    const doc = normalizeDocument({
+      schemaVersion: DOCUMENT_SCHEMA_VERSION,
+      layers: [],
+      graph: {
+        edges: [],
+        positions: {},
+        nodes: {
+          'shader-h': { ...makeGraphShaderNode({ id: 'shader-h' }), hidden: true },
+          'merge-h': { ...makeGraphMergeNode({ id: 'merge-h' }), hidden: 'yes' },
+        },
+      },
+    });
+
+    expect(doc.graph.nodes['shader-h']?.hidden).toBe(true);
+    expect(doc.graph.nodes['merge-h']).not.toHaveProperty('hidden');
+  });
+
   it('normalizes malformed shader palettes without retaining removed color fields', () => {
     const doc = normalizeDocument({
       layers: [],
@@ -394,12 +412,8 @@ describe('normalizeDocument', () => {
 
     expect(doc.envAssets).toHaveLength(1);
     expect(doc.envAssets?.[0]).toMatchObject({ id: 'env-a', label: 'studio.exr' });
-    expect(graphNodesOfKind(doc.graph, 'environment')?.[0]).toMatchObject({
-      id: 'env-node-a',
-      environmentSrc: 'artifact-env://env-a',
-      environmentName: '',
-      environmentBytes: 0,
-    });
+    // A loose environment node lit nothing; schema 19 removes it.
+    expect(doc.graph.nodes['env-node-a']).toBeUndefined();
   });
 
   it('falls back to the default aspect when stored aspect is invalid', () => {
@@ -494,7 +508,7 @@ describe('normalizeDocument', () => {
     });
   });
 
-  it('adds render defaults to older grime shadow nodes', () => {
+  it('turns older grime shadow nodes into Shadow effect layers', () => {
     const doc = normalizeDocument({
       layers: [],
       graph: {
@@ -505,14 +519,16 @@ describe('normalizeDocument', () => {
       },
     });
 
-    expect(graphNodesOfKind(doc.graph, 'grimeShadow')?.[0]).toMatchObject({
-      id: 'shadow-a',
-      x: 8,
-      y: 10,
-      layers: 5,
-      color: '#090606',
-      shadowOnly: false,
-    });
+    expect(doc.graph.nodes['shadow-a']).toBeUndefined();
+    expect(doc.layers).toMatchObject([
+      {
+        id: 'shadow-a',
+        kind: 'effect',
+        effects: [
+          { effect: 'shadow', params: { mode: 'grime', x: 8, y: 10, layers: 5, color: '#090606', source: 'show' } },
+        ],
+      },
+    ]);
   });
 
   it('adds seed defaults to older emoji layers', () => {
@@ -596,8 +612,18 @@ describe('normalizeDocument', () => {
 
     expect(doc.layers).toHaveLength(2);
     expect(doc.layers).toMatchObject([
-      { id: 'legacy-warp-morph-0', kind: 'effect', preset: 'morph', morphAmt: 30, morphFreq: 7 },
-      { id: 'legacy-warp-noiseWarp-1', kind: 'effect', preset: 'noiseWarp', noiseWarp: 40 },
+      {
+        id: 'legacy-warp-morph-0',
+        kind: 'effect',
+        preset: 'morph',
+        effects: [{ effect: 'displace', params: { mode: 'liquid', morphAmt: 30, morphFreq: 7 } }],
+      },
+      {
+        id: 'legacy-warp-noiseWarp-1',
+        kind: 'effect',
+        preset: 'noiseWarp',
+        effects: [{ effect: 'displace', params: { mode: 'noise', noiseWarp: 40 } }],
+      },
     ]);
   });
 
@@ -695,6 +721,44 @@ describe('normalizeDocument', () => {
     ]);
   });
 
+  it('keeps only known effects and the parameters each one owns', () => {
+    const doc = normalizeDocument({
+      schemaVersion: DOCUMENT_SCHEMA_VERSION,
+      layers: [
+        {
+          id: 'fx',
+          kind: 'effect',
+          mix: 140,
+          effects: [
+            { id: 'a', effect: 'scanlines', params: { scanlines: 'loud', grain: 40 } },
+            { effect: 'notAnEffect', params: {} },
+            {
+              id: 'b',
+              effect: 'compression',
+              enabled: false,
+              params: { mode: 'codec', badStream: 50, badStreamStages: 'nonsense' },
+            },
+            'junk',
+          ],
+        },
+      ],
+    });
+
+    expect(doc.layers[0]).toMatchObject({
+      mix: 100,
+      effects: [
+        { id: 'a', effect: 'scanlines', enabled: true, params: { scanlines: 0, scanlineWidth: 1 } },
+        {
+          id: 'b',
+          effect: 'compression',
+          enabled: false,
+          params: { mode: 'codec', badStream: 50, badStreamStages: 'all' },
+        },
+      ],
+    });
+    expect(doc.layers[0].kind === 'effect' && doc.layers[0].effects[0].params).not.toHaveProperty('grain');
+  });
+
   it('fills newer effect defaults when loading older effect layers', () => {
     const doc = normalizeDocument({
       layers: [
@@ -714,8 +778,15 @@ describe('normalizeDocument', () => {
       id: 'legacy-scanlines',
       kind: 'effect',
       preset: 'scanlines',
-      scanlines: 24,
-      scanlineWidth: 1,
+      mix: 100,
+      effects: [
+        {
+          id: 'legacy-scanlines-scanlines',
+          effect: 'scanlines',
+          enabled: true,
+          params: { scanlines: 24, scanlineWidth: 1 },
+        },
+      ],
     });
   });
 
@@ -1112,9 +1183,12 @@ describe('document serialization helpers', () => {
     expect(parsedEffect).toMatchObject({
       id: effect.id,
       preset: 'patternRefraction',
-      patternRefraction: 72,
-      patternRefractionScale: 24,
-      patternRefractionAngle: 42,
+      effects: [
+        {
+          effect: 'displace',
+          params: { mode: 'pattern', patternRefraction: 72, patternRefractionScale: 24, patternRefractionAngle: 42 },
+        },
+      ],
     });
   });
 
