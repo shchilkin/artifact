@@ -42,7 +42,7 @@
 .storage-warning-strip__warnings {
   max-width: 220px;
   color: var(--state-warning);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   line-height: 1.35;
 }
 
@@ -54,7 +54,7 @@
   border: 1px solid var(--line-default);
   background: var(--surface-control);
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   line-height: 1;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -92,7 +92,7 @@
   .storage-status-pill {
     min-height: 20px;
     padding: 2px 5px;
-    font-size: 8px;
+    font-size: var(--type-editor-meta);
   }
 
   .storage-warning-strip__warnings,

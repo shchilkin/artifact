@@ -168,7 +168,7 @@ function LayerDragHandle({
   return (
     <button
       type="button"
-      className="layer-row-drag-handle text-dim text-[10px] cursor-grab active:cursor-grabbing flex-shrink-0"
+      className="layer-row-drag-handle text-dim text-[length:var(--type-ui-xs)] cursor-grab active:cursor-grabbing flex-shrink-0"
       draggable={canDrag}
       disabled={!canDrag}
       aria-label={`Drag layer ${layer.name}`}

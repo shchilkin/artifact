@@ -52,7 +52,7 @@
 .canvas-chrome-artwork strong {
   max-width: 7ch;
   font-family: var(--font-display);
-  font-size: clamp(28px, 5vw, 52px);
+  font-size: var(--type-specimen);
   font-weight: 900;
   letter-spacing: -0.025em;
   line-height: 0.8;
@@ -134,6 +134,6 @@
 
   .canvas-chrome-artwork strong,
   .canvas-chrome-gallery__selection strong {
-    font-size: 34px;
+    font-size: var(--type-title-lg);
   }
 }

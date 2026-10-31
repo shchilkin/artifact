@@ -91,8 +91,14 @@
   --type-readable-sm: 14px;
   --type-readable-md: 15px;
   --type-layer-name: 17px;
+  --type-heading-xs: 16px;
+  --type-heading-sm: 18px;
+  --type-heading-md: 20px;
   --type-body: 15px;
   --type-title: 28px;
+  --type-title-lg: 32px;
+  --type-specimen: clamp(30px, 5vw, 52px);
+  --type-status-code: clamp(48px, 9vw, 96px);
   --type-display: clamp(48px, 6vw, 88px);
   --leading-ui: 1.2;
   --leading-readable: 1.36;
@@ -120,7 +126,12 @@
   --z-floating: 30;
   --z-menu: 70;
   --z-nav: 100;
+  --z-sheet-backdrop: 299;
+  --z-sheet: 300;
   --z-modal: 10000;
+  --z-dialog-backdrop: 20000;
+  --z-dialog: 20001;
+  --z-dropdown: 22000;
 
   /* Motion. Do not animate layout properties. */
   --motion-fast: 120ms;

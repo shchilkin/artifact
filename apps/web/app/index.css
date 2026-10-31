@@ -4,14 +4,12 @@
 @import "./styles/ui-foundation-theme.css";
 
 @theme {
-  --color-bg: oklch(8% 0.012 42);
-  --color-sidebar: oklch(11% 0.016 42);
-  --color-sidebar-raised: oklch(14% 0.016 42);
-  --color-border: oklch(24% 0.018 42);
-  --color-text: oklch(80% 0.022 68);
-  --color-dim: oklch(60% 0.018 68);
-  --color-accent: oklch(66% 0.16 28);
-  --color-accent-dim: oklch(66% 0.16 28 / 0.15);
+  --color-bg: var(--surface-app);
+  --color-border: var(--line-muted);
+  --color-text: var(--text-primary);
+  --color-dim: var(--text-secondary);
+  --color-accent: var(--accent-primary);
+  --color-accent-dim: var(--accent-soft);
   --font-mono: "Space Mono", ui-monospace, Consolas, "Courier New", monospace;
   --font-body: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
   --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
@@ -56,7 +54,7 @@ body {
   background: var(--surface-app);
   color: var(--text-primary);
   font-family: var(--body);
-  font-size: 13px;
+  font-size: var(--control-font-size-md);
   font-kerning: normal;
   font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
@@ -184,7 +182,7 @@ body {
 .site-nav-brand-text {
   color: var(--text-primary);
   font-family: var(--display);
-  font-size: 20px;
+  font-size: var(--type-heading-md);
   font-weight: 900;
   letter-spacing: 0;
   line-height: 1;
@@ -219,7 +217,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 0 12px;
-  font-size: 14px;
+  font-size: var(--type-readable-sm);
 }
 
 .site-nav-mobile-link {
@@ -227,7 +225,7 @@ body {
   align-items: center;
   border-bottom: 1px solid var(--line-default);
   padding: 12px 0;
-  font-size: 15px;
+  font-size: var(--type-readable-md);
 }
 
 .site-nav-mobile-link:last-of-type {
@@ -520,7 +518,7 @@ input[type="range"] {
 
 .product-route-recovery h1 {
   max-width: 10ch;
-  font-size: clamp(48px, 9vw, 96px);
+  font-size: var(--type-status-code);
 }
 
 @media (max-width: 640px) {
@@ -550,7 +548,7 @@ input[type="range"] {
 
 .app-hydrate-fallback__wordmark {
   font-family: var(--display);
-  font-size: 32px;
+  font-size: var(--type-title-lg);
   font-weight: 900;
   line-height: 1;
 }
