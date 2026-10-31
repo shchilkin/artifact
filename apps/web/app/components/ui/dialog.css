@@ -1,7 +1,7 @@
 .artifact-dialog-overlay {
   position: fixed;
   inset: 0;
-  z-index: 20000;
+  z-index: var(--z-dialog-backdrop);
   background: var(--node-backdrop, color-mix(in oklch, var(--surface-app) 82%, transparent));
 }
 
@@ -15,7 +15,7 @@
 
 .artifact-dialog-content {
   position: fixed;
-  z-index: 20001;
+  z-index: var(--z-dialog);
   outline: none;
 }
 

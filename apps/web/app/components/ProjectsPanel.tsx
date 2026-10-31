@@ -76,7 +76,9 @@ export function ProjectsPanel({
       <SheetContent className="library-panel" style={{ '--artifact-sheet-width': '360px' } as CSSProperties}>
         <SheetHeader className="flex items-center justify-between px-4 min-h-11 border-b border-border shrink-0">
           <div>
-            <SheetTitle className="text-[10px] tracking-[2.5px] text-accent font-semibold">PROJECTS</SheetTitle>
+            <SheetTitle className="text-[length:var(--type-ui-xs)] tracking-[2.5px] text-accent font-semibold">
+              PROJECTS
+            </SheetTitle>
             <SheetDescription className="sr-only">
               Save editable work in this browser, load local projects, or start a new canvas.
             </SheetDescription>

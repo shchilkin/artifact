@@ -448,7 +448,7 @@
   border: 1px solid color-mix(in oklch, var(--state-warning) 74%, transparent);
   color: color-mix(in oklch, var(--state-warning) 86%, var(--node-text));
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   font-weight: 700;
   line-height: 1;
 }
@@ -471,7 +471,7 @@
   border: 1px solid color-mix(in oklch, var(--state-warning) 62%, transparent);
   color: color-mix(in oklch, var(--state-warning) 82%, var(--node-text));
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: var(--type-editor-meta);
   font-weight: 700;
   line-height: 1;
 }
@@ -494,13 +494,13 @@
 
 .node-thumbnail-ai-card strong {
   color: var(--node-text);
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   letter-spacing: 0.08em;
 }
 
 .node-thumbnail-ai-card small {
   color: var(--node-text-dim);
-  font-size: 8px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.1em;
 }
 
@@ -697,7 +697,7 @@
 
 .node-shell-symbol {
   color: var(--node-accent);
-  font-size: 12px;
+  font-size: var(--type-ui-md);
   font-weight: 600;
   line-height: 1;
   flex-shrink: 0;
@@ -739,7 +739,7 @@
 .node-shell-name {
   color: var(--node-text);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--type-ui-md);
   font-weight: 500;
   letter-spacing: 0.06em;
   flex: 1;
@@ -793,7 +793,7 @@
 }
 
 .node-shell-action {
-  font-size: 15px;
+  font-size: var(--type-readable-md);
   line-height: 1;
   transition:
     border-color 120ms cubic-bezier(0.25, 1, 0.5, 1),
@@ -812,7 +812,7 @@
   column-gap: var(--space-1);
   grid-auto-flow: column;
   padding: 0 7px;
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   text-transform: uppercase;
 }
 
@@ -835,12 +835,12 @@
 }
 
 .node-shell-mute-dot {
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   line-height: 1;
 }
 
 .node-shell-mute-label {
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.08em;
 }
 
@@ -959,7 +959,7 @@
 
 .scene3d-rig-preset small {
   color: var(--node-text-dim);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   letter-spacing: 0;
 }
 
@@ -1027,7 +1027,7 @@
   min-width: 0;
   color: var(--node-text-dim);
   font-family: var(--body);
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   letter-spacing: 0.02em;
   line-height: 1.35;
   text-transform: uppercase;
@@ -1035,7 +1035,7 @@
 
 .scene3d-light-map-copy strong {
   color: var(--node-text);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   overflow-wrap: anywhere;
 }
 
@@ -1091,14 +1091,14 @@
 .node-environment-preview-meta span {
   max-width: 240px;
   overflow-wrap: anywhere;
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   letter-spacing: 0.05em;
 }
 
 .node-environment-preview-meta strong,
 .node-environment-preview-meta small {
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   font-weight: 500;
   letter-spacing: 0.05em;
 }
@@ -1172,7 +1172,7 @@
 .indexed-palette-panel-note {
   color: var(--node-text-dim);
   font-family: var(--body);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   letter-spacing: 0.01em;
   line-height: 1.45;
 }
@@ -1317,7 +1317,7 @@
   background: var(--accent-primary);
   color: var(--surface-app);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1511,7 +1511,7 @@
   background: color-mix(in oklch, var(--surface-panel) 94%, transparent);
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1878,7 +1878,7 @@
 
 .node-menu-search-icon {
   color: var(--node-text-dim);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
 }
 
 .node-menu-search-input {
@@ -1887,7 +1887,7 @@
   border: none;
   outline: none;
   color: var(--node-text);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
 }
 
 .node-menu-list {
@@ -1899,7 +1899,7 @@
 .node-menu-empty {
   padding: 8px 12px;
   color: var(--node-text-dim);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
 }
 
 .node-menu-group {
@@ -1948,7 +1948,7 @@
 }
 
 .node-menu-item-symbol {
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   width: 14px;
   text-align: center;
   flex-shrink: 0;
@@ -1956,7 +1956,7 @@
 
 .node-menu-item-label {
   color: var(--node-text);
-  font-size: 12px;
+  font-size: var(--type-ui-md);
 }
 
 .node-menu-item-danger {
@@ -1964,7 +1964,7 @@
 }
 
 .node-menu-item-hint {
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   color: var(--node-text-dim);
 }
 
@@ -2050,14 +2050,14 @@
 
 .nadd-search-icon {
   color: var(--node-text-dim);
-  font-size: 13px;
+  font-size: var(--control-font-size-md);
   flex-shrink: 0;
   pointer-events: none;
 }
 
 .nadd-search .artifact-search-icon {
   color: var(--node-text-dim);
-  font-size: 13px;
+  font-size: var(--control-font-size-md);
   flex-shrink: 0;
   pointer-events: none;
 }
@@ -2068,7 +2068,7 @@
   border: none;
   outline: none;
   color: var(--node-text);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   min-width: 0;
 }
 
@@ -2085,7 +2085,7 @@
   border: none;
   background: none;
   color: var(--node-text-dim);
-  font-size: 14px;
+  font-size: var(--type-readable-sm);
   cursor: pointer;
   flex-shrink: 0;
   line-height: 1;
@@ -2112,7 +2112,7 @@
   background: transparent;
   color: var(--node-text-dim);
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -2173,7 +2173,7 @@
 
 .nadd-section-header small {
   color: color-mix(in oklch, var(--node-text-dim) 74%, transparent);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.04em;
   text-align: right;
   text-transform: uppercase;
@@ -2234,7 +2234,7 @@
   border: 1px solid color-mix(in oklch, var(--add-kind-color) 56%, var(--node-border));
   background: color-mix(in oklch, var(--add-kind-color) 10%, transparent);
   color: var(--add-kind-color);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   text-align: center;
   flex-shrink: 0;
   line-height: 1;
@@ -2272,7 +2272,7 @@
   border: 1px solid color-mix(in oklch, var(--add-kind-color) 36%, var(--node-border));
   background: color-mix(in oklch, var(--add-kind-color) 7%, transparent);
   color: color-mix(in oklch, var(--add-kind-color) 68%, var(--node-text-dim));
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   flex-shrink: 0;
@@ -2282,7 +2282,7 @@
 .nadd-empty {
   padding: 10px;
   color: var(--node-text-dim);
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
 }
 
 /* Mobile sheet */
@@ -2417,7 +2417,7 @@
   max-width: 100%;
   color: var(--node-text-dim);
   font-family: var(--body);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -2431,7 +2431,7 @@
   background: color-mix(in oklch, var(--node-bg) 86%, black);
   color: var(--node-text);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.1em;
   line-height: 1;
   padding: 5px 7px;
@@ -2721,7 +2721,7 @@
 .node-props-title {
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -2733,7 +2733,7 @@
 .node-props-subtitle {
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -2749,7 +2749,7 @@
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--type-readable-sm);
   line-height: 1;
   flex-shrink: 0;
   font-family: var(--font-mono);
@@ -2804,7 +2804,7 @@
   margin: 0;
   color: color-mix(in oklch, var(--text-primary) 56%, var(--text-secondary));
   font-family: var(--body);
-  font-size: 12px;
+  font-size: var(--type-ui-md);
   font-weight: 500;
   letter-spacing: 0.02em;
   line-height: 1.3;
@@ -2865,7 +2865,7 @@
   background: color-mix(in oklch, var(--surface-panel) 82%, transparent);
   color: color-mix(in oklch, var(--text-primary) 58%, var(--text-secondary));
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: var(--type-readable-md);
   line-height: 1;
   cursor: pointer;
 }
@@ -2940,7 +2940,7 @@
   color: var(--text-secondary);
   background: color-mix(in oklch, var(--surface-panel) 88%, var(--surface-panel-raised));
   font-family: var(--body);
-  font-size: 14px;
+  font-size: var(--type-readable-sm);
   font-weight: 500;
   letter-spacing: 0.01em;
   line-height: 1.35;
@@ -3046,7 +3046,7 @@
 
   .node-canvas-toolbar button {
     padding: 0 10px;
-    font-size: 9px;
+    font-size: var(--type-editor-meta);
   }
 
   .node-shell-body {

@@ -4,7 +4,8 @@
   width: min(540px, 100%);
   border: 1px solid color-mix(in oklch, var(--line), var(--accent-primary) 24%);
   background:
-    linear-gradient(180deg, rgb(255 106 95 / 0.06), transparent 36%), color-mix(in oklch, var(--surface-app), black 10%);
+    linear-gradient(180deg, color-mix(in oklch, var(--accent-primary) 6%, transparent), transparent 36%),
+    color-mix(in oklch, var(--surface-app), black 10%);
   box-shadow: 0 24px 80px rgb(0 0 0 / 0.52);
   color: var(--text-primary);
 }
@@ -22,7 +23,7 @@
   margin: 0 0 8px;
   color: var(--accent-primary);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--type-ui-sm);
   font-weight: 800;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -31,7 +32,7 @@
 .account-modal h2 {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 1.25rem;
+  font-size: var(--type-heading-md);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -40,7 +41,7 @@
   max-width: 34rem;
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--type-readable-sm);
   line-height: 1.55;
 }
 
@@ -52,7 +53,7 @@
   color: var(--muted);
   cursor: pointer;
   font-family: var(--font-mono);
-  font-size: 1rem;
+  font-size: var(--type-heading-xs);
 }
 
 .account-modal-close:hover {
@@ -74,7 +75,7 @@
   color: var(--muted);
   cursor: pointer;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--type-ui-md);
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -103,7 +104,7 @@
 .account-form span {
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--type-ui-sm);
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -132,7 +133,7 @@
   color: var(--muted);
   cursor: pointer;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--type-ui-md);
   font-weight: 800;
   letter-spacing: 0.12em;
   padding: 0;
@@ -148,15 +149,15 @@
   margin: 0;
   color: var(--accent-primary);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--type-ui-md);
   line-height: 1.5;
 }
 
 .account-form-notice {
   margin: 0;
-  color: var(--state-success, #73d79b);
+  color: var(--state-success);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--type-ui-md);
   line-height: 1.5;
 }
 
@@ -167,7 +168,7 @@
   color: var(--surface-app);
   cursor: pointer;
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: var(--control-font-size-md);
   font-weight: 900;
   letter-spacing: 0.16em;
   text-transform: uppercase;

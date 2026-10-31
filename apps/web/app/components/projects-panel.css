@@ -42,7 +42,7 @@
 
 .project-count {
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.05em;
   line-height: 1;
 }
@@ -147,7 +147,7 @@ button.library-card-open:focus-visible {
   border: 1px solid color-mix(in oklch, var(--line-default) 78%, transparent);
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   font-weight: 700;
   letter-spacing: 0.16em;
   line-height: 1;
@@ -238,7 +238,7 @@ button.library-card-open:focus-visible {
   border: 1px solid color-mix(in oklch, var(--accent-primary) 54%, var(--line-default));
   background: color-mix(in oklch, var(--surface-card) 78%, transparent);
   color: var(--accent-primary);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.16em;
   padding: 0 8px;
 }
@@ -247,7 +247,7 @@ button.library-card-open:focus-visible {
   right: 10px;
   bottom: 10px;
   color: var(--text-primary);
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   letter-spacing: 0.14em;
   line-height: 1;
   opacity: 0;
@@ -276,7 +276,7 @@ button.library-card-open:focus-visible {
   color: var(--text-secondary);
   cursor: pointer;
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: var(--type-readable-md);
   line-height: 1;
 }
 
@@ -329,7 +329,7 @@ button.library-card-open:focus-visible {
   margin: -1px 1px 0;
   color: color-mix(in oklch, var(--text-secondary) 92%, transparent);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.08em;
   line-height: 1.45;
 }
@@ -349,7 +349,7 @@ button.library-card-open:focus-visible {
 
 .project-name-field span {
   color: var(--state-success);
-  font-size: 8px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.14em;
 }
 
@@ -361,7 +361,7 @@ button.library-card-open:focus-visible {
   background: transparent;
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   line-height: 1.2;
   text-overflow: ellipsis;
 }
@@ -402,7 +402,7 @@ button.library-card-open:focus-visible {
   border: 1px solid var(--line-default);
   background: var(--surface-control);
   padding: 0 8px;
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   line-height: 1.2;
 }
 
@@ -433,7 +433,7 @@ button.library-card-open:focus-visible {
   gap: 12px;
   margin-bottom: 9px;
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -452,7 +452,7 @@ button.library-card-open:focus-visible {
   padding: 6px 8px;
   border-bottom: 1px solid color-mix(in oklch, var(--line-default) 74%, transparent);
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   line-height: 1.25;
 }
 
@@ -490,7 +490,7 @@ button.library-card-open:focus-visible {
   border: 1px solid color-mix(in oklch, var(--state-warning) 54%, var(--line-default));
   background: color-mix(in oklch, var(--state-warning) 12%, transparent);
   color: var(--state-warning);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   line-height: 1.35;
 }
 
@@ -505,7 +505,7 @@ button.library-card-open:focus-visible {
   list-style: none;
   padding: 7px 8px;
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }

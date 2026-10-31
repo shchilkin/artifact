@@ -1,3 +1,4 @@
+// impeccable-disable design-system-color: these colours are preview artwork in a rendered document, not editor chrome.
 import { useEffect, useMemo, useState } from 'react';
 import {
   type CanvasDocument,

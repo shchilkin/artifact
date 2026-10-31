@@ -53,7 +53,7 @@
 }
 
 .editor-layout .site-nav-compact .site-nav-brand-text {
-  font-size: 18px;
+  font-size: var(--type-heading-sm);
 }
 
 .editor-chrome-slot {
@@ -287,12 +287,12 @@
 
 .emoji-btn {
   aspect-ratio: 1;
-  font-size: 20px;
+  font-size: var(--type-heading-md);
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line-default);
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   background: transparent;
   cursor: pointer;
   opacity: 0.4;
@@ -311,7 +311,7 @@
 
 .emoji-btn:hover {
   opacity: 0.8;
-  border-color: oklch(66% 0.16 28 / 0.5);
+  border-color: color-mix(in oklch, var(--accent-primary) 50%, transparent);
 }
 
 /* ─── CANVAS ERROR STATE ─────────────────────────── */
@@ -395,7 +395,7 @@
   background: var(--surface-app);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -427,7 +427,7 @@
 .project-workspace-badge {
   margin-left: 1px;
   color: currentColor;
-  font-size: 8px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.08em;
 }
 
@@ -443,7 +443,7 @@
   }
 
   .editor-layout .site-nav-compact .site-nav-brand-text {
-    font-size: 17px;
+    font-size: var(--type-layer-name);
   }
 
   .editor-chrome-slot {
@@ -542,7 +542,7 @@
   max-width: 28ch;
   color: color-mix(in oklch, var(--text-secondary) 88%, transparent);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.1em;
   line-height: 1.4;
   text-align: center;
@@ -583,7 +583,7 @@
   gap: 10px;
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: var(--type-readable-sm);
   font-weight: var(--weight-strong);
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -613,7 +613,7 @@
   background: color-mix(in oklch, var(--accent-primary) 12%, transparent);
   color: var(--accent-primary);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: var(--type-editor-meta);
   font-weight: var(--weight-strong);
   letter-spacing: 0.08em;
   line-height: 1;
@@ -629,7 +629,7 @@
   overflow: hidden;
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   font-weight: var(--weight-strong);
   letter-spacing: 0.08em;
   line-height: 1.2;
@@ -642,7 +642,7 @@
   overflow: hidden;
   color: color-mix(in oklch, var(--text-secondary) 86%, transparent);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -677,14 +677,14 @@
   border: 1px solid color-mix(in oklch, var(--accent-primary) 70%, var(--line-default));
   color: var(--accent-primary);
   font-family: var(--font-mono);
-  font-size: 30px;
+  font-size: var(--type-title-lg);
   line-height: 1;
 }
 
 .editor-drop-preview__zone strong {
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: var(--type-heading-xs);
   font-weight: var(--weight-strong);
   letter-spacing: 0.08em;
   line-height: 1.1;
@@ -695,7 +695,7 @@
   max-width: 34ch;
   color: color-mix(in oklch, var(--text-secondary) 88%, transparent);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   letter-spacing: 0.04em;
   line-height: 1.45;
   text-transform: uppercase;
@@ -706,7 +706,7 @@
 .document-import-confirm__meta {
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -989,7 +989,7 @@
     min-width: 0;
     padding-right: 10px;
     padding-left: 10px;
-    font-size: 10px;
+    font-size: var(--type-ui-xs);
   }
 
   .sidebar-mobile-bar .bottom-bar {
@@ -1033,7 +1033,7 @@
     min-width: 0;
     padding-right: 8px;
     padding-left: 8px;
-    font-size: 10px;
+    font-size: var(--type-ui-xs);
   }
 
   .sidebar-mobile-bar .rand-btn {
@@ -1060,7 +1060,7 @@
     min-width: 0;
     padding-right: 10px;
     padding-left: 10px;
-    font-size: 10px;
+    font-size: var(--type-ui-xs);
   }
 }
 

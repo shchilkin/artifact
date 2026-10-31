@@ -286,7 +286,7 @@ export function LayerPanel({
         aria-label={graphTree ? undefined : 'Layer stack'}
       >
         {reorderDisabled && !graphTree && displayLayers.length > 1 ? (
-          <p className="layer-panel-graph-order-note px-3 py-2 text-[11px] text-dim border-b border-border">
+          <p className="layer-panel-graph-order-note px-3 py-2 text-[length:var(--type-ui-sm)] text-dim border-b border-border">
             Layer order follows the node graph. Reorder in Structure or in Nodes.
           </p>
         ) : null}

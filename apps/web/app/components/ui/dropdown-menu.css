@@ -1,5 +1,5 @@
 .artifact-dropdown-menu-content {
-  z-index: 22000;
+  z-index: var(--z-dropdown);
   min-width: 180px;
   border: 1px solid var(--line-default);
   border-radius: var(--radius-lg);

@@ -27,7 +27,7 @@
 .editor-target-header__topline {
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -52,7 +52,7 @@
 }
 
 .editor-target-header--compact .editor-target-header__title {
-  font-size: 11px;
+  font-size: var(--type-ui-sm);
 }
 
 .editor-target-header__breadcrumbs {

@@ -157,7 +157,11 @@ too severe.
 | Editor label | `--type-editor-label` | node labels, inspector labels, add-library row labels |
 | Editor meta | `--type-editor-meta` | compact badges, section summaries, hints |
 | Body | `--type-body` | route copy, readable descriptions, empty states |
+| Heading XS, SM, MD | `--type-heading-xs`, `--type-heading-sm`, `--type-heading-md` | dialog headings, brand wordmark, font samples, emoji glyphs |
 | Title | `--type-title` | compact section titles |
+| Title LG | `--type-title-lg` | loading wordmark, drop-zone glyph |
+| Specimen | `--type-specimen` | style-guide specimen headlines |
+| Status code | `--type-status-code` | error page status numbers |
 | Display | `--type-display` | major page titles |
 | UI line | `--leading-ui` | compact controls |
 | Body line | `--leading-body` | paragraphs |
@@ -165,6 +169,9 @@ too severe.
 | UI weight | `--weight-ui` | labels and controls |
 | Strong weight | `--weight-strong` | selected or primary labels |
 | Display weight | `--weight-display` | display headings |
+
+Editor CSS sets `font-size` only through these tokens, and no type token goes
+below the 10 px floor. `apps/web/app/styles/tokens.test.ts` enforces both.
 
 Mono is the control grammar, not the paragraph voice. Use Space Mono for commands,
 labels, node names, ids, field keys, and short values. Use readable sans for

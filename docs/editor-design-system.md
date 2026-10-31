@@ -43,8 +43,9 @@ The v0.30 foundation should inventory and normalize these token families:
 - **Node graph color**: category color tokens (`--node-kind-*`), output-path
   color (`--node-edge-output`), grid dot color (`--editor-grid-dot`), selected
   node rings, selected edge emphasis, handle colors, and layer-kind badges.
-- **Motion and layering**: overlay z-index, sheet/dialog z-index, menu z-index,
-  hover/focus transitions, and reduced-motion behavior.
+- **Motion and layering**: overlay z-index, sheet/dialog z-index, menu z-index
+  (`--z-*`; no raw z-index above 100 in editor CSS), hover/focus transitions,
+  and reduced-motion behavior.
 
 Avoid local `text-[8px]`, `h-[22px]`, one-off borders, and one-off focus styles
 when they describe a reusable editor control state.

@@ -36,7 +36,7 @@
 
 .effect-popup__title {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   letter-spacing: 2px;
   color: var(--accent-primary);
   text-transform: uppercase;
@@ -45,7 +45,7 @@
 
 .effect-popup__desc {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-ui-xs);
   color: var(--text-primary);
   line-height: 1.55;
   margin: 0;
@@ -53,14 +53,14 @@
 
 .effect-popup__family {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   color: var(--accent-2);
   line-height: 1.45;
 }
 
 .effect-popup__value {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-editor-meta);
   color: var(--text-secondary);
   margin-top: 2px;
 }
