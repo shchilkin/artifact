@@ -7,8 +7,8 @@ in [`archive/version-plans/`](./archive/version-plans/).
 
 ## Current Release
 
-v0.51.0 Core Reset and Editor Polish Patch was released on 2026-10-24
-([release notes](./releases/v0.51.0.md)).
+v0.52.0 Toolset Consolidation was released on 2026-10-31
+([release notes](./releases/v0.52.0.md)).
 
 ## Active And Planned
 
@@ -19,7 +19,7 @@ next release takes the next number (see
 | Order | Plan | Thesis | Status |
 | --- | --- | --- | --- |
 | v0.51.0 | [Core Reset](./version-plans/v0.51.md) + Editor Polish Patch ([v0.50](./version-plans/v0.50.md), [#448](https://github.com/shchilkin/artifact/issues/448)) | One topology source, node and effect registries; the v0.50 editor keeps its promises | released 2026-10-24 |
-| v0.52.0 | [Toolset Consolidation](./version-plans/v0.52.md) | Fewer, deeper tools: 62 effects become 27 with modes, every cover basic reachable from Layers | release prep ([notes](./releases/v0.52.0.md)) |
+| v0.52.0 | [Toolset Consolidation](./version-plans/v0.52.md) | Fewer, deeper tools: 62 effects become 27 with modes, every cover basic reachable from Layers | released 2026-10-31 |
 | next | [Editor Polish](./version-plans/editor-polish.md) | One control grammar across editor surfaces | planned |
 | after | [AI-Assisted Creation](./version-plans/ai-assisted-creation.md) | Chat and context assistant on the converged editor | planned |
 
