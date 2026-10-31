@@ -1,7 +1,7 @@
 import type { Node as RFNode } from '@xyflow/react';
 import { type RefObject, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import type { CanvasDocument, CanvasGraph } from '../../../types/config';
-import type { DocumentUpdateMode } from '../../../utils/documentHistory';
+import type { GraphEditKind } from '../../../utils/documentDispatch';
 import { type EntryLayoutRect, layoutUnpositionedNodes, resolveOverlappingNodes } from '../entryLayout';
 import type { NodeCanvasViewport } from '../types';
 
@@ -13,7 +13,7 @@ export interface UseNodeCanvasEntryOptions {
   graphEmpty: boolean;
   initialViewport: NodeCanvasViewport | null | undefined;
   entryFocusNodeId: string | null | undefined;
-  onGraphChange: (graph: CanvasGraph, mode?: DocumentUpdateMode) => void;
+  onGraphEdit: (graph: CanvasGraph, edit: GraphEditKind) => void;
 }
 
 /**
@@ -29,7 +29,7 @@ export function useNodeCanvasEntry({
   graphEmpty,
   initialViewport,
   entryFocusNodeId,
-  onGraphChange,
+  onGraphEdit,
 }: UseNodeCanvasEntryOptions) {
   // Unpositioned nodes are placed before the first paint.
   const [unpositionedLayout] = useState(() => layoutUnpositionedNodes(graph, doc.layers, doc.global.aspect));
@@ -37,8 +37,8 @@ export function useNodeCanvasEntry({
   useLayoutEffect(() => {
     if (!unpositionedLayout || placedRef.current) return;
     placedRef.current = true;
-    onGraphChange(unpositionedLayout, 'silent');
-  }, [onGraphChange, unpositionedLayout]);
+    onGraphEdit(unpositionedLayout, 'place');
+  }, [onGraphEdit, unpositionedLayout]);
 
   // Decided once per entry. A graph with only the Output node is not fitted, so the fit does not stay queued and
   // jump the viewport when the first node is added. A focus node that is not in this graph falls back to the fit.
@@ -53,10 +53,10 @@ export function useNodeCanvasEntry({
     (rects: EntryLayoutRect[]) => {
       const resolved = resolveOverlappingNodes(graphRef.current, doc.layers, doc.global.aspect, rects);
       if (!resolved) return null;
-      onGraphChange(resolved, 'silent');
+      onGraphEdit(resolved, 'place');
       return resolved.positions;
     },
-    [doc.global.aspect, doc.layers, graphRef, onGraphChange],
+    [doc.global.aspect, doc.layers, graphRef, onGraphEdit],
   );
   const settleEntry = useCallback(() => setEntryPending(false), []);
 

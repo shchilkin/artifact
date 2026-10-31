@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { makeGraphShaderNode } from '../../types/config';
+
 import { makeDefaultCodeShaderInstance } from '../customShaderCode';
+import { makeGraphShaderNode } from '../nodeKinds';
 import { renderShaderNodeToCanvas } from './shaderNodes';
 
 function sampleRgb(canvas: HTMLCanvasElement, x: number, y: number) {

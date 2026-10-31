@@ -93,7 +93,7 @@ Next:
 ## Contract
 
 The API contract, DB shape, job lifecycle, and parallel implementation map are
-defined in [`../../docs/version-plans/v0.13-backend-contract.md`](../../docs/version-plans/v0.13-backend-contract.md).
+defined in [`../../docs/version-plans/v0.13-backend-contract.md`](../../docs/archive/version-plans/v0.13-backend-contract.md).
 
 ## Local Compose Smoke Test
 

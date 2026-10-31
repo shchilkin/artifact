@@ -1,13 +1,8 @@
 import { hashStringToUint32 } from '@artifact/shared/hash';
 import * as THREE from 'three';
 import type { PrimitiveViewportState } from '../components/PrimitiveViewportState';
-import {
-  DEFAULT_MATERIAL_CONFIG,
-  type GraphScene3DNode,
-  type MaterialConfig,
-  type ModelLayer,
-  type PrimitiveLayer,
-} from '../types/config';
+import { DEFAULT_MATERIAL_CONFIG, type MaterialConfig, type ModelLayer, type PrimitiveLayer } from '../types/config';
+import type { GraphScene3DNode } from '../utils/nodeKinds';
 import { resolveImageSource } from './assetStore';
 import {
   canvasHasVisibleContent as canvasHasModelContent,

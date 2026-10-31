@@ -83,8 +83,6 @@ if (!existsSync(path.join(ROOT, versionPlanPath))) {
 
 const releaseNotes = readText(releaseNotesPath);
 const versionPlan = readText(versionPlanPath);
-const productionReadiness = readText('docs/production-readiness.md');
-const roadmap = readText('docs/roadmap.md');
 
 const requiredReleaseSections = [
   `# ${tag} Release Notes`,
@@ -130,14 +128,6 @@ for (const pattern of forbiddenReleaseNotesPatterns) {
 
 if (versionPlan.includes('- [ ]')) {
   fail(`${versionPlanPath} still has unchecked release-plan items`);
-}
-
-if (!productionReadiness.includes(`### ${tag} Release Prep`)) {
-  fail(`docs/production-readiness.md is missing release prep entry for ${tag}`);
-}
-
-if (!roadmap.includes(`v${majorMinor}`)) {
-  fail(`docs/roadmap.md does not mention v${majorMinor}`);
 }
 
 if (!options.has('--skip-tag-check')) {

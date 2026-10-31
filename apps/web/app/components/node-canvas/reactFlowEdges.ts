@@ -1,7 +1,8 @@
 import type { Edge as RFEdge } from '@xyflow/react';
 
 import type { CanvasGraph } from '../../types/config';
-import { type GraphUtilityNodeKind, graphUtilityNodeKind } from '../../utils/nodeGraph';
+import { findGraphNode } from '../../utils/nodeGraph';
+import { GRAPH_NODE_MODELS } from '../../utils/nodeKinds';
 
 export function toRFEdges(graph: CanvasGraph): RFEdge[] {
   return graph.edges.map((edge) => ({
@@ -21,19 +22,9 @@ export function toRFEdges(graph: CanvasGraph): RFEdge[] {
 }
 
 function getEdgeColor(fromId: string, graph: CanvasGraph): string | undefined {
-  // Shader edges have no dedicated color yet and fall back to the default edge stroke.
-  return EDGE_COLORS[graphUtilityNodeKind(graph, fromId) ?? 'layer'];
+  // Layers share one edge color; graph-only nodes use their kind's color (shaders have none yet).
+  const node = findGraphNode(graph, fromId);
+  return node ? GRAPH_NODE_MODELS[node.kind].look.edgeColor : LAYER_EDGE_COLOR;
 }
 
-const EDGE_COLORS: Partial<Record<GraphUtilityNodeKind | 'layer', string>> = {
-  merge: 'oklch(74% 0.17 152)',
-  color: 'oklch(72% 0.18 195)',
-  repeat: 'oklch(76% 0.14 95)',
-  mask: 'oklch(72% 0.18 35)',
-  transform: 'oklch(70% 0.17 265)',
-  grimeShadow: 'oklch(72% 0.18 35)',
-  scene3d: 'oklch(72% 0.16 48)',
-  environment: 'oklch(74% 0.16 190)',
-  material: 'oklch(82% 0.14 78)',
-  layer: 'oklch(64% 0.22 305)',
-};
+const LAYER_EDGE_COLOR = 'oklch(64% 0.22 305)';

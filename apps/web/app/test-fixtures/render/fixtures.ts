@@ -12,20 +12,27 @@
  */
 
 import type { CanvasDocument } from '../../types/config';
-import { makeEmojiLayer, makeFillLayer, makeImageLayer, makeSourceLayer, makeTextLayer } from '../../types/config';
+import {
+  makeDocument,
+  makeEmojiLayer,
+  makeFillLayer,
+  makeImageLayer,
+  makeSourceLayer,
+  makeTextLayer,
+} from '../../types/config';
 import { measureAlphaBounds } from '../../utils/render/alphaBounds';
 
 const TEST_IMAGE_SRC = 'test-cache://free-fit-source';
 
 /** Solid fill with a fixed background colour. Used to verify baseline coverage. */
-export const fillOnly: CanvasDocument = {
+export const fillOnly: CanvasDocument = makeDocument({
   global: { bg: '#1a1a2e', seed: 1, aspect: '1:1' },
   layers: [makeFillLayer({ id: 'fill-1', color: '#e94560', opacity: 100, blendMode: 'normal' })],
   export: { format: 'png', scale: 1, target: 'cover' },
-};
+});
 
 /** Text centred over a fill — exercises text rendering path. */
-export const textOverFill: CanvasDocument = {
+export const textOverFill: CanvasDocument = makeDocument({
   global: { bg: '#0f3460', seed: 2, aspect: '1:1' },
   layers: [
     makeFillLayer({ id: 'fill-2', color: '#16213e', opacity: 100, blendMode: 'normal' }),
@@ -45,14 +52,14 @@ export const textOverFill: CanvasDocument = {
     }),
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
-};
+});
 
 /**
  * Emoji scattered with a fixed seed.
  * Determinism is provided by the global.seed value —
  * the same seed always produces the same layout.
  */
-export const emojiSeeded: CanvasDocument = {
+export const emojiSeeded: CanvasDocument = makeDocument({
   global: { bg: '#2d132c', seed: 42, aspect: '1:1' },
   layers: [
     makeFillLayer({ id: 'fill-3', color: '#1b1b2f', opacity: 100, blendMode: 'normal' }),
@@ -68,10 +75,10 @@ export const emojiSeeded: CanvasDocument = {
     }),
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
-};
+});
 
 /** Free-fit image with transparent background — exercises image transform sizing. */
-export const imageFreeFit: CanvasDocument = {
+export const imageFreeFit: CanvasDocument = makeDocument({
   global: { bg: 'transparent', seed: 7, aspect: '1:1' },
   layers: [
     makeImageLayer(TEST_IMAGE_SRC, {
@@ -87,10 +94,10 @@ export const imageFreeFit: CanvasDocument = {
     }),
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
-};
+});
 
 /** Procedural noise over transparency — stable Canvas 2D source path. */
-export const proceduralNoise: CanvasDocument = {
+export const proceduralNoise: CanvasDocument = makeDocument({
   global: { bg: 'transparent', seed: 11, aspect: '1:1' },
   layers: [
     makeSourceLayer('noise', {
@@ -107,10 +114,10 @@ export const proceduralNoise: CanvasDocument = {
     }),
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
-};
+});
 
 /** Procedural array over transparency — deterministic geometry source path. */
-export const proceduralArray: CanvasDocument = {
+export const proceduralArray: CanvasDocument = makeDocument({
   global: { bg: 'transparent', seed: 13, aspect: '1:1' },
   layers: [
     makeSourceLayer('array', {
@@ -129,7 +136,7 @@ export const proceduralArray: CanvasDocument = {
     }),
   ],
   export: { format: 'png', scale: 1, target: 'cover' },
-};
+});
 
 export function createTestImageCache(): Map<string, HTMLImageElement> {
   const image = document.createElement('canvas');

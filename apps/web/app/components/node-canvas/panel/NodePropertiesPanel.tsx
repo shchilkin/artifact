@@ -1,37 +1,12 @@
-import type {
-  CanvasGraph,
-  GraphColorNode,
-  GraphEnvironmentNode,
-  GraphGrimeShadowNode,
-  GraphMaskNode,
-  GraphMaterialNode,
-  GraphMergeNode,
-  GraphRepeatNode,
-  GraphScene3DNode,
-  GraphShaderNode,
-  GraphTransformNode,
-  Layer,
-  MaterialTextureInputPort,
-} from '../../../types/config';
-import { MATERIAL_TEXTURE_INPUT_PORTS } from '../../../types/config';
+import type { CanvasGraph, Layer } from '../../../types/config';
 import { buildGraphTargetSummary, buildLayerTargetSummary } from '../../../utils/editorTargetSummary';
-import { EXPORT_NODE_ID } from '../../../utils/nodeGraph';
+import { EXPORT_NODE_ID, findGraphNode } from '../../../utils/nodeGraph';
+import type { GraphNode } from '../../../utils/nodeKinds';
 import { EditorTargetOverview } from '../../editor-target/EditorTargetHeader';
 import { LayerTargetInspector } from '../../layer-controls/LayerTargetInspector';
-import {
-  ColorInspector,
-  EnvironmentInspector,
-  ExportInspector,
-  GrimeShadowInspector,
-  MaskInspector,
-  MaterialInspector,
-  MergeInspector,
-  RepeatInspector,
-  ShaderInspector,
-  TransformInspector,
-} from '../inspector';
+import { ExportInspector } from '../inspector';
 import { InspectorTargetContext } from '../inspector/fields';
-import { SceneTargetInspector } from '../inspector/SceneTargetInspector';
+import { GraphNodeInspector } from '../nodeKinds/inspectors';
 import type { NodeCanvasProps } from '../types';
 
 interface NodePropertiesPanelProps
@@ -40,16 +15,7 @@ interface NodePropertiesPanelProps
     | 'doc'
     | 'exportBusy'
     | 'onUpdateLayer'
-    | 'onUpdateMergeNode'
-    | 'onUpdateColorNode'
-    | 'onUpdateRepeatNode'
-    | 'onUpdateMaterialNode'
-    | 'onUpdateMaskNode'
-    | 'onUpdateTransformNode'
-    | 'onUpdateGrimeShadowNode'
-    | 'onUpdateScene3DNode'
-    | 'onUpdateEnvironmentNode'
-    | 'onUpdateShaderNode'
+    | 'onUpdateGraphNode'
     | 'onReplaceModelLayerFile'
     | 'onReplaceEnvironmentNodeFile'
     | 'onUpdateExportConfig'
@@ -62,127 +28,21 @@ interface NodePropertiesPanelProps
   onClose: () => void;
 }
 
-type SelectedNodeTarget =
-  | { kind: 'layer'; layer: Layer }
-  | { kind: 'color'; node: GraphColorNode }
-  | { kind: 'merge'; node: GraphMergeNode }
-  | { kind: 'repeat'; node: GraphRepeatNode }
-  | { kind: 'material'; node: GraphMaterialNode }
-  | { kind: 'mask'; node: GraphMaskNode }
-  | { kind: 'transform'; node: GraphTransformNode }
-  | { kind: 'grimeShadow'; node: GraphGrimeShadowNode }
-  | { kind: 'scene3d'; node: GraphScene3DNode }
-  | { kind: 'environment'; node: GraphEnvironmentNode }
-  | { kind: 'shader'; node: GraphShaderNode }
-  | { kind: 'output' };
+type InspectorProps = Omit<NodePropertiesPanelProps, 'open' | 'selectedNodeId' | 'graph' | 'onClose'>;
 
-type GraphUtilityInspectorTarget = Exclude<
-  SelectedNodeTarget,
-  { kind: 'layer' } | { kind: 'color' } | { kind: 'output' }
->;
-
-function findLayerTarget(
-  doc: NodePropertiesPanelProps['doc'],
-  selectedNodeId: string | null,
-): SelectedNodeTarget | null {
-  const layer = selectedNodeId ? (doc.layers.find((item) => item.id === selectedNodeId) ?? null) : null;
-  return layer ? { kind: 'layer', layer } : null;
-}
-
-function findGraphNodeTarget(graph: CanvasGraph, selectedNodeId: string | null): SelectedNodeTarget | null {
-  const graphNodeId = getGraphNodeSearchId(selectedNodeId);
-  return graphNodeId ? findFirstGraphNodeTarget(graph, graphNodeId) : null;
-}
-
-function getGraphNodeSearchId(selectedNodeId: string | null) {
-  if (!selectedNodeId) return null;
-  if (selectedNodeId === EXPORT_NODE_ID) return null;
-  return selectedNodeId;
-}
-
-function findFirstGraphNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  return (
-    GRAPH_NODE_TARGET_FINDERS.map((findTarget) => findTarget(graph, selectedNodeId)).find(isSelectedNodeTarget) ?? null
-  );
-}
-
-const GRAPH_NODE_TARGET_FINDERS = [
-  findColorNodeTarget,
-  findMergeNodeTarget,
-  findRepeatNodeTarget,
-  findMaterialNodeTarget,
-  findMaskNodeTarget,
-  findTransformNodeTarget,
-  findGrimeShadowNodeTarget,
-  findScene3DNodeTarget,
-  findEnvironmentNodeTarget,
-  findShaderNodeTarget,
-];
-
-function isSelectedNodeTarget(target: SelectedNodeTarget | null): target is SelectedNodeTarget {
-  return target !== null;
-}
-
-function findColorNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.colorNodes ?? []).find((item) => item.id === selectedNodeId);
-  return node ? { kind: 'color', node } : null;
-}
-
-function findMergeNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = graph.mergeNodes.find((item) => item.id === selectedNodeId);
-  return node ? { kind: 'merge', node } : null;
-}
-
-function findRepeatNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.repeatNodes ?? []).find((item) => item.id === selectedNodeId);
-  return node ? { kind: 'repeat', node } : null;
-}
-
-function findMaskNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.maskNodes ?? []).find((item) => item.id === selectedNodeId);
-  return node ? { kind: 'mask', node } : null;
-}
-
-function findMaterialNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.materialNodes ?? []).find((item) => item.id === selectedNodeId);
-  return node ? { kind: 'material', node } : null;
-}
-
-function findTransformNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.transformNodes ?? []).find((item) => item.id === selectedNodeId);
-  return node ? { kind: 'transform', node } : null;
-}
-
-function findGrimeShadowNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.grimeShadowNodes ?? []).find((item) => item.id === selectedNodeId);
-  return node ? { kind: 'grimeShadow', node } : null;
-}
-
-function findScene3DNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.scene3dNodes ?? []).find((item) => item.id === selectedNodeId);
-  return node ? { kind: 'scene3d', node } : null;
-}
-
-function findEnvironmentNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.environmentNodes ?? []).find((item) => item.id === selectedNodeId);
-  return node ? { kind: 'environment', node } : null;
-}
-
-function findShaderNodeTarget(graph: CanvasGraph, selectedNodeId: string): SelectedNodeTarget | null {
-  const node = (graph.shaderNodes ?? []).find((item) => item.id === selectedNodeId);
-  return node ? { kind: 'shader', node } : null;
-}
+type SelectedNodeTarget = { kind: 'layer'; layer: Layer } | { kind: 'graphNode'; node: GraphNode } | { kind: 'output' };
 
 function resolveSelectedNodeTarget(
   doc: NodePropertiesPanelProps['doc'],
   graph: CanvasGraph,
   selectedNodeId: string | null,
 ): SelectedNodeTarget | null {
-  return (
-    findLayerTarget(doc, selectedNodeId) ??
-    findGraphNodeTarget(graph, selectedNodeId) ??
-    (selectedNodeId === EXPORT_NODE_ID ? { kind: 'output' } : null)
-  );
+  if (!selectedNodeId) return null;
+  if (selectedNodeId === EXPORT_NODE_ID) return { kind: 'output' };
+  const layer = doc.layers.find((item) => item.id === selectedNodeId);
+  if (layer) return { kind: 'layer', layer };
+  const node = findGraphNode(graph, selectedNodeId);
+  return node ? { kind: 'graphNode', node } : null;
 }
 
 function buildSelectedTargetSummary(
@@ -191,16 +51,10 @@ function buildSelectedTargetSummary(
   graph: CanvasGraph,
 ) {
   if (!target) return null;
-  if (target.kind === 'layer') {
-    return buildLayerTargetSummary(target.layer, {
-      surface: 'nodes',
-      graph,
-      layers: doc.layers,
-    });
-  }
   const options = { surface: 'nodes' as const, graph, layers: doc.layers };
+  if (target.kind === 'layer') return buildLayerTargetSummary(target.layer, options);
   if (target.kind === 'output') return buildGraphTargetSummary({ kind: 'output' }, options);
-  return buildGraphTargetSummary(target, options);
+  return buildGraphTargetSummary({ kind: 'graphNode', node: target.node }, options);
 }
 
 function modelFileLoader(
@@ -211,204 +65,44 @@ function modelFileLoader(
   return (file) => onReplaceModelLayerFile(layer.id, file);
 }
 
-function LayerNodeInspector({
-  layer,
-  doc,
-  onUpdateLayer,
-  onReplaceModelLayerFile,
-}: Pick<NodePropertiesPanelProps, 'doc' | 'onUpdateLayer' | 'onReplaceModelLayerFile'> & {
-  layer: Layer;
-}) {
-  return (
-    <LayerTargetInspector
-      layer={layer}
-      aspect={doc.global.aspect}
-      onChange={(patch) => onUpdateLayer(layer.id, patch)}
-      onImageSource={(src) => onUpdateLayer(layer.id, { src })}
-      onLoadModelFile={modelFileLoader(layer, onReplaceModelLayerFile)}
-    />
-  );
-}
-
-function ColorNodeInspector({
-  node,
-  onUpdateColorNode,
-}: Pick<NodePropertiesPanelProps, 'onUpdateColorNode'> & {
-  node: GraphColorNode;
-}) {
-  return <ColorInspector key={node.id} colorNode={node} onChange={(patch) => onUpdateColorNode(node.id, patch)} />;
-}
-
-function MergeNodeInspector({
-  node,
-  onUpdateMergeNode,
-}: Pick<NodePropertiesPanelProps, 'onUpdateMergeNode'> & {
-  node: GraphMergeNode;
-}) {
-  return (
-    <MergeInspector key={node.id} mergeNode={node} onChange={(patch) => onUpdateMergeNode(node.id, patch)} detached />
-  );
-}
-
-function RepeatNodeInspector({
-  node,
-  onUpdateRepeatNode,
-}: Pick<NodePropertiesPanelProps, 'onUpdateRepeatNode'> & {
-  node: GraphRepeatNode;
-}) {
-  return (
-    <RepeatInspector
-      key={node.id}
-      repeatNode={node}
-      onChange={(patch) => onUpdateRepeatNode(node.id, patch)}
-      detached
-    />
-  );
-}
-
-function MaskNodeInspector({
-  node,
-  onUpdateMaskNode,
-}: Pick<NodePropertiesPanelProps, 'onUpdateMaskNode'> & {
-  node: GraphMaskNode;
-}) {
-  return (
-    <MaskInspector key={node.id} maskNode={node} onChange={(patch) => onUpdateMaskNode(node.id, patch)} detached />
-  );
-}
-
-function MaterialNodeInspector({
-  node,
-  graph,
-  onUpdateMaterialNode,
-}: Pick<NodePropertiesPanelProps, 'onUpdateMaterialNode'> & {
-  node: GraphMaterialNode;
-  graph: CanvasGraph | undefined;
-}) {
-  return (
-    <MaterialInspector
-      key={node.id}
-      materialNode={node}
-      connectedTextureInputs={connectedMaterialTextureInputs(graph, node.id)}
-      onChange={(patch) => onUpdateMaterialNode(node.id, patch)}
-      detached
-    />
-  );
-}
-
-function connectedMaterialTextureInputs(graph: CanvasGraph | undefined, nodeId: string): Set<MaterialTextureInputPort> {
-  const inputPorts = new Set<string>(MATERIAL_TEXTURE_INPUT_PORTS);
-  const connected = new Set<MaterialTextureInputPort>();
-  for (const edge of graph?.edges ?? []) {
-    if (edge.toId !== nodeId || !inputPorts.has(edge.toPort)) continue;
-    connected.add(edge.toPort as MaterialTextureInputPort);
-  }
-  return connected;
-}
-
-function isPortConnected(graph: CanvasGraph | undefined, nodeId: string, portId: string): boolean {
-  return (graph?.edges ?? []).some((edge) => edge.toId === nodeId && edge.toPort === portId);
-}
-
-function TransformNodeInspector({
-  node,
-  onUpdateTransformNode,
-}: Pick<NodePropertiesPanelProps, 'onUpdateTransformNode'> & {
-  node: GraphTransformNode;
-}) {
-  return (
-    <TransformInspector
-      key={node.id}
-      transformNode={node}
-      onChange={(patch) => onUpdateTransformNode(node.id, patch)}
-      detached
-    />
-  );
-}
-
-function GrimeShadowNodeInspector({
-  node,
-  onUpdateGrimeShadowNode,
-}: Pick<NodePropertiesPanelProps, 'onUpdateGrimeShadowNode'> & {
-  node: GraphGrimeShadowNode;
-}) {
-  return (
-    <GrimeShadowInspector
-      key={node.id}
-      grimeShadowNode={node}
-      onChange={(patch) => onUpdateGrimeShadowNode(node.id, patch)}
-      detached
-    />
-  );
-}
-
-function Scene3DNodeInspector({
-  node,
-  doc,
-  onUpdateScene3DNode,
-  onUpdateEnvironmentNode,
-  onReplaceEnvironmentNodeFile,
-}: Pick<
-  NodePropertiesPanelProps,
-  'doc' | 'onUpdateScene3DNode' | 'onUpdateEnvironmentNode' | 'onReplaceEnvironmentNodeFile'
-> & {
-  node: GraphScene3DNode;
-}) {
-  return (
-    <SceneTargetInspector
-      doc={doc}
-      scene={node}
-      onUpdateScene={(patch) => onUpdateScene3DNode(node.id, patch)}
-      onUpdateEnvironment={onUpdateEnvironmentNode}
-      onLoadEnvironmentFile={onReplaceEnvironmentNodeFile}
-    />
-  );
-}
-
-function EnvironmentNodeInspector({
-  node,
-  onUpdateEnvironmentNode,
-  onReplaceEnvironmentNodeFile,
-}: Pick<NodePropertiesPanelProps, 'onUpdateEnvironmentNode' | 'onReplaceEnvironmentNodeFile'> & {
-  node: GraphEnvironmentNode;
-}) {
-  return (
-    <EnvironmentInspector
-      key={node.id}
-      environmentNode={node}
-      onChange={(patch) => onUpdateEnvironmentNode(node.id, patch)}
-      onLoadFile={onReplaceEnvironmentNodeFile ? (file) => onReplaceEnvironmentNodeFile(node.id, file) : undefined}
-      detached
-    />
-  );
-}
-
-function ShaderNodeInspector({
-  node,
-  graph,
-  onUpdateShaderNode,
-}: Pick<NodePropertiesPanelProps, 'onUpdateShaderNode'> & {
-  node: GraphShaderNode;
-  graph: CanvasGraph | undefined;
-}) {
-  return (
-    <ShaderInspector
-      key={node.id}
-      shaderNode={node}
-      sourceConnected={isPortConnected(graph, node.id, 'bg')}
-      onChange={(patch) => onUpdateShaderNode(node.id, patch)}
-      detached
-    />
-  );
-}
-
-function ExportNodeInspector({
+function SelectedNodeInspector({
+  target,
   doc,
   exportBusy,
+  onUpdateLayer,
+  onUpdateGraphNode,
+  onReplaceModelLayerFile,
+  onReplaceEnvironmentNodeFile,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   onExport,
-}: Pick<NodePropertiesPanelProps, 'doc' | 'exportBusy' | 'onUpdateExportConfig' | 'onUpdateAspectRatio' | 'onExport'>) {
+}: InspectorProps & { target: SelectedNodeTarget | null }) {
+  if (!target) return null;
+  if (target.kind === 'layer') {
+    const { layer } = target;
+    return (
+      <LayerTargetInspector
+        layer={layer}
+        aspect={doc.global.aspect}
+        onChange={(patch) => onUpdateLayer(layer.id, patch)}
+        onImageSource={(src) => onUpdateLayer(layer.id, { src })}
+        onLoadModelFile={modelFileLoader(layer, onReplaceModelLayerFile)}
+      />
+    );
+  }
+  if (target.kind === 'graphNode') {
+    const { node } = target;
+    return (
+      <GraphNodeInspector
+        node={node}
+        doc={doc}
+        graph={doc.graph}
+        onChange={(patch) => onUpdateGraphNode(node.id, patch)}
+        onUpdateGraphNode={onUpdateGraphNode}
+        onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
+      />
+    );
+  }
   return (
     <ExportInspector
       key={EXPORT_NODE_ID}
@@ -422,383 +116,15 @@ function ExportNodeInspector({
   );
 }
 
-function SelectedNodeInspector({
-  target,
-  doc,
-  exportBusy,
-  onUpdateLayer,
-  onUpdateMergeNode,
-  onUpdateColorNode,
-  onUpdateRepeatNode,
-  onUpdateMaterialNode,
-  onUpdateMaskNode,
-  onUpdateTransformNode,
-  onUpdateGrimeShadowNode,
-  onUpdateScene3DNode,
-  onUpdateEnvironmentNode,
-  onUpdateShaderNode,
-  onReplaceModelLayerFile,
-  onReplaceEnvironmentNodeFile,
-  onUpdateExportConfig,
-  onUpdateAspectRatio,
-  onExport,
-}: Pick<
-  NodePropertiesPanelProps,
-  | 'doc'
-  | 'exportBusy'
-  | 'onUpdateLayer'
-  | 'onUpdateMergeNode'
-  | 'onUpdateColorNode'
-  | 'onUpdateRepeatNode'
-  | 'onUpdateMaterialNode'
-  | 'onUpdateMaskNode'
-  | 'onUpdateTransformNode'
-  | 'onUpdateGrimeShadowNode'
-  | 'onUpdateScene3DNode'
-  | 'onUpdateEnvironmentNode'
-  | 'onUpdateShaderNode'
-  | 'onReplaceModelLayerFile'
-  | 'onReplaceEnvironmentNodeFile'
-  | 'onUpdateExportConfig'
-  | 'onUpdateAspectRatio'
-  | 'onExport'
-> & {
-  target: SelectedNodeTarget | null;
-}) {
-  if (!target) return null;
-  if (target.kind === 'layer')
-    return (
-      <LayerNodeInspector
-        layer={target.layer}
-        doc={doc}
-        onUpdateLayer={onUpdateLayer}
-        onReplaceModelLayerFile={onReplaceModelLayerFile}
-      />
-    );
-  if (target.kind === 'color') {
-    return <ColorNodeInspector node={target.node} onUpdateColorNode={onUpdateColorNode} />;
-  }
-  return (
-    <GraphOrExportNodeInspector
-      target={target}
-      doc={doc}
-      exportBusy={exportBusy}
-      onUpdateMergeNode={onUpdateMergeNode}
-      onUpdateRepeatNode={onUpdateRepeatNode}
-      onUpdateMaterialNode={onUpdateMaterialNode}
-      onUpdateMaskNode={onUpdateMaskNode}
-      onUpdateTransformNode={onUpdateTransformNode}
-      onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
-      onUpdateScene3DNode={onUpdateScene3DNode}
-      onUpdateEnvironmentNode={onUpdateEnvironmentNode}
-      onUpdateShaderNode={onUpdateShaderNode}
-      onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
-      onUpdateExportConfig={onUpdateExportConfig}
-      onUpdateAspectRatio={onUpdateAspectRatio}
-      onExport={onExport}
-    />
-  );
-}
-
-function GraphOrExportNodeInspector({
-  target,
-  doc,
-  exportBusy,
-  onUpdateMergeNode,
-  onUpdateRepeatNode,
-  onUpdateMaterialNode,
-  onUpdateMaskNode,
-  onUpdateTransformNode,
-  onUpdateGrimeShadowNode,
-  onUpdateScene3DNode,
-  onUpdateEnvironmentNode,
-  onUpdateShaderNode,
-  onReplaceEnvironmentNodeFile,
-  onUpdateExportConfig,
-  onUpdateAspectRatio,
-  onExport,
-}: Pick<
-  NodePropertiesPanelProps,
-  | 'doc'
-  | 'exportBusy'
-  | 'onUpdateMergeNode'
-  | 'onUpdateRepeatNode'
-  | 'onUpdateMaterialNode'
-  | 'onUpdateMaskNode'
-  | 'onUpdateTransformNode'
-  | 'onUpdateGrimeShadowNode'
-  | 'onUpdateScene3DNode'
-  | 'onUpdateEnvironmentNode'
-  | 'onUpdateShaderNode'
-  | 'onReplaceEnvironmentNodeFile'
-  | 'onUpdateExportConfig'
-  | 'onUpdateAspectRatio'
-  | 'onExport'
-> & {
-  target: Exclude<SelectedNodeTarget, { kind: 'layer' } | { kind: 'color' }>;
-}) {
-  if (target.kind !== 'output')
-    return (
-      <GraphUtilityNodeInspector
-        target={target}
-        doc={doc}
-        graph={doc.graph}
-        onUpdateMergeNode={onUpdateMergeNode}
-        onUpdateRepeatNode={onUpdateRepeatNode}
-        onUpdateMaterialNode={onUpdateMaterialNode}
-        onUpdateMaskNode={onUpdateMaskNode}
-        onUpdateTransformNode={onUpdateTransformNode}
-        onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
-        onUpdateScene3DNode={onUpdateScene3DNode}
-        onUpdateEnvironmentNode={onUpdateEnvironmentNode}
-        onUpdateShaderNode={onUpdateShaderNode}
-        onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
-      />
-    );
-  return (
-    <ExportNodeInspector
-      doc={doc}
-      exportBusy={exportBusy}
-      onUpdateExportConfig={onUpdateExportConfig}
-      onUpdateAspectRatio={onUpdateAspectRatio}
-      onExport={onExport}
-    />
-  );
-}
-
-function GraphUtilityNodeInspector({
-  target,
-  doc,
-  graph,
-  onUpdateMergeNode,
-  onUpdateRepeatNode,
-  onUpdateMaterialNode,
-  onUpdateMaskNode,
-  onUpdateTransformNode,
-  onUpdateGrimeShadowNode,
-  onUpdateScene3DNode,
-  onUpdateEnvironmentNode,
-  onUpdateShaderNode,
-  onReplaceEnvironmentNodeFile,
-}: Pick<
-  NodePropertiesPanelProps,
-  | 'doc'
-  | 'onUpdateMergeNode'
-  | 'onUpdateRepeatNode'
-  | 'onUpdateMaterialNode'
-  | 'onUpdateMaskNode'
-  | 'onUpdateTransformNode'
-  | 'onUpdateGrimeShadowNode'
-  | 'onUpdateScene3DNode'
-  | 'onUpdateEnvironmentNode'
-  | 'onUpdateShaderNode'
-  | 'onReplaceEnvironmentNodeFile'
-> & {
-  target: GraphUtilityInspectorTarget;
-  graph: CanvasGraph | undefined;
-}) {
-  return GRAPH_UTILITY_INSPECTORS[target.kind]({
-    target: target as never,
-    doc,
-    graph,
-    onUpdateMergeNode,
-    onUpdateRepeatNode,
-    onUpdateMaterialNode,
-    onUpdateMaskNode,
-    onUpdateTransformNode,
-    onUpdateGrimeShadowNode,
-    onUpdateScene3DNode,
-    onUpdateEnvironmentNode,
-    onUpdateShaderNode,
-    onReplaceEnvironmentNodeFile,
-  });
-}
-
-const GRAPH_UTILITY_INSPECTORS = {
-  merge: ({ target, onUpdateMergeNode }: GraphUtilityInspectorProps<'merge'>) => (
-    <MergeNodeInspector node={target.node} onUpdateMergeNode={onUpdateMergeNode} />
-  ),
-  repeat: ({ target, onUpdateRepeatNode }: GraphUtilityInspectorProps<'repeat'>) => (
-    <RepeatNodeInspector node={target.node} onUpdateRepeatNode={onUpdateRepeatNode} />
-  ),
-  material: ({ target, graph, onUpdateMaterialNode }: GraphUtilityInspectorProps<'material'>) => (
-    <MaterialNodeInspector node={target.node} graph={graph} onUpdateMaterialNode={onUpdateMaterialNode} />
-  ),
-  mask: ({ target, onUpdateMaskNode }: GraphUtilityInspectorProps<'mask'>) => (
-    <MaskNodeInspector node={target.node} onUpdateMaskNode={onUpdateMaskNode} />
-  ),
-  transform: ({ target, onUpdateTransformNode }: GraphUtilityInspectorProps<'transform'>) => (
-    <TransformNodeInspector node={target.node} onUpdateTransformNode={onUpdateTransformNode} />
-  ),
-  grimeShadow: ({ target, onUpdateGrimeShadowNode }: GraphUtilityInspectorProps<'grimeShadow'>) => (
-    <GrimeShadowNodeInspector node={target.node} onUpdateGrimeShadowNode={onUpdateGrimeShadowNode} />
-  ),
-  scene3d: ({
-    target,
-    doc,
-    onUpdateScene3DNode,
-    onUpdateEnvironmentNode,
-    onReplaceEnvironmentNodeFile,
-  }: GraphUtilityInspectorProps<'scene3d'>) => (
-    <Scene3DNodeInspector
-      node={target.node}
-      doc={doc}
-      onUpdateScene3DNode={onUpdateScene3DNode}
-      onUpdateEnvironmentNode={onUpdateEnvironmentNode}
-      onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
-    />
-  ),
-  environment: ({
-    target,
-    onUpdateEnvironmentNode,
-    onReplaceEnvironmentNodeFile,
-  }: GraphUtilityInspectorProps<'environment'>) => (
-    <EnvironmentNodeInspector
-      node={target.node}
-      onUpdateEnvironmentNode={onUpdateEnvironmentNode}
-      onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
-    />
-  ),
-  shader: ({ target, graph, onUpdateShaderNode }: GraphUtilityInspectorProps<'shader'>) => (
-    <ShaderNodeInspector node={target.node} graph={graph} onUpdateShaderNode={onUpdateShaderNode} />
-  ),
-};
-
-type GraphUtilityInspectorProps<K extends GraphUtilityInspectorTarget['kind']> = Pick<
-  NodePropertiesPanelProps,
-  | 'doc'
-  | 'onUpdateMergeNode'
-  | 'onUpdateRepeatNode'
-  | 'onUpdateMaterialNode'
-  | 'onUpdateMaskNode'
-  | 'onUpdateTransformNode'
-  | 'onUpdateGrimeShadowNode'
-  | 'onUpdateScene3DNode'
-  | 'onUpdateEnvironmentNode'
-  | 'onUpdateShaderNode'
-  | 'onReplaceEnvironmentNodeFile'
-> & {
-  target: Extract<GraphUtilityInspectorTarget, { kind: K }>;
-  graph: CanvasGraph | undefined;
-};
-
-function NodePropertiesPanelContent({
-  target,
-  targetSummary,
-  doc,
-  exportBusy,
-  onUpdateLayer,
-  onUpdateMergeNode,
-  onUpdateColorNode,
-  onUpdateRepeatNode,
-  onUpdateMaterialNode,
-  onUpdateMaskNode,
-  onUpdateTransformNode,
-  onUpdateGrimeShadowNode,
-  onUpdateScene3DNode,
-  onUpdateEnvironmentNode,
-  onUpdateShaderNode,
-  onReplaceModelLayerFile,
-  onReplaceEnvironmentNodeFile,
-  onUpdateExportConfig,
-  onUpdateAspectRatio,
-  onExport,
-  onClose,
-}: Pick<
-  NodePropertiesPanelProps,
-  | 'doc'
-  | 'exportBusy'
-  | 'onUpdateLayer'
-  | 'onUpdateMergeNode'
-  | 'onUpdateColorNode'
-  | 'onUpdateRepeatNode'
-  | 'onUpdateMaterialNode'
-  | 'onUpdateMaskNode'
-  | 'onUpdateTransformNode'
-  | 'onUpdateGrimeShadowNode'
-  | 'onUpdateScene3DNode'
-  | 'onUpdateEnvironmentNode'
-  | 'onUpdateShaderNode'
-  | 'onReplaceModelLayerFile'
-  | 'onReplaceEnvironmentNodeFile'
-  | 'onUpdateExportConfig'
-  | 'onUpdateAspectRatio'
-  | 'onExport'
-  | 'onClose'
-> & {
-  target: SelectedNodeTarget | null;
-  targetSummary: ReturnType<typeof buildSelectedTargetSummary>;
-}) {
-  return (
-    <div className="node-props-inner">
-      <div className="node-props-header">
-        <div className="node-props-titles">
-          <span className="node-props-title">Properties</span>
-        </div>
-        <button type="button" className="node-props-close" onClick={onClose} aria-label="Close properties">
-          ×
-        </button>
-      </div>
-      <div className="node-props-body artifact-inspector-scroll">
-        {targetSummary ? (
-          <>
-            <EditorTargetOverview summary={targetSummary} />
-            <SelectedNodeInspector
-              target={target}
-              doc={doc}
-              exportBusy={exportBusy}
-              onUpdateLayer={onUpdateLayer}
-              onUpdateMergeNode={onUpdateMergeNode}
-              onUpdateColorNode={onUpdateColorNode}
-              onUpdateRepeatNode={onUpdateRepeatNode}
-              onUpdateMaterialNode={onUpdateMaterialNode}
-              onUpdateMaskNode={onUpdateMaskNode}
-              onUpdateTransformNode={onUpdateTransformNode}
-              onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
-              onUpdateScene3DNode={onUpdateScene3DNode}
-              onUpdateEnvironmentNode={onUpdateEnvironmentNode}
-              onUpdateShaderNode={onUpdateShaderNode}
-              onReplaceModelLayerFile={onReplaceModelLayerFile}
-              onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
-              onUpdateExportConfig={onUpdateExportConfig}
-              onUpdateAspectRatio={onUpdateAspectRatio}
-              onExport={onExport}
-            />
-          </>
-        ) : (
-          <div className="node-props-empty">Select a node to edit its properties.</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export function NodePropertiesPanel({
   open,
   selectedNodeId,
-  doc,
   graph,
-  exportBusy,
-  onUpdateLayer,
-  onUpdateMergeNode,
-  onUpdateColorNode,
-  onUpdateRepeatNode,
-  onUpdateMaterialNode,
-  onUpdateMaskNode,
-  onUpdateTransformNode,
-  onUpdateGrimeShadowNode,
-  onUpdateScene3DNode,
-  onUpdateEnvironmentNode,
-  onUpdateShaderNode,
-  onReplaceModelLayerFile,
-  onReplaceEnvironmentNodeFile,
-  onUpdateExportConfig,
-  onUpdateAspectRatio,
-  onExport,
   onClose,
+  ...inspectorProps
 }: NodePropertiesPanelProps) {
-  const target = resolveSelectedNodeTarget(doc, graph, selectedNodeId);
-  const targetSummary = buildSelectedTargetSummary(target, doc, graph);
+  const target = resolveSelectedNodeTarget(inspectorProps.doc, graph, selectedNodeId);
+  const targetSummary = buildSelectedTargetSummary(target, inspectorProps.doc, graph);
 
   return (
     <div
@@ -810,29 +136,26 @@ export function NodePropertiesPanel({
     >
       {open && (
         <InspectorTargetContext.Provider value={selectedNodeId}>
-          <NodePropertiesPanelContent
-            target={target}
-            targetSummary={targetSummary}
-            doc={doc}
-            exportBusy={exportBusy}
-            onUpdateLayer={onUpdateLayer}
-            onUpdateMergeNode={onUpdateMergeNode}
-            onUpdateColorNode={onUpdateColorNode}
-            onUpdateRepeatNode={onUpdateRepeatNode}
-            onUpdateMaterialNode={onUpdateMaterialNode}
-            onUpdateMaskNode={onUpdateMaskNode}
-            onUpdateTransformNode={onUpdateTransformNode}
-            onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
-            onUpdateScene3DNode={onUpdateScene3DNode}
-            onUpdateEnvironmentNode={onUpdateEnvironmentNode}
-            onUpdateShaderNode={onUpdateShaderNode}
-            onReplaceModelLayerFile={onReplaceModelLayerFile}
-            onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
-            onUpdateExportConfig={onUpdateExportConfig}
-            onUpdateAspectRatio={onUpdateAspectRatio}
-            onExport={onExport}
-            onClose={onClose}
-          />
+          <div className="node-props-inner">
+            <div className="node-props-header">
+              <div className="node-props-titles">
+                <span className="node-props-title">Properties</span>
+              </div>
+              <button type="button" className="node-props-close" onClick={onClose} aria-label="Close properties">
+                ×
+              </button>
+            </div>
+            <div className="node-props-body artifact-inspector-scroll">
+              {targetSummary ? (
+                <>
+                  <EditorTargetOverview summary={targetSummary} />
+                  <SelectedNodeInspector target={target} {...inspectorProps} />
+                </>
+              ) : (
+                <div className="node-props-empty">Select a node to edit its properties.</div>
+              )}
+            </div>
+          </div>
         </InspectorTargetContext.Provider>
       )}
     </div>

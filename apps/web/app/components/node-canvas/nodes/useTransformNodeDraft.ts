@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { GraphTransformNode } from '../../../types/config';
+import type { GraphTransformNode } from '../../../utils/nodeKinds';
 
 export type TransformNodePatch = Partial<Pick<GraphTransformNode, 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation'>>;
 type TransformNodeDraft = Required<TransformNodePatch>;

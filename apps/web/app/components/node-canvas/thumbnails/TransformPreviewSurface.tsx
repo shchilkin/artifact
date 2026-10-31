@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
 
-import type { GraphTransformNode } from '../../../types/config';
+import type { GraphTransformNode } from '../../../utils/nodeKinds';
 import { alphaBoundsCenter, measureVisibleAlphaBounds } from '../../../utils/render/alphaBounds';
 import { useNodeCanvasPreview } from '../context';
 import { stopNodeGestureEvent } from '../helpers';

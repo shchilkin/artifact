@@ -39,7 +39,7 @@ import { canDeleteNodeFromDocument } from '../../utils/editorGuardrails';
 import {
   connectedPortIds,
   EXPORT_NODE_ID,
-  inferLinearGraph,
+  graphNodesOfKind,
   removeGraphEdge,
   resolveOutputPath,
 } from '../../utils/nodeGraph';
@@ -77,21 +77,8 @@ import { NodeContextMenu } from './menus/NodeContextMenu';
 import { PaneContextMenu } from './menus/PaneContextMenu';
 import { NodeEntryViewport } from './NodeEntryViewport';
 import type { NodeAlignmentGuide } from './nodeAlignment';
-import {
-  ColorNodeComponent,
-  EnvironmentNodeComponent,
-  ExportNodeComponent,
-  FallbackNodeComponent,
-  GrimeShadowNodeComponent,
-  LayerNodeComponent,
-  MaskNodeComponent,
-  MaterialNodeComponent,
-  MergeNodeComponent,
-  RepeatNodeComponent,
-  Scene3DNodeComponent,
-  ShaderNodeComponent,
-  TransformNodeComponent,
-} from './nodes/NodeTypes';
+import { GRAPH_NODE_RF_TYPES } from './nodeKinds';
+import { ExportNodeComponent, FallbackNodeComponent, LayerNodeComponent } from './nodes/NodeTypes';
 import { NodePropertiesPanel } from './panel/NodePropertiesPanel';
 import { toRFEdges } from './reactFlowEdges';
 import { useGeneratedMaterialTextureCanvases } from './thumbnails/materialTextureCanvases';
@@ -106,16 +93,7 @@ import type {
 
 const nodeTypes = {
   layerNode: LayerNodeComponent,
-  colorNode: ColorNodeComponent,
-  materialNode: MaterialNodeComponent,
-  mergeNode: MergeNodeComponent,
-  repeatNode: RepeatNodeComponent,
-  maskNode: MaskNodeComponent,
-  transformNode: TransformNodeComponent,
-  grimeShadowNode: GrimeShadowNodeComponent,
-  scene3dNode: Scene3DNodeComponent,
-  environmentNode: EnvironmentNodeComponent,
-  shaderNode: ShaderNodeComponent,
+  ...GRAPH_NODE_RF_TYPES,
   exportNode: ExportNodeComponent,
   fallbackNode: FallbackNodeComponent,
 };
@@ -153,18 +131,9 @@ export function NodeCanvas({
   onPrimitiveViewStatesChange,
   selectedLayerId,
   onSelectLayer,
-  onGraphChange,
+  onGraphEdit,
   onUpdateLayer,
-  onUpdateMergeNode,
-  onUpdateColorNode,
-  onUpdateRepeatNode,
-  onUpdateMaterialNode,
-  onUpdateMaskNode,
-  onUpdateTransformNode,
-  onUpdateGrimeShadowNode,
-  onUpdateScene3DNode,
-  onUpdateEnvironmentNode,
-  onUpdateShaderNode,
+  onUpdateGraphNode,
   onUpdateExportConfig,
   onUpdateAspectRatio,
   exportBusy,
@@ -179,7 +148,7 @@ export function NodeCanvas({
   onDuplicateLayer,
 }: NodeCanvasProps) {
   const auth = useArtifactAuth();
-  const graph = useMemo(() => doc.graph ?? inferLinearGraph(doc.layers), [doc.graph, doc.layers]);
+  const graph = doc.graph;
 
   const graphRef = useRef(graph);
   useLayoutEffect(() => {
@@ -214,10 +183,10 @@ export function NodeCanvas({
   const { perfDebugAvailable, perfDebugEnabled, handleTogglePerfDebug } = useNodePerfDebug();
   const deleteEdge = useCallback(
     (edgeId: string) => {
-      onGraphChange(removeGraphEdge(graphRef.current, edgeId));
+      onGraphEdit(removeGraphEdge(graphRef.current, edgeId), 'disconnect');
       send({ type: 'EDGE_IDS_REMOVED', ids: [edgeId] });
     },
-    [graphRef, onGraphChange, send],
+    [graphRef, onGraphEdit, send],
   );
 
   // Focused hooks.
@@ -320,7 +289,7 @@ export function NodeCanvas({
     graphEmpty,
     initialViewport,
     entryFocusNodeId,
-    onGraphChange,
+    onGraphEdit,
   });
 
   const {
@@ -341,7 +310,7 @@ export function NodeCanvas({
     graphRef,
     layers: doc.layers,
     send,
-    onGraphChange,
+    onGraphEdit,
     onDeleteNodes: deleteUnlockedNodes,
     canDeleteNode,
   });
@@ -393,7 +362,7 @@ export function NodeCanvas({
     layers: doc.layers,
     send,
     rfInstanceRef,
-    onGraphChange,
+    onGraphEdit,
   });
 
   const {
@@ -418,7 +387,7 @@ export function NodeCanvas({
     graphRef,
     onDeleteNodes: deleteUnlockedNodes,
     canDeleteNode,
-    onGraphChange,
+    onGraphEdit,
     onAddLayerAt,
   });
 
@@ -436,7 +405,7 @@ export function NodeCanvas({
     graph,
     graphRef,
     selectedNodeIds,
-    onGraphChange,
+    onGraphEdit,
   });
 
   const onPaneClick = useCallback(() => {
@@ -553,16 +522,7 @@ export function NodeCanvas({
       selectNode: handleSelectNode,
       toggleNodeEditor: handleToggleEditor,
       updateLayer: onUpdateLayer,
-      updateMergeNode: onUpdateMergeNode,
-      updateColorNode: onUpdateColorNode,
-      updateRepeatNode: onUpdateRepeatNode,
-      updateMaterialNode: onUpdateMaterialNode,
-      updateMaskNode: onUpdateMaskNode,
-      updateTransformNode: onUpdateTransformNode,
-      updateGrimeShadowNode: onUpdateGrimeShadowNode,
-      updateScene3DNode: onUpdateScene3DNode,
-      updateEnvironmentNode: onUpdateEnvironmentNode,
-      updateShaderNode: onUpdateShaderNode,
+      updateGraphNode: onUpdateGraphNode,
       setShaderNodeGenerationStatus,
       updateExportConfig: onUpdateExportConfig,
       updateAspectRatio: onUpdateAspectRatio,
@@ -578,18 +538,9 @@ export function NodeCanvas({
       deleteUnlockedNodes,
       onExport,
       onUpdateAspectRatio,
-      onUpdateColorNode,
+      onUpdateGraphNode,
       onUpdateExportConfig,
       onUpdateLayer,
-      onUpdateMaterialNode,
-      onUpdateMergeNode,
-      onUpdateRepeatNode,
-      onUpdateMaskNode,
-      onUpdateTransformNode,
-      onUpdateGrimeShadowNode,
-      onUpdateScene3DNode,
-      onUpdateEnvironmentNode,
-      onUpdateShaderNode,
       setShaderNodeGenerationStatus,
       openGallery,
       setPrimitiveViewportActive,
@@ -720,16 +671,7 @@ export function NodeCanvas({
             graph={graph}
             exportBusy={exportBusy}
             onUpdateLayer={onUpdateLayer}
-            onUpdateMergeNode={onUpdateMergeNode}
-            onUpdateColorNode={onUpdateColorNode}
-            onUpdateRepeatNode={onUpdateRepeatNode}
-            onUpdateMaterialNode={onUpdateMaterialNode}
-            onUpdateMaskNode={onUpdateMaskNode}
-            onUpdateTransformNode={onUpdateTransformNode}
-            onUpdateGrimeShadowNode={onUpdateGrimeShadowNode}
-            onUpdateScene3DNode={onUpdateScene3DNode}
-            onUpdateEnvironmentNode={onUpdateEnvironmentNode}
-            onUpdateShaderNode={onUpdateShaderNode}
+            onUpdateGraphNode={onUpdateGraphNode}
             onReplaceModelLayerFile={onReplaceModelLayerFile}
             onReplaceEnvironmentNodeFile={onReplaceEnvironmentNodeFile}
             onUpdateExportConfig={onUpdateExportConfig}
@@ -1223,8 +1165,12 @@ function PrimitiveGalleryViewport({
 }) {
   const { doc, imageCache, primitiveViewStates } = useNodeCanvasPreview();
   const materialId = graph.edges.find((edge) => edge.toId === displayLayer.id && edge.toPort === 'material')?.fromId;
-  const materialConfig = materialId ? graph.materialNodes?.find((node) => node.id === materialId) : undefined;
-  const materialShader = materialId ? graph.shaderNodes?.find((node) => node.id === materialId) : undefined;
+  const materialConfig = materialId
+    ? graphNodesOfKind(graph, 'material')?.find((node) => node.id === materialId)
+    : undefined;
+  const materialShader = materialId
+    ? graphNodesOfKind(graph, 'shader')?.find((node) => node.id === materialId)
+    : undefined;
   const materialTextures = useGeneratedMaterialTextureCanvases({
     materialNode: materialConfig ?? null,
     directTextureSourceId: materialShader?.id ?? null,

@@ -8,6 +8,7 @@ import {
   type CanvasDocument,
   DEFAULT_EXPORT,
   type Layer,
+  makeDocument,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
@@ -130,11 +131,11 @@ const STEPS: Step[] = [
 
 function buildDoc(stepIndex: number): CanvasDocument {
   const layers = STEPS.slice(0, stepIndex + 1).flatMap((step) => step.layers);
-  return {
+  return makeDocument({
     global: { bg: '#0a0008', seed: SEED, aspect: '1:1' },
     export: DEFAULT_EXPORT,
     layers,
-  };
+  });
 }
 
 export const meta: MetaFunction = () =>

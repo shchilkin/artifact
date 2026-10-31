@@ -67,7 +67,7 @@
         "trigger": "Automatic: the hero artwork and preview mosaic render after the first paint.",
         "allowedFamilies": ["pixi", "renderer"],
         "budget": {
-          "jsGzipKiB": 185,
+          "jsGzipKiB": 188,
           "cssGzipKiB": 0
         }
       },

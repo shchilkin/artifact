@@ -1,7 +1,8 @@
 import { type ChangeEvent, useRef, useState } from 'react';
 
-import type { GraphMaterialNode, MaterialTextureInputPort } from '../../../types/config';
+import type { MaterialTextureInputPort } from '../../../types/config';
 import { saveImageAsset } from '../../../utils/assetStore';
+import type { GraphMaterialNode } from '../../../utils/nodeKinds';
 import { NoPan } from '../nodes/NoPan';
 import { InspectorColorInput, InspectorReadout, InspectorSection, InspectorSlider, InspectorTextInput } from './fields';
 

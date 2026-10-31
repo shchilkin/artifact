@@ -1,11 +1,5 @@
-import {
-  type CanvasDocument,
-  type GraphMaterialNode,
-  type GraphScene3DNode,
-  type ImageLayer,
-  MATERIAL_TEXTURE_SOURCE_FIELDS,
-  type ModelLayer,
-} from '../types/config';
+import { type CanvasDocument, type ImageLayer, MATERIAL_TEXTURE_SOURCE_FIELDS, type ModelLayer } from '../types/config';
+import type { GraphMaterialNode, GraphScene3DNode } from '../utils/nodeKinds';
 import {
   type HydrateDocumentImageAssetOptions,
   hydrateDocumentImageAssets,
@@ -44,7 +38,7 @@ import {
   storePortableModelAssets,
   stripDocumentModelAssets,
 } from './modelAssetStore';
-import { EXPORT_NODE_ID } from './nodeGraph';
+import { EXPORT_NODE_ID, graphNodesOfKind, listGraphNodeIds } from './nodeGraph';
 
 export interface DocumentDependencyInventory {
   importedImageRefs: string[];
@@ -76,7 +70,7 @@ function imageSourcesForMaterialNode(node: GraphMaterialNode) {
 function collectDocumentImageSources(doc: CanvasDocument): string[] {
   return [
     ...doc.layers.flatMap((layer) => (layer.kind === 'image' ? imageSourcesForLayer(layer) : [])),
-    ...(doc.graph?.materialNodes ?? []).flatMap(imageSourcesForMaterialNode),
+    ...graphNodesOfKind(doc.graph, 'material').flatMap(imageSourcesForMaterialNode),
   ];
 }
 
@@ -86,8 +80,8 @@ function collectDocumentModelSources(doc: CanvasDocument): string[] {
 
 function collectDocumentEnvironmentSources(doc: CanvasDocument): string[] {
   return [
-    ...(doc.graph?.environmentNodes ?? []).flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
-    ...(doc.graph?.scene3dNodes ?? []).flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
+    ...graphNodesOfKind(doc.graph, 'environment').flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
+    ...graphNodesOfKind(doc.graph, 'scene3d').flatMap((node) => (node.environmentSrc ? [node.environmentSrc] : [])),
   ];
 }
 
@@ -95,9 +89,10 @@ export function inspectDocumentDependencies(doc: CanvasDocument): DocumentDepend
   const imageSources = collectDocumentImageSources(doc);
   const modelSources = collectDocumentModelSources(doc);
   const environmentSources = collectDocumentEnvironmentSources(doc);
-  const graphExportInput =
-    doc.graph?.edges.some((edge) => edge.toId === EXPORT_NODE_ID && edge.toPort === 'in') ?? false;
-  const hasGraphExportTarget = doc.graph ? graphExportInput : true;
+  // An empty document has nothing to connect, so it is not missing an export target.
+  const hasGraphExportTarget =
+    listGraphNodeIds(doc.graph, doc.layers).length === 0 ||
+    doc.graph.edges.some((edge) => edge.toId === EXPORT_NODE_ID && edge.toPort === 'in');
 
   return {
     importedImageRefs: unique(imageSources.filter(isAssetUri)),
@@ -111,7 +106,7 @@ export function inspectDocumentDependencies(doc: CanvasDocument): DocumentDepend
     portableModelAssetIds: unique(doc.modelAssets?.map((asset) => asset.id) ?? []),
     portableEnvironmentAssetIds: unique(doc.envAssets?.map((asset) => asset.id) ?? []),
     hasGraphExportTarget,
-    missingGraphExportTarget: Boolean(doc.graph && !hasGraphExportTarget),
+    missingGraphExportTarget: !hasGraphExportTarget,
   };
 }
 
@@ -123,10 +118,10 @@ export function hasPortableDocumentPayloads(doc: CanvasDocument) {
     inventory.portableModelAssetIds.length > 0 ||
     inventory.portableEnvironmentAssetIds.length > 0 ||
     doc.layers.some((layer): layer is ModelLayer => layer.kind === 'model' && isModelDataUrl(layer.modelSrc)) ||
-    (doc.graph?.environmentNodes ?? []).some((node) =>
+    graphNodesOfKind(doc.graph, 'environment').some((node) =>
       Boolean(node.environmentSrc && isEnvironmentDataUrl(node.environmentSrc)),
     ) ||
-    (doc.graph?.scene3dNodes ?? []).some((node): node is GraphScene3DNode =>
+    graphNodesOfKind(doc.graph, 'scene3d').some((node): node is GraphScene3DNode =>
       Boolean(node.environmentSrc && isEnvironmentDataUrl(node.environmentSrc)),
     )
   );

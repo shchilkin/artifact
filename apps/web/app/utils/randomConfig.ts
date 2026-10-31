@@ -1,18 +1,8 @@
-import type {
-  AspectRatio,
-  CanvasDocument,
-  EffectLayer,
-  EffectPreset,
-  EmojiLayer,
-  GlobalConfig,
-  NoiseType,
-  TextLayer,
-} from '../types/config';
+import type { AspectRatio, CanvasDocument, EffectLayer, EffectPreset, NoiseType, TextLayer } from '../types/config';
 import {
-  ALL_EMOJIS,
   DEFAULT_EXPORT,
   DOCUMENT_SCHEMA_VERSION,
-  EFFECT_PRESET_MENU_ORDER,
+  makeDocument,
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
@@ -50,18 +40,6 @@ function randomHsl(
   return hslToHex(hue, rand(satRange[0], satRange[1], rng), rand(litRange[0], litRange[1], rng));
 }
 
-function spark(rng: Rng = Math.random): boolean {
-  return rng() < 0.4;
-}
-
-function chance(probability: number, rng: Rng = Math.random): boolean {
-  return rng() < probability;
-}
-
-function optionalRand(probability: number, min: number, max: number, rng: Rng = Math.random): number {
-  return chance(probability, rng) ? rand(min, max, rng) : 0;
-}
-
 function pick<T>(items: readonly T[], rng: Rng = Math.random): T {
   return items[rand(0, items.length - 1, rng)];
 }
@@ -78,9 +56,7 @@ function lcg(seed: number): Rng {
   };
 }
 
-const TEXT_RANDOM_ROLES = ['poster', 'title', 'subtitle', 'label', 'credit'] as const;
-
-type TextRandomRole = (typeof TEXT_RANDOM_ROLES)[number];
+type TextRandomRole = 'poster' | 'title' | 'subtitle' | 'label' | 'credit';
 
 interface TextRandomRoleConfig {
   fonts: readonly TextLayer['font'][];
@@ -170,48 +146,6 @@ const TEXT_ROLE_CONFIGS: Record<TextRandomRole, TextRandomRoleConfig> = {
   },
 };
 
-export function randomGlobal(baseHue?: number, rng: Rng = Math.random): Omit<GlobalConfig, 'aspect'> {
-  const h = baseHue ?? rand(0, 359, rng);
-  return {
-    bg: randomHsl(h, [20, 55], [3, 14], rng),
-    seed: Math.floor(rng() * 999999),
-  };
-}
-
-export function randomEmojiLayer(rng: Rng = Math.random): EmojiLayer {
-  const pool = [...ALL_EMOJIS].sort(() => rng() - 0.5);
-  const minSz = rand(10, 50, rng);
-  return makeEmojiLayer({
-    emojis: pool.slice(0, rand(2, 6, rng)),
-    density: rand(15, 70, rng),
-    minSz,
-    maxSz: rand(Math.max(minSz + 10, 40), 130, rng),
-    blur: 0,
-  });
-}
-
-export function randomEffectLayer(baseHue?: number): EffectLayer {
-  const baseHueValue = baseHue ?? rand(0, 359);
-  const preset = ALL_PRESETS[Math.floor(Math.random() * ALL_PRESETS.length)];
-  return randomEffectPresetLayer(preset, baseHueValue);
-}
-
-const TEXT_ROLE_MARKERS: { role: TextRandomRole; markers: readonly string[] }[] = [
-  { role: 'poster', markers: ['poster'] },
-  { role: 'credit', markers: ['credit', 'artist', 'track'] },
-  { role: 'subtitle', markers: ['subtitle'] },
-  { role: 'label', markers: ['label'] },
-  { role: 'title', markers: ['title'] },
-];
-
-function inferTextRandomRole(layer?: TextLayer): TextRandomRole {
-  const marker = `${layer?.name ?? ''} ${layer?.content ?? ''}`.toLowerCase();
-  return (
-    TEXT_ROLE_MARKERS.find((config) => config.markers.some((term) => marker.includes(term)))?.role ??
-    pick(TEXT_RANDOM_ROLES)
-  );
-}
-
 function randomTextPatch(
   role: TextRandomRole,
   baseHue: number,
@@ -244,13 +178,6 @@ function randomTextPatch(
   };
 }
 
-export function randomTextLayer(baseHue?: number, role?: TextRandomRole, rng: Rng = Math.random): TextLayer {
-  const baseHueValue = baseHue ?? rand(0, 359, rng);
-  const textRole = role ?? pick(TEXT_RANDOM_ROLES, rng);
-  return makeTextLayer(randomTextPatch(textRole, baseHueValue, undefined, rng));
-}
-
-const ALL_PRESETS: EffectPreset[] = EFFECT_PRESET_MENU_ORDER;
 const ALL_ASPECTS: AspectRatio[] = ['1:1', '4:5', '9:16', '16:9'];
 const SAMPLE_IMAGE_SRC = '/girl_image_landing.png';
 
@@ -463,431 +390,16 @@ export function randomDocumentForFormula(
     ...layer,
     id: `random-${formula}-${seed}-${index}`,
   }));
-  return {
+  return makeDocument({
     schemaVersion: DOCUMENT_SCHEMA_VERSION,
     global: { bg: randomPlateColor(baseHue, rng), seed, aspect },
     layers,
     export: { ...DEFAULT_EXPORT },
-  };
-}
-
-export function randomDocumentFromSeed(seed: number): CanvasDocument {
-  const rng = lcg(seed);
-  const formula = pick(RANDOM_FORMULA_IDS, rng);
-  return randomDocumentForFormula(formula, seed);
-}
-
-type EffectPresetRandomizer = (baseHue: number, accentHue: number) => Partial<EffectLayer>;
-
-const EFFECT_PRESET_RANDOMIZERS: Partial<Record<EffectPreset, EffectPresetRandomizer>> = {
-  rays: (_baseHue, ah) => ({
-    rays: rand(4, 48),
-    rayInt: rand(20, 90),
-    rayColor: randomHsl(ah, [70, 100], [55, 80]),
-  }),
-  bloom: () => ({ bloom: rand(15, 80) }),
-  filmBurn: () => ({ filmBurn: rand(20, 90) }),
-  glitch: () => ({ glitch: rand(0, 18) }),
-  rgbSplit: () => ({ rgbSplit: rand(0, 12) }),
-  interlace: () => ({ interlace: rand(10, 70) }),
-  dataMosh: () => ({ dataMosh: rand(10, 70) }),
-  badStream: () => ({
-    badStream: rand(35, 88),
-    badStreamBlockSize: rand(28, 86),
-    badStreamDetail: rand(18, 72),
-    badStreamSmear: rand(10, 68),
-    badStreamChroma: rand(8, 56),
-    badStreamDarkness: rand(18, 72),
-    pixelStretch: optionalRand(0.18, 25, 85),
-    pixelStretchLength: rand(10, 58),
-    pixelStretchAngle: rand(0, 180),
-  }),
-  macroblocks: () => ({ badStream: rand(38, 86), badStreamBlockSize: rand(32, 96), badStreamDarkness: rand(0, 36) }),
-  detailBlocks: () => ({
-    badStream: rand(45, 90),
-    badStreamBlockSize: rand(28, 72),
-    badStreamDetail: rand(45, 100),
-    badStreamChroma: rand(0, 42),
-    badStreamDarkness: rand(0, 38),
-  }),
-  blockSmear: () => ({ badStream: rand(38, 86), badStreamBlockSize: rand(30, 90), badStreamSmear: rand(35, 100) }),
-  chromaBlocks: () => ({
-    badStream: rand(36, 84),
-    badStreamBlockSize: rand(24, 72),
-    badStreamDetail: rand(0, 60),
-    badStreamChroma: rand(45, 100),
-  }),
-  blockDropout: () => ({
-    badStream: rand(40, 88),
-    badStreamBlockSize: rand(32, 100),
-    badStreamDarkness: rand(45, 100),
-  }),
-  grain: () => ({ grain: rand(8, 42) }),
-  dotGrain: () => ({
-    dotGrain: rand(45, 90),
-    dotGrainSize: rand(2, 7),
-    dotGrainDensity: rand(40, 85),
-    dotGrainJitter: rand(20, 75),
-  }),
-  scanlines: () => ({ scanlines: rand(5, 80), scanlineWidth: rand(1, 4) }),
-  tint: () => ({ tint: randomHsl(rand(0, 359), [40, 80], [10, 28]), tintOp: rand(15, 65) }),
-  noiseWarp: () => ({ noiseWarp: rand(10, 70) }),
-  morph: () => ({ morphAmt: rand(10, 80), morphFreq: rand(1, 15) }),
-  vortex: () => ({ vortex: rand(5, 60) }),
-  barrel: () => ({ barrel: rand(5, 70) }),
-  tear: () => ({ tearAmt: rand(1, 15), tearSize: rand(1, 12) }),
-  mirror: () => ({ mirror: rand(1, 3) }),
-  hueShift: () => ({ hueShift: rand(10, 350) }),
-  vignette: () => ({ vignette: rand(0, 80) }),
-  retroResolution: () => ({ retroResolution: pick([160, 240, 320, 512]) }),
-  pixelate: () => ({ pixelate: rand(2, 10) }),
-  posterize: () => ({ posterize: rand(3, 12) }),
-  indexedPalette: () => ({
-    indexedPalette: rand(65, 100),
-    indexedPaletteCount: rand(3, 6),
-  }),
-  gradientMap: (baseHue, ah) => ({
-    gradientMap: rand(45, 95),
-    gradientMapShadow: randomHsl(baseHue, [40, 80], [3, 14]),
-    gradientMapMid: randomHsl((baseHue + 70) % 360, [40, 90], [28, 48]),
-    gradientMapHighlight: randomHsl(ah, [60, 100], [58, 86]),
-  }),
-  channelMixer: () => ({
-    channelMixer: rand(35, 90),
-    channelRedMix: rand(-20, 80),
-    channelGreenMix: rand(-20, 80),
-    channelBlueMix: rand(-20, 80),
-  }),
-  pixelStretch: () => ({
-    pixelStretch: rand(35, 90),
-    pixelStretchLength: rand(12, 64),
-    pixelStretchAngle: rand(0, 180),
-  }),
-  duotone: (baseHue, ah) => ({
-    duotone: rand(40, 90),
-    duoA: randomHsl(baseHue, [30, 60], [3, 12]),
-    duoB: randomHsl(ah, [60, 100], [55, 85]),
-  }),
-  halftone: () => ({ halftone: rand(5, 20) }),
-  risoShift: () => ({ risoShift: rand(4, 18), risoAngle: rand(0, 360) }),
-  blur: () => ({ blurAmt: rand(10, 70) }),
-  threshold: () => ({ threshold: rand(30, 70) }),
-  edgeCrush: () => ({ edgeCrush: rand(35, 85) }),
-  silhouetteCrush: () => ({ silhouetteCrush: rand(35, 85) }),
-  bokehBlur: () => ({ bokehBlur: rand(6, 20), bokehThreshold: rand(55, 85) }),
-  hatching: () => ({ hatching: rand(35, 90), hatchScale: rand(5, 16), hatchAngle: rand(0, 180) }),
-  gooeyMerge: () => ({ gooeyMerge: rand(35, 90), gooeyRadius: rand(5, 18), gooeyThreshold: rand(35, 65) }),
-  edgeDetect: () => ({ edgeDetect: rand(40, 90) }),
-  gradientOverlay: (baseHue, ah) => ({
-    gradMix: rand(30, 80),
-    gradA: randomHsl(baseHue, [40, 80], [10, 30]),
-    gradB: randomHsl(ah, [60, 100], [55, 85]),
-    gradAngle: rand(0, 360),
-  }),
-  sepia: () => ({ sepia: rand(40, 90) }),
-  neonGlow: (_baseHue, ah) => ({ neonGlow: rand(25, 80), neonColor: randomHsl(ah, [80, 100], [50, 80]) }),
-  zoomBlur: () => ({ zoomBlur: rand(15, 65) }),
-  patternRefraction: () => ({
-    patternRefraction: rand(35, 85),
-    patternRefractionScale: rand(8, 36),
-    patternRefractionAngle: rand(0, 180),
-  }),
-  vhsTracking: () => ({ vhsTracking: rand(10, 60) }),
-  dither: () => ({ dither: rand(18, 54) }),
-  infrared: () => ({ infrared: rand(40, 90) }),
-  ca: () => ({ ca: rand(5, 25) }),
-  wave: () => ({ waveAmt: rand(8, 45), waveFreq: rand(1, 8) }),
-  matte: () => ({ matte: rand(15, 65) }),
-  overprint: () => ({ overprint: rand(10, 55) }),
-  solarize: () => ({ solarize: rand(30, 80) }),
-  bleachBypass: () => ({ bleachBypass: rand(20, 70) }),
-  cyanotype: () => ({ cyanotype: rand(20, 80) }),
-  splitTone: () => ({ splitToneAmt: rand(20, 70) }),
-  ripple: () => ({ rippleAmt: rand(10, 60), rippleFreq: rand(1, 8) }),
-  kaleidoscope: () => ({ kaleidoscope: rand(20, 80) }),
-  squeeze: () => ({ squeezeX: spark() ? rand(-60, 60) : 0, squeezeY: spark() ? rand(-60, 60) : 0 }),
-  emboss: () => ({ emboss: rand(20, 80) }),
-  linocut: () => ({ linocut: rand(20, 80) }),
-  fog: () => ({ fog: rand(20, 70) }),
-  speedLines: () => ({ speedLines: rand(10, 80) }),
-};
-
-function randomEffectPresetLayer(preset: EffectPreset, baseHue: number): EffectLayer {
-  const base = makeEffectPresetLayer(preset);
-  const ah = (baseHue + rand(120, 240)) % 360;
-  const overrides = EFFECT_PRESET_RANDOMIZERS[preset]?.(baseHue, ah) ?? {};
-  return { ...base, ...overrides };
+  });
 }
 
 export function randomDocument(): CanvasDocument {
   const seed = Math.floor(Math.random() * 999999);
   const formula = pick(RANDOM_FORMULA_IDS);
   return randomDocumentForFormula(formula, seed);
-}
-
-type RandomLayerSectionFactory = (layer: unknown, h: number, accentHue: number) => Partial<unknown>;
-
-function randomEmojiSection(): Partial<EmojiLayer> {
-  const pool = [...ALL_EMOJIS].sort(() => Math.random() - 0.5);
-  const minSz = rand(10, 50);
-  return {
-    emojis: pool.slice(0, rand(2, 6)),
-    density: rand(15, 70),
-    minSz,
-    maxSz: rand(Math.max(minSz + 10, 40), 130),
-    blur: 0,
-  };
-}
-
-const RANDOM_LAYER_SECTION_FACTORIES: Record<string, RandomLayerSectionFactory> = {
-  EMOJIS: () => randomEmojiSection(),
-  RAYS: (_layer, _h, ah) => ({
-    rays: rand(4, 48),
-    rayInt: rand(20, 90),
-    rayColor: randomHsl(ah, [70, 100], [55, 80]),
-    bloom: optionalRand(0.4, 15, 80),
-    filmBurn: optionalRand(0.4, 20, 90),
-    neonGlow: optionalRand(0.3, 20, 70),
-    neonColor: randomHsl(ah, [80, 100], [50, 80]),
-    fog: optionalRand(0.2, 20, 70),
-    speedLines: optionalRand(0.15, 10, 80),
-  }),
-  GLITCH: () => ({
-    glitch: rand(0, 18),
-    rgbSplit: rand(0, 12),
-    ca: optionalRand(0.4, 3, 20),
-    interlace: optionalRand(0.4, 10, 70),
-    dataMosh: optionalRand(0.4, 10, 70),
-    vhsTracking: optionalRand(0.4, 10, 55),
-    badStream: optionalRand(0.25, 30, 80),
-    badStreamBlockSize: rand(28, 86),
-    badStreamDetail: rand(18, 72),
-    badStreamSmear: rand(10, 68),
-    badStreamChroma: rand(8, 56),
-    badStreamDarkness: rand(18, 72),
-  }),
-  TEXTURE: () => ({
-    grain: rand(0, 42),
-    dotGrain: optionalRand(0.25, 35, 85),
-    dotGrainSize: rand(2, 7),
-    dotGrainDensity: rand(35, 85),
-    dotGrainJitter: rand(15, 75),
-    scanlines: rand(0, 80),
-    scanlineWidth: rand(1, 4),
-    blurAmt: optionalRand(0.4, 0, 60),
-    matte: optionalRand(0.35, 10, 60),
-    dither: optionalRand(0.25, 15, 50),
-    emboss: optionalRand(0.2, 20, 80),
-    linocut: optionalRand(0.2, 20, 80),
-  }),
-  TINT: () => ({ tint: randomHsl(rand(0, 359), [40, 80], [10, 28]), tintOp: rand(0, 60) }),
-  WARP: () => ({
-    morphAmt: optionalRand(0.4, 10, 80),
-    morphFreq: rand(1, 15),
-    tearAmt: optionalRand(0.4, 1, 15),
-    tearSize: rand(1, 12),
-    noiseWarp: optionalRand(0.4, 10, 70),
-    vortex: optionalRand(0.4, 5, 60),
-    barrel: optionalRand(0.4, 5, 70),
-    mirror: optionalRand(0.4, 1, 3),
-    waveAmt: optionalRand(0.3, 5, 40),
-    waveFreq: rand(1, 8),
-    zoomBlur: optionalRand(0.2, 10, 55),
-    rippleAmt: optionalRand(0.2, 10, 60),
-    rippleFreq: rand(1, 8),
-    patternRefraction: optionalRand(0.15, 25, 80),
-    patternRefractionScale: rand(8, 36),
-    patternRefractionAngle: rand(0, 180),
-    kaleidoscope: optionalRand(0.15, 20, 80),
-    squeezeX: optionalRand(0.4, -60, 60),
-    squeezeY: optionalRand(0.4, -60, 60),
-  }),
-  COLORFX: (_layer, h, ah) => ({
-    hueShift: optionalRand(0.4, 10, 350),
-    rgbSplit: optionalRand(0.4, 3, 25),
-    vignette: rand(0, 80),
-    retroResolution: optionalRand(0.25, 160, 512),
-    pixelate: optionalRand(0.4, 2, 10),
-    posterize: optionalRand(0.4, 3, 12),
-    indexedPalette: optionalRand(0.25, 50, 100),
-    indexedPaletteCount: rand(3, 6),
-    gradientMap: optionalRand(0.2, 35, 90),
-    gradientMapShadow: randomHsl(h, [40, 80], [3, 14]),
-    gradientMapMid: randomHsl((h + 70) % 360, [40, 90], [28, 48]),
-    gradientMapHighlight: randomHsl(ah, [60, 100], [58, 86]),
-    channelMixer: optionalRand(0.2, 30, 90),
-    channelRedMix: rand(-20, 80),
-    channelGreenMix: rand(-20, 80),
-    channelBlueMix: rand(-20, 80),
-    threshold: optionalRand(0.2, 30, 70),
-    edgeCrush: optionalRand(0.2, 30, 80),
-    silhouetteCrush: optionalRand(0.18, 30, 80),
-    bokehBlur: optionalRand(0.15, 4, 18),
-    bokehThreshold: rand(55, 85),
-    hatching: optionalRand(0.15, 25, 85),
-    hatchScale: rand(5, 18),
-    hatchAngle: rand(0, 180),
-    gooeyMerge: optionalRand(0.15, 25, 85),
-    gooeyRadius: rand(4, 16),
-    gooeyThreshold: rand(35, 65),
-    edgeDetect: optionalRand(0.2, 30, 80),
-    gradMix: optionalRand(0.25, 30, 70),
-    sepia: optionalRand(0.2, 20, 80),
-    infrared: optionalRand(0.15, 30, 80),
-    solarize: optionalRand(0.15, 30, 80),
-    bleachBypass: optionalRand(0.15, 20, 70),
-    cyanotype: optionalRand(0.15, 20, 80),
-    splitToneAmt: optionalRand(0.15, 20, 70),
-  }),
-  RISO: (_layer, h, ah) => ({
-    duotone: optionalRand(0.5, 40, 90),
-    duoA: randomHsl(h, [30, 60], [3, 12]),
-    duoB: randomHsl(ah, [60, 100], [55, 85]),
-    halftone: optionalRand(0.5, 5, 20),
-    risoShift: optionalRand(0.5, 4, 18),
-    risoAngle: rand(0, 360),
-    overprint: optionalRand(0.3, 10, 55),
-  }),
-  TEXT: (layer, h) => randomTextPatch(inferTextRandomRole(layer as TextLayer), h, layer as TextLayer),
-};
-
-export function randomLayerSection(layer: EmojiLayer, section: 'EMOJIS'): Partial<EmojiLayer>;
-export function randomLayerSection(layer: EffectLayer, section: string): Partial<EffectLayer>;
-export function randomLayerSection(layer: TextLayer, section: 'TEXT'): Partial<TextLayer>;
-export function randomLayerSection(layer: unknown, section: string): Partial<unknown> {
-  const h = rand(0, 359);
-  const ah = (h + rand(120, 240)) % 360;
-  return RANDOM_LAYER_SECTION_FACTORIES[section]?.(layer, h, ah) ?? ((layer ?? {}) as Partial<unknown>);
-}
-
-export function zeroLayerSection(section: string): Partial<EffectLayer> | Partial<EmojiLayer> | Partial<TextLayer> {
-  switch (section) {
-    case 'EMOJIS':
-      return { density: 0, blur: 0 };
-    case 'RAYS':
-      return {
-        rays: 0,
-        rayInt: 0,
-        rayColor: '#bb00ff',
-        bloom: 0,
-        filmBurn: 0,
-        neonGlow: 0,
-        neonColor: '#ff00ff',
-        fog: 0,
-        fogColor: '#c8d8e8',
-        speedLines: 0,
-      };
-    case 'GLITCH':
-      return {
-        glitch: 0,
-        rgbSplit: 0,
-        ca: 0,
-        interlace: 0,
-        dataMosh: 0,
-        vhsTracking: 0,
-        badStream: 0,
-        badStreamBlockSize: 48,
-        badStreamDetail: 42,
-        badStreamSmear: 35,
-        badStreamChroma: 28,
-        badStreamDarkness: 38,
-        pixelStretch: 0,
-        pixelStretchLength: 24,
-        pixelStretchAngle: 0,
-      };
-    case 'TEXTURE':
-      return {
-        grain: 0,
-        dotGrain: 0,
-        dotGrainSize: 4,
-        dotGrainDensity: 62,
-        dotGrainJitter: 35,
-        scanlines: 0,
-        scanlineWidth: 1,
-        blurAmt: 0,
-        matte: 0,
-        dither: 0,
-        emboss: 0,
-        linocut: 0,
-      };
-    case 'TINT':
-      return { tint: '#350055', tintOp: 0 };
-    case 'WARP':
-      return {
-        morphAmt: 0,
-        morphFreq: 5,
-        tearAmt: 0,
-        tearSize: 3,
-        noiseWarp: 0,
-        vortex: 0,
-        barrel: 0,
-        mirror: 0,
-        waveAmt: 0,
-        waveFreq: 3,
-        zoomBlur: 0,
-        rippleAmt: 0,
-        rippleFreq: 3,
-        patternRefraction: 0,
-        patternRefractionScale: 16,
-        patternRefractionAngle: 35,
-        kaleidoscope: 0,
-        squeezeX: 0,
-        squeezeY: 0,
-      };
-    case 'COLORFX':
-      return {
-        hueShift: 0,
-        rgbSplit: 0,
-        vignette: 0,
-        retroResolution: 0,
-        pixelate: 0,
-        posterize: 0,
-        indexedPalette: 0,
-        indexedPaletteCount: 6,
-        indexedColorA: '#12002b',
-        indexedColorB: '#3b1590',
-        indexedColorC: '#d400b8',
-        indexedColorD: '#ff1d1d',
-        indexedColorE: '#f6c400',
-        indexedColorF: '#fff1df',
-        gradientMap: 0,
-        gradientMapShadow: '#0d0033',
-        gradientMapMid: '#9c5a13',
-        gradientMapHighlight: '#00e6cc',
-        channelMixer: 0,
-        channelRedMix: 45,
-        channelGreenMix: 35,
-        channelBlueMix: 25,
-        threshold: 0,
-        edgeCrush: 0,
-        silhouetteCrush: 0,
-        bokehBlur: 0,
-        bokehThreshold: 68,
-        hatching: 0,
-        hatchScale: 9,
-        hatchAngle: 35,
-        gooeyMerge: 0,
-        gooeyRadius: 8,
-        gooeyThreshold: 46,
-        edgeDetect: 0,
-        gradMix: 0,
-        gradA: '#0a0020',
-        gradB: '#ff6ec7',
-        gradAngle: 0,
-        sepia: 0,
-        infrared: 0,
-        solarize: 0,
-        bleachBypass: 0,
-        cyanotype: 0,
-        splitToneAmt: 0,
-        splitShadow: '#001a4f',
-        splitHighlight: '#ff8040',
-      };
-    case 'RISO':
-      return { duotone: 0, duoA: '#0a0020', duoB: '#ff6ec7', halftone: 0, risoShift: 0, risoAngle: 15, overprint: 0 };
-    case 'TEXT':
-      return { content: '', opacity: 100, rotation: 0, x: 0.5, y: 0.5, scaleX: 1, scaleY: 1 };
-    default:
-      return {};
-  }
 }

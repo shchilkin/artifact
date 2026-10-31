@@ -69,4 +69,9 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Node-kind UI modules export one kind descriptor next to its node component, so fast refresh reloads them.
+    files: ['apps/web/app/components/node-canvas/nodeKinds/*.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ]);

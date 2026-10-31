@@ -1,4 +1,4 @@
-import type { GraphGrimeShadowNode } from '../../../types/config';
+import type { GraphGrimeShadowNode } from '../../../utils/nodeKinds';
 import { InspectorColorInput, InspectorSlider, InspectorTextInput, InspectorToggle } from './fields';
 
 export function GrimeShadowInspector({

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { type CanvasDocument, makeFillLayer, makeTextLayer } from '../types/config';
+import { type CanvasDocument, makeDocument, makeFillLayer, makeTextLayer } from '../types/config';
 import {
   collectDocumentFontRefs,
   fontUriFromId,
@@ -34,7 +34,7 @@ describe('fontStore document helpers', () => {
   });
 
   it('collects unique document font references', () => {
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: '#101010', seed: 1, aspect: '1:1' },
       layers: [
         makeTextLayer({ font: 'BUNGEE' }),
@@ -43,17 +43,17 @@ describe('fontStore document helpers', () => {
         makeFillLayer(),
       ],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
 
     expect(collectDocumentFontRefs(doc)).toEqual(['BUNGEE', 'artifact-font://font-a']);
   });
 
   it('hydrates imported font references into portable document font assets', async () => {
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: '#101010', seed: 1, aspect: '1:1' },
       layers: [makeTextLayer({ font: fontUriFromId('font-a') }), makeTextLayer({ font: 'BUNGEE' })],
       export: { format: 'png', scale: 1, target: 'cover' },
-    };
+    });
     const loadFontAsset = vi.fn(async (font: string) => (font === fontUriFromId('font-a') ? fontAsset : null));
 
     const hydrated = await hydrateDocumentFontAssets(doc, { loadFontAsset });
@@ -64,12 +64,12 @@ describe('fontStore document helpers', () => {
   });
 
   it('stores portable document font assets outside the document and strips payloads', async () => {
-    const doc: CanvasDocument = {
+    const doc: CanvasDocument = makeDocument({
       global: { bg: '#101010', seed: 1, aspect: '1:1' },
       layers: [makeTextLayer({ font: fontUriFromId('font-a') })],
       export: { format: 'png', scale: 1, target: 'cover' },
       fontAssets: [fontAsset],
-    };
+    });
     const saveFontAsset = vi.fn(async () => fontAsset);
 
     const stored = await storeDocumentFontAssets(doc, { saveFontAsset });

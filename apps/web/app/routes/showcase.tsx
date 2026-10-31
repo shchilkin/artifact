@@ -8,6 +8,7 @@ import { ProductPageHeader } from '../components/product-surfaces/ProductPageHea
 import { EmptyState } from '../components/ui/EmptyState';
 import { ASPECT_SIZES, type AspectRatio, type CanvasDocument } from '../types/config';
 import { CURATED_EXAMPLES } from '../utils/curatedExamples';
+import { editorDocumentPath } from '../utils/documentLink';
 import { generateThumbnail } from '../utils/generateThumbnail';
 import { pageMeta } from '../utils/pageMeta';
 import { RANDOM_FORMULA_IDS, type RandomFormulaId, randomDocumentForFormula } from '../utils/randomConfig';
@@ -272,11 +273,7 @@ export default function Showcase() {
               {columns.map((col, ci) => (
                 <div key={ci} className="showcase-mosaic__col">
                   {col.map((item) => (
-                    <ShowcaseTile
-                      key={item.id}
-                      item={item}
-                      href={`/app?doc=${encodeURIComponent(JSON.stringify(item.doc))}`}
-                    />
+                    <ShowcaseTile key={item.id} item={item} href={editorDocumentPath(item.doc)} />
                   ))}
                 </div>
               ))}

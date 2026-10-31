@@ -15,8 +15,7 @@ Before changing release state, read:
 
 - `AGENTS.md`
 - `docs/release-template.md`
-- `docs/production-readiness.md`
-- `docs/roadmap.md`
+- `docs/production-readiness.md` (release gate and manual QA checklist)
 - the active `docs/version-plans/vX.Y.md`
 
 ## Hard Rule
@@ -35,12 +34,10 @@ cannot be filled, stop and report the missing release facts.
    - `package.json`
    - `apps/web/package.json`
    - `package-lock.json`
-5. Update `docs/roadmap.md`, `docs/production-readiness.md`, and the version
-   plan status.
-6. Run the release gate:
-   - `npm run check`
-   - `npm run build`
-   - `npm run test:browser`
+5. Mark the version plan status as released. Record release evidence only in
+   the release notes; do not append it to `docs/production-readiness.md`.
+6. Run the release gate listed in `docs/production-readiness.md`
+   (`## Release Gate`). That list is the only source for gate commands.
 7. If release scope touched node-editor performance-sensitive paths, run
    `npm run perf:node-editor`; otherwise record why it was not required.
 8. Commit only after the template-backed release notes and validation status are
@@ -57,5 +54,5 @@ Do not tag or publish when:
 - validation commands are missing or failed;
 - accepted risks are known but not documented;
 - package metadata and tag version disagree;
-- roadmap/version-plan status still presents the release as active future work;
+- version-plan status still presents the release as active future work;
 - worktree is dirty after the intended release commit.

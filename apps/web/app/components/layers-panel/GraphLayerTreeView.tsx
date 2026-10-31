@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { CanvasDocument, GraphArea, GraphMergeNode, Layer } from '../../types/config';
+import type { CanvasDocument, GraphArea, Layer } from '../../types/config';
 import { isEditableKeyTarget } from '../../utils/editableKeyTarget';
 import {
   buildGraphLayerTree,
@@ -20,6 +20,8 @@ import {
   type GraphTreeRow,
 } from '../../utils/graphLayerTree';
 import { checkTreeDrop, checkTreeRowMovable, type TreeDropPosition } from '../../utils/graphTreeEdits';
+import { graphNodesOfKind } from '../../utils/nodeGraph';
+import type { GraphMergeNode } from '../../utils/nodeKinds';
 import {
   EditorRowActions,
   EditorRowFrame,
@@ -50,18 +52,7 @@ import {
 
 const NARROW_QUERY = '(max-width: 767px)';
 
-const NODE_META: Record<Exclude<GraphTreeNodeKind, 'layer'>, { icon: string; label: string }> = {
-  merge: GRAPH_HELPER_META.merge,
-  color: GRAPH_HELPER_META.color,
-  repeat: GRAPH_HELPER_META.repeat,
-  material: GRAPH_HELPER_META.material,
-  mask: GRAPH_HELPER_META.mask,
-  transform: GRAPH_HELPER_META.transform,
-  grimeShadow: GRAPH_HELPER_META.grimeShadow,
-  environment: GRAPH_HELPER_META.environment,
-  shader: GRAPH_HELPER_META.shader,
-  scene3d: { icon: '◌', label: '3d scene' },
-};
+const NODE_META: Record<Exclude<GraphTreeNodeKind, 'layer'>, { icon: string; label: string }> = GRAPH_HELPER_META;
 
 export interface GraphLayerTreeViewProps {
   doc: CanvasDocument;
@@ -357,11 +348,12 @@ export function GraphLayerTreeView({
   const items = useMemo(() => visibleGraphTreeItems(tree, collapse, narrow), [collapse, narrow, tree]);
   const ancestors = useMemo(() => graphTreeAncestorFolders(tree), [tree]);
   const layersById = useMemo(() => new Map(doc.layers.map((layer) => [layer.id, layer])), [doc.layers]);
+  const graphNodes = doc.graph.nodes;
   const mergesById = useMemo(
-    () => new Map((doc.graph?.mergeNodes ?? []).map((node) => [node.id, node])),
-    [doc.graph?.mergeNodes],
+    () => new Map(graphNodesOfKind({ nodes: graphNodes }, 'merge').map((node) => [node.id, node])),
+    [graphNodes],
   );
-  const areasByNodeId = useMemo(() => nodeAreaMap(doc.graph?.areas), [doc.graph?.areas]);
+  const areasByNodeId = useMemo(() => nodeAreaMap(doc.graph.areas), [doc.graph.areas]);
 
   const activeKey = useMemo(() => {
     if (focusKey && items.some((item) => item.key === focusKey)) return focusKey;

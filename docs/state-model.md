@@ -53,7 +53,36 @@ Rules:
 - Use layer factory functions when creating layers.
 - Update documents immutably.
 - Import external document JSON through normalization before committing it.
+- Every document has a `graph` (schema 5, v0.51). A layer-stack document stores
+  the linear graph of its layers; `isLayerStackGraph` recognizes it, and Layers
+  edits (add, remove, duplicate, reorder) keep that graph equal to the new
+  stack. Build documents in code with `makeDocument`, which fills in the linear
+  graph. Never substitute an inferred graph for `doc.graph` at render or edit
+  time.
+- `?doc=` links (`utils/documentLink.ts`) leave out a layer-stack graph that has
+  no areas or saved camera views, because the layers fully determine it;
+  `normalizeDocument` rebuilds it on open. This keeps links within URL size
+  limits. Saved files, projects, and local storage keep the full graph.
+- Graph-only nodes are stored in `graph.nodes` (schema 6, v0.51), a map from id
+  to node with a `kind` discriminant. The 5 -> 6 step moved the old per-kind
+  arrays (`mergeNodes`, `colorNodes`, …) into it; when two arrays held the same
+  id, the first in the old classification order won. Read nodes with the
+  `nodeGraph.ts` helpers (`findGraphNode`, `graphNodesOfKind`) and change them
+  with `addGraphNode`, `updateGraphNode`, and `removeGraphNode`. A kind's model
+  in `GRAPH_NODE_MODELS` normalizes it on load and may fix the graph after an
+  update (`afterUpdate`, for example a shader switched to fill drops its
+  backdrop edge).
 - Normalize unversioned documents to the current `DOCUMENT_SCHEMA_VERSION`.
+  Documents without `schemaVersion` are schema 1.
+- Stored-format changes are one-shot steps in `apps/web/app/utils/migrations/`
+  (`vNToVN+1.ts`, registered in `MIGRATIONS`), each with a fixture test. A step
+  runs once, raises `schemaVersion` by one, and never runs on newer documents.
+  `normalizeDocument` itself only fills defaults for current-schema fields and
+  validates; it has no legacy-format branches.
+- Schema 4 (v0.51) moved the legacy fixes that used to run on every load into
+  the 3 -> 4 step: `kind: 'source'` aliases, 0-100 material percentages,
+  removed shader kinds, and splitting combined effect layers (with graph
+  rewiring). Builds before v0.51 cannot open schema 4 documents.
 - Do not mutate `doc` or layer objects in place.
 - Do not store transient pointer/hover/drag state in the document.
 - Do not write high-frequency pointer updates directly to the document unless there is no draft layer alternative.
@@ -242,7 +271,6 @@ Current type:
 
 Important fields:
 
-- `graphMode`
 - `draft`
 - `skipEffects`
 - `primitiveViewStates`
@@ -257,13 +285,22 @@ Rules:
 
 Undo should represent creative decisions, not implementation details.
 
-Document commits use explicit update modes:
+Every durable edit is a named command in `apps/web/app/utils/documentDispatch.ts`
+(`DocumentCommand`). Each command declares its history policy; callers pick a
+command, never a mode. `useEditorDocument` runs commands with
+`runDocumentCommand` and records history with the pure
+`documentHistoryReducer` (`apps/web/app/utils/documentHistory.ts`); undo and
+redo are events of the same reducer. There is no other document setter.
 
-| Mode | Use |
+| Policy | Use |
 | --- | --- |
-| `snapshot` | Discrete creative actions such as add, delete, duplicate, randomize, or document import |
-| `debounce` | Continuous edits such as sliders, graph node movement, and inspector field drags |
-| `silent` | Internal normalization/bootstrap work that should persist but should not create undo history |
+| `snapshot` | Discrete actions: add, delete, duplicate, rename, visibility, areas, connect, disconnect, node moves, Layout, randomize, document import |
+| `debounce` | Continuous edits: sliders, inspector fields, canvas drags, aspect, export settings, camera orbit while dragging. Commits within 400 ms join one undo step |
+| `silent` | Writes that keep every visible result the same: asset references for embedded payloads, and node placement on Nodes entry. A silent command may amend every history entry the same way, so undo cannot bring the old form back |
+
+Node canvas graph edits name what the user did (`GraphEditKind`: connect,
+disconnect, move, organize, area, place, cameraDrag, cameraCommit);
+`GRAPH_EDIT_HISTORY` maps each kind to its policy.
 
 Expected behavior:
 
@@ -271,17 +308,23 @@ Expected behavior:
 - A text/image drag creates one undo entry.
 - A wheel-scale gesture creates one undo entry after idle.
 - Graph node movement creates one undo entry on drag stop.
+- A discrete action right after a gesture keeps the gesture as its own undo
+  step, and undo during a gesture returns to where the gesture started.
 - Selection, hover, menus, camera lock toggles, and gallery view changes do not need undo unless promoted to durable document features.
 - Node placement on Nodes entry (nodes with no stored position, and measured
   cards that intersect a card kept in place) is `silent`: it adds no undo entry,
-  like graph bootstrap, because it repairs an unreadable first view rather than
+  because it repairs an unreadable first view rather than
   recording a creative decision. Cards that overlap nothing never move. The
   toolbar Layout action stays an undoable edit.
 - Entry placement is document content. It writes `graph.positions` into the
-  document and its autosaved `doc` copy, and a stack document that had no
-  `graph` gains one through the existing bootstrap. The persistence format does
-  not change. Undo to a snapshot taken before an entry can bring back
-  unplaced or overlapping positions; the next entry places them again.
+  document and its autosaved `doc` copy, and moves the same cards in every
+  history entry that has them, so undo keeps the placed layout.
+- Storing an embedded payload as a local asset swaps the source for a reference
+  to the same bytes. An image source is swapped in history entries too. When
+  storage fails, font, model, and environment payloads are dropped from the
+  current document only (`stripPortableDocumentAssets`); this is the one
+  silent write that can change output, and it happens only when the browser
+  cannot store the asset.
 
 ## Thumbnail invalidation rules
 

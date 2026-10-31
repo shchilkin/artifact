@@ -1,41 +1,10 @@
 import type { Node as RFNode } from '@xyflow/react';
-
-import type {
-  CanvasDocument,
-  CanvasGraph,
-  GraphColorNode,
-  GraphEnvironmentNode,
-  GraphGrimeShadowNode,
-  GraphMaskNode,
-  GraphMaterialNode,
-  GraphMergeNode,
-  GraphRepeatNode,
-  GraphScene3DNode,
-  GraphShaderNode,
-  GraphTransformNode,
-  Layer,
-  ModelLayer,
-  PrimitiveLayer,
-} from '../../types/config';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import type { CanvasDocument, CanvasGraph, Layer } from '../../types/config';
+import { EXPORT_NODE_ID, graphNodesOfKind } from '../../utils/nodeGraph';
 import type { PrimitiveRenderMode, PrimitiveViewportState } from '../PrimitiveViewportState';
 import { NODE_W } from './constants';
-import type {
-  ColorNodeData,
-  EnvironmentNodeData,
-  ExportNodeData,
-  FallbackNodeData,
-  GrimeShadowNodeData,
-  LayerNodeData,
-  MaskNodeData,
-  MaterialNodeData,
-  MergeNodeData,
-  RepeatNodeData,
-  Scene3DNodeData,
-  ShaderNodeData,
-  ShaderNodeGenerationStatus,
-  TransformNodeData,
-} from './types';
+import { type BuildRFNodeContext, buildGraphNodeRFNode, GRAPH_NODE_UI_KINDS } from './nodeKinds';
+import type { ExportNodeData, FallbackNodeData, LayerNodeData, ShaderNodeGenerationStatus } from './types';
 
 const SUPPORTED_LAYER_KINDS = new Set([
   'text',
@@ -82,19 +51,6 @@ export function buildRFNodes(
     buildExportRFNode(context),
   ];
 }
-
-type BuildRFNodeContext = {
-  doc: CanvasDocument;
-  graph: CanvasGraph;
-  selectedNodeIds: Set<string>;
-  editorNodeId: string | null;
-  outputPathNodeIds: Set<string>;
-  connected: { sources: Set<string>; targets: Set<string> };
-  primitiveViewStates: Record<string, PrimitiveViewportState>;
-  primitiveRenderModes: Record<string, PrimitiveRenderMode>;
-  shaderGenerationStatusById: Record<string, ShaderNodeGenerationStatus>;
-  incomingNodeId: (toId: string, toPort: string) => string | null;
-};
 
 function commonNodeData(id: string, context: BuildRFNodeContext) {
   return {
@@ -172,174 +128,11 @@ function utilityPosition(id: string, context: BuildRFNodeContext) {
 }
 
 function buildUtilityRFNodes(context: BuildRFNodeContext): RFNode[] {
-  return RF_UTILITY_NODE_BUILDERS.flatMap(({ nodes, build }) =>
-    nodes(context.graph).map((node) => build(node as never, context)),
+  return GRAPH_NODE_UI_KINDS.flatMap((kind) =>
+    graphNodesOfKind(context.graph, kind).map((node) =>
+      buildGraphNodeRFNode(node, context, commonNodeData(node.id, context), utilityPosition(node.id, context)),
+    ),
   );
-}
-
-const RF_UTILITY_NODE_BUILDERS = [
-  { nodes: (graph: CanvasGraph) => graph.mergeNodes, build: buildMergeRFNode },
-  { nodes: (graph: CanvasGraph) => graph.colorNodes, build: buildColorRFNode },
-  { nodes: (graph: CanvasGraph) => graph.repeatNodes ?? [], build: buildRepeatRFNode },
-  { nodes: (graph: CanvasGraph) => graph.materialNodes ?? [], build: buildMaterialRFNode },
-  { nodes: (graph: CanvasGraph) => graph.maskNodes ?? [], build: buildMaskRFNode },
-  { nodes: (graph: CanvasGraph) => graph.transformNodes ?? [], build: buildTransformRFNode },
-  { nodes: (graph: CanvasGraph) => graph.grimeShadowNodes ?? [], build: buildGrimeShadowRFNode },
-  { nodes: (graph: CanvasGraph) => graph.scene3dNodes ?? [], build: buildScene3DRFNode },
-  { nodes: (graph: CanvasGraph) => graph.environmentNodes ?? [], build: buildEnvironmentRFNode },
-  { nodes: (graph: CanvasGraph) => graph.shaderNodes ?? [], build: buildShaderRFNode },
-];
-
-function buildMergeRFNode(mn: GraphMergeNode, context: BuildRFNodeContext): RFNode {
-  return {
-    id: mn.id,
-    type: 'mergeNode',
-    position: utilityPosition(mn.id, context),
-    selected: context.selectedNodeIds.has(mn.id),
-    data: {
-      mergeNode: mn,
-      ...commonNodeData(mn.id, context),
-    } satisfies MergeNodeData,
-  };
-}
-
-function buildColorRFNode(cn: GraphColorNode, context: BuildRFNodeContext): RFNode {
-  return {
-    id: cn.id,
-    type: 'colorNode',
-    position: utilityPosition(cn.id, context),
-    selected: context.selectedNodeIds.has(cn.id),
-    data: {
-      colorNode: cn,
-      ...commonNodeData(cn.id, context),
-    } satisfies ColorNodeData,
-  };
-}
-
-function buildRepeatRFNode(rn: GraphRepeatNode, context: BuildRFNodeContext): RFNode {
-  return {
-    id: rn.id,
-    type: 'repeatNode',
-    position: utilityPosition(rn.id, context),
-    selected: context.selectedNodeIds.has(rn.id),
-    data: {
-      repeatNode: rn,
-      ...commonNodeData(rn.id, context),
-    } satisfies RepeatNodeData,
-  };
-}
-
-function buildMaterialRFNode(mn: GraphMaterialNode, context: BuildRFNodeContext): RFNode {
-  return {
-    id: mn.id,
-    type: 'materialNode',
-    position: utilityPosition(mn.id, context),
-    selected: context.selectedNodeIds.has(mn.id),
-    data: {
-      materialNode: mn,
-      ...commonNodeData(mn.id, context),
-    } satisfies MaterialNodeData,
-  };
-}
-
-function buildMaskRFNode(mn: GraphMaskNode, context: BuildRFNodeContext): RFNode {
-  return {
-    id: mn.id,
-    type: 'maskNode',
-    position: utilityPosition(mn.id, context),
-    selected: context.selectedNodeIds.has(mn.id),
-    data: {
-      maskNode: mn,
-      ...commonNodeData(mn.id, context),
-    } satisfies MaskNodeData,
-  };
-}
-
-function buildTransformRFNode(tn: GraphTransformNode, context: BuildRFNodeContext): RFNode {
-  return {
-    id: tn.id,
-    type: 'transformNode',
-    position: utilityPosition(tn.id, context),
-    selected: context.selectedNodeIds.has(tn.id),
-    data: {
-      transformNode: tn,
-      sourcePreviewTargetId: context.incomingNodeId(tn.id, 'in'),
-      ...commonNodeData(tn.id, context),
-    } satisfies TransformNodeData,
-  };
-}
-
-function buildGrimeShadowRFNode(sn: GraphGrimeShadowNode, context: BuildRFNodeContext): RFNode {
-  return {
-    id: sn.id,
-    type: 'grimeShadowNode',
-    position: utilityPosition(sn.id, context),
-    selected: context.selectedNodeIds.has(sn.id),
-    data: {
-      grimeShadowNode: sn,
-      ...commonNodeData(sn.id, context),
-    } satisfies GrimeShadowNodeData,
-  };
-}
-
-function buildScene3DRFNode(sn: GraphScene3DNode, context: BuildRFNodeContext): RFNode {
-  const modelPreviewTargetId = context.incomingNodeId(sn.id, 'model');
-  const materialPreviewTargetId = context.incomingNodeId(sn.id, 'material');
-  const environmentPreviewTargetId = context.incomingNodeId(sn.id, 'env');
-  const modelLayer =
-    context.doc.layers.find(
-      (layer): layer is ModelLayer | PrimitiveLayer =>
-        layer.id === modelPreviewTargetId && (layer.kind === 'model' || layer.kind === 'primitive'),
-    ) ?? null;
-  const materialNode = (context.graph.materialNodes ?? []).find((node) => node.id === materialPreviewTargetId) ?? null;
-  const environmentNode =
-    (context.graph.environmentNodes ?? []).find((node) => node.id === environmentPreviewTargetId) ?? null;
-  return {
-    id: sn.id,
-    type: 'scene3dNode',
-    position: utilityPosition(sn.id, context),
-    selected: context.selectedNodeIds.has(sn.id),
-    data: {
-      scene3dNode: sn,
-      modelPreviewTargetId,
-      modelLayer,
-      materialNode,
-      backdropPreviewTargetId: context.incomingNodeId(sn.id, 'bg'),
-      environmentPreviewTargetId,
-      environmentSource: environmentNode?.environmentSrc ?? null,
-      sceneViewState: context.primitiveViewStates[sn.id],
-      ...commonNodeData(sn.id, context),
-    } satisfies Scene3DNodeData,
-  };
-}
-
-function buildEnvironmentRFNode(en: GraphEnvironmentNode, context: BuildRFNodeContext): RFNode {
-  return {
-    id: en.id,
-    type: 'environmentNode',
-    position: utilityPosition(en.id, context),
-    selected: context.selectedNodeIds.has(en.id),
-    data: {
-      environmentNode: en,
-      sourcePreviewTargetId: context.incomingNodeId(en.id, 'in'),
-      ...commonNodeData(en.id, context),
-    } satisfies EnvironmentNodeData,
-  };
-}
-
-function buildShaderRFNode(sn: GraphShaderNode, context: BuildRFNodeContext): RFNode {
-  return {
-    id: sn.id,
-    type: 'shaderNode',
-    position: utilityPosition(sn.id, context),
-    selected: context.selectedNodeIds.has(sn.id),
-    data: {
-      shaderNode: sn,
-      backdropPreviewTargetId: context.incomingNodeId(sn.id, 'bg'),
-      generationStatus: context.shaderGenerationStatusById[sn.id] ?? null,
-      ...commonNodeData(sn.id, context),
-    } satisfies ShaderNodeData,
-  };
 }
 
 function buildExportRFNode(context: BuildRFNodeContext): RFNode {

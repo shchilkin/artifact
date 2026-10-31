@@ -9,24 +9,8 @@
  * primitiveScene.ts, primitiveRenderer.ts, or modelRenderer.ts.
  */
 
-import type {
-  CanvasGraph,
-  GraphColorNode,
-  GraphEdge,
-  GraphEnvironmentNode,
-  GraphGrimeShadowNode,
-  GraphMaskNode,
-  GraphMaterialNode,
-  GraphMergeNode,
-  GraphRepeatNode,
-  GraphScene3DNode,
-  GraphShaderNode,
-  GraphTransformNode,
-  Layer,
-  PrimitiveViewportStateConfig,
-} from '../types/config';
-
-const SHADER_PASS_RENDER_VERSION = 'shader-definition-instance-v4';
+import type { CanvasGraph, GraphEdge, Layer, PrimitiveViewportStateConfig } from '../types/config';
+import { type GraphNode, modelOfNode } from './nodeKinds';
 
 /** Content signature for a single layer (all render-relevant fields). */
 export function layerRenderSig(layer: Layer): string {
@@ -114,141 +98,6 @@ export function layerRenderSig(layer: Layer): string {
   }
 }
 
-/** Render-relevant fields for a merge node. */
-export function mergeNodeRenderSig(node: GraphMergeNode): string {
-  return JSON.stringify([node.blendMode, node.opacity]);
-}
-
-/** Render-relevant fields for a color node. */
-export function colorNodeRenderSig(node: GraphColorNode): string {
-  return JSON.stringify([node.contrast, node.brightness, node.saturation, node.hue]);
-}
-
-/** Render-relevant fields for a repeat node. */
-export function repeatNodeRenderSig(node: GraphRepeatNode): string {
-  return JSON.stringify([
-    node.pattern,
-    node.count,
-    node.rows,
-    node.gap,
-    node.radius,
-    node.scale,
-    node.jitter,
-    node.rotation,
-    node.rotationMode ?? 'fixed',
-    node.rotationStep ?? 0,
-    node.rotationJitter ?? 0,
-    node.seedOffset,
-    node.opacity,
-    node.blendMode,
-  ]);
-}
-
-/** Render-relevant fields for a material node. */
-export function materialNodeRenderSig(node: GraphMaterialNode): string {
-  return JSON.stringify([
-    node.materialPreset,
-    node.materialBaseColor,
-    node.materialAccentColor,
-    node.materialMetalness,
-    node.materialRoughness,
-    node.materialClearcoat,
-    node.materialRelief,
-    node.materialGrain,
-    node.materialAnisotropy,
-    node.materialAlbedoSrc ?? '',
-    node.materialRoughnessSrc ?? '',
-    node.materialMetalnessSrc ?? '',
-    node.materialNormalSrc ?? '',
-    node.materialAlphaSrc ?? '',
-  ]);
-}
-
-/** Render-relevant fields for a mask node. */
-export function maskNodeRenderSig(node: GraphMaskNode): string {
-  return JSON.stringify([node.mode, node.invert, node.threshold, node.feather, node.expand, node.opacity]);
-}
-
-/** Render-relevant fields for a transform node. */
-export function transformNodeRenderSig(node: GraphTransformNode): string {
-  return JSON.stringify([
-    node.x,
-    node.y,
-    node.scaleX,
-    node.scaleY,
-    node.rotation,
-    node.pivotMode ?? 'canvas',
-    node.opacity,
-  ]);
-}
-
-/** Render-relevant fields for a grime shadow node. */
-export function grimeShadowNodeRenderSig(node: GraphGrimeShadowNode): string {
-  return JSON.stringify([
-    node.x,
-    node.y,
-    node.layers,
-    node.blur,
-    node.spread,
-    node.grime,
-    node.jitter,
-    node.opacity,
-    node.color,
-    node.seedOffset,
-    node.shadowOnly,
-  ]);
-}
-
-/** Render-relevant fields for a 3D scene node. */
-export function scene3DNodeRenderSig(node: GraphScene3DNode): string {
-  return JSON.stringify([
-    node.environmentSrc,
-    node.environmentName,
-    node.environmentMime,
-    node.environmentBytes,
-    node.materialMode,
-    node.transparent,
-    node.exposure,
-    node.environmentStrength,
-    node.environmentRotation,
-    node.ambientIntensity,
-    node.keyAzimuth,
-    node.keyElevation,
-    node.keyIntensity,
-    node.fillIntensity,
-    node.rimIntensity,
-  ]);
-}
-
-/** Render-relevant fields for an environment map node. */
-export function environmentNodeRenderSig(node: GraphEnvironmentNode): string {
-  return JSON.stringify([node.environmentSrc, node.environmentName, node.environmentMime, node.environmentBytes]);
-}
-
-/** Render-relevant fields for a procedural shader node. */
-export function shaderNodeRenderSig(node: GraphShaderNode): string {
-  const shaderInstanceRenderState = node.shaderInstance
-    ? [node.shaderInstance.definition.code, node.shaderInstance.definition.properties, node.shaderInstance.values]
-    : null;
-  return JSON.stringify([
-    SHADER_PASS_RENDER_VERSION,
-    node.shaderKind,
-    node.role,
-    node.palette,
-    node.distortion,
-    node.swirl,
-    node.grain,
-    node.scale,
-    node.rotation,
-    node.offsetX,
-    node.offsetY,
-    node.seedOffset,
-    node.opacity,
-    node.blendMode,
-    shaderInstanceRenderState,
-  ]);
-}
-
 /** Render-relevant fields for a graph edge (topology change invalidates downstream). */
 export function edgeRenderSig(edge: GraphEdge): string {
   return JSON.stringify([edge.fromId, edge.fromPort, edge.toId, edge.toPort]);
@@ -259,22 +108,12 @@ export function viewStateRenderSig(view: PrimitiveViewportStateConfig | undefine
   return view ? `${view.rotationX},${view.rotationY},${view.zoom},${view.panX},${view.panY}` : 'default';
 }
 
-function nodeRenderSigs<T extends { id: string }>(nodes: T[] | undefined, signature: (node: T) => string) {
-  return (nodes ?? []).map((node) => ({ id: node.id, sig: signature(node) }));
+/** Render-relevant fields for a graph-only node, from its kind's model. */
+export function graphNodeRenderSig(node: GraphNode): string {
+  return modelOfNode(node).renderSignature(node);
 }
 
-/** Render signatures of every graph utility node, grouped by kind. Layers and edges have their own signatures. */
-export function graphNodeRenderSigs(graph: CanvasGraph) {
-  return {
-    merge: nodeRenderSigs(graph.mergeNodes, mergeNodeRenderSig),
-    color: nodeRenderSigs(graph.colorNodes, colorNodeRenderSig),
-    repeat: nodeRenderSigs(graph.repeatNodes, repeatNodeRenderSig),
-    material: nodeRenderSigs(graph.materialNodes, materialNodeRenderSig),
-    mask: nodeRenderSigs(graph.maskNodes, maskNodeRenderSig),
-    transform: nodeRenderSigs(graph.transformNodes, transformNodeRenderSig),
-    grimeShadow: nodeRenderSigs(graph.grimeShadowNodes, grimeShadowNodeRenderSig),
-    scene3d: nodeRenderSigs(graph.scene3dNodes, scene3DNodeRenderSig),
-    environment: nodeRenderSigs(graph.environmentNodes, environmentNodeRenderSig),
-    shader: nodeRenderSigs(graph.shaderNodes, shaderNodeRenderSig),
-  };
+/** Render signatures of every graph-only node. Layers and edges have their own signatures. */
+export function graphNodeRenderSigs(graph: Pick<CanvasGraph, 'nodes'>) {
+  return Object.values(graph.nodes).map((node) => ({ id: node.id, kind: node.kind, sig: graphNodeRenderSig(node) }));
 }

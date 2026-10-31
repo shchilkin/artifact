@@ -1,15 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
-import { type CanvasDocument, makeEffectPresetLayer, makeFillLayer, makeImageLayer } from '../types/config';
+import {
+  type CanvasDocument,
+  makeDocument,
+  makeEffectPresetLayer,
+  makeFillLayer,
+  makeImageLayer,
+} from '../types/config';
 import { createLayerPreviewRenderCache } from './layerPreviewRenderCache';
 import { EXPORT_NODE_ID } from './nodeGraph';
 
 function makeDoc(layers: CanvasDocument['layers']): CanvasDocument {
-  return {
+  return makeDocument({
     global: { bg: '#120020', seed: 7, aspect: '1:1' },
     layers,
     export: { format: 'png', scale: 1, target: 'cover' },
-  };
+  });
 }
 
 describe('createLayerPreviewRenderCache', () => {

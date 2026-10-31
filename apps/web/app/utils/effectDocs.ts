@@ -1,4 +1,5 @@
 import type { EffectPreset } from '../types/config';
+import { type EffectParamKey, type EffectSliderValueFormat, effectParam, presetParamKeys } from '../types/effectSchema';
 
 export interface EffectParamDoc {
   key: string;
@@ -33,377 +34,224 @@ export const EFFECT_FAMILY_GUIDE = [
   },
 ] as const;
 
-export const EFFECT_DOCS: Record<EffectPreset, EffectDocInfo> = {
-  rays: {
-    description: 'Thick colored poster-burst beams from center.',
-    params: [
-      { key: 'rays', range: '0-240 manual' },
-      { key: 'rayInt', range: '0-100' },
-      { key: 'rayColor', range: 'hex' },
-    ],
-  },
-  bloom: {
-    description: 'Highlights bleed outward into surrounding pixels.',
-    params: [{ key: 'bloom', range: '0-100' }],
-  },
-  filmBurn: {
-    description: 'Overexposed edges and chemical flare.',
-    params: [{ key: 'filmBurn', range: '0-100' }],
-  },
-  glitch: {
-    description: 'Horizontal slice tears at random scan intervals.',
-    params: [{ key: 'glitch', range: '0-100' }],
-  },
-  interlace: {
-    description: 'Alternating rows offset like a CRT field artifact.',
-    params: [{ key: 'interlace', range: '0-100' }],
-  },
-  dataMosh: {
-    description: 'Block compression artifacts, repeated frame error.',
-    params: [{ key: 'dataMosh', range: '0-100' }],
-  },
+interface EffectDocCopy {
+  description: string;
+  /** What a parameter does, shown after its range. */
+  notes?: Partial<Record<EffectParamKey, string>>;
+}
+
+const EFFECT_DOC_COPY: Record<EffectPreset, EffectDocCopy> = {
+  rays: { description: 'Thick colored poster-burst beams from center.' },
+  bloom: { description: 'Highlights bleed outward into surrounding pixels.' },
+  filmBurn: { description: 'Overexposed edges and chemical flare.' },
+  glitch: { description: 'Horizontal slice tears at random scan intervals.' },
+  interlace: { description: 'Alternating rows offset like a CRT field artifact.' },
+  dataMosh: { description: 'Block compression artifacts, repeated frame error.' },
   badStream: {
     description:
       'Low-bitrate stream failure: large macroblocks, smaller compression fragments, smearing, chroma drift, and dark dropped blocks.',
-    params: [
-      { key: 'badStream', range: '0-100 compression strength' },
-      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual macroblock size' },
-      { key: 'badStreamDetail', range: '0-100 small block amount' },
-      { key: 'badStreamSmear', range: '0-100 copied block smear' },
-      { key: 'badStreamChroma', range: '0-100 color drift' },
-      { key: 'badStreamDarkness', range: '0-100 dark dropout pressure' },
-    ],
+    notes: {
+      badStream: 'compression strength',
+      badStreamBlockSize: 'macroblock size',
+      badStreamDetail: 'small block amount',
+      badStreamSmear: 'copied block smear',
+      badStreamChroma: 'color drift',
+      badStreamDarkness: 'dark dropout pressure',
+    },
   },
   macroblocks: {
     description: 'Large video-codec squares with averaged color and optional dark pressure.',
-    params: [
-      { key: 'badStream', range: '0-100 block opacity' },
-      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual macroblock size' },
-      { key: 'badStreamDarkness', range: '0-100 dark pressure' },
-    ],
+    notes: { badStream: 'block opacity', badStreamBlockSize: 'macroblock size', badStreamDarkness: 'dark pressure' },
   },
   detailBlocks: {
     description: 'Small codec fragments for crunchy low-bitrate texture inside the frame.',
-    params: [
-      { key: 'badStream', range: '0-100 compression strength' },
-      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual parent block size' },
-      { key: 'badStreamDetail', range: '0-100 small block amount' },
-      { key: 'badStreamDarkness', range: '0-100 dark edge pressure' },
-    ],
+    notes: {
+      badStream: 'compression strength',
+      badStreamBlockSize: 'parent block size',
+      badStreamDetail: 'small block amount',
+      badStreamDarkness: 'dark edge pressure',
+    },
   },
   blockSmear: {
     description: 'Copied neighboring blocks that smear the frame like a stalled stream.',
-    params: [
-      { key: 'badStream', range: '0-100 smear opacity' },
-      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual block size' },
-      { key: 'badStreamSmear', range: '0-100 copied block smear' },
-    ],
+    notes: { badStream: 'smear opacity', badStreamBlockSize: 'block size', badStreamSmear: 'copied block smear' },
   },
   chromaBlocks: {
     description: 'Blocky chroma compression and color drift, separate from RGB split.',
-    params: [
-      { key: 'badStream', range: '0-100 chroma opacity' },
-      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual block size' },
-      { key: 'badStreamChroma', range: '0-100 color drift' },
-      { key: 'badStreamDetail', range: '0-100 small chroma block amount' },
-    ],
+    notes: {
+      badStream: 'chroma opacity',
+      badStreamBlockSize: 'block size',
+      badStreamChroma: 'color drift',
+      badStreamDetail: 'small chroma block amount',
+    },
   },
   blockDropout: {
     description: 'Dark dropped blocks, like missing packets in a damaged stream.',
-    params: [
-      { key: 'badStream', range: '0-100 dropout coverage' },
-      { key: 'badStreamBlockSize', range: '12-96px slider, 180px manual dropout size' },
-      { key: 'badStreamDarkness', range: '0-100 dropout darkness' },
-    ],
+    notes: { badStream: 'dropout coverage', badStreamBlockSize: 'dropout size', badStreamDarkness: 'dropout darkness' },
   },
   grain: {
     description:
       'Photographic overlay grain across the full frame. For editable texture branches, use a Noise source set to Film Grain.',
-    params: [{ key: 'grain', range: '0-50 slider, 0-100 manual amount' }],
+    notes: { grain: 'amount' },
   },
   dotGrain: {
     description: 'Round tone-aware stipple dots for old-render shadows and PS-era texture.',
-    params: [
-      { key: 'dotGrain', range: '0-100 amount' },
-      { key: 'dotGrainSize', range: '1-18px manual dot size' },
-      { key: 'dotGrainDensity', range: '0-100' },
-      { key: 'dotGrainJitter', range: '0-100' },
-    ],
+    notes: { dotGrain: 'amount', dotGrainSize: 'dot size' },
   },
-  scanlines: {
-    description: 'CRT phosphor bands with adjustable opacity and thickness.',
-    params: [
-      { key: 'scanlines', range: '0-100' },
-      { key: 'scanlineWidth', range: '1-12px' },
-    ],
-  },
-  tint: {
-    description: 'Flat color overlay at variable opacity.',
-    params: [
-      { key: 'tint', range: 'hex' },
-      { key: 'tintOp', range: '0-100' },
-    ],
-  },
-  noiseWarp: {
-    description: 'Displacement mapped by layered Perlin noise.',
-    params: [{ key: 'noiseWarp', range: '0-100' }],
-  },
-  morph: {
-    description: 'Sine-wave surface distortion.',
-    params: [
-      { key: 'morphAmt', range: '0-100' },
-      { key: 'morphFreq', range: '1-20' },
-    ],
-  },
-  vortex: {
-    description: 'Rotational warp strongest at center.',
-    params: [{ key: 'vortex', range: '0-100' }],
-  },
-  barrel: {
-    description: 'Radial lens distortion, concave or convex.',
-    params: [{ key: 'barrel', range: '0-100' }],
-  },
-  tear: {
-    description: 'Horizontal row shift at random positions.',
-    params: [
-      { key: 'tearAmt', range: '0-100' },
-      { key: 'tearSize', range: '1-20' },
-    ],
-  },
-  mirror: { description: 'Fold the frame: horizontal, vertical, or both.', params: [{ key: 'mirror', range: '0-3' }] },
-  hueShift: {
-    description: 'Rotate all hue values by a fixed degree.',
-    params: [{ key: 'hueShift', range: '0-360' }],
-  },
-  rgbSplit: { description: 'RGB channels split diagonally.', params: [{ key: 'rgbSplit', range: '0-100' }] },
-  vignette: {
-    description: 'Corner darkening that pulls the eye to center.',
-    params: [{ key: 'vignette', range: '0-100' }],
-  },
+  scanlines: { description: 'CRT phosphor bands with adjustable opacity and thickness.' },
+  tint: { description: 'Flat color overlay at variable opacity.' },
+  noiseWarp: { description: 'Displacement mapped by layered Perlin noise.' },
+  morph: { description: 'Sine-wave surface distortion.' },
+  vortex: { description: 'Rotational warp strongest at center.' },
+  barrel: { description: 'Radial lens distortion, concave or convex.' },
+  tear: { description: 'Horizontal row shift at random positions.' },
+  mirror: { description: 'Fold the frame: horizontal, vertical, or both.' },
+  hueShift: { description: 'Rotate all hue values by a fixed degree.' },
+  rgbSplit: { description: 'RGB channels split diagonally.' },
+  vignette: { description: 'Corner darkening that pulls the eye to center.' },
   retroResolution: {
     description:
       'Renders the upstream branch at a fixed low internal resolution in base cover pixels, then nearest-upscales it. Unlike Pixelate, export scale does not change the apparent pixel grid.',
-    params: [{ key: 'retroResolution', range: '8-512px slider, 1024px manual base longest edge' }],
+    notes: { retroResolution: 'base longest edge' },
   },
   pixelate: {
     description: 'Downscale then upscale the whole image for a deliberate low-resolution block treatment.',
-    params: [{ key: 'pixelate', range: '0-20px slider, 0-80px manual block size' }],
+    notes: { pixelate: 'block size' },
   },
-  posterize: {
-    description: 'Quantize color values to a fixed step count.',
-    params: [{ key: 'posterize', range: '0-20' }],
-  },
+  posterize: { description: 'Quantize color values to a fixed step count.' },
   indexedPalette: {
     description: 'Map visible pixels to the nearest color in a small editable palette while preserving transparency.',
-    params: [
-      { key: 'indexedPalette', range: '0-100 palette mix' },
-      { key: 'indexedPaletteCount', range: '2-6 active colors' },
-      { key: 'indexedColorA-F', range: 'hex swatches' },
-    ],
+    notes: {
+      indexedPalette: 'palette mix',
+      indexedPaletteCount: 'active colors',
+      indexedColorA: 'swatch 1',
+      indexedColorB: 'swatch 2',
+      indexedColorC: 'swatch 3',
+      indexedColorD: 'swatch 4',
+      indexedColorE: 'swatch 5',
+      indexedColorF: 'swatch 6',
+    },
   },
-  duotone: {
-    description: 'Map luminance to two chosen colors.',
-    params: [
-      { key: 'duotone', range: '0-100' },
-      { key: 'duoA', range: 'hex' },
-      { key: 'duoB', range: 'hex' },
-    ],
-  },
-  halftone: {
-    description: 'Simulate print dots at configurable frequency.',
-    params: [{ key: 'halftone', range: '0-30px dot scale' }],
-  },
-  risoShift: {
-    description: 'Color channels shifted as if mis-fed through a press.',
-    params: [
-      { key: 'risoShift', range: '0-24px slider, 0-60px manual shift' },
-      { key: 'risoAngle', range: '0-360' },
-    ],
-  },
-  blur: { description: 'Gaussian blur across the entire frame.', params: [{ key: 'blurAmt', range: '0-100' }] },
+  duotone: { description: 'Map luminance to two chosen colors.' },
+  halftone: { description: 'Simulate print dots at configurable frequency.', notes: { halftone: 'dot scale' } },
+  risoShift: { description: 'Color channels shifted as if mis-fed through a press.', notes: { risoShift: 'shift' } },
+  blur: { description: 'Gaussian blur across the entire frame.' },
   threshold: {
     description:
       'Luminance cutoff to stark black and white. 0 disables the pass; higher values require brighter pixels to stay white.',
-    params: [{ key: 'threshold', range: '0-100 cutoff' }],
+    notes: { threshold: 'cutoff' },
   },
   edgeDetect: {
     description: 'Find contrast boundaries and blend them back as grayscale contour linework.',
-    params: [{ key: 'edgeDetect', range: '0-100 linework mix' }],
+    notes: { edgeDetect: 'linework mix' },
   },
   edgeCrush: {
     description: 'Crush semi-transparent antialiasing into hard alpha edges for cutout-style compositing.',
-    params: [{ key: 'edgeCrush', range: '0-100 alpha edge hardening' }],
+    notes: { edgeCrush: 'alpha edge hardening' },
   },
   silhouetteCrush: {
     description: 'Chip alpha-mask and high-contrast borders into jagged sprite-like silhouettes.',
-    params: [{ key: 'silhouetteCrush', range: '0-100 silhouette border chipping' }],
+    notes: { silhouetteCrush: 'silhouette border chipping' },
   },
   bokehBlur: {
     description: 'Lens-like blur with highlight lift around brighter source pixels.',
-    params: [
-      { key: 'bokehBlur', range: '0-60px blur radius' },
-      { key: 'bokehThreshold', range: '0-100 highlight gate' },
-    ],
+    notes: { bokehBlur: 'blur radius', bokehThreshold: 'highlight gate' },
   },
   hatching: {
     description: 'Tone-aware hatch linework over darker source regions.',
-    params: [
-      { key: 'hatching', range: '0-100 line mix' },
-      { key: 'hatchScale', range: '3-48px line spacing' },
-      { key: 'hatchAngle', range: '0-180 line angle' },
-    ],
+    notes: { hatching: 'line mix', hatchScale: 'line spacing', hatchAngle: 'line angle' },
   },
   gooeyMerge: {
     description: 'Blur-and-threshold alpha merge for nearby visible source shapes.',
-    params: [
-      { key: 'gooeyMerge', range: '0-100 merge mix' },
-      { key: 'gooeyRadius', range: '1-80px alpha blur radius' },
-      { key: 'gooeyThreshold', range: '0-100 alpha threshold' },
-    ],
+    notes: { gooeyMerge: 'merge mix', gooeyRadius: 'alpha blur radius', gooeyThreshold: 'alpha threshold' },
   },
   gradientOverlay: {
     description: 'Directional two-color ramp blended over the source while preserving source alpha.',
-    params: [
-      { key: 'gradMix', range: '0-100 overlay mix' },
-      { key: 'gradA', range: 'hex start color' },
-      { key: 'gradB', range: 'hex end color' },
-      { key: 'gradAngle', range: '0-360 direction' },
-    ],
+    notes: { gradMix: 'overlay mix', gradA: 'start color', gradB: 'end color', gradAngle: 'direction' },
   },
   gradientMap: {
     description: 'Map source luminance through a three-color ramp, then blend it back over the original.',
-    params: [
-      { key: 'gradientMap', range: '0-100 map mix' },
-      { key: 'gradientMapShadow', range: 'hex shadow color' },
-      { key: 'gradientMapMid', range: 'hex midtone color' },
-      { key: 'gradientMapHighlight', range: 'hex highlight color' },
-    ],
+    notes: {
+      gradientMap: 'map mix',
+      gradientMapShadow: 'shadow color',
+      gradientMapMid: 'midtone color',
+      gradientMapHighlight: 'highlight color',
+    },
   },
   channelMixer: {
     description: 'Crossfeed RGB channels into each other for matrix-like color separation.',
-    params: [
-      { key: 'channelMixer', range: '0-100 mixer mix' },
-      { key: 'channelRedMix', range: '-100-100 red channel crossfeed' },
-      { key: 'channelGreenMix', range: '-100-100 green channel crossfeed' },
-      { key: 'channelBlueMix', range: '-100-100 blue channel crossfeed' },
-    ],
+    notes: {
+      channelMixer: 'mixer mix',
+      channelRedMix: 'red channel crossfeed',
+      channelGreenMix: 'green channel crossfeed',
+      channelBlueMix: 'blue channel crossfeed',
+    },
   },
   patternRefraction: {
     description: 'Refract the source through a repeating wave pattern.',
-    params: [
-      { key: 'patternRefraction', range: '0-100 refraction mix' },
-      { key: 'patternRefractionScale', range: '4-160px pattern scale' },
-      { key: 'patternRefractionAngle', range: '0-180 pattern angle' },
-    ],
+    notes: {
+      patternRefraction: 'refraction mix',
+      patternRefractionScale: 'pattern scale',
+      patternRefractionAngle: 'pattern angle',
+    },
   },
-  sepia: { description: 'Warm monochrome tone, classic darkroom look.', params: [{ key: 'sepia', range: '0-100' }] },
-  neonGlow: {
-    description: 'Bright edges bloom with a saturated chromatic halo.',
-    params: [
-      { key: 'neonGlow', range: '0-100' },
-      { key: 'neonColor', range: 'hex' },
-    ],
-  },
-  zoomBlur: {
-    description: 'Radial motion blur expanding from center.',
-    params: [{ key: 'zoomBlur', range: '0-100' }],
-  },
-  vhsTracking: {
-    description: 'Horizontal band desync like VHS tape dropout.',
-    params: [{ key: 'vhsTracking', range: '0-100' }],
-  },
+  sepia: { description: 'Warm monochrome tone, classic darkroom look.' },
+  neonGlow: { description: 'Bright edges bloom with a saturated chromatic halo.' },
+  zoomBlur: { description: 'Radial motion blur expanding from center.' },
+  vhsTracking: { description: 'Horizontal band desync like VHS tape dropout.' },
   pixelStretch: {
     description: 'Directional source-pixel streaking for stretched scanline artifacts.',
-    params: [
-      { key: 'pixelStretch', range: '0-100 stretch mix' },
-      { key: 'pixelStretchLength', range: '1-160px sample length' },
-      { key: 'pixelStretchAngle', range: '0-180 stretch angle' },
-    ],
+    notes: { pixelStretch: 'stretch mix', pixelStretchLength: 'sample length', pixelStretchAngle: 'stretch angle' },
   },
-  dither: {
-    description: 'Bayer ordered dithering reduces the color palette visibly.',
-    params: [{ key: 'dither', range: '0-70 slider, 0-100 manual amount' }],
-  },
-  infrared: {
-    description: 'Channel swap shifts green to red, simulating IR film.',
-    params: [{ key: 'infrared', range: '0-100' }],
-  },
-  ca: {
-    description: 'Radial chromatic aberration creates lens fringe at edges.',
-    params: [{ key: 'ca', range: '0-30' }],
-  },
-  wave: {
-    description: 'Sine-wave horizontal displacement scanned per row.',
-    params: [
-      { key: 'waveAmt', range: '0-60' },
-      { key: 'waveFreq', range: '1-12' },
-    ],
-  },
-  matte: {
-    description: 'Low-scale paper or canvas texture overlay.',
-    params: [{ key: 'matte', range: '0-100' }],
-  },
-  overprint: {
-    description: 'CMYK plate offset with ink-on-ink misregistration.',
-    params: [{ key: 'overprint', range: '0-100' }],
-  },
+  dither: { description: 'Bayer ordered dithering reduces the color palette visibly.', notes: { dither: 'amount' } },
+  infrared: { description: 'Channel swap shifts green to red, simulating IR film.' },
+  ca: { description: 'Radial chromatic aberration creates lens fringe at edges.' },
+  wave: { description: 'Sine-wave horizontal displacement scanned per row.' },
+  matte: { description: 'Low-scale paper or canvas texture overlay.' },
+  overprint: { description: 'CMYK plate offset with ink-on-ink misregistration.' },
   solarize: {
     description:
       'Inverts pixels above a moving brightness threshold. Low values affect only highlights; high values pull midtones into the negative break.',
-    params: [{ key: 'solarize', range: '0-100 threshold depth' }],
+    notes: { solarize: 'threshold depth' },
   },
   bleachBypass: {
     description:
       'Simulates skipped film bleach by reducing saturation, lifting harsh contrast, and pushing shadows harder.',
-    params: [{ key: 'bleachBypass', range: '0-100 strength' }],
+    notes: { bleachBypass: 'strength' },
   },
-  cyanotype: {
-    description: 'Prussian blue photographic print process on ivory paper.',
-    params: [{ key: 'cyanotype', range: '0-100' }],
-  },
-  splitTone: {
-    description: 'Shadow/highlight color grade with independent color choices.',
-    params: [
-      { key: 'splitToneAmt', range: '0-100' },
-      { key: 'splitShadow', range: 'hex' },
-      { key: 'splitHighlight', range: 'hex' },
-    ],
-  },
-  ripple: {
-    description: 'Radial sine displacement from center for concentric wave distortion.',
-    params: [
-      { key: 'rippleAmt', range: '0-100' },
-      { key: 'rippleFreq', range: '1-12' },
-    ],
-  },
-  kaleidoscope: {
-    description: 'Mirror-fold into repeating radial segments.',
-    params: [{ key: 'kaleidoscope', range: '0-100' }],
-  },
-  squeeze: {
-    description: 'Anamorphic stretch or compression along each axis.',
-    params: [
-      { key: 'squeezeX', range: '-80-80' },
-      { key: 'squeezeY', range: '-80-80' },
-    ],
-  },
-  emboss: {
-    description: 'Diagonal convolution relief for raised surface texture.',
-    params: [{ key: 'emboss', range: '0-100' }],
-  },
-  linocut: {
-    description: 'Bayer-dithered posterization for bold graphic print texture.',
-    params: [{ key: 'linocut', range: '0-100' }],
-  },
+  cyanotype: { description: 'Prussian blue photographic print process on ivory paper.' },
+  splitTone: { description: 'Shadow/highlight color grade with independent color choices.' },
+  ripple: { description: 'Radial sine displacement from center for concentric wave distortion.' },
+  kaleidoscope: { description: 'Mirror-fold into repeating radial segments.' },
+  squeeze: { description: 'Anamorphic stretch or compression along each axis.' },
+  emboss: { description: 'Diagonal convolution relief for raised surface texture.' },
+  linocut: { description: 'Bayer-dithered posterization for bold graphic print texture.' },
   fog: {
     description: 'Colored haze that fills highlights first and softens the source without changing alpha.',
-    params: [
-      { key: 'fog', range: '0-100 haze strength' },
-      { key: 'fogColor', range: 'hex haze color' },
-    ],
+    notes: { fog: 'haze strength', fogColor: 'haze color' },
   },
-  speedLines: {
-    description: 'Thin white radial streaks from center for manga motion.',
-    params: [{ key: 'speedLines', range: '0-300 manual' }],
-  },
+  speedLines: { description: 'Thin white radial streaks from center for manga motion.' },
 };
+
+const RANGE_UNITS: Partial<Record<EffectSliderValueFormat, string>> = { px: 'px', deg: '°' };
+
+/** A parameter's documented range, from its inspector control. */
+function effectParamRange(key: EffectParamKey, note: string | undefined): string {
+  const param = effectParam(key);
+  let range = 'hex';
+  if (param.type === 'number') {
+    const unit = (param.format && RANGE_UNITS[param.format]) ?? '';
+    range = `${param.min}-${param.max}${unit}`;
+    if (param.overrideMax !== undefined) range += ` slider, ${param.overrideMax}${unit} manual`;
+  }
+  return note ? `${range} ${note}` : range;
+}
+
+/** Docs for each focused preset: its description and the parameters it shows, with ranges from the schema. */
+export const EFFECT_DOCS = Object.fromEntries(
+  (Object.keys(EFFECT_DOC_COPY) as EffectPreset[]).map((preset) => {
+    const { description, notes = {} } = EFFECT_DOC_COPY[preset];
+    const params = presetParamKeys(preset).map((key) => ({ key, range: effectParamRange(key, notes[key]) }));
+    return [preset, { description, params }];
+  }),
+) as Record<EffectPreset, EffectDocInfo>;

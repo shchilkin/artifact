@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasGraph } from '../../types/config';
-import { EXPORT_NODE_ID } from '../../utils/nodeGraph';
+import { EXPORT_NODE_ID, graphNodesById } from '../../utils/nodeGraph';
+import { makeGraphEnvironmentNode, makeGraphScene3DNode } from '../../utils/nodeKinds';
 import {
   inputPortForAddedAction,
   resolveEdgeInsertion,
@@ -19,9 +20,7 @@ const graph: CanvasGraph = {
     'text-a': { x: 500, y: 80 },
     [EXPORT_NODE_ID]: { x: 1000, y: 80 },
   },
-  mergeNodes: [],
-  colorNodes: [],
-  repeatNodes: [],
+  nodes: graphNodesById(),
 };
 
 describe('graphInsertion', () => {
@@ -57,8 +56,8 @@ describe('graphInsertion', () => {
   it('targets 3D scene material slots when material nodes are dropped on scene nodes', () => {
     const sceneGraph: CanvasGraph = {
       ...graph,
-      scene3dNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphScene3DNode({
           id: 'scene-a',
           name: 'Scene A',
           environmentSrc: '',
@@ -76,8 +75,8 @@ describe('graphInsertion', () => {
           keyIntensity: 145,
           fillIntensity: 65,
           rimIntensity: 55,
-        },
-      ],
+        }),
+      ),
       positions: { ...graph.positions, 'scene-a': { x: 240, y: 160 } },
     };
 
@@ -95,16 +94,16 @@ describe('graphInsertion', () => {
   it('targets environment map source inputs when render nodes are dropped on environment nodes', () => {
     const envGraph: CanvasGraph = {
       ...graph,
-      environmentNodes: [
-        {
+      nodes: graphNodesById(
+        makeGraphEnvironmentNode({
           id: 'env-a',
           name: 'Environment Map',
           environmentSrc: '',
           environmentName: '',
           environmentMime: '',
           environmentBytes: 0,
-        },
-      ],
+        }),
+      ),
       positions: { ...graph.positions, 'env-a': { x: 240, y: 160 } },
     };
 

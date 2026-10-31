@@ -1,0 +1,103 @@
+{
+  "stack": {
+    "preview": {
+      "size": "540x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.082352941,
+                0.062745098,
+                0.08627451
+              ],
+              "uColorB": [
+                0.94117647,
+                0.47058824,
+                0.28235294
+              ],
+              "uStrength": 0.58
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1000x1000",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.082352941,
+                0.062745098,
+                0.08627451
+              ],
+              "uColorB": [
+                0.94117647,
+                0.47058824,
+                0.28235294
+              ],
+              "uStrength": 0.58
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "graph": {
+    "preview": {
+      "size": "540x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.082352941,
+                0.062745098,
+                0.08627451
+              ],
+              "uColorB": [
+                0.94117647,
+                0.47058824,
+                0.28235294
+              ],
+              "uStrength": 0.58
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1000x1000",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.082352941,
+                0.062745098,
+                0.08627451
+              ],
+              "uColorB": [
+                0.94117647,
+                0.47058824,
+                0.28235294
+              ],
+              "uStrength": 0.58
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "stackMatchesGraph": true
+}

@@ -1,21 +1,8 @@
-import type {
-  CanvasGraph,
-  EffectLayer,
-  GraphColorNode,
-  GraphEnvironmentNode,
-  GraphGrimeShadowNode,
-  GraphMaskNode,
-  GraphMaterialNode,
-  GraphMergeNode,
-  GraphRepeatNode,
-  GraphScene3DNode,
-  GraphShaderNode,
-  GraphTransformNode,
-  Layer,
-} from '../types/config';
+import type { CanvasGraph, EffectLayer, Layer } from '../types/config';
 import { EFFECT_PRESETS } from '../types/config';
 import { getLayerGuardrailState } from './editorGuardrails';
 import { EXPORT_NODE_ID } from './nodeGraph';
+import { type GraphNode, modelOfNode } from './nodeKinds';
 import { collectGraphRenderReach } from './render/graphInputs';
 
 export type EditorTargetTone = 'accent' | 'muted' | 'warning' | 'success';
@@ -116,18 +103,7 @@ export function buildLayerTargetSummary(layer: Layer, options: LayerTargetOption
 }
 
 export function buildGraphTargetSummary(
-  target:
-    | { kind: 'merge'; node: GraphMergeNode }
-    | { kind: 'color'; node: GraphColorNode }
-    | { kind: 'repeat'; node: GraphRepeatNode }
-    | { kind: 'material'; node: GraphMaterialNode }
-    | { kind: 'mask'; node: GraphMaskNode }
-    | { kind: 'transform'; node: GraphTransformNode }
-    | { kind: 'grimeShadow'; node: GraphGrimeShadowNode }
-    | { kind: 'scene3d'; node: GraphScene3DNode }
-    | { kind: 'environment'; node: GraphEnvironmentNode }
-    | { kind: 'shader'; node: GraphShaderNode }
-    | { kind: 'output' },
+  target: { kind: 'graphNode'; node: GraphNode } | { kind: 'output' },
   options: GraphTargetOptions,
 ): EditorTargetSummary {
   if (target.kind === 'output') {
@@ -158,19 +134,7 @@ export function buildGraphTargetSummary(
   }
 
   const id = target.node.id;
-  const labels = {
-    merge: ['Merge', 'Combines two upstream branches before sending pixels downstream.'],
-    color: ['Color', 'Adjusts tone and color on its upstream branch.'],
-    repeat: ['Repeat', 'Repeats an upstream source over an optional backdrop.'],
-    material: ['Material', 'Defines a 3D surface for connected primitive nodes.'],
-    mask: ['Mask', 'Cuts one upstream branch by alpha or brightness from another branch.'],
-    transform: ['Transform', 'Moves, scales, rotates, or fades a completed upstream branch.'],
-    grimeShadow: ['Grime Shadow', 'Builds a layered dirty shadow from the visible alpha of an upstream branch.'],
-    scene3d: ['3D Scene', 'Renders imported models through camera, light, material, and environment settings.'],
-    environment: ['Environment Map', 'Provides an EXR or HDR lighting environment to a 3D Scene.'],
-    shader: ['Shader', 'Generates a procedural pixel source or pass for artwork branches and material texture inputs.'],
-  } as const;
-  const [kindLabel, description] = labels[target.kind];
+  const { label: kindLabel, description } = modelOfNode(target.node);
   const badges: EditorTargetBadge[] = [{ label: 'Utility', tone: 'accent' }];
   const notes: EditorTargetNote[] = [];
   addGraphStatus(badges, notes, id, 'utility', options.graph, options.layers);

@@ -1,6 +1,5 @@
 import { useStore } from '@xyflow/react';
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-
 import type {
   CanvasDocument,
   CanvasGraph,
@@ -11,7 +10,7 @@ import type {
 import { logThumbnailInvalidation } from '../../../utils/devLogging';
 import { createGraphNodeRenderCache, GRAPH_NODE_RENDER_CACHE_LIMIT } from '../../../utils/graphNodeRenderCache';
 import { imageCacheSignature } from '../../../utils/imageCacheSignature';
-import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../../../utils/nodeGraph';
+import { collectUpstreamNodeIds, EXPORT_NODE_ID, graphNodesOfKind } from '../../../utils/nodeGraph';
 import { measurePerformancePhase, measurePerformancePhaseSync } from '../../../utils/performanceMeasure';
 import { preloadImageSources } from '../../../utils/preloadImageSources';
 import { renderGraphTarget } from '../../../utils/renderer';
@@ -74,7 +73,7 @@ function primitiveViewSignature(
 ) {
   const ids = [
     ...layers.filter((layer) => layer.kind === 'primitive' || layer.kind === 'model').map((layer) => layer.id),
-    ...(graph.scene3dNodes ?? []).map((node) => node.id),
+    ...graphNodesOfKind(graph, 'scene3d').map((node) => node.id),
   ];
   return ids.map((id) => `${id}:${viewStateRenderSig(primitiveViewStates[id])}`).join('|');
 }
@@ -88,18 +87,8 @@ function layerSignatures(layers: Layer[]) {
 }
 
 function graphSignatureParts(graph: CanvasGraph) {
-  const nodes = graphNodeRenderSigs(graph);
   return {
-    mergeSignatures: nodes.merge,
-    colorSignatures: nodes.color,
-    repeatSignatures: nodes.repeat,
-    materialSignatures: nodes.material,
-    maskSignatures: nodes.mask,
-    transformSignatures: nodes.transform,
-    grimeShadowSignatures: nodes.grimeShadow,
-    scene3DSignatures: nodes.scene3d,
-    environmentSignatures: nodes.environment,
-    shaderSignatures: nodes.shader,
+    nodeSignatures: graphNodeRenderSigs(graph),
     edgeSignatures: graph.edges.map((edge) => ({ id: edge.id, sig: edgeRenderSig(edge) })),
   };
 }
@@ -121,22 +110,9 @@ function collectThumbnailSignatureParts(previewTargetId: string, renderDoc: Canv
 function upstreamSignatureGraph(renderGraph: CanvasGraph, upstreamHas: (id: string) => boolean): CanvasGraph {
   return {
     edges: renderGraph.edges.filter((edge) => upstreamHas(edge.toId) && upstreamHas(edge.fromId)),
-    mergeNodes: filterGraphNodes(renderGraph.mergeNodes, upstreamHas),
-    colorNodes: filterGraphNodes(renderGraph.colorNodes, upstreamHas),
-    repeatNodes: filterGraphNodes(renderGraph.repeatNodes, upstreamHas),
-    materialNodes: filterGraphNodes(renderGraph.materialNodes, upstreamHas),
-    maskNodes: filterGraphNodes(renderGraph.maskNodes, upstreamHas),
-    transformNodes: filterGraphNodes(renderGraph.transformNodes, upstreamHas),
-    grimeShadowNodes: filterGraphNodes(renderGraph.grimeShadowNodes, upstreamHas),
-    scene3dNodes: filterGraphNodes(renderGraph.scene3dNodes, upstreamHas),
-    environmentNodes: filterGraphNodes(renderGraph.environmentNodes, upstreamHas),
-    shaderNodes: filterGraphNodes(renderGraph.shaderNodes, upstreamHas),
+    nodes: Object.fromEntries(Object.entries(renderGraph.nodes).filter(([id]) => upstreamHas(id))),
     positions: {},
   };
-}
-
-function filterGraphNodes<T extends { id: string }>(nodes: T[] | undefined, upstreamHas: (id: string) => boolean) {
-  return (nodes ?? []).filter((node) => upstreamHas(node.id));
 }
 
 type PreviewSize = ReturnType<typeof getNodePreviewSize>;
@@ -453,14 +429,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
 
   // Dev-only: previous render signatures keyed by item id, used for change logging.
   const prevLayerSigsRef = useRef<Map<string, string>>(new Map());
-  const prevMergeSigsRef = useRef<Map<string, string>>(new Map());
-  const prevColorSigsRef = useRef<Map<string, string>>(new Map());
-  const prevRepeatSigsRef = useRef<Map<string, string>>(new Map());
-  const prevMaterialSigsRef = useRef<Map<string, string>>(new Map());
-  const prevMaskSigsRef = useRef<Map<string, string>>(new Map());
-  const prevTransformSigsRef = useRef<Map<string, string>>(new Map());
-  const prevGrimeShadowSigsRef = useRef<Map<string, string>>(new Map());
-  const prevShaderSigsRef = useRef<Map<string, string>>(new Map());
+  const prevNodeSigsRef = useRef<Map<string, string>>(new Map());
   const prevEdgeSigsRef = useRef<Map<string, string>>(new Map());
 
   const isExportPreview = previewTargetId === EXPORT_NODE_ID;
@@ -484,22 +453,8 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
   );
 
   const signatureData = useMemo(() => {
-    const {
-      layers,
-      upstreamImageLayers,
-      layerSignatures,
-      mergeSignatures,
-      colorSignatures,
-      repeatSignatures,
-      materialSignatures,
-      maskSignatures,
-      transformSignatures,
-      grimeShadowSignatures,
-      scene3DSignatures,
-      environmentSignatures,
-      shaderSignatures,
-      edgeSignatures,
-    } = collectThumbnailSignatureParts(previewTargetId, renderDoc, renderGraph);
+    const { layers, upstreamImageLayers, layerSignatures, nodeSignatures, edgeSignatures } =
+      collectThumbnailSignatureParts(previewTargetId, renderDoc, renderGraph);
 
     const contentKeyParts = [
       previewTargetId,
@@ -508,16 +463,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       renderDoc.global.seed,
       renderDoc.global.aspect,
       signatureList(layerSignatures),
-      signatureList(mergeSignatures),
-      signatureList(colorSignatures),
-      signatureList(repeatSignatures),
-      signatureList(materialSignatures),
-      signatureList(maskSignatures),
-      signatureList(transformSignatures),
-      signatureList(grimeShadowSignatures),
-      signatureList(scene3DSignatures),
-      signatureList(environmentSignatures),
-      signatureList(shaderSignatures),
+      signatureList(nodeSignatures),
       signatureList(edgeSignatures),
       primitiveViewSignature(layers, renderGraph, renderPrimitiveViewStates),
       imageCacheSignature(upstreamImageLayers, imageCache),
@@ -529,14 +475,7 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       previewKey,
       contentKey,
       layerSignatures,
-      mergeSignatures,
-      colorSignatures,
-      repeatSignatures,
-      materialSignatures,
-      maskSignatures,
-      transformSignatures,
-      grimeShadowSignatures,
-      shaderSignatures,
+      nodeSignatures,
       edgeSignatures,
     };
   }, [renderDoc, renderGraph, previewSize, previewTargetId, renderPrimitiveViewStates, imageCache]);
@@ -553,68 +492,12 @@ export function useNodeThumbnailRender(previewTargetId: string, options: { prior
       prevLayerSigsRef.current.set(id, sig);
     });
 
-    signatureData.mergeSignatures.forEach(({ id, sig }) => {
-      const prev = prevMergeSigsRef.current.get(id);
+    signatureData.nodeSignatures.forEach(({ id, kind, sig }) => {
+      const prev = prevNodeSigsRef.current.get(id);
       if (prev !== undefined && prev !== sig) {
-        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'merge' });
+        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: kind });
       }
-      prevMergeSigsRef.current.set(id, sig);
-    });
-
-    signatureData.colorSignatures.forEach(({ id, sig }) => {
-      const prev = prevColorSigsRef.current.get(id);
-      if (prev !== undefined && prev !== sig) {
-        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'color' });
-      }
-      prevColorSigsRef.current.set(id, sig);
-    });
-
-    signatureData.repeatSignatures.forEach(({ id, sig }) => {
-      const prev = prevRepeatSigsRef.current.get(id);
-      if (prev !== undefined && prev !== sig) {
-        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'repeat' });
-      }
-      prevRepeatSigsRef.current.set(id, sig);
-    });
-
-    signatureData.materialSignatures.forEach(({ id, sig }) => {
-      const prev = prevMaterialSigsRef.current.get(id);
-      if (prev !== undefined && prev !== sig) {
-        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'material' });
-      }
-      prevMaterialSigsRef.current.set(id, sig);
-    });
-
-    signatureData.maskSignatures.forEach(({ id, sig }) => {
-      const prev = prevMaskSigsRef.current.get(id);
-      if (prev !== undefined && prev !== sig) {
-        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'mask' });
-      }
-      prevMaskSigsRef.current.set(id, sig);
-    });
-
-    signatureData.transformSignatures.forEach(({ id, sig }) => {
-      const prev = prevTransformSigsRef.current.get(id);
-      if (prev !== undefined && prev !== sig) {
-        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'transform' });
-      }
-      prevTransformSigsRef.current.set(id, sig);
-    });
-
-    signatureData.grimeShadowSignatures.forEach(({ id, sig }) => {
-      const prev = prevGrimeShadowSigsRef.current.get(id);
-      if (prev !== undefined && prev !== sig) {
-        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'grimeShadow' });
-      }
-      prevGrimeShadowSigsRef.current.set(id, sig);
-    });
-
-    signatureData.shaderSignatures.forEach(({ id, sig }) => {
-      const prev = prevShaderSigsRef.current.get(id);
-      if (prev !== undefined && prev !== sig) {
-        logThumbnailInvalidation({ cause: 'graph', targetId: previewTargetId, itemId: id, itemKind: 'shader' });
-      }
-      prevShaderSigsRef.current.set(id, sig);
+      prevNodeSigsRef.current.set(id, sig);
     });
 
     signatureData.edgeSignatures.forEach(({ id, sig }) => {

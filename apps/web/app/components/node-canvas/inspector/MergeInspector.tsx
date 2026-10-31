@@ -1,4 +1,4 @@
-import type { GraphMergeNode } from '../../../types/config';
+import type { GraphMergeNode } from '../../../utils/nodeKinds';
 import { BLEND_OPTIONS } from '../constants';
 import { BlendModeNote, InspectorSelect, InspectorSlider, InspectorTextInput } from './fields';
 

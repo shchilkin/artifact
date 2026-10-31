@@ -1,13 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 
-import {
-  type ModelLayer,
-  makeGraphMaterialNode,
-  makeGraphScene3DNode,
-  makeSourceLayer,
-  type PrimitiveLayer,
-} from '../types/config';
+import { type ModelLayer, makeSourceLayer, type PrimitiveLayer } from '../types/config';
 import {
   addModelSceneLights,
   applySceneEnvironmentIntensity,
@@ -19,6 +13,7 @@ import {
   normalizeModelRoot,
   renderModelToCanvas,
 } from './modelRenderer';
+import { makeGraphMaterialNode, makeGraphScene3DNode } from './nodeKinds';
 
 type SourceLayerPartial = Parameters<typeof makeSourceLayer>[1];
 

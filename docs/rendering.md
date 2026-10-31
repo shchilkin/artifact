@@ -38,7 +38,7 @@ The interactive frame is sized to the device's GPU (v0.50, #324): on a GPU
 where one effect pass at the draft size would take longer than the preview's
 budget (12 ms, typically software WebGL), it renders at 3/4 or 1/2 of the draft
 size, from the GPU bridge's running cost per megapixel
-(`apps/web/app/utils/gpuPassCost.ts`). It also sets `mergeGpuPasses`. The
+(`apps/web/app/utils/gpuPassCost.ts`). The
 full-quality pass that follows is unchanged, so the frame the preview settles
 on, thumbnails, and export match as before. The display canvas takes each
 frame's own size and CSS scales it to the preview box.
@@ -68,7 +68,8 @@ Rule:
 > UI surfaces may wrap these functions, but they should not reimplement artwork rendering.
 
 Reachability has one home, `render/graphInputs.ts`: one walk
-(`collectGraphRenderReachModes`) over per-kind input tables (`graphNodeRenderInputs`). `collectGraphRenderReach`,
+(`collectGraphRenderReachModes`) over each node kind's declared inputs (`inputs` on its model in
+`utils/nodeKinds/`; layers have their own table in `graphInputs.ts`). `collectGraphRenderReach`,
 `collectDocumentOutputNodeIds` (Layers row status), and the Layers tree (`buildGraphLayerTree`) all derive from
 it. When a graph renderer starts or stops reading an input port, update the table in the same change; the
 shared fixtures in `test-fixtures/render/graphReachFixtures.ts` cover every branch of the table and are checked
@@ -110,15 +111,21 @@ Noise sources can additionally warp their sampling domain, fold values through
 turbulence, and harden their alpha through threshold shaping. These controls
 are source-layer state and therefore must match between node preview and export.
 
-## Stack mode vs graph mode
+## Layer stacks and custom graphs
 
-### Stack mode
+Every document renders from `CanvasDocument.graph` (schema 5). There is no
+separate stack render path and no `graphMode` option.
 
-Stack mode renders `doc.layers` in order. Index 0 is bottom. This is the classic layer editor mental model.
+### Layer stacks
 
-### Graph mode
+A layer-stack document stores the linear graph of `doc.layers`: index 0 feeds
+the next layer and the top layer feeds Output (`inferLinearGraph`,
+`isLayerStackGraph`). Layers edits keep that graph equal to the stack. The main
+layer preview uses its per-layer prefix cache only for layer-stack graphs.
 
-Graph mode renders from `CanvasDocument.graph`. Nodes can be:
+### Custom graphs
+
+A custom graph is any other graph. Nodes can be:
 
 - layer nodes
 - merge nodes
@@ -156,11 +163,11 @@ Entries are pruned least recently used first.
 Gallery previews and generated preset/example thumbnails use the same optional
 cache boundary so repeated graph branches are not recomputed while browsing or
 opening a high-resolution preview.
-The graph export/output node does not implicitly paint `doc.global.bg`; it returns
-the pixels provided by the connected graph branch. Add an explicit fill, image,
-or procedural source node when graph output should have a solid/background plate.
-Classic stack rendering still paints `doc.global.bg` before applying the inferred
-linear layer graph, preserving layer-mode behavior.
+The export/output node paints `doc.global.bg` under the connected graph branch
+in every mode, so a document renders the same in Layers and Nodes. A document
+with `bg: 'transparent'` (the blank-document default) keeps transparent output;
+add a fill, image, or procedural source node for a plate that should be part of
+the graph itself.
 Repeat nodes render their `source` input once, crop it to its visible alpha
 bounds, and stamp it into a line, grid, or radial pattern over an optional
 `backdrop` input. This keeps the node source-agnostic: text, images,
@@ -266,15 +273,13 @@ upstream canvas to sample.
 
 ### Rule
 
-If `doc.graph` exists and `graphMode` is not forced to `stack`, graph mode is used. Preview and export call sites must be explicit about which mode they need.
-
-The main layer preview renders graph documents in graph mode so layer view and
-the export node agree about the visible artwork. Documents without a graph still
-render in classic stack mode.
+Preview, thumbnails, gallery, and export all render `doc.graph`, so Layers,
+Nodes, and the exported file show the same artwork.
 
 ## Layer rendering
 
-Layer rendering happens through `applyLayerToCanvas` in `renderer.ts`.
+Layer rendering happens through `applyLayerToCanvas` in
+`apps/web/app/utils/render/layers/index.ts`.
 
 | Layer kind | Renderer |
 | --- | --- |
@@ -314,8 +319,8 @@ When `draft` rendering is requested, primitive layers may use a Canvas 2D fallba
 
 Effect layers are non-destructive passes over everything below them.
 New documents should use focused one-effect preset layers. Legacy combined
-effect layers are migrated into separate focused layers during document
-normalization.
+effect layers are split into focused layers once, by the schema 3 -> 4
+migration (`apps/web/app/utils/migrations/v3ToV4.ts`).
 
 Pipeline:
 
@@ -467,10 +472,8 @@ Current render options:
 interface RenderOptions {
   skipEffects?: boolean;
   draft?: boolean;
-  graphMode?: 'auto' | 'graph' | 'stack';
   primitiveViewStates?: Record<string, PrimitiveViewportState>;
   effectResolution?: { width: number; height: number };
-  mergeGpuPasses?: boolean;
 }
 ```
 
@@ -478,18 +481,14 @@ Guidelines:
 
 - `skipEffects` is for performance-sensitive preview paths only.
 - `draft` may lower quality during active interaction.
-- `graphMode` must be explicit when a surface needs stack behavior.
 - `primitiveViewStates` must be passed to export when primitive camera state is visible in preview.
 - `effectResolution` is used by export so scale 2/3 increases file
   resolution without changing procedural effect density from the base cover
   size.
-- `mergeGpuPasses` is for interactive preview frames only. An effect layer that
-  is not masked or blended runs its GPU filters in the same GPU pass as the
-  GPU-only effect layers above it, which saves a canvas upload and readback.
-  Opaque pixels are identical
-  (`tests/browser/v050-gpu-readback-parity.spec.ts`); translucent pixels can
-  differ by readback rounding, so full-quality previews, thumbnails, and export
-  never set it.
+- Two or more GPU-only effect layers in a row run their filters in one GPU
+  pass in every render. The v0.50 option that also merged a mixed Canvas 2D and
+  GPU layer into that pass was removed in v0.51: focused effect presets have
+  one backend each, so no document reached it.
 - UI render hooks should avoid painting stale async results when a newer
   document, image-cache, or render-option change is already queued.
 
@@ -500,7 +499,7 @@ For any rendering change, verify:
 1. Main layer preview still renders.
 2. Node thumbnail still renders.
 3. Node gallery still renders.
-4. Export uses the same graph or stack mode as the visible editor mode.
+4. Export renders the same `doc.graph` as the preview.
 5. Primitive camera overrides are passed to export.
 6. Image cache is available before rendering.
 7. Pixel-like values scale from the 540 baseline.
@@ -564,7 +563,11 @@ Current implementation status:
 
 - `apps/web/app/utils/renderer.ts` re-exports the public facade.
 - `apps/web/app/utils/render/canvas.ts` owns shared Canvas 2D helpers.
-- `apps/web/app/utils/render/graph.ts` owns graph traversal rendering.
+- `apps/web/app/utils/render/graph.ts` owns graph traversal rendering: the
+  cache, layer nodes, and the Output node. Graph-only nodes render through
+  `GRAPH_NODE_RENDERERS` in `apps/web/app/utils/render/nodeKinds/`, one module
+  per kind. A kind's render signature (thumbnail and render-cache key) is
+  `renderSignature` on its model, read through `graphNodeRenderSig`.
 - `apps/web/app/utils/render/layers/index.ts` owns layer/effect passes while the
   remaining per-kind files are extracted.
 - Per-kind layer/effect files should be introduced incrementally only when they

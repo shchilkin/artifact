@@ -1,0 +1,143 @@
+{
+  "stack": {
+    "preview": {
+      "size": "432x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.047058824,
+                0.019607843,
+                0.015686275
+              ],
+              "uColorB": [
+                0.60784314,
+                0.27058824,
+                0.19215686
+              ],
+              "uStrength": 0.18
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "c3a4396a4e8c",
+            "uniforms": {
+              "uMag": 0.0096,
+              "uAngle": 0.38397244
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1080x1350",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.047058824,
+                0.019607843,
+                0.015686275
+              ],
+              "uColorB": [
+                0.60784314,
+                0.27058824,
+                0.19215686
+              ],
+              "uStrength": 0.18
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "c3a4396a4e8c",
+            "uniforms": {
+              "uMag": 0.0096,
+              "uAngle": 0.38397244
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "graph": {
+    "preview": {
+      "size": "432x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.047058824,
+                0.019607843,
+                0.015686275
+              ],
+              "uColorB": [
+                0.60784314,
+                0.27058824,
+                0.19215686
+              ],
+              "uStrength": 0.18
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "c3a4396a4e8c",
+            "uniforms": {
+              "uMag": 0.0096,
+              "uAngle": 0.38397244
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1080x1350",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b292b998e23b",
+            "uniforms": {
+              "uColorA": [
+                0.047058824,
+                0.019607843,
+                0.015686275
+              ],
+              "uColorB": [
+                0.60784314,
+                0.27058824,
+                0.19215686
+              ],
+              "uStrength": 0.18
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "c3a4396a4e8c",
+            "uniforms": {
+              "uMag": 0.0096,
+              "uAngle": 0.38397244
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "stackMatchesGraph": true
+}

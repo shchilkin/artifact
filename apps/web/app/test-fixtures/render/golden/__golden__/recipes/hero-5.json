@@ -1,0 +1,203 @@
+{
+  "stack": {
+    "preview": {
+      "size": "540x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b4b9a177ad05",
+            "uniforms": {
+              "uIntensity": 0.315,
+              "uSeed": 55555
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "5e674c1ad2b8",
+            "uniforms": {
+              "uIntensity": 0.21,
+              "uSeed": 55555,
+              "uResY": 540
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "d43dc8947183",
+            "uniforms": {
+              "uBlocks": 180
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.8
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.1
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1000x1000",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b4b9a177ad05",
+            "uniforms": {
+              "uIntensity": 0.315,
+              "uSeed": 55555
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "5e674c1ad2b8",
+            "uniforms": {
+              "uIntensity": 0.21,
+              "uSeed": 55555,
+              "uResY": 1000
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "d43dc8947183",
+            "uniforms": {
+              "uBlocks": 333
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.8
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.1
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "graph": {
+    "preview": {
+      "size": "540x540",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b4b9a177ad05",
+            "uniforms": {
+              "uIntensity": 0.315,
+              "uSeed": 55555
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "5e674c1ad2b8",
+            "uniforms": {
+              "uIntensity": 0.21,
+              "uSeed": 55555,
+              "uResY": 540
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "d43dc8947183",
+            "uniforms": {
+              "uBlocks": 180
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.8
+            }
+          },
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.1
+            }
+          }
+        ]
+      ]
+    },
+    "export": {
+      "size": "1000x1000",
+      "gpuPasses": [
+        [
+          {
+            "filter": "shader",
+            "shader": "b4b9a177ad05",
+            "uniforms": {
+              "uIntensity": 0.315,
+              "uSeed": 55555
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "5e674c1ad2b8",
+            "uniforms": {
+              "uIntensity": 0.21,
+              "uSeed": 55555,
+              "uResY": 1000
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "d43dc8947183",
+            "uniforms": {
+              "uBlocks": 333
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "7bb96a8f279f",
+            "uniforms": {
+              "uIntensity": 0.8
+            }
+          }
+        ],
+        [
+          {
+            "filter": "shader",
+            "shader": "0d3c5c468bb8",
+            "uniforms": {
+              "uIntensity": 0.1
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "stackMatchesGraph": true
+}

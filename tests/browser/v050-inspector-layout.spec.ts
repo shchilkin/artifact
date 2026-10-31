@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
+import { type EffectPreset } from '../../apps/web/app/types/config';
 import {
-  type EffectPreset,
   makeGraphColorNode,
   makeGraphMaskNode,
   makeGraphMergeNode,
@@ -9,7 +9,7 @@ import {
   makeGraphScene3DNode,
   makeGraphShaderNode,
   makeGraphTransformNode,
-} from '../../apps/web/app/types/config';
+} from '../../apps/web/app/utils/nodeKinds';
 import {
   editorDocumentFixture,
   expectNoBrowserIssues,

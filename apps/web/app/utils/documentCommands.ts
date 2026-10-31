@@ -3,17 +3,7 @@ import {
   type CanvasDocument,
   type CanvasGraph,
   type EffectPreset,
-  type GraphColorNode,
   type GraphEdge,
-  type GraphEnvironmentNode,
-  type GraphGrimeShadowNode,
-  type GraphMaskNode,
-  type GraphMaterialNode,
-  type GraphMergeNode,
-  type GraphRepeatNode,
-  type GraphScene3DNode,
-  type GraphShaderNode,
-  type GraphTransformNode,
   type Layer,
   type LayerKind,
   MATERIAL_TEXTURE_INPUT_PORTS,
@@ -21,70 +11,48 @@ import {
   makeEffectPresetLayer,
   makeEmojiLayer,
   makeFillLayer,
-  makeGraphColorNode,
-  makeGraphEnvironmentNode,
-  makeGraphGrimeShadowNode,
-  makeGraphMaskNode,
-  makeGraphMaterialNode,
-  makeGraphMergeNode,
-  makeGraphRepeatNode,
-  makeGraphScene3DNode,
-  makeGraphShaderNode,
-  makeGraphTransformNode,
   makeImageLayer,
   makeSourceLayer,
   makeTextLayer,
 } from '../types/config';
+import type { GraphEnvironmentNode } from '../utils/nodeKinds';
 import type { AddAction } from './addActions';
 import { makeArrayPresetLayer } from './arrayPresets';
 import { canDeleteLayer, canDeleteNodeFromDocument, canReorderDocumentLayers } from './editorGuardrails';
 import {
-  addColorNode,
-  addEnvironmentNode,
   addGraphArea,
   addGraphEdge,
-  addGrimeShadowNode,
+  addGraphNode,
   addLayerToGraph,
-  addMaskNode,
-  addMaterialNode,
-  addMergeNode,
   addNodesToGraphArea,
-  addRepeatNode,
-  addScene3DNode,
-  addShaderNode,
-  addTransformNode,
-  documentGraph,
   EXPORT_NODE_ID,
+  findGraphNode,
   GRAPH_AREA_COLORS,
-  graphUtilityNodeCollections,
   inferLinearGraph,
+  isLayerStackGraph,
   nextDropPosition,
-  removeColorNode,
-  removeEnvironmentNode,
   removeGraphArea,
   removeGraphEdge,
-  removeGrimeShadowNode,
+  removeGraphNode,
   removeLayerFromGraph,
-  removeMaskNode,
-  removeMaterialNode,
-  removeMergeNode,
   removeNodesFromGraphArea,
-  removeRepeatNode,
-  removeScene3DNode,
-  removeShaderNode,
-  removeTransformNode,
   splitEdgeWithNode,
-  updateColorNode as updateColorNodeInGraph,
-  updateEnvironmentNode as updateEnvironmentNodeInGraph,
   updateGraphArea,
-  updateGrimeShadowNode as updateGrimeShadowNodeInGraph,
-  updateMaskNode as updateMaskNodeInGraph,
-  updateMaterialNode as updateMaterialNodeInGraph,
-  updateRepeatNode as updateRepeatNodeInGraph,
-  updateScene3DNode as updateScene3DNodeInGraph,
-  updateShaderNode as updateShaderNodeInGraph,
-  updateTransformNode as updateTransformNodeInGraph,
+  updateGraphNode,
 } from './nodeGraph';
+import {
+  type GraphNode,
+  type GraphNodeKind,
+  type GraphNodePatch,
+  graphNodeModel,
+  isGraphNodeKind,
+  modelOfNode,
+} from './nodeKinds';
+
+export { isLayerStackGraph } from './nodeGraph';
+
+import { makeGraphEnvironmentNode } from './nodeKinds/environment';
+import { makeGraphShaderNode } from './nodeKinds/shader';
 import { makeNoisePresetLayer } from './noisePresets';
 import { makeRepeatPresetNode } from './repeatPresets';
 import { makeTextPresetLayer, type TextPresetId } from './textPresets';
@@ -104,10 +72,6 @@ export interface AddNodeAtDocumentResult {
 }
 
 type CreateGraphEdgeId = (fromId: string, toId: string, index: number) => string;
-
-export function bootstrapDocumentGraph(doc: CanvasDocument): CanvasDocument {
-  return doc.graph ? doc : { ...doc, graph: inferLinearGraph(doc.layers) };
-}
 
 export function createLayerOfKind(kind: Exclude<LayerKind, 'effect'>): Layer {
   const layer =
@@ -166,11 +130,11 @@ export function addEnvironmentMapToDocument(
     environmentMime: asset.environmentMime,
     environmentBytes: asset.environmentBytes,
   });
-  const graph = documentGraph(doc);
+  const graph = doc.graph;
   return {
     doc: {
       ...doc,
-      graph: addEnvironmentNode(graph, node, position ?? nextDropPosition(graph)),
+      graph: addGraphNode(graph, node, position ?? nextDropPosition(graph)),
     },
     nodeId: node.id,
   };
@@ -211,16 +175,6 @@ function syncGraphToLayerStackOrder(graph: CanvasGraph, layers: Layer[]): Canvas
     ...graph,
     edges: [...graphOnlyEdges, ...linearGraph.edges],
     positions: { ...graph.positions, ...linearGraph.positions },
-    mergeNodes: graph.mergeNodes ?? [],
-    colorNodes: graph.colorNodes ?? [],
-    repeatNodes: graph.repeatNodes ?? [],
-    materialNodes: graph.materialNodes ?? [],
-    maskNodes: graph.maskNodes ?? [],
-    transformNodes: graph.transformNodes ?? [],
-    grimeShadowNodes: graph.grimeShadowNodes ?? [],
-    scene3dNodes: graph.scene3dNodes ?? [],
-    environmentNodes: graph.environmentNodes ?? [],
-    shaderNodes: graph.shaderNodes ?? [],
   };
 }
 
@@ -228,22 +182,13 @@ function layerInputPort(layer: Layer): GraphEdge['toPort'] {
   return layer.kind === 'effect' ? 'in' : 'bg';
 }
 
-function edgeKey(edge: Pick<GraphEdge, 'fromId' | 'fromPort' | 'toId' | 'toPort'>) {
-  return `${edge.fromId}:${edge.fromPort}->${edge.toId}:${edge.toPort}`;
-}
-
 /**
- * True when the graph is exactly the layer stack wired to export, so Layers
- * actions can rebuild it without losing any user-authored topology.
+ * A layer-list edit on a document whose graph is its layer stack keeps the graph equal to the new stack, the way
+ * Layers mode has always behaved. Custom graphs keep the edit's own graph result.
  */
-export function isLayerStackGraph(doc: CanvasDocument): boolean {
-  const graph = doc.graph;
-  if (!graph) return true;
-  if (graphUtilityNodeCollections(graph).some((nodes) => nodes.length > 0)) return false;
-  const expected = doc.layers.length > 0 ? inferLinearGraph(doc.layers).edges : [];
-  if (graph.edges.length !== expected.length) return false;
-  const actual = new Set(graph.edges.map(edgeKey));
-  return expected.every((edge) => actual.has(edgeKey(edge)));
+function keepStackGraphInSync(before: CanvasDocument, after: CanvasDocument): CanvasDocument {
+  if (!isLayerStackGraph(before)) return after;
+  return { ...after, graph: syncGraphToLayerStackOrder(after.graph, after.layers) };
 }
 
 /** Put a new layer between the current export input and export, leaving the rest of the graph untouched. */
@@ -279,7 +224,6 @@ function insertLayerBeforeExport(graph: CanvasGraph, layer: Layer): CanvasGraph 
 }
 
 export function addLayerToDocument(doc: CanvasDocument, layer: Layer): CanvasDocument {
-  if (!doc.graph) return { ...doc, layers: [...doc.layers, layer] };
   const layers = [...doc.layers, layer];
   if (!isLayerStackGraph(doc)) {
     return { ...doc, layers, graph: insertLayerBeforeExport(doc.graph, layer) };
@@ -296,7 +240,7 @@ export function addLooseLayerNodeToDocument(
   layer: Layer,
   position?: { x: number; y: number },
 ): CanvasDocument {
-  const graph = documentGraph(doc);
+  const graph = doc.graph;
   return {
     ...doc,
     layers: [...doc.layers, layer],
@@ -305,7 +249,7 @@ export function addLooseLayerNodeToDocument(
 }
 
 export function createGraphAreaInDocument(doc: CanvasDocument, nodeIds: string[]): CanvasDocument {
-  const graph = documentGraph(doc);
+  const graph = doc.graph;
   const areaNumber = (graph.areas?.length ?? 0) + 1;
   const color = GRAPH_AREA_COLORS[(areaNumber - 1) % GRAPH_AREA_COLORS.length];
   return {
@@ -326,7 +270,7 @@ export function addLayersToGraphAreaInDocument(
 ): CanvasDocument {
   return {
     ...doc,
-    graph: addNodesToGraphArea(documentGraph(doc), areaId, layerIds),
+    graph: addNodesToGraphArea(doc.graph, areaId, layerIds),
   };
 }
 
@@ -335,7 +279,7 @@ export function renameGraphAreaInDocument(doc: CanvasDocument, areaId: string, n
   if (!trimmed) return doc;
   return {
     ...doc,
-    graph: updateGraphArea(documentGraph(doc), areaId, { name: trimmed }),
+    graph: updateGraphArea(doc.graph, areaId, { name: trimmed }),
   };
 }
 
@@ -350,12 +294,12 @@ export function removeNodesFromGraphAreaInDocument(
 ): CanvasDocument {
   return {
     ...doc,
-    graph: removeNodesFromGraphArea(documentGraph(doc), areaId, nodeIds),
+    graph: removeNodesFromGraphArea(doc.graph, areaId, nodeIds),
   };
 }
 
 export function removeNodesFromAllGraphAreasInDocument(doc: CanvasDocument, nodeIds: string[]): CanvasDocument {
-  if (!doc.graph?.areas || nodeIds.length === 0) return doc;
+  if (!doc.graph.areas || nodeIds.length === 0) return doc;
   const idSet = new Set(nodeIds);
   let next = doc;
   for (const area of doc.graph.areas) {
@@ -370,7 +314,7 @@ export function removeNodesFromAllGraphAreasInDocument(doc: CanvasDocument, node
 export function removeGraphAreaInDocument(doc: CanvasDocument, areaId: string): CanvasDocument {
   return {
     ...doc,
-    graph: removeGraphArea(documentGraph(doc), areaId),
+    graph: removeGraphArea(doc.graph, areaId),
   };
 }
 
@@ -477,25 +421,11 @@ function insertLayerForGraphConnection(
   return next;
 }
 
+type GraphNodeAddAction = Extract<DocumentAddAction, { kind: GraphNodeKind | 'repeatPreset' }>;
+
 function addGraphOnlyNodeAtDocument(
   doc: CanvasDocument,
-  action: Extract<
-    DocumentAddAction,
-    {
-      kind:
-        | 'merge'
-        | 'color'
-        | 'repeat'
-        | 'material'
-        | 'repeatPreset'
-        | 'mask'
-        | 'transform'
-        | 'grimeShadow'
-        | 'scene3d'
-        | 'environment'
-        | 'shader';
-    }
-  >,
+  action: GraphNodeAddAction,
   position: { x: number; y: number },
   insertion?: DocumentInsertConnectionConfig,
   createEdgeId?: CreateGraphEdgeId,
@@ -504,46 +434,31 @@ function addGraphOnlyNodeAtDocument(
   return { doc: { ...doc, graph }, selectedLayerId: null };
 }
 
+function nodeForAddAction(action: GraphNodeAddAction): GraphNode {
+  if (action.kind === 'repeatPreset') return makeRepeatPresetNode(action.preset);
+  if (action.kind === 'shader') {
+    return makeGraphShaderNode({
+      ...(action.shaderKind ? { shaderKind: action.shaderKind } : {}),
+      role: action.role,
+      ...(action.shaderKind === 'aiShader' ? { name: 'AI Shader Effect' } : {}),
+      ...(action.shaderKind === 'customCode' ? { name: 'Code Shader' } : {}),
+    });
+  }
+  return graphNodeModel(action.kind).make();
+}
+
 function connectInsertedGraphOnlyNode(
   doc: CanvasDocument,
-  action: Extract<
-    DocumentAddAction,
-    {
-      kind:
-        | 'merge'
-        | 'color'
-        | 'repeat'
-        | 'material'
-        | 'repeatPreset'
-        | 'mask'
-        | 'transform'
-        | 'grimeShadow'
-        | 'scene3d'
-        | 'environment'
-        | 'shader';
-    }
-  >,
+  action: GraphNodeAddAction,
   position: { x: number; y: number },
   insertion?: DocumentInsertConnectionConfig,
   createEdgeId?: CreateGraphEdgeId,
 ) {
-  if (action.kind === 'merge') {
-    const node = makeGraphMergeNode();
-    return connectInsertedNode(addMergeNode(documentGraph(doc), node, position), node.id, 'a', insertion, createEdgeId);
-  }
-  if (action.kind === 'color') {
-    const node = makeGraphColorNode();
-    return connectInsertedNode(
-      addColorNode(documentGraph(doc), node, position),
-      node.id,
-      'in',
-      insertion,
-      createEdgeId,
-    );
-  }
-  if (action.kind === 'material') {
-    const node = makeGraphMaterialNode();
-    const graph = addMaterialNode(documentGraph(doc), node, position);
+  const node = nodeForAddAction(action);
+  const graph = addGraphNode(doc.graph, node, position);
+  const mode = modelOfNode(node).insertion(node);
+  if (mode === 'source') return connectInsertedSourceNode(graph, node.id, insertion, createEdgeId);
+  if (mode === 'material') {
     if (insertion?.targetId && insertion.targetPort === 'material') {
       return addGraphEdge(graph, {
         id: createEdgeId?.(node.id, insertion.targetId, 0) ?? defaultCreateGraphEdgeId(node.id, insertion.targetId, 0),
@@ -555,129 +470,14 @@ function connectInsertedGraphOnlyNode(
     }
     return graph;
   }
-  if (action.kind === 'mask') {
-    const node = makeGraphMaskNode();
-    return connectInsertedNode(addMaskNode(documentGraph(doc), node, position), node.id, 'in', insertion, createEdgeId);
-  }
-  if (action.kind === 'transform') {
-    const node = makeGraphTransformNode();
-    return connectInsertedNode(
-      addTransformNode(documentGraph(doc), node, position),
-      node.id,
-      'in',
-      insertion,
-      createEdgeId,
-    );
-  }
-  if (action.kind === 'grimeShadow') {
-    const node = makeGraphGrimeShadowNode();
-    return connectInsertedNode(
-      addGrimeShadowNode(documentGraph(doc), node, position),
-      node.id,
-      'in',
-      insertion,
-      createEdgeId,
-    );
-  }
-  if (action.kind === 'scene3d') {
-    const node = makeGraphScene3DNode();
-    return connectInsertedNode(
-      addScene3DNode(documentGraph(doc), node, position),
-      node.id,
-      'model',
-      insertion,
-      createEdgeId,
-    );
-  }
-  if (action.kind === 'environment') {
-    const node = makeGraphEnvironmentNode();
-    return connectInsertedNode(
-      addEnvironmentNode(documentGraph(doc), node, position),
-      node.id,
-      'env',
-      insertion,
-      createEdgeId,
-    );
-  }
-  if (action.kind === 'shader') {
-    const role = action.role;
-    const node = makeGraphShaderNode({
-      ...(action.shaderKind ? { shaderKind: action.shaderKind } : {}),
-      role,
-      ...(action.shaderKind === 'aiShader' ? { name: 'AI Shader Effect' } : {}),
-      ...(action.shaderKind === 'customCode' ? { name: 'Code Shader' } : {}),
-    });
-    if (role === 'effect') {
-      return connectInsertedNode(
-        addShaderNode(documentGraph(doc), node, position),
-        node.id,
-        'bg',
-        insertion,
-        createEdgeId,
-      );
-    }
-    return connectInsertedSourceNode(
-      addShaderNode(documentGraph(doc), node, position),
-      node.id,
-      insertion,
-      createEdgeId,
-    );
-  }
-  const node = action.kind === 'repeatPreset' ? makeRepeatPresetNode(action.preset) : makeGraphRepeatNode();
-  return connectInsertedNode(addRepeatNode(documentGraph(doc), node, position), node.id, 'in', insertion, createEdgeId);
+  return connectInsertedNode(graph, node.id, mode.through, insertion, createEdgeId);
 }
 
-function isGraphOnlyAddAction(action: DocumentAddAction): action is Extract<
-  DocumentAddAction,
-  {
-    kind:
-      | 'merge'
-      | 'color'
-      | 'repeat'
-      | 'material'
-      | 'repeatPreset'
-      | 'mask'
-      | 'transform'
-      | 'grimeShadow'
-      | 'scene3d'
-      | 'environment'
-      | 'shader';
-  }
-> {
-  return (
-    action.kind === 'merge' ||
-    action.kind === 'color' ||
-    action.kind === 'repeat' ||
-    action.kind === 'material' ||
-    action.kind === 'repeatPreset' ||
-    action.kind === 'mask' ||
-    action.kind === 'transform' ||
-    action.kind === 'grimeShadow' ||
-    action.kind === 'scene3d' ||
-    action.kind === 'environment' ||
-    action.kind === 'shader'
-  );
+function isGraphOnlyAddAction(action: DocumentAddAction): action is GraphNodeAddAction {
+  return action.kind === 'repeatPreset' || isGraphNodeKind(action.kind);
 }
 
-function layerForAddAction(
-  action: Exclude<
-    DocumentAddAction,
-    {
-      kind:
-        | 'merge'
-        | 'color'
-        | 'repeat'
-        | 'material'
-        | 'repeatPreset'
-        | 'mask'
-        | 'transform'
-        | 'grimeShadow'
-        | 'scene3d'
-        | 'environment'
-        | 'shader';
-    }
-  >,
-) {
+function layerForAddAction(action: Exclude<DocumentAddAction, GraphNodeAddAction>) {
   if (action.kind === 'effect') return createEffectPresetLayer(action.preset);
   if (action.kind === 'noisePreset') return withGeneratedNodeSeed(makeNoisePresetLayer(action.preset));
   if (action.kind === 'arrayPreset') return makeArrayPresetLayer(action.preset);
@@ -700,7 +500,7 @@ export function addNodeAtDocument(
   if (isGraphOnlyAddAction(action)) return addGraphOnlyNodeAtDocument(doc, action, position, insertion, createEdgeId);
 
   const layer = layerForAddAction(action);
-  const baseGraph = documentGraph(doc);
+  const baseGraph = doc.graph;
   const graph = connectInsertedNode(
     addLayerToGraph(baseGraph, layer.id, position),
     layer.id,
@@ -722,62 +522,19 @@ export function addNodeAtDocument(
 export function removeLayerFromDocument(doc: CanvasDocument, id: string): CanvasDocument {
   const layer = doc.layers.find((item) => item.id === id);
   if (!canDeleteLayer(layer)) return doc;
-  return {
+  return keepStackGraphInSync(doc, {
     ...doc,
     layers: doc.layers.filter((layer) => layer.id !== id),
-    graph: doc.graph ? removeLayerFromGraph(doc.graph, id) : undefined,
-  };
-}
-
-function removeMatchingGraphNodes<T extends { id: string }>(
-  graph: CanvasGraph,
-  nodes: T[] | undefined,
-  idSet: Set<string>,
-  removeNode: (next: CanvasGraph, id: string) => CanvasGraph,
-) {
-  let next = graph;
-  for (const node of nodes ?? []) {
-    if (idSet.has(node.id)) next = removeNode(next, node.id);
-  }
-  return next;
+    graph: removeLayerFromGraph(doc.graph, id),
+  });
 }
 
 function removeDeletedGraphOnlyNodes(graph: CanvasGraph, idSet: Set<string>) {
-  const withoutMerge = removeMatchingGraphNodes(graph, graph.mergeNodes, idSet, removeMergeNode);
-  const withoutColor = removeMatchingGraphNodes(withoutMerge, withoutMerge.colorNodes, idSet, removeColorNode);
-  const withoutRepeat = removeMatchingGraphNodes(withoutColor, withoutColor.repeatNodes, idSet, removeRepeatNode);
-  const withoutMaterial = removeMatchingGraphNodes(
-    withoutRepeat,
-    withoutRepeat.materialNodes,
-    idSet,
-    removeMaterialNode,
-  );
-  const withoutMask = removeMatchingGraphNodes(withoutMaterial, withoutMaterial.maskNodes, idSet, removeMaskNode);
-  const withoutTransform = removeMatchingGraphNodes(
-    withoutMask,
-    withoutMask.transformNodes,
-    idSet,
-    removeTransformNode,
-  );
-  const withoutGrimeShadow = removeMatchingGraphNodes(
-    withoutTransform,
-    withoutTransform.grimeShadowNodes,
-    idSet,
-    removeGrimeShadowNode,
-  );
-  const withoutScene3D = removeMatchingGraphNodes(
-    withoutGrimeShadow,
-    withoutGrimeShadow.scene3dNodes,
-    idSet,
-    removeScene3DNode,
-  );
-  const withoutEnvironment = removeMatchingGraphNodes(
-    withoutScene3D,
-    withoutScene3D.environmentNodes,
-    idSet,
-    removeEnvironmentNode,
-  );
-  return removeMatchingGraphNodes(withoutEnvironment, withoutEnvironment.shaderNodes, idSet, removeShaderNode);
+  let next = graph;
+  for (const id of idSet) {
+    if (findGraphNode(next, id)) next = removeGraphNode(next, id);
+  }
+  return next;
 }
 
 function removeDeletedLayerNodes(graph: CanvasGraph, layers: Layer[], idSet: Set<string>) {
@@ -793,14 +550,8 @@ export function deleteNodesFromDocument(doc: CanvasDocument, ids: string[]): Can
   const idSet = new Set(ids.filter((id) => canDeleteNodeFromDocument(doc, id)));
   if (idSet.size === 0) return doc;
   const nextLayers = doc.layers.filter((layer) => !idSet.has(layer.id));
-  let nextGraph = doc.graph;
-
-  if (nextGraph) {
-    nextGraph = removeDeletedGraphOnlyNodes(nextGraph, idSet);
-    nextGraph = removeDeletedLayerNodes(nextGraph, doc.layers, idSet);
-  }
-
-  return { ...doc, layers: nextLayers, graph: nextGraph };
+  const nextGraph = removeDeletedLayerNodes(removeDeletedGraphOnlyNodes(doc.graph, idSet), doc.layers, idSet);
+  return keepStackGraphInSync(doc, { ...doc, layers: nextLayers, graph: nextGraph });
 }
 
 export function updateLayerInDocument(doc: CanvasDocument, id: string, patch: Partial<Layer>): CanvasDocument {
@@ -847,118 +598,19 @@ export function replaceSelectedImageSourceInDocument(
   return updateLayerInDocument(doc, selectedLayerId, { src });
 }
 
-export function updateMergeNodeInDocument(
-  doc: CanvasDocument,
-  id: string,
-  patch: Partial<GraphMergeNode>,
-): CanvasDocument {
-  if (!doc.graph) return doc;
-  return {
-    ...doc,
-    graph: {
-      ...doc.graph,
-      mergeNodes: doc.graph.mergeNodes.map((node) => (node.id === id ? { ...node, ...patch } : node)),
-    },
-  };
-}
-
-export function updateColorNodeInDocument(
-  doc: CanvasDocument,
-  id: string,
-  patch: Partial<GraphColorNode>,
-): CanvasDocument {
-  if (!doc.graph) return doc;
-  return { ...doc, graph: updateColorNodeInGraph(doc.graph, id, patch) };
-}
-
-export function updateRepeatNodeInDocument(
-  doc: CanvasDocument,
-  id: string,
-  patch: Partial<GraphRepeatNode>,
-): CanvasDocument {
-  if (!doc.graph) return doc;
-  return { ...doc, graph: updateRepeatNodeInGraph(doc.graph, id, patch) };
-}
-
-export function updateMaterialNodeInDocument(
-  doc: CanvasDocument,
-  id: string,
-  patch: Partial<GraphMaterialNode>,
-): CanvasDocument {
-  if (!doc.graph) return doc;
-  return { ...doc, graph: updateMaterialNodeInGraph(doc.graph, id, patch) };
-}
-
-export function updateShaderNodeInDocument(
-  doc: CanvasDocument,
-  id: string,
-  patch: Partial<GraphShaderNode>,
-): CanvasDocument {
-  if (!doc.graph) return doc;
-  const graph = updateShaderNodeInGraph(doc.graph, id, patch);
-  if (patch.role !== 'fill') return { ...doc, graph };
-  return {
-    ...doc,
-    graph: {
-      ...graph,
-      edges: graph.edges.filter((edge) => edge.toId !== id || edge.toPort !== 'bg'),
-    },
-  };
-}
-
-export function updateMaskNodeInDocument(
-  doc: CanvasDocument,
-  id: string,
-  patch: Partial<GraphMaskNode>,
-): CanvasDocument {
-  if (!doc.graph) return doc;
-  return { ...doc, graph: updateMaskNodeInGraph(doc.graph, id, patch) };
-}
-
-export function updateTransformNodeInDocument(
-  doc: CanvasDocument,
-  id: string,
-  patch: Partial<GraphTransformNode>,
-): CanvasDocument {
-  if (!doc.graph) return doc;
-  return { ...doc, graph: updateTransformNodeInGraph(doc.graph, id, patch) };
-}
-
-export function updateGrimeShadowNodeInDocument(
-  doc: CanvasDocument,
-  id: string,
-  patch: Partial<GraphGrimeShadowNode>,
-): CanvasDocument {
-  if (!doc.graph) return doc;
-  return { ...doc, graph: updateGrimeShadowNodeInGraph(doc.graph, id, patch) };
-}
-
-export function updateScene3DNodeInDocument(
-  doc: CanvasDocument,
-  id: string,
-  patch: Partial<GraphScene3DNode>,
-): CanvasDocument {
-  if (!doc.graph) return doc;
-  return { ...doc, graph: updateScene3DNodeInGraph(doc.graph, id, patch) };
-}
-
-export function updateEnvironmentNodeInDocument(
-  doc: CanvasDocument,
-  id: string,
-  patch: Partial<GraphEnvironmentNode>,
-): CanvasDocument {
-  if (!doc.graph) return doc;
-  return { ...doc, graph: updateEnvironmentNodeInGraph(doc.graph, id, patch) };
+/** Patch a graph-only node, then apply its model's follow-up graph changes (for example a fill shader drops `bg`). */
+export function updateGraphNodeInDocument(doc: CanvasDocument, id: string, patch: GraphNodePatch): CanvasDocument {
+  const graph = updateGraphNode(doc.graph, id, patch);
+  const node = findGraphNode(graph, id);
+  const followUp = node ? modelOfNode(node).afterUpdate : undefined;
+  return { ...doc, graph: node && followUp ? followUp(graph, node, patch) : graph };
 }
 
 export function reorderDocumentLayers(doc: CanvasDocument, layers: Layer[]): CanvasDocument {
   if (!canReorderDocumentLayers(doc.layers, layers)) return doc;
   // Custom graphs define composition order through edges; a stack reorder would discard them.
   if (!isLayerStackGraph(doc)) return doc;
-  if (doc.graph) {
-    return { ...doc, layers, graph: syncGraphToLayerStackOrder(doc.graph, layers) };
-  }
-  return { ...doc, layers };
+  return { ...doc, layers, graph: syncGraphToLayerStackOrder(doc.graph, layers) };
 }
 
 export function reorderDocumentLayersAndRemoveFromGraphArea(
@@ -995,13 +647,12 @@ export function duplicateLayerInDocument(
   const nextLayers = [...doc.layers];
   nextLayers.splice(index + 1, 0, duplicate);
 
-  if (!doc.graph) return { doc: { ...doc, layers: nextLayers }, layer: duplicate };
   return {
-    doc: {
+    doc: keepStackGraphInSync(doc, {
       ...doc,
       layers: nextLayers,
       graph: addLayerToGraph(doc.graph, duplicate.id, nextDropPosition(doc.graph)),
-    },
+    }),
     layer: duplicate,
   };
 }
@@ -1012,10 +663,6 @@ export function setDocumentSeed(doc: CanvasDocument, seed: number): CanvasDocume
 
 export function setDocumentAspect(doc: CanvasDocument, aspect: AspectRatio): CanvasDocument {
   return { ...doc, global: { ...doc.global, aspect } };
-}
-
-export function updateGlobalInDocument(doc: CanvasDocument, patch: Partial<CanvasDocument['global']>): CanvasDocument {
-  return { ...doc, global: { ...doc.global, ...patch } };
 }
 
 export function setDocumentGraph(doc: CanvasDocument, graph: CanvasGraph): CanvasDocument {

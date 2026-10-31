@@ -222,8 +222,7 @@ test('refines an accepted AI shader only after browser validation', async ({ pag
     .poll(() =>
       page.evaluate(() => {
         const documentState = JSON.parse(localStorage.getItem('doc') ?? '{}');
-        return documentState.graph?.shaderNodes?.find((node: { id: string }) => node.id === 'refine-shader')
-          ?.shaderInstance?.definition?.provenance;
+        return documentState.graph?.nodes?.['refine-shader']?.shaderInstance?.definition?.provenance;
       }),
     )
     .toMatchObject({ attempt: 'refine', parentRequestId: 'accepted-request-1', requestId: 'refined-request-1' });
