@@ -1,5 +1,5 @@
 import vuLogo from '../assets/Vantaa Underground Logo.png';
-import { LogoGlyph } from './LogoGlyph';
+import { CatalogueTag, LogoGlyph } from './LogoGlyph';
 
 export function Footer() {
   return (
@@ -7,6 +7,7 @@ export function Footer() {
       <div className="product-footer__brand" aria-label="Artifact">
         <LogoGlyph />
         <span>Artifact</span>
+        <CatalogueTag />
       </div>
       <nav className="product-footer__links" aria-label="Project links">
         <a

@@ -97,61 +97,19 @@ body {
 .artifact-logo-glyph {
   flex-shrink: 0;
   display: block;
-  color: var(--brand-mark-frame);
 }
 
-.artifact-logo-glyph__field {
-  fill: var(--brand-mark-field);
+.artifact-logo-glyph__disc {
+  fill: var(--brand-mark-signal);
 }
 
-.artifact-logo-glyph__frame {
-  fill: none;
-  stroke: var(--brand-mark-frame);
-  stroke-width: 1.6;
-  vector-effect: non-scaling-stroke;
-}
-
-.artifact-logo-glyph__frame--soft {
-  opacity: 0.56;
-}
-
-.artifact-logo-glyph__signal {
-  fill: none;
-  stroke: var(--brand-mark-signal);
-  stroke-linecap: square;
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
-}
-
-.artifact-logo-glyph__signal--vertical {
-  opacity: 0.52;
-}
-
-.artifact-logo-glyph__node {
-  fill: var(--brand-mark-field);
-  stroke: var(--brand-mark-node);
-  stroke-width: 2.2;
-  vector-effect: non-scaling-stroke;
-}
-
-.artifact-logo-glyph__path {
-  fill: none;
-  stroke: var(--brand-mark-signal);
-  stroke-linecap: square;
-  stroke-width: 2.2;
-  vector-effect: non-scaling-stroke;
-}
-
-.artifact-logo-glyph__path--quiet {
-  opacity: 0.44;
-}
-
-.artifact-logo-glyph__crop {
-  fill: none;
-  stroke: var(--brand-mark-signal);
-  stroke-linecap: square;
-  stroke-width: 1.4;
-  vector-effect: non-scaling-stroke;
+.artifact-catalogue-tag {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-ui-sm);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .site-nav--solid {
