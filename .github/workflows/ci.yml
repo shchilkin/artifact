@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -39,7 +39,7 @@ jobs:
   # Playwright image tag in this file). Uses the image's own Node so local
   # `npm run test:golden` runs match.
   render-golden:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.60.0-noble
 
@@ -65,7 +65,7 @@ jobs:
           retention-days: 7
 
   fallow:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -94,7 +94,7 @@ jobs:
         run: npm run --silent fallow:audit -- --base origin/${{ github.base_ref }} || true
 
   release-metadata:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -146,7 +146,7 @@ jobs:
         run: npm run release:verify -- --skip-tag-check
 
   browser-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       should_run: ${{ steps.browser_files.outputs.should_run }}
 
@@ -184,7 +184,7 @@ jobs:
   browser:
     needs: browser-changes
     if: needs.browser-changes.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: browser (${{ matrix.project }})
     strategy:
       fail-fast: false
@@ -230,7 +230,7 @@ jobs:
   browser-result:
     needs: [browser-changes, browser]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: browser
 
     steps:
@@ -249,7 +249,7 @@ jobs:
   route-loading:
     needs: browser-changes
     if: needs.browser-changes.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: route loading
     container:
       image: mcr.microsoft.com/playwright:v1.60.0-noble
@@ -284,7 +284,7 @@ jobs:
   editor-ux:
     needs: browser-changes
     if: needs.browser-changes.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: editor ux
     container:
       image: mcr.microsoft.com/playwright:v1.60.0-noble
@@ -322,7 +322,7 @@ jobs:
   browser-backoffice:
     needs: browser-changes
     if: needs.browser-changes.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: browser (backoffice)
     container:
       image: mcr.microsoft.com/playwright:v1.60.0-noble
@@ -356,7 +356,7 @@ jobs:
           retention-days: 7
 
   container-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       should_run: ${{ steps.container_files.outputs.should_run }}
 
@@ -398,7 +398,7 @@ jobs:
     name: container gate
     needs: [quality, render-golden, browser-changes, browser, browser-backoffice, route-loading, container-changes]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       should_build: ${{ steps.gate.outputs.should_build }}
 
@@ -465,7 +465,7 @@ jobs:
     name: container (${{ matrix.name }})
     needs: container-gate
     if: needs.container-gate.outputs.should_build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false
