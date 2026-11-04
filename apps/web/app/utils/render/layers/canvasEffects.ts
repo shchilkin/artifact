@@ -439,4 +439,24 @@ export async function applyCanvas2DEffects(
   });
   applySpeedLinesEffect(ctx, W, H, params, seed, scale);
   applyShadowEffect(ctx, W, H, params, seed);
+  await applySingleImageDataTransform(ctx, W, H, params.tornPaper > 0, {
+    type: 'tornPaper',
+    mode: params.tornMode === 'split' ? 'split' : 'reveal',
+    keep: params.tornKeep === 'bottom' ? 'bottom' : 'top',
+    roughness: params.tornPaper,
+    position: params.tornPosition,
+    angle: params.tornAngle,
+    wander: params.tornWander,
+    rim: params.tornEdge,
+    fibres: params.tornFibres,
+    shadow: params.tornShadow,
+    lift: params.tornLift,
+    gap: params.tornGap,
+    turn: params.tornTurn,
+    paperColor: params.tornPaperColor,
+    below: params.tornBelow === 'solid' || params.tornBelow === 'clear' ? params.tornBelow : 'paper',
+    belowColor: params.tornBelowColor,
+    unit: scale,
+    seed: seed ^ 0x70a9e1,
+  });
 }
