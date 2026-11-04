@@ -591,6 +591,13 @@ export const EFFECT_META: Record<string, EffectMeta> = {
     goodFor: 'photo outlines, noisy contours, rough photocopy detail',
     cfgOverride: { edgeDetect: 60 },
   },
+  tornPaper: {
+    title: 'Torn Paper',
+    description: 'Tears the image like a printed sheet, with white paper core, fibres, and a lifted shadow.',
+    valueLabel: 'roughness 60%',
+    goodFor: 'collage covers, ripped posters, revealing a second image under a torn sheet',
+    cfgOverride: { tornPaper: 60 },
+  },
   gradientOverlay: {
     title: 'Gradient Overlay',
     description: 'Covers the source with a directional two-color ramp while preserving the source alpha.',

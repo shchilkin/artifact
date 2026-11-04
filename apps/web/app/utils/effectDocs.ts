@@ -47,6 +47,21 @@ interface EffectDocCopy {
 
 const EFFECT_DOC_COPY: Record<EffectPreset, EffectDocCopy> = {
   shadow: { description: 'A soft drop shadow under the visible shapes of the input.' },
+  tornPaper: {
+    description:
+      'Tears the input like a printed sheet: an uneven tear line, exposed white paper core, loose fibres, and a lifted shadow.',
+    notes: {
+      tornPaper: 'how jagged the tear is',
+      tornMode: 'keep one piece, or both pieces pulled apart',
+      tornPosition: 'where the tear crosses the frame',
+      tornWander: 'large slow curve of the tear',
+      tornEdge: 'average width of exposed paper',
+      tornFibres: 'loose fibres past the edge',
+      tornLift: 'how far the piece lifts off what is below',
+      tornGap: 'distance between split pieces at their closest end',
+      tornTurn: 'how far the second piece turns',
+    },
+  },
   grimeShadow: { description: 'Stacked, dirty shadow layers built from the visible alpha.' },
   adjust: { description: 'Brightness, contrast, saturation, temperature, hue, and invert in one grade.' },
   sharpen: { description: 'Crisps edges by pushing each pixel away from its neighbours.' },

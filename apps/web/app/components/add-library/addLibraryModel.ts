@@ -113,6 +113,7 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
   vignette: 'frame falloff focus image',
   halftone: 'print dots poster damage',
   tear: 'rip paper damage glitch',
+  tornPaper: 'torn paper ripped rip tear edge collage paper fibres deckle reveal poster',
   threshold: 'black white damage print cutoff',
   edgeCrush: 'alpha crush hard alpha antialias transparent edge jagged sprite',
   silhouetteCrush: 'silhouette crush edge crush jagged sprite pixel cutout alpha mask',
@@ -138,6 +139,7 @@ const EFFECT_KEYWORDS: Partial<Record<EffectPreset, string>> = {
 
 const EFFECT_DESCRIPTIONS: Record<EffectPreset, string> = {
   shadow: 'A soft drop shadow under the visible shapes.',
+  tornPaper: 'Tears the image like paper, with a white fibrous edge and shadow.',
   grimeShadow: 'Layered dirty shadow built from the visible alpha.',
   adjust: 'Brightness, contrast, saturation, temperature, hue, and invert in one grade.',
   sharpen: 'Crisps edges and fine detail.',
@@ -242,6 +244,7 @@ const EFFECT_TAGS: Partial<Record<EffectPreset, readonly string[]>> = {
   vortex: ['warp', 'spin'],
   barrel: ['warp', 'lens'],
   tear: ['warp', 'damage'],
+  tornPaper: ['texture', 'paper'],
   mirror: ['warp', 'repeat'],
   wave: ['warp', 'motion'],
   zoomBlur: ['warp', 'motion'],
@@ -517,6 +520,10 @@ const EFFECT_ITEMS: Record<
   halftone: { group: 'texture', summary: 'Print screens of dots, hatch lines, or tone-aware stipple.' },
   scanlines: { group: 'texture', summary: 'CRT-style horizontal bands for monitor and video texture.' },
   edges: { group: 'texture', summary: 'Embossed relief or bold traced outlines.' },
+  tornPaper: {
+    group: 'texture',
+    summary: 'Tears the image like a printed sheet, with a white fibrous edge and a lifted shadow.',
+  },
   risoShift: { group: 'print', summary: 'Ink misregistration for risograph-style color drift.' },
   overprint: { group: 'print', summary: 'Offset cyan, magenta, and yellow plates multiplied over the image.' },
   channelSplit: { group: 'signal', summary: 'Red and blue channels pulled apart diagonally or toward the edges.' },

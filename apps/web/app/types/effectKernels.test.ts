@@ -33,6 +33,16 @@ vi.mock('../utils/render/workers/effectPixelTransformClient', async () => {
   };
 });
 
+vi.mock('../utils/render/workers/tornPaperClient', async () => {
+  const { runTornPaper } = await import('../utils/render/workers/effectPixelTornPaper');
+  return {
+    renderTornPaper: async (request: Parameters<typeof runTornPaper>[0]) => {
+      workerOps.push('tornPaper');
+      return runTornPaper({ ...request, data: new Uint8ClampedArray(request.data) });
+    },
+  };
+});
+
 const W = 48;
 const H = 48;
 

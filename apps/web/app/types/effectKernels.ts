@@ -98,6 +98,7 @@ export const KERNELS = {
   fog: { backend: 'worker', amounts: ['fog'], family: 'light' },
   speedLines: { backend: 'canvas', amounts: ['speedLines'], family: 'light' },
   shadow: { backend: 'canvas', amounts: ['shadowOpacity'], family: 'light' },
+  tornPaper: { backend: 'worker', amounts: ['tornPaper'], family: 'texture' },
 } as const satisfies Record<string, KernelDefinition>;
 
 export type KernelId = keyof typeof KERNELS;
@@ -315,6 +316,31 @@ export const KERNEL_PARAMS = {
     { value: 'flat', label: 'Flat' },
   ]),
   shadowVariation: num('shadow', 'Variation', 0, 0, 4294967295),
+  tornPaper: num('tornPaper', 'Roughness', 0, 0, 100, { format: 'percent' }),
+  tornMode: choice('tornPaper', 'Tear', [
+    { value: 'reveal', label: 'Reveal' },
+    { value: 'split', label: 'Split' },
+  ]),
+  tornKeep: choice('tornPaper', 'Keep', [
+    { value: 'top', label: 'Top piece' },
+    { value: 'bottom', label: 'Bottom piece' },
+  ]),
+  tornPosition: num('tornPaper', 'Position', 64, 0, 100, { format: 'percent' }),
+  tornAngle: num('tornPaper', 'Angle', -3, -90, 90, { format: 'deg' }),
+  tornWander: num('tornPaper', 'Wander', 50, 0, 100, { format: 'percent' }),
+  tornEdge: num('tornPaper', 'Paper Edge', 7, 0, 30, { overrideMax: 60, format: 'px' }),
+  tornFibres: num('tornPaper', 'Fibres', 40, 0, 100, { format: 'percent' }),
+  tornShadow: num('tornPaper', 'Shadow', 50, 0, 100, { format: 'percent' }),
+  tornLift: num('tornPaper', 'Lift', 4, 0, 16, { format: 'px' }),
+  tornGap: num('tornPaper', 'Gap', 11, 0, 60, { overrideMax: 200, format: 'px' }),
+  tornTurn: num('tornPaper', 'Turn', 2, -10, 10, { format: 'deg' }),
+  tornPaperColor: color('tornPaper', 'Paper', '#f6f2e9'),
+  tornBelow: choice('tornPaper', 'Below', [
+    { value: 'paper', label: 'Paper' },
+    { value: 'solid', label: 'Solid color' },
+    { value: 'clear', label: 'Transparent' },
+  ]),
+  tornBelowColor: color('tornPaper', 'Below Color', '#e4ded2'),
 } satisfies Record<string, KernelParam>;
 
 export type KernelParamKey = keyof typeof KERNEL_PARAMS;
@@ -461,6 +487,7 @@ export const KERNEL_PASS_ORDER: readonly KernelId[] = [
   'gooeyMerge',
   'speedLines',
   'shadow',
+  'tornPaper',
   'mirror',
   'dataMosh',
   'interlace',

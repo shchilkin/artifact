@@ -306,6 +306,47 @@ function applySpeedLinesEffect(
   ctx.restore();
 }
 
+/** Loads the torn paper kernel on first use, so it is not part of the startup bundle. */
+async function applyTornPaperEffect(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  params: KernelParamValues,
+  seed: number,
+  scale: number,
+) {
+  if (params.tornPaper <= 0) return;
+  const { renderTornPaper } = await import('../workers/tornPaperClient');
+  const imageData = ctx.getImageData(0, 0, W, H);
+  const result = await renderTornPaper({
+    width: W,
+    height: H,
+    data: imageData.data,
+    settings: {
+      mode: params.tornMode === 'split' ? 'split' : 'reveal',
+      keep: params.tornKeep === 'bottom' ? 'bottom' : 'top',
+      roughness: params.tornPaper,
+      position: params.tornPosition,
+      angle: params.tornAngle,
+      wander: params.tornWander,
+      rim: params.tornEdge,
+      fibres: params.tornFibres,
+      shadow: params.tornShadow,
+      lift: params.tornLift,
+      gap: params.tornGap,
+      turn: params.tornTurn,
+      paperColor: params.tornPaperColor,
+      below: params.tornBelow === 'solid' || params.tornBelow === 'clear' ? params.tornBelow : 'paper',
+      belowColor: params.tornBelowColor,
+      unit: scale,
+      seed: seed ^ 0x70a9e1,
+    },
+  });
+  const output = ctx.createImageData(result.width, result.height);
+  output.data.set(result.data);
+  ctx.putImageData(output, 0, 0);
+}
+
 export async function applyCanvas2DEffects(
   ctx: CanvasRenderingContext2D,
   W: number,
@@ -439,4 +480,5 @@ export async function applyCanvas2DEffects(
   });
   applySpeedLinesEffect(ctx, W, H, params, seed, scale);
   applyShadowEffect(ctx, W, H, params, seed);
+  await applyTornPaperEffect(ctx, W, H, params, seed, scale);
 }

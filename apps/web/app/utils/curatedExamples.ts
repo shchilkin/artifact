@@ -634,4 +634,27 @@ export const CURATED_EXAMPLES: CuratedExample[] = [
       fx('bloom', 'burn', { bloom: 30 }),
     ]),
   },
+  {
+    id: 'torn-sheet',
+    name: 'Torn Sheet',
+    category: 'Effect stack',
+    summary: 'A printed red sheet with display type is torn away to show the paper underneath.',
+    usedNodes: ['Fill', 'Noise', 'Text', 'Torn Paper', 'Grain'],
+    startCopy: 'Open this to move the tear, switch it to Split, or put a second image below it.',
+    doc: mkDoc(91301, '#b3202a', '1:1', [
+      makeFillLayer({ id: 'torn-sheet-plate', name: 'red print', color: '#b3202a' }),
+      noise('paper', 'torn-sheet-texture', 'ink texture', { opacity: 22 }),
+      makeTextLayer({
+        id: 'torn-sheet-title',
+        name: 'title',
+        content: 'TORN\nSHEET',
+        font: 'DISPLAY',
+        size: 132,
+        color: '#140806',
+        y: 0.36,
+      }),
+      fx('tornPaper', 'torn paper', { id: 'torn-sheet-tear', tornPaper: 60, tornPosition: 66, tornAngle: -4 }),
+      fx('grain', 'paper grain', { id: 'torn-sheet-grain', grain: 10 }),
+    ]),
+  },
 ];

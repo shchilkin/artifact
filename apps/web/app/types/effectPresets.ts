@@ -15,6 +15,7 @@ import { genId } from './layerIds';
 
 export type EffectPreset =
   | 'shadow'
+  | 'tornPaper'
   | 'grimeShadow'
   | 'adjust'
   | 'sharpen'
@@ -161,6 +162,12 @@ export interface EffectPresetMeta {
 }
 
 export const EFFECT_PRESETS: Record<EffectPreset, EffectPresetMeta> = {
+  tornPaper: {
+    name: 'Torn Paper',
+    icon: '⌇',
+    primary: 'tornPaper',
+    partial: { tornPaper: 60 },
+  },
   rays: {
     name: 'Rays',
     icon: '✶',
@@ -704,6 +711,7 @@ export const EFFECT_PRESET_MENU_ORDER: EffectPreset[] = [
   'vortex',
   'barrel',
   'tear',
+  'tornPaper',
   'mirror',
   'wave',
   'zoomBlur',
