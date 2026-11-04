@@ -470,3 +470,20 @@ export function applyTornPaper(source: Uint8ClampedArray, width: number, height:
   }
   return result;
 }
+
+export interface TornPaperRequest {
+  width: number;
+  height: number;
+  data: Uint8ClampedArray;
+  settings: TornPaperSettings;
+}
+
+export interface TornPaperResult {
+  width: number;
+  height: number;
+  data: Uint8ClampedArray;
+}
+
+export function runTornPaper({ width, height, data, settings }: TornPaperRequest): TornPaperResult {
+  return { width, height, data: applyTornPaper(data, width, height, settings) };
+}

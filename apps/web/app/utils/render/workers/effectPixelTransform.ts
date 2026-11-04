@@ -24,7 +24,6 @@ import {
   applyVhsTracking,
   applyWave,
 } from './effectPixelSpatial';
-import { applyTornPaper } from './effectPixelTornPaper';
 import type { EffectPixelTransformRequest, EffectPixelTransformResult } from './effectPixelTypes';
 
 export type * from './effectPixelTypes';
@@ -80,8 +79,6 @@ export function transformEffectPixels({
       current = applyKaleidoscope(current, width, height, operation.amount);
     } else if (operation.type === 'squeeze') {
       current = applySqueeze(current, width, height, operation.x, operation.y);
-    } else if (operation.type === 'tornPaper') {
-      current = applyTornPaper(current, width, height, operation);
     } else {
       applyFog(current, operation.amount, operation.color);
     }

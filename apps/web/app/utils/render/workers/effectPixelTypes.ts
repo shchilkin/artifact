@@ -1,5 +1,3 @@
-import type { TornPaperSettings } from './effectPixelTornPaper';
-
 export type EffectPixelTransformOp =
   | { type: 'rgbSplit'; amount: number }
   | { type: 'colorPass'; sepia: number; infrared: number; ca: number; dither: number }
@@ -22,7 +20,6 @@ export type EffectPixelTransformOp =
   | { type: 'ripple'; amount: number; frequency: number; scale: number }
   | { type: 'kaleidoscope'; amount: number }
   | { type: 'squeeze'; x: number; y: number }
-  | ({ type: 'tornPaper' } & TornPaperSettings)
   | { type: 'fog'; amount: number; color: string };
 
 export type EffectPixelTransformRequest = {
