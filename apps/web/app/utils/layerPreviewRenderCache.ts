@@ -2,6 +2,7 @@ import type { CanvasDocument, ImageLayer, Layer } from '../types/config';
 import { hashString } from './hashString';
 import { EXPORT_NODE_ID } from './nodeGraph';
 import type { RenderOptions } from './render/layers';
+import { getRenderAssetEpoch } from './renderAssetEpoch';
 import type { GraphRenderCache } from './renderer';
 import { layerRenderSig, viewStateRenderSig } from './renderSignature';
 
@@ -52,7 +53,7 @@ export function createLayerPreviewRenderCache(
   entryKeys.set(EXPORT_NODE_ID, `export:${hashString(`${prefixSig}|bg:${doc.global.bg}`)}`);
 
   return {
-    namespace: `layer-preview:${renderModeSig}`,
+    namespace: `layer-preview:${renderModeSig}|assets:${getRenderAssetEpoch()}`,
     entries,
     entryKey: (nodeId) => entryKeys.get(nodeId) ?? null,
     limit: config.limit ?? LAYER_PREVIEW_GRAPH_CACHE_LIMIT,

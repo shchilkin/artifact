@@ -7,7 +7,6 @@ import type {
 } from '../types/config';
 import { DOCUMENT_SCHEMA_VERSION, isObject3DLayer } from '../types/config';
 import { getBundledFontRegistryItem, isBundledFontName } from '../types/typography';
-import { isAssetUri } from './assetStore';
 import {
   inspectDocumentDependencies,
   type PreparePortableDocumentOptions,
@@ -123,12 +122,6 @@ function isProjectPackageManifest(value: unknown): value is ProjectPackageManife
 
 function unique(values: string[]) {
   return Array.from(new Set(values));
-}
-
-function imageSources(doc: CanvasDocument) {
-  return doc.layers.flatMap((layer) =>
-    layer.kind === 'image' ? [layer.src, ...(layer.aiGenerationHistory?.map((variant) => variant.src) ?? [])] : [],
-  );
 }
 
 interface BinaryAssetSourceMetadata {
@@ -403,7 +396,6 @@ export function buildArtifactProjectPackageManifest(
 ): ProjectPackageManifest {
   const sourceInventory = inspectDocumentDependencies(sourceDoc);
   const packageInventory = inspectDocumentDependencies(packageDoc);
-  const packagedImageSources = imageSources(packageDoc);
 
   return {
     kind: ARTIFACT_PROJECT_PACKAGE_KIND,
@@ -417,7 +409,7 @@ export function buildArtifactProjectPackageManifest(
     images: {
       importedRefs: sourceInventory.importedImageRefs,
       embeddedPayloads: packageInventory.portableImagePayloads.length,
-      remainingLocalRefs: packagedImageSources.filter(isAssetUri),
+      remainingLocalRefs: packageInventory.importedImageRefs,
     },
     models: buildBinaryAssetInventory(
       sourceInventory.importedModelRefs,

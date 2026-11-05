@@ -156,7 +156,10 @@ reused across edits. A node without a stable key (unknown kind or a cycle) is
 cached for one render only. The namespace also carries a render-asset epoch
 (`apps/web/app/utils/renderAssetEpoch.ts`) that advances whenever a render falls
 back for a missing image, environment, or model asset or a font that did not
-load, so a fallback frame is not reused once the asset may be available.
+load, so a fallback frame is not reused once the asset may be available. The
+live layer-preview cache (`apps/web/app/utils/layerPreviewRenderCache.ts`),
+project thumbnails (`apps/web/app/utils/generateThumbnail.ts`), and gallery
+previews carry the same epoch in their keys.
 Entries are pruned least recently used first.
 Gallery previews and generated preset/example thumbnails use the same optional
 cache boundary so repeated graph branches are not recomputed while browsing or
