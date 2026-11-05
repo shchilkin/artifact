@@ -24,6 +24,7 @@ import {
 } from './documentPackage';
 import { fontUriFromId } from './fontStore';
 import { EXPORT_NODE_ID, graphNodesById } from './nodeGraph';
+import { makeGraphMaterialNode } from './nodeKinds';
 
 describe('documentPackage', () => {
   const imageRef = 'artifact-asset://image-a';
@@ -390,5 +391,22 @@ describe('documentPackage', () => {
 
     expect(isArtifactProjectPackageFile(file)).toBe(true);
     expect(createArtifactProjectPackageFileName(doc())).toMatch(/^artifact-project-[a-z0-9]+\.artifact$/);
+  });
+
+  it('reports material texture refs left in the package as remaining local refs', () => {
+    const materialRef = 'artifact-asset://material-albedo';
+    const packageDoc = doc({
+      layers: [makeImageLayer(imageRef, { id: 'image-a' })],
+      graph: {
+        edges: [],
+        positions: {},
+        nodes: graphNodesById(makeGraphMaterialNode({ id: 'material-a', materialAlbedoSrc: materialRef })),
+      },
+    });
+
+    const manifest = buildArtifactProjectPackageManifest(packageDoc, packageDoc);
+
+    expect(manifest.images.remainingLocalRefs).toEqual(inspectDocumentDependencies(packageDoc).importedImageRefs);
+    expect(manifest.images.remainingLocalRefs).toEqual([imageRef, materialRef]);
   });
 });

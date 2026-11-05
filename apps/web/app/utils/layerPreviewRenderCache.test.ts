@@ -9,6 +9,7 @@ import {
 } from '../types/config';
 import { createLayerPreviewRenderCache } from './layerPreviewRenderCache';
 import { EXPORT_NODE_ID } from './nodeGraph';
+import { markRenderAssetFallback } from './renderAssetEpoch';
 
 function makeDoc(layers: CanvasDocument['layers']): CanvasDocument {
   return makeDocument({
@@ -69,5 +70,15 @@ describe('createLayerPreviewRenderCache', () => {
     );
 
     expect(missing.entryKey?.('cover')).not.toBe(loaded.entryKey?.('cover'));
+  });
+
+  it('does not reuse frames across a render-asset fallback', () => {
+    const doc = makeDoc([makeFillLayer({ id: 'base-fill' })]);
+    const config = { width: 540, height: 540, renderOptions: { draft: false, skipEffects: false } };
+    const before = createLayerPreviewRenderCache(doc, new Map(), new Map(), config);
+    markRenderAssetFallback();
+    const after = createLayerPreviewRenderCache(doc, new Map(), new Map(), config);
+
+    expect(after.namespace).not.toBe(before.namespace);
   });
 });

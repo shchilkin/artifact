@@ -1,5 +1,6 @@
 import { ASPECT_SIZES, type CanvasDocument } from '../types/config';
 import { hashString } from './hashString';
+import { getRenderAssetEpoch } from './renderAssetEpoch';
 import { type GraphRenderCache, renderDocument } from './renderer';
 
 export const PROJECT_THUMBNAIL_MIN_EDGE = 1080;
@@ -54,6 +55,7 @@ function thumbnailCacheKey(
       H: dimensions.height,
       doc,
       images: imageCacheSignature(doc, imageCache),
+      assets: getRenderAssetEpoch(),
     }),
   );
 }

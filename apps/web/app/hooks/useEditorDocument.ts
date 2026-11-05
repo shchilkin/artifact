@@ -48,6 +48,7 @@ import {
   normalizeDocument,
   removeDocParamFromUrl,
   saveDocumentToStorage,
+  startsBlankDocument,
   takePendingPreBlankDraft,
 } from '../utils/documentPersistence';
 import type { LayerAddPlacement, TreeEditResult } from '../utils/graphTreeEdits';
@@ -79,11 +80,7 @@ export function useEditorDocument(nodeModeEnabled: boolean) {
   const [fromDocParam] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('doc'),
   );
-  const [fromBlankParam] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const params = new URLSearchParams(window.location.search);
-    return ['blank', '1'].includes(params.get('new') ?? '') || params.get('blank') === '1';
-  });
+  const [fromBlankParam] = useState(() => typeof window !== 'undefined' && startsBlankDocument(window.location.search));
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
 
   const safeSelectedLayerId =

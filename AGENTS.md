@@ -83,11 +83,13 @@ The release gate is the command list in `docs/production-readiness.md`
   stores the linear graph of its layers (`isLayerStackGraph`), and Layers edits
   keep it in sync. Renderer internals live under `apps/web/app/utils/render/`.
 - Effect layers run a Canvas 2D / worker pass, then an optional PixiJS filter
-  pass. Effect parameters are declared once in `apps/web/app/types/effectSchema.ts`
-  (`EFFECT_PARAMS`, `EFFECTS`): defaults, inspector controls, backend, and docs
-  ranges are derived from it. Each effect has exactly one
-  backend (`canvas`, `worker`, or `gpu`); `effectSchema.test.ts` renders every
-  effect to enforce this. See `docs/effect-development.md`.
+  pass. Kernels and their parameters are declared once in
+  `apps/web/app/types/effectKernels.ts` (`KERNELS`, `KERNEL_PARAMS`,
+  `KERNEL_PASS_ORDER`); the user-facing effects that run them are the `EFFECTS`
+  catalog in `apps/web/app/types/effectSchema.ts`. Defaults, inspector
+  controls, backend, and docs ranges are derived from them. Each kernel has
+  exactly one backend (`canvas`, `worker`, or `gpu`); `effectKernels.test.ts`
+  renders every kernel to enforce this. See `docs/effect-development.md`.
 - Document state lives in `apps/web/app/hooks/useEditorDocument.ts`. Every
   durable edit is a named command in `apps/web/app/utils/documentDispatch.ts`
   that declares its history policy (`snapshot`, `debounce`, or `silent`);

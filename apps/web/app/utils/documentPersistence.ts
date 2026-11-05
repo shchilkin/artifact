@@ -420,13 +420,19 @@ export interface InitialDocumentState {
   linkStatus: DocumentLinkStatus;
 }
 
+/** True when the URL asks the editor to open a new blank document (`?new=blank` or `?blank=1`). */
+export function startsBlankDocument(search: string): boolean {
+  const params = new URLSearchParams(search);
+  return params.get('new') === 'blank' || params.get('blank') === '1';
+}
+
 /** Picks the opening document and reports how it relates to a `?doc` link, parsing each source once. */
 export function resolveInitialDocumentFromSources({
   search = '',
   storageValue = null,
 }: InitialDocumentSources): InitialDocumentState {
   const params = new URLSearchParams(search);
-  if (params.get('new') === 'blank' || params.get('blank') === '1') {
+  if (startsBlankDocument(search)) {
     return { doc: createBlankDocument(), linkStatus: { kind: 'none' } };
   }
 
@@ -459,9 +465,7 @@ export function getInitialDocumentState(): InitialDocumentState {
   const storageValue = readStoredDocumentValue();
 
   const search = typeof window === 'undefined' ? '' : window.location.search;
-  const params = new URLSearchParams(search);
-  const startsBlank = params.get('new') === 'blank' || params.get('blank') === '1';
-  if (startsBlank) {
+  if (startsBlankDocument(search)) {
     const storedDoc = parseArtifactDocument(storageValue);
     if (storedDoc && !isBlankDocument(storedDoc)) {
       pendingPreBlankDraft = {

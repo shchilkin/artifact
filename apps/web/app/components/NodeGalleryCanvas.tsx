@@ -5,6 +5,7 @@ import { ASPECT_SIZES } from '../types/config';
 import { imageCacheSignature } from '../utils/imageCacheSignature';
 import { collectUpstreamNodeIds, EXPORT_NODE_ID } from '../utils/nodeGraph';
 import { preloadImageSources } from '../utils/preloadImageSources';
+import { getRenderAssetEpoch } from '../utils/renderAssetEpoch';
 import { type GraphRenderCache, renderDocument, renderGraphTarget } from '../utils/renderer';
 import { CanvasHandles } from './CanvasHandles';
 import { defaultMediaViewState, type MediaViewState } from './NodeGalleryViewState';
@@ -57,6 +58,15 @@ function galleryRenderSessionKey(
   ].join('::');
 }
 
+/** The asset epoch is read per render, so a frame drawn with a fallback asset is not reused once it may have loaded. */
+export function galleryGraphRenderCacheFor(renderSessionKey: string): GraphRenderCache {
+  return {
+    namespace: `${renderSessionKey}::assets:${getRenderAssetEpoch()}`,
+    entries: galleryGraphRenderCache,
+    limit: GALLERY_GRAPH_RENDER_CACHE_LIMIT,
+  };
+}
+
 function upstreamGalleryNodeIds(doc: CanvasDocument, graph: CanvasGraph, previewTargetId: string) {
   return previewTargetId === EXPORT_NODE_ID
     ? new Set(doc.layers.map((item) => item.id))
@@ -96,11 +106,7 @@ async function renderGalleryCanvas({
   const missingImageSrcs = missingGalleryImageSources(doc, upstream, effectiveImageCache);
   await preloadImageSources(missingImageSrcs, imageCache, effectiveImageCache);
 
-  const graphRenderSessionCache: GraphRenderCache = {
-    namespace: renderSessionKey,
-    entries: galleryGraphRenderCache,
-    limit: GALLERY_GRAPH_RENDER_CACHE_LIMIT,
-  };
+  const graphRenderSessionCache = galleryGraphRenderCacheFor(renderSessionKey);
   const graphDoc = { ...doc, graph };
   return previewTargetId === EXPORT_NODE_ID
     ? renderDocument(

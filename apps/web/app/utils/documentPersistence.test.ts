@@ -27,6 +27,7 @@ import {
   saveDocumentToStorage,
   serializeArtifactDocument,
   serializeDocument,
+  startsBlankDocument,
 } from './documentPersistence';
 import { EXPORT_NODE_ID, graphNodesById, graphNodesOfKind } from './nodeGraph';
 import {
@@ -1200,5 +1201,15 @@ describe('document serialization helpers', () => {
     const filename = createArtifactFileName(doc, new Date('2026-05-12T10:20:30.000Z'));
 
     expect(filename).toBe(`artifact-30-2026-05-12${ARTIFACT_FILE_EXTENSION}`);
+  });
+});
+
+describe('startsBlankDocument', () => {
+  it('accepts the blank start params and nothing else', () => {
+    expect(startsBlankDocument('?new=blank')).toBe(true);
+    expect(startsBlankDocument('?blank=1')).toBe(true);
+    expect(startsBlankDocument('?new=1')).toBe(false);
+    expect(startsBlankDocument('?doc=x')).toBe(false);
+    expect(startsBlankDocument('')).toBe(false);
   });
 });
